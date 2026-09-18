@@ -626,48 +626,81 @@ describe('booking page wiring', () => {
       const html = read(page);
       assert.match(html, /assets\/seasonal-driveway-addon\.js/);
       assert.match(html, /id:'seasonal_driveway_cleanup'/);
-      assert.match(html, /CD1SeasonalDriveway\.isFamilyId/);
+      assert.match(html, /CD1SeasonalDriveway\.isChildId/);
+      assert.match(html, /CD1SeasonalDriveway\.popularIdsFor/);
       assert.match(html, /CD1SeasonalDriveway\.mountAddonGrid/);
       assert.match(html, /CD1SeasonalDriveway\.syncSeasonalOntoCart/);
       assert.match(html, /Driveway & Entry Cleanup/);
       assert.match(html, /Pressure Wash Upgrade/);
       assert.doesNotMatch(html, /haul away/i);
       assert.match(html, /Weather and site conditions permitting/);
+      assert.doesNotMatch(html, /onsite-conv-h">Seasonal Cleanup/);
+      assert.match(html, /CD1SeasonalDriveway\.onCardClick/);
+      assert.match(html, /Light leaves and loose debris cleared on-site/);
+      assert.doesNotMatch(html, /class="onsite-conv"/);
     });
   }
 });
 
+describe('Popular Add-ons merchandising', () => {
+  it('cars popular set is Rain-X, Driveway, Polymer, Pet Hair — max 4 existing SKUs', () => {
+    assert.equal(Seasonal.POPULAR_LIMIT, 4);
+    assert.deepEqual(Seasonal.popularIdsFor('cars'), [
+      'rainx', PARENT, 'polymer', 'pethair',
+    ]);
+    const eligible = PRICING.cars.addons.filter((a) => !Seasonal.isChildId(a.id));
+    const popular = Seasonal.pickPopularAddons(eligible, 'cars');
+    assert.equal(popular.length, 4);
+    assert.deepEqual(popular.map((a) => a.id), ['rainx', PARENT, 'polymer', 'pethair']);
+    assert.deepEqual(popular.map((a) => a.price), [25, 95, 25, 95]);
+  });
+
+  it('wash/ext packages still fill popular without inventing SKUs', () => {
+    const intOnly = new Set(['pethair', 'odor', 'superint', 'mold', 'sanitize', 'biohazard', 'floormats', 'babyseat', 'stroller']);
+    const wash = PRICING.cars.addons.filter((a) => !Seasonal.isChildId(a.id) && !intOnly.has(a.id));
+    const popular = Seasonal.pickPopularAddons(wash, 'cars');
+    assert.ok(popular.length >= 2);
+    assert.ok(popular.length <= 4);
+    assert.deepEqual(popular.map((a) => a.id), ['rainx', PARENT, 'polymer']);
+  });
+
+  it('Show All keeps remaining eligible catalog entries including children hidden', () => {
+    const eligible = PRICING.cars.addons.filter((a) => !Seasonal.isChildId(a.id));
+    const popularIds = Seasonal.pickPopularAddons(eligible, 'cars').map((a) => a.id);
+    const rest = eligible.filter((a) => !popularIds.includes(a.id)).map((a) => a.id);
+    assert.equal(rest.includes('engine'), true);
+    assert.equal(rest.includes('headlight'), true);
+    assert.equal(rest.includes(PARENT), false);
+    assert.equal(rest.includes('heavy_wet_leaf'), false);
+    assert.equal(rest.includes('walkway_steps'), false);
+  });
+});
+
 describe('UI parent/child visibility', () => {
-  it('public blockHtml exposes exactly three compact options', () => {
+  it('has no dedicated Seasonal Cleanup section; upgrades are compact dependents', () => {
     const st = { cat: 'cars', seasonalAddonIds: [PARENT], vehicles: [] };
     const html = Seasonal.blockHtml(st, PRICING);
-    assert.match(html, /Seasonal Cleanup/);
-    assert.match(html, /Driveway &amp; Entry Cleanup/);
-    assert.match(html, /\+\$95/);
+    assert.doesNotMatch(html, /Seasonal Cleanup/);
+    assert.doesNotMatch(html, /Driveway &amp; Entry Cleanup/);
     assert.match(html, /Heavy \/ Wet Leaf Buildup/);
     assert.match(html, /\+\$50/);
     assert.match(html, /Pressure Wash Upgrade/);
     assert.match(html, /\+\$125/);
-    assert.match(html, /Driveway \+ walkway\/steps \+ immediate entry/);
+    assert.match(html, /Optional upgrades/);
     assert.match(html, /Off-property removal is not included/);
-    assert.match(html, /onsite-conv-opt">Optional/);
     for (const name of HIDDEN_PUBLIC_NAMES) {
       assert.equal(html.includes(name), false, `must not show ${name}`);
     }
     assert.doesNotMatch(html, /Additional Areas/);
     assert.doesNotMatch(html, /Leaf Handling/);
     assert.doesNotMatch(html, /Optional Surface Cleaning/);
-    assert.doesNotMatch(html, /class="onsite-conv-sub"/);
-    assert.doesNotMatch(html, /class="addon /);
-    assert.equal((html.match(/onsite-conv-row/g) || []).length, 3);
+    assert.equal((html.match(/onsite-conv-row/g) || []).length, 2);
   });
 
   it('hides upgrades until parent is selected and clears them on uncheck', () => {
     const st = { cat: 'cars', seasonalAddonIds: [], vehicles: [] };
     const closed = Seasonal.blockHtml(st, PRICING);
-    assert.match(closed, /Driveway &amp; Entry Cleanup/);
-    assert.match(closed, /onsite-conv-children"/);
-    assert.doesNotMatch(closed, /onsite-conv-children open/);
+    assert.equal(closed, '');
 
     Seasonal.toggle(PARENT, st, PRICING);
     Seasonal.toggle('heavy_wet_leaf', st, PRICING);
@@ -678,7 +711,7 @@ describe('UI parent/child visibility', () => {
     Seasonal.toggle(PARENT, st, PRICING);
     assert.deepEqual(st.seasonalAddonIds, []);
     const again = Seasonal.blockHtml(st, PRICING);
-    assert.doesNotMatch(again, /onsite-conv-children open/);
+    assert.equal(again, '');
   });
 
   it('does not allow a public child toggle without the parent', () => {

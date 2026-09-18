@@ -25,15 +25,15 @@ const PAGES = [
   'template-city.html',
 ];
 
-const OLD_CARS_INSERT = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Seasonal Driveway Cleanup', desc:'Add a quick seasonal cleanup while we\\'re already on-site. Loose leaves and light debris are cleared from your driveway using professional blowing equipment. Available only with an eligible detailing appointment.', price:95},
+const OLD_CARS_INSERT = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95},
       {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
       {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
       {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
-      {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'Extra time for unusually heavy, wet, or matted leaf accumulation.', price:50},
+      {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'For unusually heavy, wet or matted leaf buildup requiring additional time.', price:50},
       {id:'bag_place_property', scope:'any', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35},
-      {id:'pressure_surface_wash', scope:'any', name:'Pressure Surface Wash', desc:'Optional water-based surface cleaning. Weather permitting.', price:125},`;
+      {id:'pressure_surface_wash', scope:'any', name:'Pressure Wash Upgrade', desc:'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.', price:125},`;
 
-const CARS_INSERT = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95},
+const CARS_INSERT = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95},
       {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
       {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
       {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
@@ -44,15 +44,15 @@ const CARS_INSERT = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Drivewa
 const RVS_INSERT = CARS_INSERT;
 const OLD_RVS_INSERT = OLD_CARS_INSERT;
 
-const OLD_POWERSPORTS_INSERT = `{id:'seasonal_driveway_cleanup', name:'Seasonal Driveway Cleanup', desc:'Add a quick seasonal cleanup while we\\'re already on-site. Loose leaves and light debris are cleared from your driveway using professional blowing equipment. Available only with an eligible detailing appointment.', price:95, publicNew:true},
-      {id:'walkway_steps', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35, publicNew:true},
-      {id:'porch_entry', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45, publicNew:true},
-      {id:'small_patio', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50, publicNew:true},
-      {id:'heavy_wet_leaf', name:'Heavy / Wet Leaf Buildup', desc:'Extra time for unusually heavy, wet, or matted leaf accumulation.', price:50, publicNew:true},
-      {id:'bag_place_property', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35, publicNew:true},
-      {id:'pressure_surface_wash', name:'Pressure Surface Wash', desc:'Optional water-based surface cleaning. Weather permitting.', price:125, publicNew:true},`;
+const OLD_POWERSPORTS_INSERT = `{id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95, publicNew:true},
+      {id:'walkway_steps', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35, publicNew:false},
+      {id:'porch_entry', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45, publicNew:false},
+      {id:'small_patio', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50, publicNew:false},
+      {id:'heavy_wet_leaf', name:'Heavy / Wet Leaf Buildup', desc:'For unusually heavy, wet or matted leaf buildup requiring additional time.', price:50, publicNew:true},
+      {id:'bag_place_property', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35, publicNew:false},
+      {id:'pressure_surface_wash', name:'Pressure Wash Upgrade', desc:'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.', price:125, publicNew:true},`;
 
-const POWERSPORTS_INSERT = `{id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95, publicNew:true},
+const POWERSPORTS_INSERT = `{id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95, publicNew:true},
       {id:'walkway_steps', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35, publicNew:false},
       {id:'porch_entry', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45, publicNew:false},
       {id:'small_patio', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50, publicNew:false},
@@ -98,6 +98,28 @@ function patchPage(file, html) {
   next = replaceOrInsert(next, OLD_CARS_INSERT, CARS_INSERT, carsMarker, `${file} cars`);
   next = replaceOrInsert(next, OLD_RVS_INSERT, RVS_INSERT, rvMarker, `${file} rvs`);
   next = replaceOrInsert(next, OLD_POWERSPORTS_INSERT, POWERSPORTS_INSERT, psMarker, `${file} powersports`);
+
+  const prevCars = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95},`;
+  const nextCars = `{id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95},`;
+  if (next.includes(prevCars)) next = next.split(prevCars).join(nextCars);
+  const prevPs = `{id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95, publicNew:true},`;
+  const nextPs = `{id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95, publicNew:true},`;
+  if (next.includes(prevPs)) next = next.split(prevPs).join(nextPs);
+
+  next = next.replace(
+    "if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isFamilyId(a.id)) return false;\n",
+    "if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isChildId(a.id)) return false;\n",
+  );
+
+  const popularIndex = "  const POPULAR_IDS=ST.cat==='powersports'?['heavymud']:ST.cat==='rvs'?['superint','sanitize','rainx','pethair','odor']:['rainx','pethair','odor'];\n  const popularAddons=addons.filter(a=>POPULAR_IDS.includes(a.id));\n  const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));";
+  const popularHub = "  const POPULAR_IDS=ST.cat==='rvs'?['superint','sanitize','rainx','pethair','odor']:['rainx','pethair','odor'];\n  const popularAddons=addons.filter(a=>POPULAR_IDS.includes(a.id));\n  const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));";
+  const popularNext = "  const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];\n  const popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);\n  const otherAddons=addons.filter(a=>POPULAR_IDS.indexOf(a.id)<0);";
+  if (next.includes(popularIndex)) next = next.replace(popularIndex, popularNext);
+  if (next.includes(popularHub)) next = next.replace(popularHub, popularNext);
+
+  const oldCardHtml = "  function addonCardHtml(a){\n    const isQty=!!a.qty;\n    return `<div class=\"addon${isQty?' addon-unit':''}\" data-price=\"${a.price}\" data-id=\"${a.id}\" data-unit=\"${isQty?1:0}\" onclick=\"toggleAddon(this)\">";
+  const newCardHtml = "  function addonCardHtml(a){\n    const isQty=!!a.qty;\n    const isSeasonalParent=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.isParentId(a.id);\n    const seasonalOn=isSeasonalParent&&CD1SeasonalDriveway.selectedIds(ST).indexOf(a.id)>=0;\n    const click=isSeasonalParent?\"event.stopPropagation();CD1SeasonalDriveway.onCardClick('\"+a.id+\"')\":'toggleAddon(this)';\n    return `<div class=\"addon${isQty?' addon-unit':''}${seasonalOn?' sel':''}\" data-price=\"${a.price}\" data-id=\"${a.id}\" data-unit=\"${isQty?1:0}\" onclick=\"${click}\">";
+  if (next.includes(oldCardHtml)) next = next.replace(oldCardHtml, newCardHtml);
 
   if (!next.includes("CD1SeasonalDriveway.isFamilyId")) {
     const filterNeedle = "    if(_pkgIncludesAddon[a.id]) return false;\n";

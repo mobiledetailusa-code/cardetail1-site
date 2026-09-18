@@ -52,7 +52,7 @@
   var DISPLAY = Object.freeze({
     seasonal_driveway_cleanup: Object.freeze({
       name: 'Driveway & Entry Cleanup',
-      description: 'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.',
+      description: 'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.',
     }),
     walkway_steps: Object.freeze({
       name: 'Front Walkway + Steps',
@@ -81,10 +81,36 @@
   });
 
   var COMPACT_DESC = Object.freeze({
-    seasonal_driveway_cleanup: 'Driveway + walkway/steps + immediate entry.',
+    seasonal_driveway_cleanup: 'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.',
     heavy_wet_leaf: 'For unusually heavy, wet or matted leaf buildup requiring additional time.',
-    pressure_surface_wash: 'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.',
+    pressure_surface_wash: 'Optional water-based cleaning. Weather and site conditions permitting.',
   });
+
+  var POPULAR_LIMIT = 4;
+  var POPULAR_IDS_BY_CATEGORY = Object.freeze({
+    cars: Object.freeze(['rainx', PARENT_ID, 'polymer', 'pethair']),
+    rvs: Object.freeze(['rainx', PARENT_ID, 'superint', 'pethair']),
+    powersports: Object.freeze(['heavymud', PARENT_ID, 'rainx', 'polymer']),
+  });
+
+  function popularIdsFor(cat) {
+    var key = String(cat || '').trim().toLowerCase();
+    return POPULAR_IDS_BY_CATEGORY[key] || [];
+  }
+
+  function pickPopularAddons(addons, cat) {
+    var ids = popularIdsFor(cat);
+    var byId = {};
+    asArray(addons).forEach(function (a) {
+      if (a && a.id && !byId[a.id]) byId[a.id] = a;
+    });
+    var out = [];
+    ids.forEach(function (id) {
+      if (out.length >= POPULAR_LIMIT) return;
+      if (byId[id]) out.push(byId[id]);
+    });
+    return out;
+  }
 
   function asArray(v) {
     return Array.isArray(v) ? v : [];
@@ -442,37 +468,54 @@
     return html;
   }
 
-  function blockHtml(st, pricing) {
+  function upgradesHtml(st, pricing) {
     var cat = st && st.cat;
     if (!isEligibleCategory(cat)) return '';
-    var parentRow = catalogRow(pricing, cat, PARENT_ID);
-    if (!parentRow) return '';
     var selected = selectedIds(st);
-    var parentOn = selected.indexOf(PARENT_ID) >= 0;
-    var html = '<div class="onsite-conv" id="onsite-conv">' +
-      '<div class="onsite-conv-h">Seasonal Cleanup</div>' +
-      rowHtml(
-        parentRow,
-        parentOn,
-        'Debris is consolidated at a designated area on the property. Off-property removal is not included.'
-      ) +
-      '<div class="onsite-conv-children' + (parentOn ? ' open' : '') + '" id="onsite-conv-children">' +
-      '<div class="onsite-conv-opt">Optional</div>';
+    if (selected.indexOf(PARENT_ID) < 0) return '';
+    var html = '<div class="onsite-conv-children open" id="onsite-conv-children">' +
+      '<div class="onsite-conv-opt">Optional upgrades</div>';
     PUBLIC_CHILD_IDS.forEach(function (id) {
       html += rowHtml(catalogRow(pricing, cat, id), selected.indexOf(id) >= 0);
     });
-    html += '</div></div>';
+    html += '<div class="onsite-conv-note">Debris stays on the property. Off-property removal is not included.</div>';
+    html += '</div>';
     return html;
+  }
+
+  function blockHtml(st, pricing) {
+    return upgradesHtml(st, pricing);
   }
 
   function mountAddonGrid(st, pricing) {
     var grid = typeof document !== 'undefined' ? document.getElementById('addon-grid') : null;
     if (!grid) return;
-    var existing = grid.querySelector('#onsite-conv');
-    if (existing) existing.remove();
-    var html = blockHtml(st, pricing);
-    if (!html) return;
-    grid.insertAdjacentHTML('afterbegin', html);
+    var leftover = grid.querySelector('#onsite-conv');
+    if (leftover) leftover.remove();
+    var card = grid.querySelector('[data-id="' + PARENT_ID + '"]');
+    var wrap = grid.querySelector('.addon-seasonal-wrap');
+    if (!card) {
+      if (wrap && wrap.parentNode) {
+        var nested = wrap.querySelector('#onsite-conv-children');
+        if (nested) nested.remove();
+        while (wrap.firstChild) wrap.parentNode.insertBefore(wrap.firstChild, wrap);
+        wrap.parentNode.removeChild(wrap);
+      }
+      return;
+    }
+    if (!wrap || wrap.contains(card) === false) {
+      wrap = (typeof document !== 'undefined') ? document.createElement('div') : null;
+      if (!wrap) return;
+      wrap.className = 'addon-seasonal-wrap';
+      card.parentNode.insertBefore(wrap, card);
+      wrap.appendChild(card);
+    }
+    var parentOn = selectedIds(st).indexOf(PARENT_ID) >= 0;
+    card.classList.toggle('sel', parentOn);
+    var kids = wrap.querySelector('#onsite-conv-children');
+    if (kids) kids.remove();
+    if (!parentOn) return;
+    wrap.insertAdjacentHTML('beforeend', upgradesHtml(st, pricing));
   }
 
   function onCardClick(id) {
@@ -497,6 +540,9 @@
     FAMILY_IDS: FAMILY_IDS,
     ELIGIBLE_CATEGORIES: ELIGIBLE_CATEGORIES,
     DISPLAY: DISPLAY,
+    POPULAR_LIMIT: POPULAR_LIMIT,
+    popularIdsFor: popularIdsFor,
+    pickPopularAddons: pickPopularAddons,
     isFamilyId: isFamilyId,
     isParentId: isParentId,
     isChildId: isChildId,
@@ -518,6 +564,7 @@
     syncSeasonalOntoCart: syncSeasonalOntoCart,
     splitAppointmentAddons: splitAppointmentAddons,
     toggle: toggle,
+    upgradesHtml: upgradesHtml,
     blockHtml: blockHtml,
     mountAddonGrid: mountAddonGrid,
     onCardClick: onCardClick,

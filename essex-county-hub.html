@@ -2893,7 +2893,7 @@ const PRICING = {
       {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},
       {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
-      {id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95},
+      {id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95},
       {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
       {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
       {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
@@ -3018,7 +3018,7 @@ const PRICING = {
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and interior odors. Severe cases may require estimate confirmation', price:90},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:' per can at RV park, campground, storage, or home', price:25, qty:true},
-      {id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95},
+      {id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95},
       {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
       {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
       {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
@@ -3072,7 +3072,7 @@ const PRICING = {
       {id:'saltwash',   name:'Salt Rinse / Marine Rinse',    desc:'Salt and mineral rinse for jet ski and marine-exposed exterior surfaces', price:35},
       {id:'trimprot',   name:'Plastic Trim Protection',      desc:'Clean and protect plastic trim, panels, and exterior plastics', price:35},
       {id:'lightdeg',   name:'Light Exterior Degreasing',    desc:'Light degrease of visible exterior surfaces. Detailing only — not engine service', price:45},
-      {id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway, front walkway/steps and immediate entry area. Light leaves and loose debris cleared with professional blowing equipment.', price:95, publicNew:true},
+      {id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95, publicNew:true},
       {id:'walkway_steps', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35, publicNew:false},
       {id:'porch_entry', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45, publicNew:false},
       {id:'small_patio', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50, publicNew:false},
@@ -4102,15 +4102,18 @@ function renderAddons(){
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
-    if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isFamilyId(a.id)) return false;
+    if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isChildId(a.id)) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
-  const POPULAR_IDS=ST.cat==='rvs'?['superint','sanitize','rainx','pethair','odor']:['rainx','pethair','odor'];
-  const popularAddons=addons.filter(a=>POPULAR_IDS.includes(a.id));
-  const otherAddons=addons.filter(a=>!POPULAR_IDS.includes(a.id));
+  const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
+  const popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);
+  const otherAddons=addons.filter(a=>POPULAR_IDS.indexOf(a.id)<0);
   function addonCardHtml(a){
     const isQty=!!a.qty;
-    return `<div class="addon${isQty?' addon-unit':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="toggleAddon(this)"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+    const isSeasonalParent=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.isParentId(a.id);
+    const seasonalOn=isSeasonalParent&&CD1SeasonalDriveway.selectedIds(ST).indexOf(a.id)>=0;
+    const click=isSeasonalParent?"event.stopPropagation();CD1SeasonalDriveway.onCardClick('"+a.id+"')":'toggleAddon(this)';
+    return `<div class="addon${isQty?' addon-unit':''}${seasonalOn?' sel':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="${click}"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
   }
   document.getElementById('addon-grid').innerHTML=
     '<div class="addon-popular-label">Popular Add-ons</div>'+
