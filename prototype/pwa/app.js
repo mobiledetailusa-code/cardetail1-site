@@ -88,7 +88,7 @@
         <div class="pkg">Book your next detail</div>
         <div class="meta">Same website funnel — app only wraps My Garage.</div>
         <div class="hero-actions">
-          <a class="btn primary" href="/#book">Book on site</a>
+          <a class="btn primary" href="../../index.html#book">Book on site</a>
         </div>`;
       renderTimeline(tl, 0);
       return;
@@ -192,7 +192,7 @@
       swEl.textContent = 'Unsupported';
       return;
     }
-    navigator.serviceWorker.getRegistration('/prototype/pwa/').then((reg) => {
+    navigator.serviceWorker.getRegistration().then((reg) => {
       swEl.textContent = reg ? 'Active' : 'Not registered';
     }).catch(() => { swEl.textContent = 'Error'; });
   }
@@ -224,7 +224,7 @@
       updateAccountMeta();
       return;
     }
-    navigator.serviceWorker.register('/prototype/pwa/sw.js', { scope: '/prototype/pwa/' })
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then(() => updateAccountMeta())
       .catch(() => updateAccountMeta());
   }

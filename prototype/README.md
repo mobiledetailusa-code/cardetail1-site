@@ -51,10 +51,12 @@ Force modes: `?mode=mock` or `?mode=live`
 # Static mock only
 npm run preview:prototype
 # → http://localhost:3456/preview.html
+# → http://localhost:3456/pwa/   (customer PWA prototype)
 
 # Full Netlify dev (functions + live APIs)
 npm run preview:prototype:live
 # → http://localhost:8888/prototype/preview.html
+# → http://localhost:8888/prototype/pwa/
 ```
 
 ## Key design rules

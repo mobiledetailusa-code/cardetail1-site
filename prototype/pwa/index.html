@@ -11,19 +11,19 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="description" content="Cardetail1 customer PWA prototype — installable My Garage shell (mock data).">
 <title>Cardetail1 — My Garage App (PWA Prototype)</title>
-<link rel="manifest" href="/prototype/pwa/manifest.webmanifest">
-<link rel="icon" href="/assets/favicon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/prototype/pwa/app.css">
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 <div class="app" id="app">
   <div class="proto-ribbon">
     PWA PROTOTYPE · mock only · same backend later ·
-    <a href="/prototype/preview.html" style="color:#fcd34d">← Portal hub</a>
+    <a href="../preview.html" style="color:#fcd34d">← Portal hub</a>
   </div>
 
   <div class="install-bar" id="install-bar" role="region" aria-label="Install app">
@@ -39,7 +39,7 @@
 
   <header class="topbar">
     <div class="brand-mark" aria-hidden="true">
-      <img src="/assets/cardetail1-logo-square.png" alt="" width="40" height="40">
+      <img src="icons/cardetail1-logo-square.png" alt="" width="40" height="40">
     </div>
     <div class="brand-text">
       <div class="name">Cardetail1</div>
@@ -85,7 +85,7 @@
           <li><strong>PWA shell</strong> — installable, bottom tabs, offline chrome.</li>
           <li><strong>Same product</strong> — My Garage flows, not a native rewrite.</li>
           <li><strong>Site stays</strong> — booking &amp; SEO hubs remain on the web.</li>
-          <li><a href="/prototype/customer.html">UI prototype</a> · <a href="/my-garage.html">Production portal</a></li>
+          <li><a href="../customer.html">UI prototype</a> · <a href="../../my-garage.html">Production portal</a></li>
         </ol>
       </div>
     </section>
@@ -123,9 +123,9 @@
         <li>Display mode<span id="acct-display">Browser</span></li>
         <li>Service worker<span id="acct-sw">…</span></li>
         <li>Push (later)<span>Not wired</span></li>
-        <li><a href="/my-garage.html">Open production My Garage <span>→</span></a></li>
-        <li><a href="/prototype/preview.html">Portal UI hub <span>→</span></a></li>
-        <li><a href="/">Book on website <span>→</span></a></li>
+        <li><a href="../../my-garage.html">Open production My Garage <span>→</span></a></li>
+        <li><a href="../preview.html">Portal UI hub <span>→</span></a></li>
+        <li><a href="../../">Book on website <span>→</span></a></li>
       </ul>
       <p class="empty" style="padding-top:8px">No App Store reviews for updates — ship via Netlify like today.</p>
     </section>
@@ -141,7 +141,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="/prototype/mock-data.js"></script>
-<script src="/prototype/pwa/app.js"></script>
+<script src="../mock-data.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

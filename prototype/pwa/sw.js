@@ -2,24 +2,28 @@
  * Cardetail1 customer PWA prototype — shell-only service worker.
  * Caches the app chrome for offline demo. Does NOT cache production APIs.
  */
-const CACHE = 'cd1-pwa-shell-v1';
+const CACHE = 'cd1-pwa-shell-v2';
 const SHELL = [
-  '/prototype/pwa/',
-  '/prototype/pwa/index.html',
-  '/prototype/pwa/app.css',
-  '/prototype/pwa/app.js',
-  '/prototype/pwa/manifest.webmanifest',
-  '/prototype/mock-data.js',
-  '/prototype/ui.js',
-  '/prototype/shared.css',
-  '/assets/favicon-192.png',
-  '/assets/apple-touch-icon.png',
-  '/assets/cardetail1-logo-square.png',
+  './',
+  './index.html',
+  './app.css',
+  './app.js',
+  './manifest.webmanifest',
+  '../mock-data.js',
+  './icons/favicon-192.png',
+  './icons/apple-touch-icon.png',
+  './icons/cardetail1-logo-square.png',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE).then((cache) =>
+      Promise.all(
+        SHELL.map((path) =>
+          cache.add(new Request(new URL(path, self.location.href), { cache: 'reload' })).catch(() => null)
+        )
+      )
+    ).then(() => self.skipWaiting())
   );
 });
 
