@@ -298,8 +298,8 @@
         "id": "availability-notice",
         "anchor": ".bk-advance-notice > span:not(.bk-advance-notice-ico)",
         "match": "exact",
-        "texts": ["Next available appointments are typically 3 days out."],
-        "why": "Availability wording. tests/conversion-funnel-copy.test.js pins the number to MIN_ADVANCE_DAYS; this entry pins the sentence to the authoritative UI."
+        "texts": ["Same-day appointments may be available. Remaining slots open with about 2 hours' notice."],
+        "why": "Availability wording. tests/conversion-funnel-copy.test.js pins same-day/lead copy to MIN_ADVANCE_DAYS + SAME_DAY_LEAD_MINUTES; this entry pins the sentence to the authoritative UI."
       },
       {
         "id": "arrival-anytime",

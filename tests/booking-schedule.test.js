@@ -19,7 +19,7 @@ const {
 const root = path.resolve(__dirname, '..');
 const read = f => fs.readFileSync(path.join(root, f), 'utf8');
 
-/** Freeze "today" so fixture weekdays stay valid under the 3-day advance rule. */
+/** Freeze "today" so fixture weekdays stay valid under the same-day + lead rule. */
 const FIXTURE_NOW = new Date(2026, 6, 1); // Wed Jul 1, 2026
 const vs = (date, time) => validateBookingSchedule(date, time, { now: FIXTURE_NOW });
 
@@ -116,17 +116,49 @@ test('tampered time is rejected', () => {
   assert.equal(r.error, 'booking_time_unavailable');
 });
 
-test('3-day advance notice: earliest bookable is today + 3', () => {
-  assert.equal(MIN_ADVANCE_DAYS, 3);
-  assert.equal(earliestBookableIso(new Date(2026, 6, 16)), '2026-07-19');
+test('same-day booking: earliest bookable is today', () => {
+  assert.equal(MIN_ADVANCE_DAYS, 0);
+  // Noon Eastern so business-calendar "today" is unambiguously 2026-07-16.
+  assert.equal(earliestBookableIso(new Date('2026-07-16T16:00:00.000Z')), '2026-07-16');
 });
 
-test('3-day advance notice: dates before min are rejected', () => {
-  const now = new Date(2026, 6, 16); // Thu Jul 16
-  assert.equal(validateBookingSchedule('2026-07-16', '8:00 AM', { now }).ok, false); // today
-  assert.equal(validateBookingSchedule('2026-07-17', '8:00 AM', { now }).ok, false); // +1
-  assert.equal(validateBookingSchedule('2026-07-18', '8:00 AM', { now }).ok, false); // +2
-  const ok = validateBookingSchedule('2026-07-20', '8:00 AM', { now }); // +4 Mon
+test('same-day lead filters past/too-soon slots; future dates keep full inventory', () => {
+  const {
+    SAME_DAY_LEAD_MINUTES,
+    filterSameDaySlots,
+  } = require('../netlify/lib/operational-availability');
+  assert.equal(SAME_DAY_LEAD_MINUTES, 120);
+  // 10:00 AM ET on a Thursday — 8/10 AM drop; 12 PM+ remain.
+  const now = new Date('2026-07-16T14:00:00.000Z'); // 10:00 AM America/New_York (EDT)
+  const today = filterSameDaySlots(
+    '2026-07-16',
+    ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'],
+    now,
+    'America/New_York',
+  );
+  assert.deepEqual(today, ['12:00 PM', '2:00 PM']);
+  const tomorrow = filterSameDaySlots(
+    '2026-07-17',
+    ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'],
+    now,
+    'America/New_York',
+  );
+  assert.deepEqual(tomorrow, ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM']);
+
+  const okNoon = validateBookingSchedule('2026-07-16', '12:00 PM', { now });
+  assert.equal(okNoon.ok, true);
+  const rejectMorning = validateBookingSchedule('2026-07-16', '8:00 AM', { now });
+  assert.equal(rejectMorning.ok, false);
+  assert.equal(rejectMorning.error, 'booking_time_unavailable');
+  const late = validateBookingSchedule('2026-07-16', '2:00 PM', { now });
+  assert.equal(late.ok, true);
+  assert.equal(late.sameDayLateSlot, true);
+});
+
+test('dates before today are rejected', () => {
+  const now = new Date('2026-07-16T16:00:00.000Z'); // Thu Jul 16 midday ET
+  assert.equal(validateBookingSchedule('2026-07-15', '8:00 AM', { now }).ok, false); // yesterday
+  const ok = validateBookingSchedule('2026-07-20', '8:00 AM', { now }); // future Mon
   assert.equal(ok.ok, true);
 });
 
@@ -220,18 +252,25 @@ test('all 13 pages have Sunday/holiday/Saturday slot handling', () => {
   }
 });
 
-test('all 13 pages enforce 3-day advance notice UX', () => {
+test('all 13 pages enforce same-day availability UX', () => {
   for (const page of BOOKING_PAGES) {
     const html = read(page);
     assert.match(html, /bkEarliestBookable/);
     assert.match(html, /bk-advance-notice/);
-    assert.match(html, /typically 3 days out/);
+    assert.match(html, /Same-day appointments may be available/);
     assert.match(html, /bk-rush-note/);
     assert.match(html, /Call or Text Us/);
     assert.match(html, /tel:5513735668/);
     assert.match(html, /dateEl\.min=bkEarliestBookable/);
+    assert.doesNotMatch(html, /typically 3 days out/);
     assert.doesNotMatch(html, /f-date'\)\.min=new Date\(\)\.toISOString/);
   }
+  const ux = read('assets/booking-conversion-ux.js');
+  assert.match(ux, /LATE_SAME_DAY_MSG|arrive by 5:00 PM/);
+  assert.match(ux, /SAME_DAY_LATE_SLOT/);
+  const client = read('assets/booking-availability-client.js');
+  assert.match(client, /DEFAULT_SAME_DAY_LEAD_MINUTES\s*=\s*120|SAME_DAY_LEAD_MINUTES:\s*DEFAULT_SAME_DAY_LEAD_MINUTES/);
+  assert.match(client, /filterSameDaySlots/);
 });
 
 test('submit-booking imports and enforces booking-schedule', () => {

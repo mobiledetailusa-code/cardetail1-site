@@ -14,11 +14,27 @@ const ALLOWED_WEEKDAY_SLOTS = Object.freeze(['8:00 AM', '10:00 AM', '12:00 PM', 
 const ALLOWED_SATURDAY_SLOTS = Object.freeze(['8:00 AM', '10:00 AM']);
 /** Full inventory the owner may enable per date (includes optional late 4:00 PM). */
 const KNOWN_OPERATIONAL_SLOTS = Object.freeze(['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM']);
-const MIN_ADVANCE_DAYS = 3;
+/** Same-day booking is allowed; remaining slots still respect SAME_DAY_LEAD_MINUTES. */
+const MIN_ADVANCE_DAYS = 0;
+/**
+ * Same-day slots must start at least this many minutes from "now" in the
+ * business timezone. Example: at 10:00 AM, 8/10 AM drop and 12:00 PM remains.
+ */
+const SAME_DAY_LEAD_MINUTES = 120;
+/** Last standard weekday arrival window (2:00 PM start / arrive by 5:00 PM). */
+const SAME_DAY_LATE_SLOT = '2:00 PM';
 const DEFAULT_BUSINESS_TIMEZONE = 'America/New_York';
 const CONTRACT_VERSION = 1;
 const WEEKEND_MODES = Object.freeze(['legacy', 'supervised']);
 const CUSTOMER_WEEKEND_LABEL = 'Limited weekend availability';
+
+const SLOT_START_MINUTES = Object.freeze({
+  '8:00 AM': 480,
+  '10:00 AM': 600,
+  '12:00 PM': 720,
+  '2:00 PM': 840,
+  '4:00 PM': 960,
+});
 
 const LEGACY_TIME_PATTERNS = [
   /^any available/i,
@@ -60,8 +76,11 @@ function addLocalDays(date, days) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-function earliestBookableIso(now = new Date()) {
-  return toIsoLocal(addLocalDays(now, MIN_ADVANCE_DAYS));
+function earliestBookableIso(now = new Date(), timezone = DEFAULT_BUSINESS_TIMEZONE) {
+  const today = businessTodayIso(timezone, now);
+  const parts = isoDateParts(today);
+  if (!parts) return toIsoLocal(addLocalDays(now, MIN_ADVANCE_DAYS));
+  return toIsoLocal(addLocalDays(new Date(parts.y, parts.mo - 1, parts.d), MIN_ADVANCE_DAYS));
 }
 
 /** Business-calendar "today" in the configured timezone (fallback: local). */
@@ -79,6 +98,57 @@ function businessTodayIso(timezone, now = new Date()) {
   } catch (_) {
     return toIsoLocal(now);
   }
+}
+
+/** Minutes since local midnight in the business timezone. */
+function businessMinutesNow(timezone, now = new Date()) {
+  const tz = String(timezone || DEFAULT_BUSINESS_TIMEZONE).trim() || DEFAULT_BUSINESS_TIMEZONE;
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    const parts = fmt.formatToParts(now);
+    const hour = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+    const minute = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+    return (hour * 60) + minute;
+  } catch (_) {
+    return (now.getHours() * 60) + now.getMinutes();
+  }
+}
+
+function slotStartMinutes(slotLabel) {
+  const normalized = normalizePreferredTime(slotLabel) || String(slotLabel || '').trim();
+  if (Object.prototype.hasOwnProperty.call(SLOT_START_MINUTES, normalized)) {
+    return SLOT_START_MINUTES[normalized];
+  }
+  return null;
+}
+
+/**
+ * Drop same-day slots that are already too close to start (or already passed).
+ * Future dates are returned unchanged.
+ */
+function filterSameDaySlots(iso, slots, now = new Date(), timezone = DEFAULT_BUSINESS_TIMEZONE) {
+  const list = Array.isArray(slots) ? slots.slice() : [];
+  const parts = isoDateParts(iso);
+  if (!parts || !list.length) return list;
+  const today = businessTodayIso(timezone, now);
+  if (parts.iso !== today) return list;
+  const cutoff = businessMinutesNow(timezone, now) + SAME_DAY_LEAD_MINUTES;
+  return list.filter((slot) => {
+    const start = slotStartMinutes(slot);
+    return start != null && start >= cutoff;
+  });
+}
+
+function isSameDayLateSlot(iso, preferredTime, now = new Date(), timezone = DEFAULT_BUSINESS_TIMEZONE) {
+  const parts = isoDateParts(iso);
+  if (!parts) return false;
+  if (parts.iso !== businessTodayIso(timezone, now)) return false;
+  return normalizePreferredTime(preferredTime) === SAME_DAY_LATE_SLOT;
 }
 
 function computeEasterSunday(year) {
@@ -302,32 +372,30 @@ function slotsForDate(iso, config, now = new Date()) {
   const resolved = resolveActiveWeekendMode(config, now);
   const cfg = resolved.config;
   const override = cfg.dateOverrides[parts.iso];
+  let slots = [];
 
   // Explicit override always wins for that date (weekday or weekend).
   if (override) {
     if (!override.enabled) return [];
     if (override.arrivalWindows && override.arrivalWindows.length) {
-      return [...override.arrivalWindows];
+      slots = [...override.arrivalWindows];
+    } else if (parts.day === 0 || parts.day === 6) {
+      slots = [...ALLOWED_SATURDAY_SLOTS];
+    } else {
+      slots = [...ALLOWED_WEEKDAY_SLOTS];
     }
-    // Enabled override without windows: weekend → sat slots; weekday → weekday slots
-    if (parts.day === 0 || parts.day === 6) return [...ALLOWED_SATURDAY_SLOTS];
-    return [...ALLOWED_WEEKDAY_SLOTS];
-  }
-
-  if (parts.day >= 1 && parts.day <= 5) {
-    return [...ALLOWED_WEEKDAY_SLOTS];
-  }
-
-  // Weekend without override
-  if (resolved.mode === 'supervised') {
+  } else if (parts.day >= 1 && parts.day <= 5) {
+    slots = [...ALLOWED_WEEKDAY_SLOTS];
+  } else if (resolved.mode === 'supervised') {
     // Closed unless explicitly enabled above
-    return [];
+    slots = [];
+  } else if (parts.day === 0) {
+    slots = [];
+  } else if (parts.day === 6) {
+    slots = [...ALLOWED_SATURDAY_SLOTS];
   }
 
-  // Legacy: Saturday open, Sunday closed
-  if (parts.day === 0) return [];
-  if (parts.day === 6) return [...ALLOWED_SATURDAY_SLOTS];
-  return [];
+  return filterSameDaySlots(parts.iso, slots, now, cfg.businessTimezone);
 }
 
 function capacityForSlot(iso, preferredTime, config, now = new Date()) {
@@ -352,7 +420,7 @@ function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
   }
 
   const cfg = normalizeAvailabilityConfig(config);
-  const minIso = earliestBookableIso(now);
+  const minIso = earliestBookableIso(now, cfg.businessTimezone);
   if (parts.iso < minIso) {
     return { ok: false, error: 'booking_date_unavailable' };
   }
@@ -362,7 +430,14 @@ function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
 
   const allowed = slotsForDate(parts.iso, cfg, now);
   if (!allowed.length) {
-    return { ok: false, error: 'booking_date_unavailable' };
+    // Same-day with only past/too-soon slots left reads as a time miss when a
+    // concrete time was supplied; otherwise the date itself is closed.
+    return {
+      ok: false,
+      error: parts.iso === businessTodayIso(cfg.businessTimezone, now)
+        ? 'booking_time_unavailable'
+        : 'booking_date_unavailable',
+    };
   }
   if (!allowed.includes(normalizedTime)) {
     return { ok: false, error: 'booking_time_unavailable' };
@@ -376,6 +451,7 @@ function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
     weekendMode: resolved.mode,
     isWeekend: parts.day === 0 || parts.day === 6,
     capacity: capacityForSlot(parts.iso, normalizedTime, cfg, now),
+    sameDayLateSlot: isSameDayLateSlot(parts.iso, normalizedTime, now, cfg.businessTimezone),
   };
 }
 
@@ -460,6 +536,7 @@ function projectPublicAvailability(config, opts = {}) {
     supervisedActivated: resolved.activated,
     customerWeekendLabel: resolved.customerWeekendLabel,
     minAdvanceDays: MIN_ADVANCE_DAYS,
+    sameDayLeadMinutes: SAME_DAY_LEAD_MINUTES,
     earliestBookable: minIso,
     weekdaySlots: [...ALLOWED_WEEKDAY_SLOTS],
     saturdaySlots: [...ALLOWED_SATURDAY_SLOTS],
@@ -480,6 +557,7 @@ function projectAdminAvailability(config) {
       weekdaySlots: [...ALLOWED_WEEKDAY_SLOTS],
       saturdaySlots: [...ALLOWED_SATURDAY_SLOTS],
       minAdvanceDays: MIN_ADVANCE_DAYS,
+      sameDayLeadMinutes: SAME_DAY_LEAD_MINUTES,
       businessTimezone: DEFAULT_BUSINESS_TIMEZONE,
       weekendModes: [...WEEKEND_MODES],
     },
@@ -493,6 +571,8 @@ module.exports = {
   ALLOWED_SATURDAY_SLOTS,
   KNOWN_OPERATIONAL_SLOTS,
   MIN_ADVANCE_DAYS,
+  SAME_DAY_LEAD_MINUTES,
+  SAME_DAY_LATE_SLOT,
   DEFAULT_BUSINESS_TIMEZONE,
   LEGACY_AVAILABILITY,
   CUSTOMER_WEEKEND_LABEL,
@@ -502,6 +582,10 @@ module.exports = {
   addLocalDays,
   earliestBookableIso,
   businessTodayIso,
+  businessMinutesNow,
+  slotStartMinutes,
+  filterSameDaySlots,
+  isSameDayLateSlot,
   getHolidaySet,
   isClosedHoliday,
   normalizePreferredTime,

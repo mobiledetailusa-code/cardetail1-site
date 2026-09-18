@@ -159,11 +159,14 @@ test('in-context CTAs keep booking intent (the hierarchy has two levels)', () =>
 
 // ── D. Availability copy must track the enforced scheduling rule ──────────────
 
-test('the "days out" notice matches the enforced minimum advance', () => {
+test('the advance notice matches same-day availability + lead time', () => {
   const lib = read('netlify/lib/operational-availability.js');
   const declared = /const MIN_ADVANCE_DAYS = (\d+);/.exec(lib);
   assert.ok(declared, 'MIN_ADVANCE_DAYS not found');
   const days = Number(declared[1]);
+  const lead = /const SAME_DAY_LEAD_MINUTES = (\d+);/.exec(lib);
+  assert.ok(lead, 'SAME_DAY_LEAD_MINUTES not found');
+  assert.equal(Number(lead[1]), 120);
 
   const index = read('index.html');
   const clientLead = /d\.setDate\(d\.getDate\(\)\+(\d+)\);return bkToIso\(d\)/.exec(index);
@@ -176,12 +179,21 @@ test('the "days out" notice matches the enforced minimum advance', () => {
 
   for (const page of bookingPages) {
     const html = read(page);
-    if (!html.includes('Next available appointments are typically')) continue;
-    assert.match(
-      html,
-      new RegExp(`Next available appointments are typically ${days} days out\\.`),
-      `${page} advance notice contradicts MIN_ADVANCE_DAYS=${days}`,
-    );
+    if (!html.includes('bk-advance-notice')) continue;
+    if (days === 0) {
+      assert.match(
+        html,
+        /Same-day appointments may be available\. Remaining slots open with about 2 hours' notice\./,
+        `${page} same-day advance notice missing`,
+      );
+      assert.doesNotMatch(html, /typically \d+ days out/);
+    } else {
+      assert.match(
+        html,
+        new RegExp(`Next available appointments are typically ${days} days out\\.`),
+        `${page} advance notice contradicts MIN_ADVANCE_DAYS=${days}`,
+      );
+    }
   }
 });
 
