@@ -115,7 +115,7 @@ for (const page of stateHubs) {
 
 test('homepage uses the new clear H1', () => {
   const html = read('index.html');
-  assert.match(html, /<h1>Mobile Car Detailing at Your Home or Office<\/h1>/);
+  assert.match(html, /<h1>Mobile Car Detailing<br>at Your Home or Office<\/h1>/);
   assert.equal(countH1(html), 1);
 });
 
@@ -202,7 +202,7 @@ test('homepage restores master cars-suvs hero image with PR #96 copy', () => {
   assert.doesNotMatch(index, /hero--home/);
   assert.doesNotMatch(index, /hero-bg-desktop/);
   assert.match(index, /url\("assets\/vehicles\/premium\/cars-suvs\.webp"\) center right\/cover no-repeat/);
-  assert.match(index, /<h1>Mobile Car Detailing at Your Home or Office<\/h1>/);
+  assert.match(index, /<h1>Mobile Car Detailing<br>at Your Home or Office<\/h1>/);
   assert.match(read('assets/luxury-theme.css'), /body\.luxury-surface/);
   assert.doesNotMatch(read('assets/luxury-theme.css'), /hero--home/);
 });

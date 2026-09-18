@@ -360,7 +360,7 @@
       "discovery": [
         {
           "id": "hero-cta",
-          "selector": ".hero .btn-primary",
+          "selector": ".hero .hero-zip-btn-lbl",
           "text": "Check Price & Availability",
           "why": "Cold-traffic entry is discovery-level, not a commitment to book."
         }
@@ -378,32 +378,27 @@
   "zeroChargePromise": {
     "$note": [
       "The authoritative customer-facing zero-charge promise, pinned as a PRESENTATION",
-      "invariant. It sits in the hero proof bar, outside #bk-ov.",
+      "invariant. It sits in the homepage hero assure line, outside #bk-ov.",
       "",
       "This entry holds NO amount and NO currency. It names the elements and states",
-      "the invariant: whatever the value element renders must parse numerically to",
-      "ZERO, must still say when ('today'), and must be accompanied by the",
-      "request-first/pay-later label. The test derives zero from the rendered DOM; the",
-      "fixture never asserts a price.",
+      "the invariant: the value element must say no payment is due today, and must be",
+      "accompanied by the request-first/pay-later label. Pricing authority stays in the",
+      "catalog and the server.",
       "",
-      "That is the whole point. Writing '$0 today' here would make this file a source",
-      "of commercial truth, and 'the manifest stays presentation-only' rejects any",
-      "canonical string matching /\\$\\d/ precisely to prevent that. Pricing authority",
-      "stays in the catalog and the server.",
-      "",
-      "What this DOES catch: the promise becoming non-zero, losing its timeframe, or",
-      "the label drifting away from request-first/pay-later. What it does NOT do: approve or",
-      "define any amount. The corresponding in-modal statements are pinned separately",
-      "by the anchoredText entries nothing-collected-today, no-payment-required and",
-      "request-only-row."
+      "What this DOES catch: the promise becoming a paid-today claim, losing its",
+      "timeframe, or the label drifting away from request-first/pay-later. What it does",
+      "NOT do: approve or define any amount. The corresponding in-modal statements are",
+      "pinned separately by the anchoredText entries nothing-collected-today,",
+      "no-payment-required and request-only-row."
     ],
     "id": "hero-zero-charge-promise",
-    "anchor": ".hpb-item--accent",
-    "valueSelector": ".hpb-val",
-    "labelSelector": ".hpb-lbl",
+    "anchor": ".hero-assure",
+    "valueSelector": ".hero-assure-val",
+    "labelSelector": ".hero-assure-lbl",
     "valueMustMatch": "today",
+    "valueMustMatchNoPayment": true,
     "label": "Request first, pay later",
-    "why": "The hero promises that nothing is charged at request time. The amount must render as zero and the request-first/pay-later label must stand beside it."
+    "why": "The hero promises that nothing is charged at request time. The no-payment-today line and the request-first/pay-later label must stand together."
   },
 
   "fallbackParity": {

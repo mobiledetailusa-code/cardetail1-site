@@ -650,7 +650,7 @@ test('booking entry CTA semantics hold on the authoritative page', () => {
   }
 });
 
-test('the authoritative zero-charge promise is rendered as a zero amount plus its label', () => {
+test('the authoritative zero-charge promise is rendered as no-payment-today plus its label', () => {
   const entry = canonical.zeroChargePromise;
   const doc = new JSDOM(authoritativeHtml).window.document;
   stripNonVisible(doc.body, doc);
@@ -665,10 +665,9 @@ test('the authoritative zero-charge promise is rendered as a zero amount plus it
   const value = norm(items[0].querySelector(entry.valueSelector)?.textContent);
   const label = norm(items[0].querySelector(entry.labelSelector)?.textContent);
 
-  const digits = value.replace(/[^0-9.]/g, '');
-  assert.ok(digits.length > 0, `[${entry.id}] the value "${value}" carries no amount at all — ${entry.why}`);
-  assert.equal(Number(digits), 0, `[${entry.id}] the promised amount must render as zero, got "${value}" — ${entry.why}`);
+  assert.match(value, /no payment/i, `[${entry.id}] the value "${value}" lost the no-payment promise — ${entry.why}`);
   assert.match(value, new RegExp(entry.valueMustMatch, 'i'), `[${entry.id}] the value must still say when: "${value}"`);
+  assert.doesNotMatch(value, /\$[1-9]/, `[${entry.id}] the value must not imply a paid-today amount — ${entry.why}`);
   assert.equal(label, entry.label, `[${entry.id}] the saved-vs-charged label drifted — ${entry.why}`);
 });
 

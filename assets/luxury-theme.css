@@ -18,9 +18,7 @@ body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
   color: var(--ink) !important;
 }
 
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub,
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--long,
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub--short {
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub {
   /* Brighter than --ink-soft so copy does not camouflage into the photo hero */
   color: #c5d0dc !important;
 }
@@ -31,19 +29,17 @@ body.luxury-surface > .hero:not(.hero--hub-brand) .hero-badge {
   border-color: rgba(196, 165, 116, 0.28) !important;
 }
 
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-facts li {
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-assure,
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-line {
   color: #b8c4d0 !important;
-  background: rgba(26, 34, 44, 0.72) !important;
-  border-color: rgba(196, 165, 116, 0.12) !important;
 }
 
-body.luxury-surface > .hero:not(.hero--hub-brand) .btn-outline {
-  background: transparent !important;
-  color: #ece8e1 !important;
-  border-color: rgba(196, 165, 116, 0.35) !important;
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-link:hover,
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-link:focus-visible {
+  color: #7eb3e8 !important;
 }
 
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-zip-details > summary {
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-packages-link {
   color: #7eb3e8 !important;
 }
 
