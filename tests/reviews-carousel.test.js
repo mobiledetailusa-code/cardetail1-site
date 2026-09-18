@@ -90,14 +90,16 @@ test('1. static Google review renders', () => {
   assert.match(card.textContent, /Claudio Campos/);
 });
 
-test('2. Google source label renders', () => {
-  assert.equal(reviews.sourceLabel({ source: 'google' }), 'Google review');
+test('2. Google cards are not labeled as a Google review', () => {
+  assert.equal(reviews.sourceLabel({ source: 'google' }), '');
   if (!JSDOM) return;
   const dom = mountDom();
   const card = dom.window.document.querySelector('[data-review-id="g-john-daquila"]');
   assert.equal(card.getAttribute('data-source'), 'google');
-  assert.match(card.textContent, /Google review/);
+  assert.doesNotMatch(card.textContent, /Google review/);
+  assert.doesNotMatch(card.textContent, /Thumbtack review/);
   assert.doesNotMatch(card.textContent, /Verified Cardetail1 customer/);
+  assert.equal(card.querySelector('.rv-source'), null);
 });
 
 test('3. Google text preserved exactly', () => {
@@ -375,23 +377,24 @@ test('Google listing snapshot is Cardetail1, not a lookalike shop', () => {
   assert.equal(reviews.GOOGLE_LISTING.reviewUrl, 'https://g.page/r/CTJwfJerrQeCEAI/review');
 });
 
-test('legacy testimonials are not labeled Google or Verified Cardetail1', () => {
+test('legacy testimonials are not labeled Google, Thumbtack, or Verified Cardetail1', () => {
   const pablo = reviews.legacyReviews().find((r) => r.id === 'legacy-pablo-sanchez');
   assert.ok(pablo);
-  assert.equal(reviews.sourceLabel(pablo), 'Customer');
+  assert.equal(reviews.sourceLabel(pablo), '');
   if (!JSDOM) return;
   const dom = mountReviewsPage();
   const card = dom.window.document.querySelector('[data-review-id="legacy-pablo-sanchez"]');
   assert.ok(card);
-  assert.equal(card.querySelector('.rv-source').textContent, 'Customer');
+  assert.equal(card.querySelector('.rv-source'), null);
   assert.doesNotMatch(card.textContent, /Google review/);
+  assert.doesNotMatch(card.textContent, /Thumbtack review/);
   assert.doesNotMatch(card.textContent, /Verified Cardetail1 customer/);
 });
 
-test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 verified', () => {
+test('static Thumbtack reviews render without a marketplace source label', () => {
   const thumbtack = reviews.thumbtackReviews();
   assert.equal(thumbtack.length, 2);
-  assert.equal(reviews.sourceLabel({ source: 'thumbtack' }), 'Thumbtack review');
+  assert.equal(reviews.sourceLabel({ source: 'thumbtack' }), '');
 
   const cynthia = thumbtack.find((r) => r.id === 'tt-cynthia-c');
   const kasey = thumbtack.find((r) => r.id === 'tt-kasey-w');
@@ -408,6 +411,7 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
   assert.equal(kasey.text, 'Amazing car detail, looks brand new');
   assert.doesNotMatch(reviews.sourceLabel(cynthia), /Verified Cardetail1/);
   assert.doesNotMatch(reviews.sourceLabel(cynthia), /Google review/);
+  assert.doesNotMatch(reviews.sourceLabel(cynthia), /Thumbtack review/);
 
   const mixed = reviews.mixed();
   const cynthiaIdx = mixed.findIndex((r) => r.id === 'tt-cynthia-c');
@@ -420,8 +424,10 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
   const homeCard = home.window.document.querySelector('[data-review-id="tt-cynthia-c"]');
   assert.ok(homeCard);
   assert.equal(homeCard.getAttribute('data-source'), 'thumbtack');
-  assert.match(homeCard.textContent, /Thumbtack review/);
+  assert.doesNotMatch(homeCard.textContent, /Thumbtack review/);
+  assert.doesNotMatch(homeCard.textContent, /Google review/);
   assert.doesNotMatch(homeCard.textContent, /Verified Cardetail1 customer/);
+  assert.equal(homeCard.querySelector('.rv-source'), null);
   assert.equal(
     home.window.document.querySelector('[data-review-id="tt-cynthia-c"] .rv-quote').textContent,
     cynthia.text,
@@ -431,13 +437,15 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
   const pageCard = page.window.document.querySelector('[data-review-id="tt-kasey-w"]');
   assert.ok(pageCard);
   assert.equal(pageCard.getAttribute('data-source'), 'thumbtack');
-  assert.match(pageCard.textContent, /Thumbtack review/);
+  assert.doesNotMatch(pageCard.textContent, /Thumbtack review/);
 });
 
 test('Thumbtack import does not add a live Thumbtack API or change Google snapshot', () => {
   assert.doesNotMatch(reviewsJs, /thumbtack\.com\/api/i);
   assert.doesNotMatch(reviewsJs, /THUMBTACK_API/);
   assert.equal(reviews.googleReviews().length, 9);
-  assert.match(index, /5\.0 on Google · 9 reviews/);
+  assert.equal(reviews.GOOGLE_LISTING.reviewCount, 9);
+  assert.equal(reviews.GOOGLE_LISTING.ratingLabel, '5.0');
+  assert.doesNotMatch(index, /5\.0 on Google · 9 reviews/);
 });
 
