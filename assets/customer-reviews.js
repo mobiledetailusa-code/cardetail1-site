@@ -1,9 +1,9 @@
 /**
- * Homepage reviews: static Google snapshot + first-party Cardetail1 channel.
+ * Homepage reviews: static Google + Thumbtack snapshots + first-party Cardetail1.
  *
- * This is NOT a Google Places / Business Profile API integration.
- * Google cards are a one-time static snapshot of the public listing.
- * If Google is offline, these cards still render from this file.
+ * This is NOT a Google Places / Business Profile / Thumbtack API integration.
+ * Marketplace cards are one-time static snapshots of the public listings.
+ * If those sites are offline, these cards still render from this file.
  *
  * Listing snapshot (2026-08-25):
  *   Name: Cardetail1
@@ -16,14 +16,16 @@
  *
  * ORDERING (deterministic, never shuffled):
  *   1. Published Cardetail1 reviews from public-reviews, newest createdAt first
- *   2. Static Google snapshot in listing recency as of 2026-08-25
- *   3. Legacy curated job testimonials (not labeled Google or Verified)
+ *   2. Static Thumbtack snapshot in listing recency as of 2026-09-17
+ *   3. Static Google snapshot in listing recency as of 2026-08-25
+ *   4. Legacy curated job testimonials (not labeled Google, Thumbtack, or Verified)
  *   Dedup by id and normalized review body.
  *
  * Source labels:
  *   google     → "Google review"
+ *   thumbtack  → "Thumbtack review"
  *   cardetail1 → "Verified Cardetail1 customer"
- *   legacy     → "Customer" (known job quote, not independently Google-verified)
+ *   legacy     → "Customer" (known job quote, not independently marketplace-verified)
  */
 (function (root) {
   'use strict';
@@ -142,6 +144,30 @@
     }
   ];
 
+  // Exact public Thumbtack review text as shown in the listing screenshot
+  // provided 2026-09-17. Do not rewrite grammar, ratings, names, or wording.
+  // Photos from that listing are not imported: review cards are text-only.
+  var THUMBTACK_REVIEWS = [
+    {
+      id: 'tt-cynthia-c',
+      name: 'Cynthia C.',
+      rating: 5,
+      text: 'I couldn\'t be happier with the service! He was absolutely amazing from start to finish — very communicative, punctual, professional, and organized. He came all the way to my location, which was incredibly convenient, and detailed two vehicles in one visit. He arrived fully prepared with all of his own professional products and equipment, and you could really tell that he takes pride in his work. The results were fantastic! He paid attention to all the little details, did an excellent job with the waxing, and even completely removed stains from the seats in one of my vehicles that I honestly wasn\'t sure would come out. I\'m extremely pleased with how both cars turned out. The convenience, professionalism, attention to detail, and quality of the work were all outstanding. I would absolutely recommend him and will definitely be using his services again!',
+      date: 'Sep 8, 2026',
+      source: 'thumbtack',
+      sort: 5
+    },
+    {
+      id: 'tt-kasey-w',
+      name: 'Kasey W.',
+      rating: 5,
+      text: 'Amazing car detail, looks brand new',
+      date: 'Aug 30, 2026',
+      source: 'thumbtack',
+      sort: 6
+    }
+  ];
+
   // Named job quotes already on the site, not present on the current Google
   // listing. Keep as legacy social proof. Do not label Google or Verified.
   var LEGACY_REVIEWS = [
@@ -241,12 +267,16 @@
     return GOOGLE_REVIEWS.map(cloneReview);
   }
 
+  function thumbtackReviews() {
+    return THUMBTACK_REVIEWS.map(cloneReview);
+  }
+
   function legacyReviews() {
     return LEGACY_REVIEWS.map(cloneReview);
   }
 
   function publicList() {
-    return googleReviews().concat(legacyReviews()).filter(function (r) {
+    return thumbtackReviews().concat(googleReviews()).concat(legacyReviews()).filter(function (r) {
       return r && r.name && String(r.text || '').trim();
     });
   }
@@ -300,6 +330,7 @@
       return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     }).forEach(take);
 
+    thumbtackReviews().forEach(take);
     googleReviews().forEach(take);
     legacyReviews().forEach(take);
     return out;
@@ -343,6 +374,7 @@
   function sourceLabel(review) {
     var source = String(review && review.source || '');
     if (source === 'google') return 'Google review';
+    if (source === 'thumbtack') return 'Thumbtack review';
     if (source === 'cardetail1') return 'Verified Cardetail1 customer';
     return 'Customer';
   }
@@ -385,10 +417,10 @@
           '<div>' +
             '<div class="rv-name">' + escapeHtml(review.name) + '</div>' +
             (meta ? '<div class="rv-meta">' + escapeHtml(meta) + '</div>' : '') +
-            (review.service && source !== 'google'
+            (review.service && source !== 'google' && source !== 'thumbtack'
               ? '<div class="rv-badge">' + escapeHtml(review.service) + '</div>'
               : '') +
-            '<div class="rv-source' + (source === 'google' || source === 'cardetail1' ? ' rv-source--' + source : '') + '">' +
+            '<div class="rv-source' + (source === 'google' || source === 'thumbtack' || source === 'cardetail1' ? ' rv-source--' + source : '') + '">' +
               escapeHtml(label) +
             '</div>' +
           '</div>' +
@@ -752,6 +784,7 @@
     REVIEWS_PAGE_URL: REVIEWS_PAGE_URL,
     all: publicList,
     googleReviews: googleReviews,
+    thumbtackReviews: thumbtackReviews,
     legacyReviews: legacyReviews,
     featured: featured,
     carousel: carousel,
