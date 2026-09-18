@@ -146,11 +146,13 @@ Gate to continue: the payment matrix in `payment-and-invoice-model.md` passes in
 
 ## Explicitly deferred, with no release assignment
 
-- Technician confirmed-only feed and lifecycle transition redesign (PDA-10, PDA-11);
-- communications-preference implementation;
 - automatic refund execution;
 - auto-confirm future-job behavior;
 - maintenance/manual-review automation and wording;
+- full multi-channel communication preference matrix beyond transactional SMS consent;
 - general visual/UX enhancements.
 
-These are audit findings only. They are not Release A work and are not assigned to Releases B–E.
+Resolved after Release A (stability package + PDA-19 cleanup):
+- Technician confirmed-eligible feed / CAS (PDA-10);
+- Customer lifecycle prefers active `jobStatus` over stale `appointmentStatus` (PDA-11);
+- Customer “Preference management is coming soon” placeholder removed; SMS consent lives under Profile.

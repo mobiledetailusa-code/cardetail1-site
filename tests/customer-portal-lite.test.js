@@ -47,14 +47,17 @@ test('appointment and history sections hide themselves when empty', () => {
   assert.match(garageJs, /\$\('history-section'\) && show\(\$\('history-section'\), !!hist\.length\)/);
 });
 
-test('incomplete customer modules are hidden but not deleted', () => {
+test('maintenance stays hidden; SMS text preference is live under Profile', () => {
   assert.match(garageHtml, /id="maintenance-section"[^>]*hidden/);
-  assert.match(garageHtml, /id="comm-section"[^>]*hidden/);
-  // Markup and backends retained â€” hidden from the primary UI only.
   assert.match(garageHtml, /id="maintenance-list"/);
-  assert.match(garageHtml, /id="comm-empty"/);
-  // The customer-facing entry point is gone.
+  assert.doesNotMatch(garageHtml, /id="comm-section"/);
+  assert.doesNotMatch(garageHtml, /Preference management is coming soon/);
   assert.doesNotMatch(garageHtml, /data-action="maintenance_request"/);
+  // Live transactional SMS consent — not a placeholder section.
+  assert.match(garageHtml, /id="sms-consent-card"/);
+  assert.match(garageHtml, /id="sms-consent-toggle"/);
+  assert.match(garageHtml, /id="sms-consent-save"/);
+  assert.match(garageJs, /saveSmsConsent|sms-consent-save/);
 });
 
 test('profile keeps only name, email and phone', () => {
@@ -327,10 +330,10 @@ if (JSDOM) {
 
   test('fixture: incomplete modules never appear for the customer', async () => {
     const { doc } = await bootPortal(FIXTURE, PAYMENT);
-    for (const id of ['maintenance-section', 'comm-section']) {
-      assert.equal(doc.getElementById(id).hidden, true, `${id} must stay hidden`);
-    }
+    assert.equal(doc.getElementById('maintenance-section').hidden, true, 'maintenance-section must stay hidden');
+    assert.equal(doc.getElementById('comm-section'), null, 'comm-section placeholder must be removed');
     assert.equal(doc.querySelectorAll('[data-action="maintenance_request"]').length, 0);
+    assert.ok(doc.getElementById('sms-consent-card'), 'SMS consent control must remain in Profile');
   });
 
   test('fixture: rendering does not issue any network request', async () => {

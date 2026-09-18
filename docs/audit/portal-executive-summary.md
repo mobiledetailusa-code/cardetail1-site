@@ -35,7 +35,7 @@ The modern Customer/Admin/Technician feeds share `cd1-bookings`, which is a usef
 | 11 | Does Technician status update Admin and Customer? | **The shared record becomes visible after a valid refresh, but lifecycle behavior is inconsistent.** Technician writes change `jobStatus` while Customer classification prefers `appointmentStatus`, so an in-progress job can still accept structural customer changes. |
 | 12 | Do records remain consistent after page refresh? | **No deterministic guarantee.** Full-record last-write-wins updates, missing revisions, stale action-link state, non-atomic request application, and nondeterministic list selection can produce divergent refresh results. |
 | 13 | Are historical records still readable? | **Not reliably.** Legacy `Closed` is not normalized consistently; paid records can become payable; non-array legacy `vehicles`/`addons` can throw; list operations are not fully paginated. |
-| 14 | Are any visible controls placeholders or note-only workflows? | **Yes.** Communication preferences say “coming soon”; maintenance/manual-review requests are follow-up workflows; auto-confirm settings are persisted without a complete booking consumer; refunds are logged for manual Stripe work; the manual pay-link control is not amount-bound. |
+| 14 | Are any visible controls placeholders or note-only workflows? | **Partially.** Customer SMS preference is live under Profile; maintenance stays hidden. Residual: Admin maintenance/manual-review requests are follow-up workflows; auto-confirm settings are persisted without a complete booking consumer; refunds are logged for manual Stripe work; the manual pay-link control is not amount-bound. |
 
 ## Confirmed findings by severity
 
