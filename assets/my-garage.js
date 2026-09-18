@@ -973,7 +973,7 @@
         vehicleId.replace(/[^\w-]/g, '');
       var convenience = [];
       var restAddons = addons;
-      if (window.CD1SeasonalDriveway) {
+      if (globalThis.CD1SeasonalDriveway) {
         var split = CD1SeasonalDriveway.splitAppointmentAddons(addons);
         convenience = split.family;
         restAddons = split.rest;

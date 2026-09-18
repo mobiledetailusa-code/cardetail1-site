@@ -5427,7 +5427,7 @@ function renderAddons(){
     '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
     '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
   if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.mountAddonGrid(ST, PRICING);
-  recalcAddonTotal();
+  if(typeof recalcAddonTotal==='function') recalcAddonTotal();
   updateTotal();
 }
 function toggleAllAddons(){
