@@ -10,6 +10,8 @@ const availability = require('./operational-availability');
 const ALLOWED_WEEKDAY_SLOTS = availability.ALLOWED_WEEKDAY_SLOTS;
 const ALLOWED_SATURDAY_SLOTS = availability.ALLOWED_SATURDAY_SLOTS;
 const MIN_ADVANCE_DAYS = availability.MIN_ADVANCE_DAYS;
+const SAME_DAY_LEAD_MINUTES = availability.SAME_DAY_LEAD_MINUTES;
+const SAME_DAY_LATE_SLOT = availability.SAME_DAY_LATE_SLOT;
 /** Active card-save drafts soft-hold a slot for the draft-token TTL window. */
 const DRAFT_SLOT_HOLD_MS = 2 * 60 * 60 * 1000;
 
@@ -118,6 +120,8 @@ module.exports = {
   ALLOWED_WEEKDAY_SLOTS,
   ALLOWED_SATURDAY_SLOTS,
   MIN_ADVANCE_DAYS,
+  SAME_DAY_LEAD_MINUTES,
+  SAME_DAY_LATE_SLOT,
   DRAFT_SLOT_HOLD_MS,
   earliestBookableIso,
   isActiveDraftSlotHold,

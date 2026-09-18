@@ -57,6 +57,10 @@
 
   const COMPAT_MSG = 'That arrival window isn’t available on the new date. Please choose another.';
   const CLOSED_MSG = 'No arrival windows are available on this date. Please choose another date.';
+  const ADVANCE_UNAVAILABLE_MSG = 'That date isn’t available. Please choose today or a later open day. Need help? Call or text us.';
+  const ALT_ADVANCE_MSG = 'Alternate date must be today or a later open day.';
+  const LATE_SAME_DAY_MSG = 'This is our last standard same-day window (arrive by 5:00 PM). Timing can run tight — if we can’t make it, we’ll contact you to reschedule.';
+  const SAME_DAY_LATE_SLOT = '2:00 PM';
 
   function isKnownWindow(v) {
     return ARRIVAL_WINDOWS.includes(v);
@@ -421,11 +425,13 @@
     const win = winEl?.value || '';
     if (!iso || !win) {
       timeEl.value = '';
+      maybeShowLateSlotNotice('', '');
       return;
     }
     const r = resolveOperational(iso, win);
     if (!r.ok) {
       timeEl.value = '';
+      maybeShowLateSlotNotice(iso, '');
       return;
     }
     if (timeEl.tagName === 'SELECT') {
@@ -441,6 +447,34 @@
     } else {
       timeEl.value = r.preferredTime;
     }
+    maybeShowLateSlotNotice(iso, r.preferredTime);
+  }
+
+  function businessTodayIso() {
+    if (window.BkAvailability && window.BkAvailability.snapshot && window.BkAvailability.snapshot.today) {
+      return window.BkAvailability.snapshot.today;
+    }
+    try {
+      return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+    } catch (_) {
+      const d = new Date();
+      const y = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + mo + '-' + day;
+    }
+  }
+
+  function maybeShowLateSlotNotice(iso, preferredTime) {
+    if (typeof window.bkShowScheduleMsg !== 'function') return;
+    if (!iso || preferredTime !== SAME_DAY_LATE_SLOT) return;
+    if (iso !== businessTodayIso()) return;
+    window.bkShowScheduleMsg(LATE_SAME_DAY_MSG);
   }
 
   function refreshArrivalWindowsForDates(opts) {
@@ -718,7 +752,9 @@
     if (typeof window.bkSlotsFor === 'function') {
       const original = window.bkSlotsFor;
       window.bkSlotsFor = function (iso) {
-        if (window.BkAvailability && window.BkAvailability.loaded) {
+        // Prefer the shared client even before the snapshot loads — it already
+        // applies same-day lead filtering on the legacy weekday inventory.
+        if (window.BkAvailability) {
           const fromAvail = window.BkAvailability.slotsForDate(iso);
           try {
             if (typeof window.bkHolidays === 'function') {
@@ -736,8 +772,7 @@
     if (typeof window.bkEarliestBookable === 'function' && window.BkAvailability) {
       const origEarliest = window.bkEarliestBookable;
       window.bkEarliestBookable = function () {
-        if (window.BkAvailability.loaded) return window.BkAvailability.earliestBookable();
-        return origEarliest();
+        return window.BkAvailability.earliestBookable() || origEarliest();
       };
     }
 
@@ -768,7 +803,7 @@
       const minIso = typeof window.bkEarliestBookable === 'function' ? window.bkEarliestBookable() : '';
       if (minIso && p.iso < minIso) {
         if (typeof window.bkShowScheduleMsg === 'function') {
-          window.bkShowScheduleMsg('Due to route planning, please choose a date at least 3 days out. Need sooner? Call or text us.');
+          window.bkShowScheduleMsg(ADVANCE_UNAVAILABLE_MSG);
         }
         timeEl.value = '';
         return;
@@ -799,7 +834,7 @@
         }
         const minIso = typeof window.bkEarliestBookable === 'function' ? window.bkEarliestBookable() : '';
         if (minIso && p.iso < minIso) {
-          return { ok: false, message: 'Due to route planning, please choose a date at least 3 days out. Need sooner? Call or text us.' };
+          return { ok: false, message: ADVANCE_UNAVAILABLE_MSG };
         }
         const mode = primaryArrival ? primaryArrival.mode() : '';
         if (!mode) {
@@ -833,7 +868,7 @@
             return { ok: false, message: 'Alternate date is closed for the holiday.' };
           }
           if (minIso && ap.iso < minIso) {
-            return { ok: false, message: 'Alternate date must also be at least 3 days out.' };
+            return { ok: false, message: ALT_ADVANCE_MSG };
           }
           const altAllowed = typeof window.bkSlotsFor === 'function' ? window.bkSlotsFor(altDate) : [];
           if (!altAllowed.length) {
