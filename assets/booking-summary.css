@@ -69,6 +69,106 @@
   opacity: 0.75;
 }
 
+.bkli-onsite {
+  margin-top: 8px;
+}
+
+.addon-grid {
+  align-items: start;
+}
+
+.addon-seasonal-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.addon-seasonal-wrap > .addon {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.addon-seasonal-wrap .onsite-conv-children {
+  display: none;
+  margin-top: 6px;
+  padding: 6px 8px 4px;
+  border: 1px solid rgba(77, 163, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(77, 163, 255, 0.04);
+  text-align: left;
+}
+
+.addon-seasonal-wrap .onsite-conv-children.open {
+  display: block;
+}
+
+.onsite-conv-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  column-gap: 6px;
+  align-items: start;
+  padding: 5px 0;
+  cursor: pointer;
+  min-width: 0;
+}
+.onsite-conv-row + .onsite-conv-row {
+  border-top: 1px solid rgba(77, 163, 255, 0.12);
+}
+.onsite-conv-check {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1px solid rgba(77, 163, 255, 0.55);
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--blue, #4da3ff);
+  flex: 0 0 auto;
+}
+.onsite-conv-row.sel .onsite-conv-check {
+  background: rgba(77, 163, 255, 0.18);
+  border-color: var(--blue, #4da3ff);
+}
+.onsite-conv-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.onsite-conv-name {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.onsite-conv-desc,
+.onsite-conv-note {
+  font-size: 10.5px;
+  color: var(--mu, #8a9bb0);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.onsite-conv-note {
+  margin: 4px 0 0;
+}
+.onsite-conv-price {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  justify-self: end;
+  padding-top: 1px;
+}
+.onsite-conv-opt {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--mu, #8a9bb0);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 2px;
+}
+
 /* Grand total row — the label must never inherit var(--white). */
 .bkli-total-label {
   color: #f1f5f9;
@@ -92,6 +192,26 @@
 }
 .booking-modal .bkli-total-label {
   color: #0f172a;
+}
+.booking-modal .addon-seasonal-wrap .onsite-conv-children {
+  background: rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.16);
+}
+.booking-modal .onsite-conv-desc,
+.booking-modal .onsite-conv-note,
+.booking-modal .onsite-conv-opt {
+  color: #64748b;
+}
+.booking-modal .onsite-conv-row + .onsite-conv-row {
+  border-top-color: rgba(37, 99, 235, 0.12);
+}
+.booking-modal .onsite-conv-check {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #1d4ed8;
+}
+.booking-modal .onsite-conv-row.sel .onsite-conv-check {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: #1d4ed8;
 }
 
 /* Card-on-file policy must read as a deliberate notice, not a transparent

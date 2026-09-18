@@ -42,6 +42,13 @@ const CARS_ADDONS = `    addons:[
       {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},
       {id:'stroller',   scope:'int', name:'Baby Stroller Cleaning',    desc:'Wash stroller fabric, frame, and wheels. $20 each', price:20, qty:true},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'Residential trash can cleaning at the service location. $25 each', price:25, qty:true},
+      {id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95},
+      {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
+      {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
+      {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
+      {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'For unusually heavy, wet or matted leaf buildup requiring additional time.', price:50},
+      {id:'bag_place_property', scope:'any', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35},
+      {id:'pressure_surface_wash', scope:'any', name:'Pressure Wash Upgrade', desc:'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.', price:125},
     ],`;
 
 const BOATS_ADDONS = `    addons:[
@@ -69,6 +76,13 @@ const RVS_ADDONS = `    addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Pet hair removal from RV seats, rugs, cushions, and living areas', price:95},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and interior odors. Severe cases may require estimate confirmation', price:90},
       {id:'trashcans',  scope:'any', name:'Trash Can Cleaning',        desc:'$25 per can at RV park, campground, storage, or home', price:25, qty:true},
+      {id:'seasonal_driveway_cleanup', scope:'any', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95},
+      {id:'walkway_steps', scope:'any', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35},
+      {id:'porch_entry', scope:'any', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45},
+      {id:'small_patio', scope:'any', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50},
+      {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'For unusually heavy, wet or matted leaf buildup requiring additional time.', price:50},
+      {id:'bag_place_property', scope:'any', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35},
+      {id:'pressure_surface_wash', scope:'any', name:'Pressure Wash Upgrade', desc:'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.', price:125},
     ],`;
 
 const POWERSPORTS_ADDONS = `    addons:[
@@ -83,6 +97,13 @@ const POWERSPORTS_ADDONS = `    addons:[
       {id:'saltwash',   name:'Salt Rinse / Marine Rinse',    desc:'Salt and mineral rinse for jet ski and marine-exposed exterior surfaces', price:35},
       {id:'trimprot',   name:'Plastic Trim Protection',      desc:'Clean and protect plastic trim, panels, and exterior plastics', price:35},
       {id:'lightdeg',   name:'Light Exterior Degreasing',    desc:'Light degrease of visible exterior surfaces. Detailing only — not engine service', price:45},
+      {id:'seasonal_driveway_cleanup', name:'Driveway & Entry Cleanup', desc:'Driveway + walkway/steps + immediate entry. Light leaves and loose debris cleared on-site.', price:95, publicNew:true},
+      {id:'walkway_steps', name:'Front Walkway + Steps', desc:'Blower cleanup of the front walkway and entry steps.', price:35, publicNew:false},
+      {id:'porch_entry', name:'Porch / Entry Area', desc:'Blower cleanup of the immediate porch or entry hard-surface area.', price:45, publicNew:false},
+      {id:'small_patio', name:'Small Patio', desc:'Blower cleanup of one small residential patio adjacent to the entrance.', price:50, publicNew:false},
+      {id:'heavy_wet_leaf', name:'Heavy / Wet Leaf Buildup', desc:'For unusually heavy, wet or matted leaf buildup requiring additional time.', price:50, publicNew:true},
+      {id:'bag_place_property', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35, publicNew:false},
+      {id:'pressure_surface_wash', name:'Pressure Wash Upgrade', desc:'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.', price:125, publicNew:true},
     ],`;
 
 const FLEET_ADDONS = `    addons:[

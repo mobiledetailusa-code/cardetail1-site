@@ -2,6 +2,17 @@
 
 const { asArray } = require('./historical-adapter');
 const PowersportsCatalog = require('../../assets/powersports-model-catalog');
+const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
+
+const SEASONAL_DRIVEWAY_ADDONS = Object.freeze([
+  { id: 'seasonal_driveway_cleanup', price: 95, name: 'Driveway & Entry Cleanup' },
+  { id: 'walkway_steps', price: 35, name: 'Front Walkway + Steps' },
+  { id: 'porch_entry', price: 45, name: 'Porch / Entry Area' },
+  { id: 'small_patio', price: 50, name: 'Small Patio' },
+  { id: 'heavy_wet_leaf', price: 50, name: 'Heavy / Wet Leaf Buildup' },
+  { id: 'bag_place_property', price: 35, name: 'Bag & Place On Property' },
+  { id: 'pressure_surface_wash', price: 125, name: 'Pressure Wash Upgrade' },
+]);
 
 const POWERSPORTS_PUBLIC_TIER_KEYS = Object.freeze(
   Object.keys(PowersportsCatalog.serviceClasses).filter((key) =>
@@ -31,6 +42,7 @@ const PRICING = {
       { id: 'stroller', price: 20, qty: true }, { id: 'trashcans', price: 25, qty: true },
       // Stage 1 financial-mutation fixture / canonical $40 add-on (4000 cents)
       { id: 'ozone', price: 40 },
+      ...SEASONAL_DRIVEWAY_ADDONS,
     ],
   },
   trucks: {
@@ -100,6 +112,7 @@ const PRICING = {
       { id: 'awning', price: 50, qty: true }, { id: 'roof', price: 50, qty: true },
       { id: 'capfront', price: 149 }, { id: 'pethair', price: 95 }, { id: 'odor', price: 90 },
       { id: 'trashcans', price: 25, qty: true },
+      ...SEASONAL_DRIVEWAY_ADDONS,
     ],
   },
   powersports: {
@@ -120,6 +133,7 @@ const PRICING = {
       { id: 'heavymud', price: 55 }, { id: 'seatdeep', price: 45 }, { id: 'storage', price: 35 },
       { id: 'wheeldet', price: 35 }, { id: 'waterspot', price: 35 }, { id: 'saltwash', price: 35 },
       { id: 'trimprot', price: 35 }, { id: 'lightdeg', price: 45 },
+      ...SEASONAL_DRIVEWAY_ADDONS,
     ],
   },
   fleet: {
@@ -415,10 +429,24 @@ function computeAddonTotal(vehicle) {
   const included = new Set(includedAddonIds(cat, vehicle.packageId || vehicle.pkgId));
   let total = 0;
   const normalized = [];
+  const seenFamily = new Set();
   for (const a of (vehicle.addons || [])) {
     if (included.has(a.id)) continue;
     const def = catalog.find((x) => x.id === a.id);
     if (!def) return { ok: false, error: 'invalid_pricing' };
+    if (SeasonalDriveway.isFamilyId(a.id)) {
+      if (seenFamily.has(a.id)) continue;
+      seenFamily.add(a.id);
+      const meta = SeasonalDriveway.displayFor(a.id);
+      total += def.price;
+      normalized.push({
+        id: a.id,
+        name: a.name || meta.name || def.name || a.id,
+        price: def.price,
+        qty: 1,
+      });
+      continue;
+    }
     const qty = Math.max(1, Number(a.qty) || 1);
     total += def.price * qty;
     normalized.push({ id: a.id, name: a.name || def.name || a.id, price: def.price, qty });
@@ -510,9 +538,13 @@ function computeBookingServiceSubtotal(booking) {
   const vehicles = vehiclesFromBooking(booking);
   if (!vehicles.length) return { ok: false, error: 'invalid_pricing' };
 
+  const appointment = SeasonalDriveway.normalizeAppointmentAddons(vehicles);
+  if (!appointment.ok) return appointment;
+  const pricedVehicles = appointment.vehicles;
+
   let serviceSubtotal = 0;
   const updatedVehicles = [];
-  for (const v of vehicles) {
+  for (const v of pricedVehicles) {
     const r = computeVehicleSubtotal(v, zip, booking);
     if (!r.ok) return r;
     serviceSubtotal += r.subtotal;
@@ -653,6 +685,7 @@ module.exports = {
   PRICING,
   POWERSPORTS_PUBLIC_TIER_KEYS,
   PACKAGE_INCLUDED_ADDONS,
+  SEASONAL_DRIVEWAY_ADDONS,
   includedAddonIds,
   LENGTH_PRICING,
   RICH_ZIPS,

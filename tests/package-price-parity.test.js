@@ -28,11 +28,11 @@ const BOOKING_PAGES = [
 ];
 
 const OUT_OF_SCOPE_ADDON_PRICES = {
-  cars: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, babyseat: 20, stroller: 20, trashcans: 25, ozone: 40 },
+  cars: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, babyseat: 20, stroller: 20, trashcans: 25, ozone: 40, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
   trucks: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, trashcans: 25, ozone: 40 },
   boats: { rainx: 25, polymer: 25, wax1yr: 75, chrome: 85, odor: 90, mold: 149, sanitize: 65, biohazard: 115, trashcans: 25 },
-  rvs: { polymer: 25, wax1yr: 75, rainx: 25, biohazard: 115, sanitize: 75, superint: 135, awning: 50, roof: 50, capfront: 149, pethair: 95, odor: 90, trashcans: 25 },
-  powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 55, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45 },
+  rvs: { polymer: 25, wax1yr: 75, rainx: 25, biohazard: 115, sanitize: 75, superint: 135, awning: 50, roof: 50, capfront: 149, pethair: 95, odor: 90, trashcans: 25, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
+  powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 55, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
   fleet: { polymer: 25, trashcans: 25, disinfect: 20, biohazard: 115, odor: 99, heavymud: 65 },
 };
 

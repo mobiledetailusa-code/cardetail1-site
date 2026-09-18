@@ -20,6 +20,7 @@ const {
 } = require('./booking-aggregate');
 const { quoteService } = require('./canonical-quote');
 const { coerceVehicleForCategory, PRICING } = require('./booking-price-catalog');
+const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
 const { normalizeLengthCategory, usesLengthPricing } = require('./length-pricing');
 const { dollarsToCents, asArray } = require('./historical-adapter');
 const { supersedeOpenAttempts, expireSupersededAttempts, financialProjection } = require('./payment-service');
@@ -103,9 +104,12 @@ function applyVehicleOperation(service, { op, target = {}, vehicle: rawVehicle =
     if (vehicles.length <= 1) {
       return { ok: false, error: 'last_vehicle_denied', statusCode: 409 };
     }
+    const remaining = vehicles.filter((_, index) => index !== resolved.index);
+    const rehomed = SeasonalDriveway.rehomeAppointmentFamily(vehicles, remaining);
+    if (!rehomed.ok) return { ok: false, error: rehomed.error, statusCode: 400 };
     return {
       ok: true,
-      service: { ...service, vehicles: vehicles.filter((_, index) => index !== resolved.index) },
+      service: { ...service, vehicles: rehomed.vehicles },
       vehicleId: resolved.vehicleId,
       priorVehicle: resolved.vehicle,
     };
@@ -140,12 +144,14 @@ function applyVehicleOperation(service, { op, target = {}, vehicle: rawVehicle =
   };
   const nextVehicles = vehicles.slice();
   nextVehicles[resolved.index] = nextVehicle;
+  const rehomed = SeasonalDriveway.rehomeAppointmentFamily(vehicles, nextVehicles);
+  if (!rehomed.ok) return { ok: false, error: rehomed.error, statusCode: 400 };
   return {
     ok: true,
-    service: { ...service, vehicles: nextVehicles },
+    service: { ...service, vehicles: rehomed.vehicles },
     vehicleId: resolved.vehicleId,
     priorVehicle: resolved.vehicle,
-    nextVehicle,
+    nextVehicle: rehomed.vehicles[resolved.index],
   };
 }
 

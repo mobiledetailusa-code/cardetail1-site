@@ -971,12 +971,17 @@
       var vehicleId = String(v.vehicleId || ('idx-' + idx));
       var panelId = 'pkg-details-' + String(b.id || 'booking').replace(/[^\w-]/g, '') + '-' +
         vehicleId.replace(/[^\w-]/g, '');
+      var restAddons = addons;
+      if (globalThis.CD1SeasonalDriveway) {
+        var split = CD1SeasonalDriveway.splitAppointmentAddons(addons);
+        restAddons = split.rest.concat(split.family);
+      }
       var addonBlock;
-      if (!addons.length) {
+      if (!restAddons.length) {
         addonBlock = '<div><dt>Add-ons</dt><dd>None</dd></div>';
       } else {
         addonBlock = '<div><dt>Add-ons</dt><dd><ul class="vehicle-addon-list">' +
-          addons.map(function (a) {
+          restAddons.map(function (a) {
             var name = a.name || a.id || 'Add-on';
             var qty = Number(a.qty) > 0 ? Number(a.qty) : 1;
             var price = safeMoneyOrNull(a.price);

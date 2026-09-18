@@ -154,6 +154,56 @@
     return a.name + (a.qty > 1 ? ' × ' + a.qty : '');
   }
 
+  function seasonalApi() {
+    if (typeof require === 'function') {
+      try { return require('./seasonal-driveway-addon.js'); } catch (err) { /* browser bundle */ }
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.CD1SeasonalDriveway) {
+      return globalThis.CD1SeasonalDriveway;
+    }
+    return null;
+  }
+
+  function peelAppointmentAddons(items) {
+    var api = seasonalApi();
+    var list = Array.isArray(items) ? items : [];
+    if (!api) return { items: list, appointmentAddons: [], appointmentTotal: 0 };
+    var family = [];
+    var seen = {};
+    var next = list.map(function (item) {
+      var split = api.splitAppointmentAddons(item.addons);
+      if (!split.family.length) return item;
+      var familyTotal = 0;
+      split.family.forEach(function (a) {
+        familyTotal += Number(a.lineTotal) || 0;
+        if (a && a.id && !seen[a.id]) {
+          seen[a.id] = true;
+          family.push(a);
+        }
+      });
+      return Object.assign({}, item, {
+        addons: split.rest,
+        addonTotal: Math.max(0, (Number(item.addonTotal) || 0) - familyTotal),
+        subtotal: Math.max(0, (Number(item.subtotal) || 0) - familyTotal),
+      });
+    });
+    var appointmentTotal = family.reduce(function (s, a) {
+      return s + (Number(a.lineTotal) || 0);
+    }, 0);
+    return { items: next, appointmentAddons: family, appointmentTotal: appointmentTotal };
+  }
+
+  function withAppointmentAddonsOnPrimary(peeled) {
+    var list = Array.isArray(peeled.items) ? peeled.items.slice() : [];
+    if (!peeled.appointmentAddons.length || !list.length) return list;
+    var first = Object.assign({}, list[0]);
+    first.addons = (Array.isArray(first.addons) ? first.addons : []).concat(peeled.appointmentAddons);
+    first.addonTotal = (Number(first.addonTotal) || 0) + peeled.appointmentTotal;
+    first.subtotal = (Number(first.subtotal) || 0) + peeled.appointmentTotal;
+    list[0] = first;
+    return list;
+  }
+
   /**
    * Booking-modal markup for Review & Submit / confirmation-success.
    * Uses the existing .or/.ol/.ov row primitives so it inherits the light-theme
@@ -161,12 +211,13 @@
    */
   function renderSummaryHtml(items, options) {
     var opts = options || {};
-    var list = Array.isArray(items) ? items : [];
+    var peeled = peelAppointmentAddons(Array.isArray(items) ? items : []);
+    var list = withAppointmentAddonsOnPrimary(peeled);
     if (!list.length) {
       return '<div class="or"><span class="ol">Service</span><span class="ov">—</span></div>';
     }
     var multi = list.length > 1;
-    return list.map(function (item, idx) {
+    var html = list.map(function (item, idx) {
       var rows = '';
       rows += '<div class="or"><span class="ol">' + esc(item.packageName) + '</span>' +
         '<span class="ov">' + (item.packagePrice === null ? "We couldn't load this package price. Please retry." : esc(money(item.packagePrice))) + '</span></div>';
@@ -192,11 +243,13 @@
           : '') + rows +
         '</section>';
     }).join('');
+    return html;
   }
 
   /** Plain-text itemization for the transactional email and admin text. */
   function summaryTextLines(items) {
-    var list = Array.isArray(items) ? items : [];
+    var peeled = peelAppointmentAddons(Array.isArray(items) ? items : []);
+    var list = withAppointmentAddonsOnPrimary(peeled);
     var lines = [];
     list.forEach(function (item, idx) {
       if (idx > 0) lines.push('');
@@ -212,9 +265,10 @@
 
   /** Table-free, client-safe HTML itemization for the transactional email. */
   function summaryEmailHtml(items) {
-    var list = Array.isArray(items) ? items : [];
+    var peeled = peelAppointmentAddons(Array.isArray(items) ? items : []);
+    var list = withAppointmentAddonsOnPrimary(peeled);
     if (!list.length) return '';
-    return list.map(function (item) {
+    var html = list.map(function (item) {
       var rows = '<li>' + esc(item.packageName) + ': ' +
         esc(item.packagePrice === null ? "We couldn't load this package price. Please retry." : money(item.packagePrice)) + '</li>';
       rows += item.addons.map(function (a) {
@@ -226,6 +280,7 @@
         '<p style="margin:0">Vehicle subtotal: <strong>' + esc(money(item.subtotal)) + '</strong></p>' +
         '</div>';
     }).join('');
+    return html;
   }
 
   return {

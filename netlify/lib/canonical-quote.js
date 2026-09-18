@@ -12,6 +12,7 @@ const {
 } = require('./booking-price-catalog');
 const { ensureVehicleIds, newVehicleId } = require('./booking-aggregate');
 const { dollarsToCents, centsToDollars, asArray } = require('./historical-adapter');
+const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
 
 const CATALOG_VERSION = 'booking-price-catalog';
 
@@ -151,12 +152,34 @@ function applyServiceDelta(service, target, delta) {
     };
   }
 
+  const existingFamily = new Set(SeasonalDriveway.collectFamilyIds(vehicles));
+  const familyAdds = toAdd.filter((id) => SeasonalDriveway.isFamilyId(id));
+  const nonFamilyAdds = toAdd.filter((id) => !SeasonalDriveway.isFamilyId(id));
+  if (
+    familyAdds.length
+    && familyAdds.every((id) => existingFamily.has(id))
+    && !nonFamilyAdds.length
+    && !d.packageId
+    && !asArray(d.addOnIdsToRemove).length
+  ) {
+    return {
+      ok: true,
+      noop: true,
+      service: { ...service, vehicles },
+      reason: 'duplicate_addon',
+    };
+  }
+
   for (const id of toAdd) {
+    if (SeasonalDriveway.isFamilyId(id)) continue;
     if (!includedIds.has(id) && !existingIds.has(id)) existingIds.add(id);
   }
 
   if (Array.isArray(d.addOnIdsToRemove) && d.addOnIdsToRemove.length) {
-    for (const id of d.addOnIdsToRemove) existingIds.delete(id);
+    for (const id of d.addOnIdsToRemove) {
+      if (SeasonalDriveway.isFamilyId(id)) continue;
+      existingIds.delete(id);
+    }
   }
 
   vehicle.addOnIds = [...existingIds];
@@ -170,12 +193,20 @@ function applyServiceDelta(service, target, delta) {
 
   const nextVehicles = vehicles.slice();
   nextVehicles[idx] = vehicle;
+  const family = SeasonalDriveway.applyFamilyDelta(nextVehicles, {
+    addOnIdsToAdd: toAdd,
+    addOnIdsToRemove: asArray(d.addOnIdsToRemove),
+  });
+  if (!family.ok) return { ok: false, error: family.error };
+  const normalizedFamily = SeasonalDriveway.normalizeAppointmentAddons(family.vehicles);
+  if (!normalizedFamily.ok) return { ok: false, error: normalizedFamily.error };
+
   return {
     ok: true,
     noop: false,
     service: {
       ...service,
-      vehicles: nextVehicles,
+      vehicles: normalizedFamily.vehicles,
       serviceAddress: d.serviceAddress != null ? d.serviceAddress : service.serviceAddress,
     },
     schedule: {
