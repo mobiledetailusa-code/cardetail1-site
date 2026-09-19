@@ -455,7 +455,7 @@ describe('tech quick ops page + actions', () => {
     assert.doesNotMatch(html.body, /Record card/);
     assert.doesNotMatch(html.body, /Copy payment link/);
     assert.doesNotMatch(html.body, /Text customer/);
-    assert.match(html.headers['X-Tq-Csrf'] || '', session.csrfToken);
+    assert.equal(html.headers['X-Tq-Csrf'], session.csrfToken);
   });
 });
 
