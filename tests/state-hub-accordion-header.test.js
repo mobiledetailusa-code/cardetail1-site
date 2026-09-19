@@ -115,7 +115,7 @@ for (const page of stateHubs) {
 
 test('homepage uses the new clear H1', () => {
   const html = read('index.html');
-  assert.match(html, /<h1>Mobile Car Detailing at Your Home or Office<\/h1>/);
+  assert.match(html, /<h1>Mobile Car Detailing<br>at Your Home or Office<\/h1>/);
   assert.equal(countH1(html), 1);
 });
 
@@ -193,7 +193,7 @@ test('state hubs load luxury theme stylesheet', () => {
   }
 });
 
-test('homepage restores master cars-suvs hero image with PR #96 copy', () => {
+test('homepage uses optimized driveway hero picture with object-fit cover', () => {
   const index = read('index.html');
   assert.match(index, /class="luxury-surface"/);
   assert.match(index, /--bg0:#12181f/);
@@ -201,8 +201,14 @@ test('homepage restores master cars-suvs hero image with PR #96 copy', () => {
   assert.doesNotMatch(index, /hub-styles\.css/);
   assert.doesNotMatch(index, /hero--home/);
   assert.doesNotMatch(index, /hero-bg-desktop/);
-  assert.match(index, /url\("assets\/vehicles\/premium\/cars-suvs\.webp"\) center right\/cover no-repeat/);
-  assert.match(index, /<h1>Mobile Car Detailing at Your Home or Office<\/h1>/);
+  assert.match(index, /class="hero-media"/);
+  assert.match(index, /class="hero-media-img"/);
+  assert.match(index, /object-fit:\s*cover/);
+  assert.match(index, /object-position:\s*right center/);
+  assert.match(index, /assets\/hero\/homepage-hero-1671\.webp/);
+  assert.match(index, /assets\/hero\/homepage-hero-mobile-900\.webp/);
+  assert.doesNotMatch(index, /homepage-hero-source\.png/);
+  assert.match(index, /<h1>Mobile Car Detailing<br>at Your Home or Office<\/h1>/);
   assert.match(read('assets/luxury-theme.css'), /body\.luxury-surface/);
   assert.doesNotMatch(read('assets/luxury-theme.css'), /hero--home/);
 });

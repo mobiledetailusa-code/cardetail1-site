@@ -24,6 +24,7 @@ tmp/
 temp/
 .tmp/
 test-output/
+assets/hero/homepage-hero-source.png
 *.HEIC
 *.MOV
 Codex*

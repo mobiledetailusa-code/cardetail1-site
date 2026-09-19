@@ -8,13 +8,10 @@ const path = require('path');
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
 describe('homepage head signals same-day availability', () => {
-  it('hero facts chip advertises same-day without adding a fourth pill', () => {
-    const facts = html.match(/<ul class="hero-facts"[\s\S]*?<\/ul>/);
-    assert.ok(facts, 'hero-facts list present');
-    assert.match(facts[0], /Same-day available/);
-    assert.doesNotMatch(facts[0], /Book online/);
-    const items = facts[0].match(/<li[\s\S]*?<\/li>/g) || [];
-    assert.equal(items.length, 3);
+  it('hero trust chips make same-day availability explicit', () => {
+    const line = html.match(/<ul class="hero-trust-line"[\s\S]*?<\/ul>/);
+    assert.ok(line, 'hero trust line present');
+    assert.match(line[0], /Same-day available/);
   });
 
   it('availability banner reinforces same-day with honest 2-hour lead copy', () => {
@@ -23,7 +20,7 @@ describe('homepage head signals same-day availability', () => {
     assert.match(html, /class="sdb">Same-day available<\/div>/);
   });
 
-  it('booking schedule notice stays aligned with hero claim', () => {
+  it('booking schedule notice stays aligned with same-day claim', () => {
     assert.match(
       html,
       /Same-day appointments may be available\. Remaining slots open with about 2 hours' notice\./

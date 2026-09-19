@@ -183,14 +183,15 @@
 }
 
 /* Hero body copy over photo backgrounds */
-.hero .hero-sub,
-.hero .hero-sub--long,
-.hero .hero-sub--short {
-  color: #c5d0dc;
+.hero .hero-assure {
+  color: #b8c4d0;
+}
+
+.hero .hero-trust-chip {
+  color: #d7e0ea;
 }
 
 /* Proof / trust secondary labels on dark cards */
-.hpb-lbl,
 .trust-lbl,
 .rstat-lbl,
 .rpstat-lbl,
@@ -201,19 +202,16 @@
   color: #a8b6c6;
 }
 
-/* Accent pay strip: keep label readable next to strong value */
-.hpb-item--accent .hpb-val {
-  color: #ece8e1;
-}
-.hpb-item--accent .hpb-lbl {
-  color: #c5d0dc;
-}
-
 /* Ghost / secondary CTAs stay visible without competing with primary */
 .btn-outline,
 .hero .btn-outline {
   color: #ece8e1;
   border-color: rgba(236, 232, 225, 0.45);
+}
+
+.hero .hero-packages-link {
+  color: #7eb3e8;
+  border-color: transparent;
 }
 
 /* Specialty / hub secondary nav chips */

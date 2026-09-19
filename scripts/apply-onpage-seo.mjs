@@ -233,11 +233,11 @@ const CITY_GRID = `      <a class="service-area-city-link" href="/palisades-park
       <a class="service-area-city-link" href="/bergen-county-hub.html">Mobile detailing in Bergen County</a>`;
 
 function patchIndex(html) {
-  if (!html.includes('rel="preload" as="image" href="assets/vehicles/premium/cars-suvs.webp"')) {
+  if (!html.includes('rel="preload" as="image"') || !html.includes('assets/hero/homepage-hero-1671.webp')) {
     html = html.replace(
       '<link rel="canonical" href="https://cardetail1.com/">',
       `<link rel="canonical" href="https://cardetail1.com/">
-<link rel="preload" as="image" href="assets/vehicles/premium/cars-suvs.webp" fetchpriority="high">`
+<link rel="preload" as="image" type="image/webp" href="assets/hero/homepage-hero-1671.webp" imagesrcset="assets/hero/homepage-hero-mobile-800.webp 800w, assets/hero/homepage-hero-mobile-900.webp 900w, assets/hero/homepage-hero-1280.webp 1280w, assets/hero/homepage-hero-1671.webp 1671w" imagesizes="100vw" fetchpriority="high">`
     );
   }
 
