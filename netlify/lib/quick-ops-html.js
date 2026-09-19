@@ -137,6 +137,7 @@ function quickOpsPage(view, csrfToken) {
     a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
     a.text ? '<button type="button" class="secondary" data-action="text">Text customer</button>' : '',
     a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
+    a.copy_tech ? '<button type="button" class="secondary" data-action="copy_tech">Copy tech link</button>' : '',
     amountChangeMarkup(view),
     a.payment ? '<button type="button" class="secondary" data-action="copy_pay">Copy payment link</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link</button>' : '',
@@ -153,6 +154,10 @@ function quickOpsPage(view, csrfToken) {
   <div class="status">${escapeHtml(view.status)}</div>
   <h1>${escapeHtml(view.customer.name || 'Customer')}</h1>
   ${field('Phone', view.customer.phone)}
+  ${field('Field', view.fieldStatusLabel)}
+  ${field('Assigned', view.assignedTech)}
+  ${view.techNote ? `<p class="note">${escapeHtml(view.techNote)}</p>` : ''}
+  ${view.adjustmentNote ? `<p class="note">${escapeHtml(view.adjustmentNote)}</p>` : ''}
 </section>
 <section class="card">
   <h2>Vehicle</h2>
@@ -200,9 +205,10 @@ ${request}
         body: JSON.stringify(payload)
       });
       var data = await res.json().catch(function(){ return {}; });
-      if (action === 'copy_pay' && data.payUrl) {
-        try { await navigator.clipboard.writeText(data.payUrl); setMsg('Payment link copied', true); }
-        catch (e) { setMsg(data.payUrl, true); }
+      if ((action === 'copy_pay' && data.payUrl) || (action === 'copy_tech' && data.techOpsUrl)) {
+        var link = data.payUrl || data.techOpsUrl;
+        try { await navigator.clipboard.writeText(link); setMsg(action === 'copy_tech' ? 'Tech link copied' : 'Payment link copied', true); }
+        catch (e) { setMsg(link, true); }
         return;
       }
       if (!res.ok || data.ok === false) { setMsg(data.message || data.error || 'Could not complete'); return; }

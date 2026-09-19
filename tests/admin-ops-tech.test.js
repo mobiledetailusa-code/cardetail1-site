@@ -119,6 +119,9 @@ test('assignment writes assignedTechId and eventLog', () => {
   assert.match(techAssign, /assignedTechId/);
   assert.match(techAssign, /jobStatus:\s*'assigned'/);
   assert.match(techAssign, /appendEventLog/);
+  assert.match(techAssign, /commitBooking/);
+  assert.match(techAssign, /getBookingRecord/);
+  assert.match(techAssign, /techOpsUrl/);
 });
 
 test('admin ops jobs strips stripe fields from response', () => {

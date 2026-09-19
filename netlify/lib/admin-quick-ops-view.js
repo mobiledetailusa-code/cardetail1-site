@@ -3,6 +3,35 @@
 const { remainingCents } = require('./booking-aggregate');
 const { smsDateLabel, smsWindowLabel, smsVehicleLabel, smsServiceLabel, smsPriceLabel } = require('./sms-templates');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
+const { normalizeTechJobStatus } = require('./ops-workflow');
+
+const FIELD_LABELS = {
+  pending_review: 'Pending review',
+  confirmed: 'Confirmed',
+  assigned: 'Assigned',
+  accepted: 'Accepted',
+  en_route: 'En route',
+  arrived: 'Arrived',
+  in_progress: 'In progress',
+  paused: 'Paused',
+  issue_reported: 'Issue reported',
+  reopened: 'Reopened',
+  completed_pending_payment: 'Done — payment pending',
+  completed_paid: 'Done — paid',
+  cancelled: 'Cancelled',
+  canceled: 'Cancelled',
+};
+
+function fieldStatusLabel(status) {
+  const key = String(status || '').trim().toLowerCase();
+  return FIELD_LABELS[key] || key || 'Job';
+}
+
+function lastAppliedAdjustment(booking) {
+  const list = Array.isArray(booking && booking.priceAdjustments) ? booking.priceAdjustments : [];
+  const applied = list.filter((row) => row && String(row.status || '') === 'applied');
+  return applied[applied.length - 1] || null;
+}
 
 const PENDING_REQUEST = new Set(['pending', 'requested', 'open', 'submitted', 'awaiting_review']);
 
@@ -104,11 +133,20 @@ function projectQuickOpsBooking(booking, shared = null) {
     || booking.preferredTime
     || ''
   );
+  const fieldStatus = normalizeTechJobStatus(booking);
+  const adjustment = lastAppliedAdjustment(booking);
   return {
     bookingId: String(booking.id || booking.bookingId || ''),
     bookingVersion: Math.max(0, Math.round(Number(booking.bookingVersion) || 0)),
     quoteVersion: money.quoteVersion,
     status,
+    fieldStatus,
+    fieldStatusLabel: fieldStatusLabel(fieldStatus || status),
+    assignedTech: String(booking.assignedTechName || booking.assignedTech || '').trim(),
+    techNote: String(booking.techNotes || booking.lastProblem || '').replace(/\s+/g, ' ').trim().slice(-180),
+    adjustmentNote: adjustment
+      ? String(adjustment.reason || '').replace(/\s+/g, ' ').trim().slice(0, 180)
+      : '',
     customer: {
       name: [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim()
         || String(booking.customerName || '').trim(),
@@ -165,6 +203,7 @@ function projectQuickOpsBooking(booking, shared = null) {
         cash: due,
         card: due,
         adjust: status !== 'cancelled',
+        copy_tech: status !== 'cancelled',
       };
     })(),
     mapUrl: address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '',
@@ -181,4 +220,5 @@ module.exports = {
   jobCompleted,
   paidInFull,
   onSiteMethodLabel,
+  fieldStatusLabel,
 };

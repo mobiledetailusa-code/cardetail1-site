@@ -233,6 +233,18 @@ async function handlePost(event) {
       message: action === 'record_cash' ? 'Cash recorded' : 'Card recorded',
     });
   }
+  if (action === 'copy_tech') {
+    try {
+      const { mintTechOpsUrl } = require('../lib/tech-quick-ops-token');
+      const techOpsUrl = await mintTechOpsUrl(session.bookingId);
+      if (!techOpsUrl) {
+        return json(503, { ok: false, error: 'tech_link_unavailable', message: 'Tech link unavailable' });
+      }
+      return json(200, { ok: true, techOpsUrl, message: 'Tech link ready' });
+    } catch {
+      return json(503, { ok: false, error: 'tech_link_unavailable', message: 'Tech link unavailable' });
+    }
+  }
   if (action === 'copy_pay') {
     const result = await mintPaymentLink(booking);
     if (!result.ok) {
