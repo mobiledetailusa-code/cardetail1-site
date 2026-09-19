@@ -232,11 +232,11 @@ describe('payment preference metadata', () => {
     assert.equal(Review.preferenceLabel('cash_onsite'), 'Cash at service');
   });
 
-  it('marks Pay online later as recommended and card-required', () => {
+  it('marks Pay online later as card-required without recommending it', () => {
     assert.equal(Review.preferenceRequiresCard('online_after_service'), true);
     assert.equal(Review.preferenceRequiresCard('card_onsite'), false);
     assert.equal(Review.preferenceRequiresCard('cash_onsite'), false);
-    assert.equal(Review.REQUEST_PREFERENCES.online_after_service.recommended, true);
+    assert.equal(Review.REQUEST_PREFERENCES.online_after_service.recommended, false);
   });
 
   it('runtime never creates Stripe, ledger, or receipt objects', () => {

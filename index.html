@@ -3076,7 +3076,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="bk-charged-label">Charged today</span>
               <span class="bk-charged-amt">$0.00</span>
             </div>
-            <p class="bk-charged-copy">No payment is collected when you submit this booking request. Card at service and cash need no card today. Pay online later (recommended) asks you to save a card securely first — still nothing charged today.</p>
+            <p class="bk-charged-copy">No payment is collected when you submit this booking request. Card at service and cash need no card today. Pay online later asks you to save a card securely first — still nothing charged today.</p>
           </div>
           <div class="oc">
             <div class="oc-t">Appointment</div>
@@ -3093,14 +3093,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="oc-t">Preferred payment method</div>
             <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
               <div class="bk-pay-pref-row">
-                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Pay online later</span><span class="bk-pay-rec-badge">Recommended</span></button>
+                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Pay online later</span></button>
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
-              <p class="bk-pay-pref-help" id="bk-pay-pref-copy">Pay online later is our recommended payment method. Choose it to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.</p>
+              <p class="bk-pay-pref-help" id="bk-pay-pref-copy">Choose Pay online later to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.</p>
               <p class="bk-pay-pref-help" id="bk-pay-pref-err" hidden role="alert"></p>
               <div class="bk-online-card-wrap" id="bk-online-card-wrap" hidden>
-                <p class="bk-online-rec-msg" id="bk-online-rec-msg">Pay online later is the recommended payment method. Save your card securely below to continue — nothing is charged today. Final payment is requested online after service when approved.</p>
+                <p class="bk-online-rec-msg" id="bk-online-rec-msg">Pay online later requires saving a card securely below — nothing is charged today. Final payment is requested online after service when approved.</p>
                 <div id="cof-wrap">
                   <div class="fl bk-online-card-title">Card required for Pay online later</div>
                   <div class="bk-online-card-body">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
@@ -3139,10 +3139,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="pay-box">
           <div class="pay-t">What happens next · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 10px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay online later (recommended)</strong> — save a card securely first; nothing is charged today.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay online later</strong> — save a card securely first; nothing is charged today.</li>
             <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card or cash at service</strong> — no card needed to submit; pay when we finish the job.</li>
           </ul>
-          <div class="pay-badge">✓ Request first · Recommended: Pay online · No charge today</div>
+          <div class="pay-badge">✓ Request first · Pay online · No charge today</div>
         </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>

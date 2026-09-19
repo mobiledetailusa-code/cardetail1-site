@@ -6,8 +6,8 @@
  *   - estimated totals use the same cart + travel-fee total that the payload sends
  *   - a persisted booking never renders as "not submitted"
  *   - payment preference selects how the customer wants to pay later
- *   - Pay online later (recommended) requires a saved card on file; other
- *     preferences stay no-card at request time
+ *   - Pay online later requires a saved card on file; other preferences stay
+ *     no-card at request time
  *   - this module never talks to Stripe directly (page JS owns SetupIntent)
  *
  * This module NEVER prices a package and NEVER creates Stripe/ledger/receipt objects.
@@ -35,7 +35,7 @@
       value: 'online_after_service',
       label: 'Pay online later',
       button: 'Pay online later',
-      recommended: true,
+      recommended: false,
       requiresCard: true,
     },
     card_onsite: {
@@ -57,9 +57,9 @@
   });
 
   var PREFERENCE_VALUES = Object.keys(REQUEST_PREFERENCES);
-  var ONLINE_HELP = 'Pay online later is our recommended payment method. Save a card securely (nothing charged today). Final payment is requested online after service when approved.';
+  var ONLINE_HELP = 'Pay online later requires a saved card. Save a card securely (nothing charged today). Final payment is requested online after service when approved.';
   var ONSITE_HELP = 'Card or cash at service — no card needed to submit. Nothing is charged or authorized when you send this request.';
-  var DEFAULT_HELP = 'Pay online later is our recommended payment method. Choose it to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.';
+  var DEFAULT_HELP = 'Choose Pay online later to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.';
   var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
   var SUBMIT_FAILURE_CODES = {
     draft_token_invalid: 'Your booking session expired. Please submit the request again.',

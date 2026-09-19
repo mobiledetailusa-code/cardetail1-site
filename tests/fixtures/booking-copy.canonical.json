@@ -204,25 +204,25 @@
         "why": "Nothing is charged at request time, even when Pay online later requires a saved card."
       },
       {
-        "id": "pay-online-recommended",
-        "anchor": "#pc-online .bk-pay-rec-badge",
-        "match": "exact",
-        "texts": ["Recommended"],
-        "why": "Pay online later is marked as the recommended payment method."
+        "id": "pay-online-card-required",
+        "anchor": "#pc-online",
+        "match": "contains",
+        "texts": ["Pay online later"],
+        "why": "Pay online later remains available as a payment preference (without a Recommended badge)."
       },
       {
         "id": "pay-later-options",
         "anchor": "#bk-pay-pref-copy",
         "match": "contains",
-        "texts": ["Pay online later is our recommended payment method."],
-        "why": "The review step states that Pay online later is recommended and explains card vs onsite options."
+        "texts": ["Choose Pay online later to save a card securely (nothing charged today)."],
+        "why": "The review step explains card vs onsite options without recommending a method."
       },
       {
         "id": "request-first-badge",
         "anchor": "#bs5 .pay-badge",
         "match": "exact",
-        "texts": ["✓ Request first · Recommended: Pay online · No charge today"],
-        "why": "Compact summary of request-first flow with recommended online payment."
+        "texts": ["✓ Request first · Pay online · No charge today"],
+        "why": "Compact summary of request-first flow with online payment available."
       },
       {
         "id": "charged-today-label",
