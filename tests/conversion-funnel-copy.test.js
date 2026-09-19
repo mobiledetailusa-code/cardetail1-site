@@ -228,7 +228,7 @@ test('the hero trust line carries only claims that can be checked', () => {
 
   // Transparent highlight chips — not opaque cards.
   assert.match(html, /class="hero-trust-chip"/);
-  assert.match(index, /hero-trust-chip\{[^}]*background:rgba\(18,24,33,\.42\)/);
+  assert.match(index, /hero-trust-chip\{[^}]*background:rgba\(255,255,255,\.08\)/);
 
   // Nothing derived from a counter, a visit count or an invented total.
   assert.doesNotMatch(html, /\d+(\.\d+)?k\+/, 'hero trust line shows a k+ style count');

@@ -29,15 +29,15 @@ body.luxury-surface > .hero:not(.hero--hub-brand) .hero-assure {
 }
 
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-chip {
-  color: #d7e0ea !important;
-  background: rgba(18, 24, 33, 0.38) !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #e8eef5 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
 }
 
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-chip--accent {
-  color: #cfe6ff !important;
-  background: rgba(77, 163, 255, 0.14) !important;
-  border-color: rgba(77, 163, 255, 0.35) !important;
+  color: #d7ebff !important;
+  background: rgba(77, 163, 255, 0.12) !important;
+  border-color: rgba(77, 163, 255, 0.45) !important;
 }
 
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-link:hover,

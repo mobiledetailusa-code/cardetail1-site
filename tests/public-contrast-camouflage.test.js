@@ -16,7 +16,7 @@ describe('public camouflaged-text contrast guards', () => {
 
   it('luxury hero trust chips stay readable on the photo hero', () => {
     const css = read('assets/luxury-theme.css');
-    assert.match(css, /\.hero-trust-chip[\s\S]*?color:\s*#d7e0ea\s*!important/);
+    assert.match(css, /\.hero-trust-chip[\s\S]*?color:\s*#e8eef5\s*!important/);
     assert.match(css, /\.hero-assure[\s\S]*?color:\s*#b8c4d0\s*!important/);
   });
 
