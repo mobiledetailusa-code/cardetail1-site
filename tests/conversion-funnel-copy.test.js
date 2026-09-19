@@ -218,13 +218,17 @@ test('the hero trust line carries only claims that can be checked', () => {
   const index = read('index.html');
   assert.match(index, /class="hero-trust-line"/, 'hero trust line missing');
 
-  const line = /<p class="hero-trust-line"[\s\S]*?<\/p>/.exec(index);
+  const line = /<ul class="hero-trust-line"[\s\S]*?<\/ul>/.exec(index);
   assert.ok(line, 'could not isolate the hero trust line');
   const html = line[0];
 
-  for (const claim of ['5.0 Google', '5+ years', 'We come to you']) {
+  for (const claim of ['5.0 Google', '5+ years', 'We come to you', 'Same-day available']) {
     assert.ok(html.includes(claim), `hero trust line lost "${claim}"`);
   }
+
+  // Transparent highlight chips — not opaque cards.
+  assert.match(html, /class="hero-trust-chip"/);
+  assert.match(index, /hero-trust-chip\{[^}]*background:rgba\(18,24,33,\.42\)/);
 
   // Nothing derived from a counter, a visit count or an invented total.
   assert.doesNotMatch(html, /\d+(\.\d+)?k\+/, 'hero trust line shows a k+ style count');
@@ -233,6 +237,14 @@ test('the hero trust line carries only claims that can be checked', () => {
   // The rating must lead somewhere the visitor can verify it.
   assert.match(html, /href="#reviews"/, 'the rating does not link to the reviews');
   assert.match(index, /id="reviews"/, 'the reviews anchor target is missing');
+});
+
+test('homepage hero no longer leads with interior/exterior water-power subcopy', () => {
+  const index = read('index.html');
+  const hero = /<section class="hero"[\s\S]*?<\/section>/.exec(index);
+  assert.ok(hero, 'homepage hero missing');
+  assert.doesNotMatch(hero[0], /We bring the water and power/);
+  assert.doesNotMatch(hero[0], /Interior, exterior and full detailing/);
 });
 
 test('the hero repeats the same request-first promise as the review step', () => {

@@ -14,9 +14,9 @@ describe('public camouflaged-text contrast guards', () => {
     assert.match(css, /\.hero-zip-input::placeholder\s*\{[^}]*color:\s*#94a3b8\s*!important/);
   });
 
-  it('luxury hero body copy is brighter than ink-soft token alone', () => {
+  it('luxury hero trust chips stay readable on the photo hero', () => {
     const css = read('assets/luxury-theme.css');
-    assert.match(css, /\.hero-sub[\s\S]*?color:\s*#c5d0dc\s*!important/);
+    assert.match(css, /\.hero-trust-chip[\s\S]*?color:\s*#d7e0ea\s*!important/);
     assert.match(css, /\.hero-assure[\s\S]*?color:\s*#b8c4d0\s*!important/);
   });
 

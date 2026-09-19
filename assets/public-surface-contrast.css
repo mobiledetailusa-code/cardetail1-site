@@ -183,13 +183,12 @@
 }
 
 /* Hero body copy over photo backgrounds */
-.hero .hero-sub {
-  color: #c5d0dc;
+.hero .hero-assure {
+  color: #b8c4d0;
 }
 
-.hero .hero-assure,
-.hero .hero-trust-line {
-  color: #b8c4d0;
+.hero .hero-trust-chip {
+  color: #d7e0ea;
 }
 
 /* Proof / trust secondary labels on dark cards */

@@ -18,25 +18,32 @@ body.luxury-surface > .hero:not(.hero--hub-brand) h1 {
   color: var(--ink) !important;
 }
 
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-sub {
-  /* Brighter than --ink-soft so copy does not camouflage into the photo hero */
-  color: #c5d0dc !important;
-}
-
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-badge {
   color: #d4b896 !important;
   background: rgba(196, 165, 116, 0.1) !important;
   border-color: rgba(196, 165, 116, 0.28) !important;
 }
 
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-assure,
-body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-line {
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-assure {
   color: #b8c4d0 !important;
+}
+
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-chip {
+  color: #d7e0ea !important;
+  background: rgba(18, 24, 33, 0.38) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-chip--accent {
+  color: #cfe6ff !important;
+  background: rgba(77, 163, 255, 0.14) !important;
+  border-color: rgba(77, 163, 255, 0.35) !important;
 }
 
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-link:hover,
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-trust-link:focus-visible {
-  color: #7eb3e8 !important;
+  color: #e8f3ff !important;
+  background: rgba(77, 163, 255, 0.18) !important;
 }
 
 body.luxury-surface > .hero:not(.hero--hub-brand) .hero-packages-link {

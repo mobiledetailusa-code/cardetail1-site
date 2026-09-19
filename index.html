@@ -334,13 +334,13 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .hero-facts{list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 16px;padding:0}
 .hero-facts li{font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--bg0);border:1px solid var(--line);border-radius:999px;padding:6px 12px;line-height:1.25}
 .hero-sub--short{display:none}
-.hero h1{font-family:var(--fb);font-size:clamp(30px,5.5vw,44px);line-height:1.15;font-weight:600;color:var(--ink);margin-bottom:10px;letter-spacing:-.025em}
+.hero h1{font-family:var(--fb);font-size:clamp(30px,5.5vw,44px);line-height:1.15;font-weight:600;color:var(--ink);margin-bottom:18px;letter-spacing:-.025em}
 .hero h1 em{color:var(--blue);font-style:normal;font-weight:600}
 .hero-sub{font-size:15px;font-weight:400;color:var(--ink-soft);max-width:460px;margin:0 0 20px;line-height:1.6}
 .hero-btns{display:flex;gap:10px;justify-content:flex-start;flex-wrap:wrap;margin-bottom:20px}
 .hero-zip-wrap{background:var(--bg0);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;max-width:440px;margin:0 0 12px;position:relative;z-index:2;box-shadow:none}
 .hero-zip-wrap--compact .hero-zip-label{font-size:12px;font-weight:500;color:var(--mu);margin-bottom:8px}
-.hero-zip-feedback{min-height:24px;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.hero-zip-feedback{min-height:24px;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-start}
 .btn-primary{padding:14px 28px;border-radius:999px;border:none;background:var(--blue);color:var(--white);font-family:var(--fb);font-size:15px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;transition:.2s;box-shadow:0 2px 10px rgba(37,99,235,.22)}
 .btn-primary:hover{background:var(--blue-hover);transform:translateY(-1px);box-shadow:0 4px 14px rgba(37,99,235,.28)}
 .btn-outline{padding:14px 28px;border-radius:999px;border:1px solid var(--line-strong);background:var(--bg1);color:var(--ink);font-family:var(--fb);font-size:14px;font-weight:500;cursor:pointer;transition:.2s}
@@ -1570,11 +1570,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 /* Hero trust line — verifiable signals only (rating links to #reviews). */
 .hero-assure{margin:12px 0 0;font-size:13px;font-weight:500;color:var(--ink-soft);letter-spacing:.01em;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 8px}
 .hero-assure-sep{color:var(--mu);font-weight:500}
-.hero-trust-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 10px;margin:14px 0 0;padding:0;font-size:13px;font-weight:600;color:var(--ink-soft);line-height:1.4}
-.hero-trust-link{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-.hero-trust-link:hover,.hero-trust-link:focus-visible{color:var(--blue)}
-.hero-trust-stars{color:var(--blue);letter-spacing:1px;font-size:12px}
-.hero-trust-sep{color:var(--mu);font-weight:500}
+.hero-trust-line{list-style:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;margin:14px 0 0;padding:0}
+.hero-trust-line li{margin:0;padding:0}
+.hero-trust-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(18,24,33,.42);color:#d7e0ea;font-size:12.5px;font-weight:600;line-height:1.25;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.hero-trust-chip--accent{border-color:rgba(77,163,255,.35);background:rgba(77,163,255,.14);color:#cfe6ff}
+.hero-trust-link{color:inherit;text-decoration:none}
+.hero-trust-link:hover,.hero-trust-link:focus-visible{border-color:rgba(77,163,255,.45);background:rgba(77,163,255,.18);color:#e8f3ff}
+.hero-trust-stars{color:#7eb3e8;letter-spacing:1px;font-size:12px}
+.hero-trust-sep{display:none}
 .hero-packages-link{display:inline-flex;margin-top:16px;font-size:14px;font-weight:600;color:var(--blue);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s,color .2s}
 .hero-packages-link:hover,.hero-packages-link:focus-visible{border-bottom-color:var(--blue)}
 #zip-section{margin:0;max-width:440px;width:100%}
@@ -1657,9 +1660,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0}
   .hero-badge{align-self:flex-start;font-size:10.5px;padding:4px 10px;margin-bottom:10px}
   .hero h1{font-size:clamp(28px,7.4vw,34px);line-height:1.12;margin-bottom:10px;text-align:left;overflow-wrap:break-word}
-  .hero-sub{font-size:15px;line-height:1.5;margin:0 0 16px;text-align:left;color:var(--ink-soft)}
   .hero-assure{text-align:left;margin-top:10px}
-  .hero-trust-line{justify-content:flex-start;text-align:left;margin-top:12px}
+  .hero-trust-line{justify-content:flex-start;margin-top:12px;gap:7px}
+  .hero-trust-chip{padding:7px 10px;font-size:12px}
   .hero-packages-link{align-self:flex-start;margin-top:14px}
   .hero-tel-mobile{display:none!important}
   #zip-section{width:100%;min-width:0;margin-top:0;max-width:100%}
@@ -1783,7 +1786,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div class="hero-inner">
     <div class="hero-badge">Palisades Park, NJ · Mobile Detailing</div>
     <h1>Mobile Car Detailing<br>at Your Home or Office</h1>
-    <p class="hero-sub">Interior, exterior and full detailing.<br>We bring the water and power.</p>
 
     <div id="zip-section" aria-label="Check price and availability by ZIP code">
       <div class="hero-zip-wrap hero-zip-wrap--compact">
@@ -1812,13 +1814,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <span class="hero-assure-lbl">Request first, pay later</span>
     </p>
 
-    <p class="hero-trust-line" aria-label="Why customers book Cardetail1">
-      <a class="hero-trust-link" href="#reviews"><span class="hero-trust-stars" aria-hidden="true">★★★★★</span> 5.0 Google</a>
-      <span class="hero-trust-sep" aria-hidden="true">·</span>
-      <span>5+ years</span>
-      <span class="hero-trust-sep" aria-hidden="true">·</span>
-      <span>We come to you</span>
-    </p>
+    <ul class="hero-trust-line" aria-label="Why customers book Cardetail1">
+      <li>
+        <a class="hero-trust-chip hero-trust-link" href="#reviews"><span class="hero-trust-stars" aria-hidden="true">★★★★★</span> 5.0 Google</a>
+      </li>
+      <li><span class="hero-trust-chip">5+ years</span></li>
+      <li><span class="hero-trust-chip">We come to you</span></li>
+      <li><span class="hero-trust-chip hero-trust-chip--accent">Same-day available</span></li>
+    </ul>
 
     <a class="hero-packages-link" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages</a>
 
