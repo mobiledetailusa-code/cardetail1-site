@@ -227,6 +227,7 @@ function paymentPage({ amountLabel, clientConfigUrl, csrf }) {
 module.exports = {
   escapeHtml,
   chrome,
+  field,
   neutralExpiredPage,
   quickOpsPage,
   paymentPage,

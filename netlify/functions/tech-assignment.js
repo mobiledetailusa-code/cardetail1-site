@@ -65,11 +65,19 @@ exports.handler = async (event) => {
     }),
   };
   await bookingStore.setJSON(bookingId, patched);
+  let techOpsUrl = '';
+  try {
+    const { mintTechOpsUrl } = require('../lib/tech-quick-ops-token');
+    techOpsUrl = await mintTechOpsUrl(bookingId);
+  } catch {
+    techOpsUrl = '';
+  }
   return jsonCors(200, {
     ok: true,
     bookingId,
     assignedTechId: patched.assignedTechId,
     assignedTechName: patched.assignedTechName,
     jobStatus: patched.jobStatus,
+    techOpsUrl: techOpsUrl || undefined,
   });
 };
