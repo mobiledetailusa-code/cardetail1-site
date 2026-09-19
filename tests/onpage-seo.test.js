@@ -120,7 +120,11 @@ test('before/after gallery uses WebP with descriptive alts', () => {
 });
 
 test('homepage preloads LCP hero image', () => {
-  assert.match(read('index.html'), /rel="preload" as="image" href="assets\/vehicles\/premium\/cars-suvs\.webp"/);
+  assert.match(
+    read('index.html'),
+    /rel="preload" as="image"[^>]*href="assets\/hero\/homepage-hero-1671\.webp"/
+  );
+  assert.doesNotMatch(read('index.html'), /homepage-hero-source\.png/);
 });
 
 test('homepage and Bergen hub link to dedicated city pages', () => {

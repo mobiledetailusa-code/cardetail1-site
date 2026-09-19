@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="google-site-verification" content="J5dl5bL4P6NqxVkm1zauqfoFghfu2puiXoRWyvFID3c">
 <link rel="canonical" href="https://cardetail1.com/">
-<link rel="preload" as="image" href="assets/vehicles/premium/cars-suvs.webp" fetchpriority="high">
+<link rel="preload" as="image" type="image/webp" href="assets/hero/homepage-hero-1671.webp" imagesrcset="assets/hero/homepage-hero-mobile-800.webp 800w, assets/hero/homepage-hero-mobile-900.webp 900w, assets/hero/homepage-hero-1280.webp 1280w, assets/hero/homepage-hero-1671.webp 1671w" imagesizes="100vw" fetchpriority="high">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicon-48.png">
 <link rel="icon" type="image/png" sizes="96x96" href="/assets/favicon-96.png">
@@ -22,8 +22,8 @@
 <meta property="og:url" content="https://cardetail1.com/">
 <meta property="og:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
 <meta property="og:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $190, full detail from $240 at your driveway. Book online.">
-<meta property="og:image" content="https://cardetail1.com/assets/vehicles/premium/cars-suvs.webp">
-<meta name="twitter:image" content="https://cardetail1.com/assets/vehicles/premium/cars-suvs.webp">
+<meta property="og:image" content="https://cardetail1.com/assets/hero/homepage-hero-1671.webp">
+<meta name="twitter:image" content="https://cardetail1.com/assets/hero/homepage-hero-1671.webp">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Cardetail1 — Mobile Detailing | Palisades Park &amp; Bergen County, NJ">
 <meta name="twitter:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $190, full detail from $240 at your driveway. Book online.">
@@ -320,18 +320,25 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 @media(max-width:760px){
   .hero-tel-mobile{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;border:1px solid var(--bbr);border-radius:999px;padding:10px 20px;margin-top:16px;background:var(--bg1);-webkit-tap-highlight-color:transparent}
 }
-.hero{min-height:auto;background:var(--bg1);display:flex;align-items:center;justify-content:center;text-align:center;padding:40px 20px 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 70% 40%,rgba(37,99,235,.04),transparent);pointer-events:none}
-.hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0 auto}
+.hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:40px max(20px, min(6vw, 72px)) 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);min-height:min(72vh,640px)}
+.hero-media{position:absolute;inset:0;z-index:0;pointer-events:none}
+.hero-media picture,.hero-media-img{display:block;width:100%;height:100%}
+.hero-media-img{object-fit:cover;object-position:right center;width:100%;height:100%}
+.hero::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:
+  linear-gradient(105deg,rgba(15,20,28,.94) 0%,rgba(18,24,33,.82) 38%,rgba(18,24,33,.45) 58%,rgba(18,24,33,.12) 78%,rgba(18,24,33,.04) 100%),
+  radial-gradient(circle at 82% 20%,rgba(77,163,255,.10),transparent 34%),
+  linear-gradient(180deg,transparent 78%,#12181f 100%)}
+.hero > *:not(.hero-media){position:relative;z-index:1}
+.hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0;text-align:left}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);border-radius:999px;padding:5px 12px;margin-bottom:12px}
 .hero-facts{list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 16px;padding:0}
 .hero-facts li{font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--bg0);border:1px solid var(--line);border-radius:999px;padding:6px 12px;line-height:1.25}
 .hero-sub--short{display:none}
 .hero h1{font-family:var(--fb);font-size:clamp(30px,5.5vw,44px);line-height:1.15;font-weight:600;color:var(--ink);margin-bottom:10px;letter-spacing:-.025em}
 .hero h1 em{color:var(--blue);font-style:normal;font-weight:600}
-.hero-sub{font-size:15px;font-weight:400;color:var(--ink-soft);max-width:460px;margin:0 auto 20px;line-height:1.6}
-.hero-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
-.hero-zip-wrap{background:var(--bg0);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;max-width:440px;margin:0 auto 12px;position:relative;z-index:2;box-shadow:none}
+.hero-sub{font-size:15px;font-weight:400;color:var(--ink-soft);max-width:460px;margin:0 0 20px;line-height:1.6}
+.hero-btns{display:flex;gap:10px;justify-content:flex-start;flex-wrap:wrap;margin-bottom:20px}
+.hero-zip-wrap{background:var(--bg0);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;max-width:440px;margin:0 0 12px;position:relative;z-index:2;box-shadow:none}
 .hero-zip-wrap--compact .hero-zip-label{font-size:12px;font-weight:500;color:var(--mu);margin-bottom:8px}
 .hero-zip-feedback{min-height:24px;margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
 .btn-primary{padding:14px 28px;border-radius:999px;border:none;background:var(--blue);color:var(--white);font-family:var(--fb);font-size:15px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;transition:.2s;box-shadow:0 2px 10px rgba(37,99,235,.22)}
@@ -1093,12 +1100,15 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 .nav-brand-img{display:flex;align-items:center;text-decoration:none;line-height:0}
 .nav-logo-img{height:48px;width:auto;max-width:220px;object-fit:contain;display:block;filter:none}
 .foot-logo-img{height:52px;width:auto;max-width:240px;object-fit:contain;display:block;margin-bottom:12px;filter:none}
-.hero{background:
-  linear-gradient(105deg,rgba(15,20,28,.94) 0%,rgba(18,24,33,.82) 40%,rgba(18,24,33,.48) 62%,rgba(18,24,33,.10) 100%),
-  url("assets/vehicles/premium/cars-suvs.webp") center right/cover no-repeat !important;
+.hero{
+  /* Photo lives in .hero-media <picture>/<img> — object-fit:cover, no CSS stretch/upscale */
+  background:#12181f !important;
 }
-.hero::before{background:radial-gradient(circle at 82% 20%,rgba(77,163,255,.10),transparent 34%),linear-gradient(180deg,transparent 82%,#12181f 100%) !important}
-.hero > *{position:relative;z-index:1}
+.hero::before{background:
+  linear-gradient(105deg,rgba(15,20,28,.94) 0%,rgba(18,24,33,.82) 38%,rgba(18,24,33,.45) 58%,rgba(18,24,33,.12) 78%,rgba(18,24,33,.04) 100%),
+  radial-gradient(circle at 82% 20%,rgba(77,163,255,.10),transparent 34%),
+  linear-gradient(180deg,transparent 78%,#12181f 100%) !important}
+.hero > *:not(.hero-media){position:relative;z-index:1}
 .hero-brand-mark{display:none}
 .visual-proof{display:none}
 .visual-proof-in{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch}
@@ -1310,8 +1320,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .brand-sub{font-size:7px;letter-spacing:.1em}
 
   /* ── HERO ── */
-  .hero{padding:32px 16px 40px;min-height:auto;flex-direction:column;overflow-x:hidden}
-  .hero>*{width:100%;max-width:100%;min-width:0}
+  .hero{padding:32px 16px 40px;flex-direction:column;overflow-x:hidden}
+  .hero > *:not(.hero-media){width:100%;max-width:100%;min-width:0}
   .hero h1{font-size:clamp(28px,8vw,38px);line-height:1.15;overflow-wrap:break-word}
   .hero-sub{font-size:14px;margin-bottom:18px;max-width:100%}
   .hero-stats{gap:18px}
@@ -1558,16 +1568,16 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-proof span{border:1px solid var(--line);background:var(--bg1);color:var(--ink-soft);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:500}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
 /* Hero trust line — verifiable signals only (rating links to #reviews). */
-.hero-assure{margin:12px 0 0;font-size:13px;font-weight:500;color:var(--ink-soft);letter-spacing:.01em;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 8px}
+.hero-assure{margin:12px 0 0;font-size:13px;font-weight:500;color:var(--ink-soft);letter-spacing:.01em;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 8px}
 .hero-assure-sep{color:var(--mu);font-weight:500}
-.hero-trust-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 10px;margin:14px auto 0;padding:0;font-size:13px;font-weight:600;color:var(--ink-soft);line-height:1.4}
+.hero-trust-line{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 10px;margin:14px 0 0;padding:0;font-size:13px;font-weight:600;color:var(--ink-soft);line-height:1.4}
 .hero-trust-link{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
 .hero-trust-link:hover,.hero-trust-link:focus-visible{color:var(--blue)}
 .hero-trust-stars{color:var(--blue);letter-spacing:1px;font-size:12px}
 .hero-trust-sep{color:var(--mu);font-weight:500}
 .hero-packages-link{display:inline-flex;margin-top:16px;font-size:14px;font-weight:600;color:var(--blue);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s,color .2s}
 .hero-packages-link:hover,.hero-packages-link:focus-visible{border-bottom-color:var(--blue)}
-#zip-section{margin:0 auto 0;max-width:440px;width:100%}
+#zip-section{margin:0;max-width:440px;width:100%}
 .hero-zip-wrap{margin-bottom:0}
 #services{content-visibility:auto;contain-intrinsic-size:900px;scroll-margin-top:76px}
 @media(max-width:640px){#services{scroll-margin-top:68px}}
@@ -1614,9 +1624,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .svc-lock-gate-ico{font-size:40px;margin-bottom:10px}
 
 @media(max-width:680px){
-  .hero{background:var(--bg1)!important}
-  .hero::before{display:none}
-  .hero{text-align:left}
+  .hero{text-align:left;min-height:min(78vh,720px)}
+  .hero::before{background:
+    linear-gradient(180deg,rgba(15,20,28,.92) 0%,rgba(18,24,33,.78) 42%,rgba(18,24,33,.55) 68%,rgba(18,24,33,.88) 100%),
+    linear-gradient(105deg,rgba(15,20,28,.88) 0%,rgba(18,24,33,.55) 48%,rgba(18,24,33,.18) 100%) !important}
+  .hero-media-img{object-position:68% center}
   .hero-inner{margin:0;max-width:100%}
   .hero-sub{margin-left:0;margin-right:0}
   .hero-zip-wrap{margin-left:0;margin-right:0;max-width:100%}
@@ -1637,8 +1649,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 /* ── MOBILE CONVERSION PASS (hero, nav, packages, tap targets) ── */
 @media(max-width:768px){
-  .hero{padding:28px 16px 28px;min-height:0;align-items:flex-start;justify-content:flex-start;background:var(--bg1)!important}
-  .hero::before{display:none!important}
+  .hero{padding:28px 16px 36px;min-height:min(78vh,720px);align-items:flex-start;justify-content:flex-start;background:#12181f!important}
+  .hero::before{display:block!important;background:
+    linear-gradient(180deg,rgba(15,20,28,.92) 0%,rgba(18,24,33,.78) 42%,rgba(18,24,33,.55) 68%,rgba(18,24,33,.88) 100%),
+    linear-gradient(105deg,rgba(15,20,28,.88) 0%,rgba(18,24,33,.55) 48%,rgba(18,24,33,.18) 100%) !important}
+  .hero-media-img{object-position:68% center}
   .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0}
   .hero-badge{align-self:flex-start;font-size:10.5px;padding:4px 10px;margin-bottom:10px}
   .hero h1{font-size:clamp(28px,7.4vw,34px);line-height:1.12;margin-bottom:10px;text-align:left;overflow-wrap:break-word}
@@ -1735,6 +1750,36 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 <!-- HERO -->
 <section class="hero">
+  <div class="hero-media" aria-hidden="true">
+    <picture>
+      <source
+        media="(max-width: 768px)"
+        type="image/avif"
+        srcset="assets/hero/homepage-hero-mobile-800.avif 800w, assets/hero/homepage-hero-mobile-900.avif 900w"
+        sizes="100vw">
+      <source
+        media="(max-width: 768px)"
+        type="image/webp"
+        srcset="assets/hero/homepage-hero-mobile-800.webp 800w, assets/hero/homepage-hero-mobile-900.webp 900w"
+        sizes="100vw">
+      <source
+        type="image/avif"
+        srcset="assets/hero/homepage-hero-1280.avif 1280w, assets/hero/homepage-hero-1671.avif 1671w"
+        sizes="100vw">
+      <source
+        type="image/webp"
+        srcset="assets/hero/homepage-hero-1280.webp 1280w, assets/hero/homepage-hero-1671.webp 1671w"
+        sizes="100vw">
+      <img
+        class="hero-media-img"
+        src="assets/hero/homepage-hero-1671.webp"
+        width="1671"
+        height="941"
+        alt=""
+        decoding="async"
+        fetchpriority="high">
+    </picture>
+  </div>
 <div class="hero-inner">
     <div class="hero-badge">Palisades Park, NJ · Mobile Detailing</div>
     <h1>Mobile Car Detailing<br>at Your Home or Office</h1>
