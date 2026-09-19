@@ -168,6 +168,9 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   // PR B — booking-scoped Quick Ops + payment resume
   'netlify/functions/admin-quick-ops.js',
   'netlify/functions/payment-resume.js',
+  // Technician Quick Ops — job-scoped tot_ magic link
+  'netlify/functions/tech-quick-ops.js',
+  'netlify/functions/tech-assignment.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
