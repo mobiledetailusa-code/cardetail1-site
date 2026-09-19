@@ -164,6 +164,7 @@ function projectQuickOpsBooking(booking, shared = null) {
         payment: due,
         cash: due,
         card: due,
+        adjust: status !== 'cancelled',
       };
     })(),
     mapUrl: address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '',

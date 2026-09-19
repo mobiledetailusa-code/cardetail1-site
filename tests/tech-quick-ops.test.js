@@ -32,12 +32,15 @@ const { PURPOSE_APPOINTMENT_ACCESS, TOKEN_PREFIX: AAT_PREFIX } = require('../net
 const {
   updateTechFieldStatus,
   completeTechJob,
+  prepareTechMoney,
 } = require('../netlify/lib/tech-quick-ops-actions');
 const { projectTechQuickOpsBooking } = require('../netlify/lib/tech-quick-ops-view');
+const { setPaymentResumeStoreFactory, resetPaymentResumeStoreFactory } = require('../netlify/lib/payment-resume-token');
 const tqHandler = require('../netlify/functions/tech-quick-ops');
 
 const SECRET = 'test-tech-quick-ops-secret-32chars';
 const QO_SECRET = 'test-admin-quick-ops-secret-32chars';
+const PAY_SECRET = 'test-payment-resume-secret-32chars';
 
 function pendingBooking(overrides = {}) {
   const recordedAt = overrides.finalizedAt || '2026-09-16T12:00:00.000Z';
@@ -116,20 +119,24 @@ before(() => {
   process.env.CONTEXT = 'production';
   process.env.TECH_QUICK_OPS_SECRET = SECRET;
   process.env.ADMIN_QUICK_OPS_SECRET = QO_SECRET;
+  process.env.PAYMENT_RESUME_SECRET = PAY_SECRET;
   process.env.CD1_POSTGRES_PAYMENT = 'false';
 });
 
 beforeEach(() => {
   const tokenStore = createCasMemoryStore();
   const sessionStore = createCasMemoryStore();
+  const payStore = createCasMemoryStore();
   setTechQuickOpsStoreFactories({
     tokenStore: () => tokenStore,
     sessionStore: () => sessionStore,
   });
+  setPaymentResumeStoreFactory(() => payStore);
 });
 
 afterEach(() => {
   resetTechQuickOpsStoreFactories();
+  resetPaymentResumeStoreFactory();
   setBookingStoreOverride(null);
 });
 
@@ -298,10 +305,10 @@ describe('tech quick ops page + actions', () => {
     assert.equal(pending.actions.complete, false);
     assert.equal(pending.actions.confirm, false);
     assert.equal(pending.actions.cancel, false);
-    assert.equal(pending.actions.payment, false);
-    assert.equal(pending.actions.cash, false);
-    assert.equal(pending.actions.card, false);
-    assert.equal(pending.actions.text, false);
+    assert.equal(pending.actions.payment, true);
+    assert.equal(pending.actions.cash, true);
+    assert.equal(pending.actions.card, true);
+    assert.equal(pending.actions.text, true);
 
     const assigned = projectTechQuickOpsBooking(assignedBooking());
     assert.equal(assigned.assignedTech, 'Jordan Tech');
@@ -311,6 +318,8 @@ describe('tech quick ops page + actions', () => {
     assert.equal(assigned.actions.arrived, false);
     assert.equal(assigned.actions.complete, false);
     assert.equal(assigned.actions.confirm, false);
+    assert.equal(assigned.actions.payment, true);
+    assert.equal(assigned.actions.cash, true);
     assert.equal(assigned.money.remainingCents, 19000);
     assert.match(assigned.mapUrl, /Harbor/);
 
@@ -359,8 +368,8 @@ describe('tech quick ops page + actions', () => {
       headers: { ...event.headers, 'x-tq-csrf': session.csrfToken },
       body: JSON.stringify({ action: 'record_cash', bookingVersion: 1 }),
     });
-    assert.equal(cash.statusCode, 400);
-    assert.equal(JSON.parse(cash.body).error, 'unknown_action');
+    assert.equal(cash.statusCode, 503);
+    assert.equal(JSON.parse(cash.body).error, 'postgres_payment_disabled');
 
     const confirm = await tqHandler.handler({
       ...event,
@@ -444,18 +453,115 @@ describe('tech quick ops page + actions', () => {
     });
     assert.equal(html.statusCode, 200);
     assert.match(html.body, /Tech Quick Ops/);
-    assert.match(html.body, /Mark job done/);
+    assert.match(html.body, /Close job/);
     assert.match(html.body, /Start job/);
     assert.match(html.body, /Call customer/);
     assert.match(html.body, /Open map/);
     assert.match(html.body, /Photos stay on the technician portal/);
+    assert.match(html.body, /Add to total/);
+    assert.match(html.body, /Reduce total/);
+    assert.match(html.body, /Record cash/);
+    assert.match(html.body, /Record card/);
+    assert.match(html.body, /Copy payment link/);
+    assert.match(html.body, /Text payment link/);
     assert.doesNotMatch(html.body, /Confirm appointment/);
     assert.doesNotMatch(html.body, /Cancel appointment/);
-    assert.doesNotMatch(html.body, /Record cash/);
-    assert.doesNotMatch(html.body, /Record card/);
-    assert.doesNotMatch(html.body, /Copy payment link/);
-    assert.doesNotMatch(html.body, /Text customer/);
     assert.equal(html.headers['X-Tq-Csrf'], session.csrfToken);
+  });
+
+  it('plus/minus require notes and revise the approved total', async () => {
+    const booking = assignedBooking({ jobStatus: 'arrived' });
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const missing = await prepareTechMoney(booking, {
+      amountMode: 'plus',
+      amountDollars: 40,
+      expectedBookingVersion: 1,
+    });
+    assert.equal(missing.ok, false);
+    assert.equal(missing.error, 'notes_required');
+
+    const plus = await prepareTechMoney(booking, {
+      amountMode: 'plus',
+      amountDollars: 40,
+      notes: 'Customer asked for engine bay wipe',
+      expectedBookingVersion: 1,
+    });
+    assert.equal(plus.ok, true);
+    assert.equal(plus.viewMoney.approvedCents, 23000);
+    assert.equal(plus.viewMoney.remainingCents, 23000);
+    const rec = await getBookingRecord(booking.id);
+    assert.equal(rec.booking.quoteVersion, 2);
+    assert.match(rec.booking.eventLog[rec.booking.eventLog.length - 1].action, /increase/);
+
+    const minus = await prepareTechMoney(rec.booking, {
+      amountMode: 'minus',
+      amountDollars: 50,
+      notes: 'Interior only — skipped engine',
+      expectedBookingVersion: rec.booking.bookingVersion,
+    });
+    assert.equal(minus.ok, true);
+    assert.equal(minus.viewMoney.approvedCents, 18000);
+  });
+
+  it('copy_pay after a plus change mints /pay for the new remaining', async () => {
+    const booking = assignedBooking({ jobStatus: 'arrived' });
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const { event, session } = await sessionEventFor(booking.id);
+    const denied = await tqHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-tq-csrf': session.csrfToken },
+      body: JSON.stringify({
+        action: 'copy_pay',
+        amountMode: 'plus',
+        amountDollars: 25,
+        bookingVersion: 1,
+      }),
+    });
+    assert.equal(denied.statusCode, 400);
+    assert.equal(JSON.parse(denied.body).error, 'notes_required');
+
+    const res = await tqHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-tq-csrf': session.csrfToken },
+      body: JSON.stringify({
+        action: 'copy_pay',
+        amountMode: 'plus',
+        amountDollars: 25,
+        notes: 'Add pet hair vacuum',
+        bookingVersion: 1,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.match(body.payUrl, /^https:\/\/cardetail1\.com\/pay\/prt_/);
+    const rec = await getBookingRecord(booking.id);
+    assert.equal(rec.booking.ledger.approvedCents, 21500);
+    assert.equal(rec.booking.jobStatus, 'arrived');
+  });
+
+  it('close job after a reduce leaves payment pending on the new total', async () => {
+    const booking = assignedBooking({ jobStatus: 'arrived', bookingVersion: 2 });
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const { event, session } = await sessionEventFor(booking.id);
+    const res = await tqHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-tq-csrf': session.csrfToken },
+      body: JSON.stringify({
+        action: 'complete',
+        amountMode: 'minus',
+        amountDollars: 40,
+        notes: 'Exterior only — no interior access',
+        bookingVersion: 2,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const rec = await getBookingRecord(booking.id);
+    assert.equal(rec.booking.jobStatus, 'completed_pending_payment');
+    assert.equal(rec.booking.ledger.approvedCents, 15000);
+    assert.ok(!rec.booking.cashReceivedAmount);
   });
 });
 
@@ -470,8 +576,7 @@ describe('architecture freeze', () => {
     assert.doesNotMatch(src, /plink_/);
     assert.doesNotMatch(src, /checkout\.sessions/i);
     assert.doesNotMatch(src, /paymentLinks\.create|stripe\.paymentLinks/i);
-    assert.doesNotMatch(src, /settleAdminCashFullBalance|settleAdminOnSiteFullBalance/);
-    assert.doesNotMatch(src, /createPaymentResumeToken|mintPaymentLink/);
+    assert.match(src, /mintPaymentLink|recordOnSitePayment/);
     assert.doesNotMatch(src, /enqueueSms/);
     const handlerSrc = read('netlify/functions/tech-quick-ops.js');
     const getFn = handlerSrc.slice(
@@ -479,7 +584,7 @@ describe('architecture freeze', () => {
       handlerSrc.indexOf('async function handlePost')
     );
     assert.match(handlerSrc, /if \(event\.httpMethod === 'GET'\) return handleGet/);
-    assert.doesNotMatch(getFn, /updateTechFieldStatus|completeTechJob|commitBooking/);
+    assert.doesNotMatch(getFn, /updateTechFieldStatus|completeTechJob|commitBooking|prepareTechMoney|recordOnSitePayment|mintPaymentLink/);
   });
 
   it('cookie session is not an Admin or technician-login session', () => {

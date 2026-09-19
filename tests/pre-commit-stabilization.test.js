@@ -430,6 +430,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/tech-quick-ops-actions.js',
     'netlify/lib/tech-quick-ops-view.js',
     'netlify/lib/tech-quick-ops-html.js',
+    'netlify/lib/quick-ops-amount.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

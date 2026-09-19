@@ -773,6 +773,47 @@ describe('quick ops page + actions', () => {
     assert.doesNotMatch(paidHtml.body, /Record cash/);
     assert.doesNotMatch(paidHtml.body, /Cancel appointment/);
   });
+
+  it('plus/minus on Admin require notes and the pay link follows the new total', async () => {
+    const booking = pendingBooking({
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'confirmed',
+    });
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const { event, session } = await sessionEventFor(booking.id);
+    const missing = await qoHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-qo-csrf': session.csrfToken },
+      body: JSON.stringify({
+        action: 'copy_pay',
+        amountMode: 'minus',
+        amountDollars: 40,
+        bookingVersion: 1,
+      }),
+    });
+    assert.equal(missing.statusCode, 400);
+    assert.equal(JSON.parse(missing.body).error, 'notes_required');
+
+    const res = await qoHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-qo-csrf': session.csrfToken },
+      body: JSON.stringify({
+        action: 'copy_pay',
+        amountMode: 'minus',
+        amountDollars: 40,
+        notes: 'Customer declined interior',
+        bookingVersion: 1,
+      }),
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.match(body.payUrl, /\/pay\/prt_/);
+    const rec = await getBookingRecord(booking.id);
+    assert.equal(rec.booking.ledger.approvedCents, 15000);
+  });
 });
 
 describe('architecture freeze', () => {
@@ -797,7 +838,7 @@ describe('architecture freeze', () => {
       handlerSrc.indexOf('async function handlePost')
     );
     assert.match(handlerSrc, /if \(event\.httpMethod === 'GET'\) return handleGet/);
-    assert.doesNotMatch(getFn, /confirmQuickOps|cancelQuickOps|decideQuickOps|textCustomer|mintPaymentLink|enqueueSms|recordOnSitePayment/);
+    assert.doesNotMatch(getFn, /confirmQuickOps|cancelQuickOps|decideQuickOps|textCustomer|mintPaymentLink|enqueueSms|recordOnSitePayment|prepareQuickOpsMoney|applyQuickOpsAmountChange/);
   });
 
   it('cookie session is not a full Admin session', () => {

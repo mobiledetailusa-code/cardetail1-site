@@ -14,6 +14,12 @@ const {
   loadProjectedBooking,
   updateTechFieldStatus,
   completeTechJob,
+  prepareTechMoney,
+  completeIfReady,
+  mintPaymentLink,
+  textCustomer,
+  recordOnSitePayment,
+  reloadBooking,
 } = require('../lib/tech-quick-ops-actions');
 const { neutralExpiredPage, techQuickOpsPage } = require('../lib/tech-quick-ops-html');
 
@@ -171,27 +177,128 @@ async function handlePost(event) {
     });
   }
 
-  if (action === 'complete') {
-    if (!actions.complete) {
-      return json(409, {
-        ok: false,
-        error: view.locked ? 'locked' : 'not_ready_to_complete',
-        message: view.locked ? 'Job completed — locked' : 'Arrive or start the job first',
+  const moneyPrelude = ['complete', 'copy_pay', 'text_pay', 'record_cash', 'record_card'];
+  if (moneyPrelude.includes(action)) {
+    const prepared = await prepareTechMoney(booking, {
+      amountMode: body.amountMode,
+      amountDollars: body.amountDollars,
+      amountCents: body.amountCents,
+      notes: body.notes,
+      expectedBookingVersion,
+    });
+    if (!prepared.ok) {
+      const message = prepared.error === 'notes_required'
+        ? 'Notes are required to change the amount'
+        : prepared.error === 'amount_required' || prepared.error === 'invalid_amount'
+          ? 'Enter how much to add or reduce'
+          : prepared.error === 'decrease_exceeds_approved'
+            ? 'Reduce cannot be more than the approved total'
+            : prepared.error === 'version_conflict'
+              ? 'Booking changed — reload and try again'
+              : (prepared.error || 'Could not update amount');
+      return json(prepared.statusCode || 400, { ok: false, error: prepared.error, message });
+    }
+    const current = prepared.booking;
+    const nextVersion = current.bookingVersion;
+
+    if (action === 'complete') {
+      if (!actions.complete && !projectReadyToComplete(current)) {
+        return json(409, {
+          ok: false,
+          error: view.locked ? 'locked' : 'not_ready_to_complete',
+          message: view.locked ? 'Job completed — locked' : 'Arrive or start the job first',
+        });
+      }
+      const result = await completeTechJob(current, { expectedBookingVersion: nextVersion });
+      return json(result.ok ? 200 : (result.statusCode || 409), {
+        ok: !!result.ok,
+        idempotent: !!result.idempotent,
+        reload: !!result.ok,
+        jobStatus: result.jobStatus || null,
+        message: result.ok
+          ? (result.idempotent ? 'Already marked done' : 'Job closed')
+          : (result.error || 'complete_failed'),
       });
     }
-    const result = await completeTechJob(booking, { expectedBookingVersion });
-    return json(result.ok ? 200 : (result.statusCode || 409), {
-      ok: !!result.ok,
-      idempotent: !!result.idempotent,
-      reload: !!result.ok,
-      jobStatus: result.jobStatus || null,
-      message: result.ok
-        ? (result.idempotent ? 'Already marked done' : 'Job marked done')
-        : (result.error || 'complete_failed'),
-    });
+
+    if (action === 'copy_pay') {
+      const result = await mintPaymentLink(current);
+      if (!result.ok) {
+        return json(result.statusCode || 409, {
+          ok: false,
+          error: result.error,
+          message: result.error === 'zero_balance' ? 'Paid / No balance due' : 'Payment link unavailable',
+        });
+      }
+      return json(200, {
+        ok: true,
+        payUrl: result.payUrl,
+        reused: result.reused,
+        reload: !prepared.unchanged,
+        message: 'Payment link ready',
+      });
+    }
+
+    if (action === 'text_pay') {
+      const result = await textCustomer(current, { kind: 'payment' });
+      if (result.ok && (result.queued || result.idempotent) && projectReadyToComplete(current)) {
+        await completeIfReady(current, { expectedBookingVersion: current.bookingVersion });
+      }
+      return json(result.ok ? 200 : (result.statusCode || 400), {
+        ok: !!result.ok,
+        queued: !!result.queued,
+        idempotent: !!result.idempotent,
+        payUrl: result.payUrl || null,
+        reload: true,
+        message: result.queued || result.idempotent
+          ? 'Payment link texted'
+          : (result.reason === 'booking_sms_consent_required' ? 'Customer SMS consent required' : (result.reason || result.error || 'not sent')),
+      });
+    }
+
+    if (action === 'record_cash' || action === 'record_card') {
+      const allowed = action === 'record_cash' ? (actions.cash || prepared.amountMode !== 'original') : (actions.card || prepared.amountMode !== 'original');
+      if (!allowed && !(prepared.viewMoney && prepared.viewMoney.remainingCents > 0)) {
+        return json(409, {
+          ok: false,
+          error: 'zero_balance',
+          message: 'Paid / No balance due',
+        });
+      }
+      const result = await recordOnSitePayment(current, {
+        method: action === 'record_cash' ? 'cash' : 'card_on_site',
+        expectedBookingVersion: current.bookingVersion,
+        reason: body.notes || (action === 'record_cash' ? 'tech_quick_ops_cash' : 'tech_quick_ops_card'),
+      });
+      if (!result.ok) {
+        const message = result.error === 'postgres_payment_disabled'
+          ? 'On-site payment recording is unavailable'
+          : result.error === 'zero_balance' || result.error === 'already_paid'
+            ? 'Paid / No balance due'
+            : result.error === 'version_conflict'
+              ? 'Booking changed — reload and try again'
+              : 'Could not record payment';
+        return json(result.statusCode || 409, { ok: false, error: result.error, message });
+      }
+      const fresh = await reloadBooking(session.bookingId);
+      if (fresh.ok) {
+        await completeIfReady(fresh.booking, { expectedBookingVersion: fresh.booking.bookingVersion });
+      }
+      return json(200, {
+        ok: true,
+        reload: true,
+        method: action === 'record_cash' ? 'cash' : 'card',
+        message: action === 'record_cash' ? 'Cash recorded' : 'Card recorded',
+      });
+    }
   }
 
   return json(400, { ok: false, error: 'unknown_action' });
+}
+
+function projectReadyToComplete(booking) {
+  const { projectTechQuickOpsBooking } = require('../lib/tech-quick-ops-view');
+  return !!(projectTechQuickOpsBooking(booking).actions || {}).complete;
 }
 
 exports.handler = async (event = {}) => {

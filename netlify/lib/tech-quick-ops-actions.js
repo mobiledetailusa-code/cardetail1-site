@@ -2,6 +2,12 @@
 
 const { getBookingRecord, commitBooking } = require('./booking-repository');
 const { buildNextAggregate, normalizeAggregate } = require('./booking-aggregate');
+const { prepareQuickOpsMoney, reloadBooking } = require('./quick-ops-amount');
+const {
+  mintPaymentLink,
+  textCustomer,
+  recordOnSitePayment,
+} = require('./admin-quick-ops-actions');
 const {
   projectTechQuickOpsBooking,
   moneyFromBooking,
@@ -222,8 +228,28 @@ function bookingStatusCancelled(booking) {
   return st === 'cancelled' || js === 'cancelled' || js === 'canceled';
 }
 
+async function prepareTechMoney(booking, opts = {}) {
+  return prepareQuickOpsMoney(booking, { ...opts, actor: opts.actor || ACTOR });
+}
+
+async function completeIfReady(booking, opts = {}) {
+  if (techJobDone(booking)) return { ok: true, booking, idempotent: true, skipped: true };
+  if (!isTechEligibleBooking(booking)) {
+    return { ok: true, booking, skipped: true };
+  }
+  const fromStatus = normalizeTechJobStatus(booking);
+  if (!COMPLETABLE.has(fromStatus)) return { ok: true, booking, skipped: true };
+  return completeTechJob(booking, opts);
+}
+
 module.exports = {
   loadProjectedBooking,
   updateTechFieldStatus,
   completeTechJob,
+  prepareTechMoney,
+  completeIfReady,
+  mintPaymentLink,
+  textCustomer,
+  recordOnSitePayment,
+  reloadBooking,
 };

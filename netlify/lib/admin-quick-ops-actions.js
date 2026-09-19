@@ -11,6 +11,7 @@ const {
   paidInFull,
 } = require('./admin-quick-ops-view');
 const { createPaymentResumeToken } = require('./payment-resume-token');
+const { prepareQuickOpsMoney } = require('./quick-ops-amount');
 const { enqueueSms, smsSafeIdempotencyKey } = require('./sms-outbox');
 const { TEMPLATE_KEYS } = require('./sms-templates');
 const { bookingSmsConsentGranted } = require('./sms-program');
@@ -304,4 +305,5 @@ module.exports = {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  prepareQuickOpsMoney,
 };

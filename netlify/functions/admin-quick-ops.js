@@ -18,6 +18,7 @@ const {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  prepareQuickOpsMoney,
 } = require('../lib/admin-quick-ops-actions');
 const { neutralExpiredPage, quickOpsPage } = require('../lib/quick-ops-html');
 
@@ -128,9 +129,10 @@ async function handlePost(event) {
   const action = String(body.action || '').trim();
   const loaded = await loadProjectedBooking(session.bookingId);
   if (!loaded.ok) return json(400, { ok: false, error: 'invalid' });
-  const booking = loaded.booking;
+  let booking = loaded.booking;
   const view = loaded.view || {};
   const actions = view.actions || {};
+  let preparedMoney = null;
 
   if (action === 'confirm') {
     if (view.paid || view.completed || view.locked) {
@@ -168,9 +170,37 @@ async function handlePost(event) {
       message: result.ok ? (result.idempotent ? 'Already decided' : `Request ${action}d`) : (result.error || 'decide_failed'),
     });
   }
+  if (action === 'record_cash' || action === 'record_card' || action === 'copy_pay' || action === 'text_pay') {
+    const prepared = await prepareQuickOpsMoney(booking, {
+      amountMode: body.amountMode,
+      amountDollars: body.amountDollars,
+      amountCents: body.amountCents,
+      notes: body.notes,
+      expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
+      actor: 'quick_ops',
+    });
+    if (!prepared.ok) {
+      const message = prepared.error === 'notes_required'
+        ? 'Notes are required to change the amount'
+        : prepared.error === 'amount_required' || prepared.error === 'invalid_amount'
+          ? 'Enter how much to add or reduce'
+          : prepared.error === 'decrease_exceeds_approved'
+            ? 'Reduce cannot be more than the approved total'
+            : prepared.error === 'version_conflict'
+              ? 'Booking changed — reload and try again'
+              : (prepared.error || 'Could not update amount');
+      return json(prepared.statusCode || 400, { ok: false, error: prepared.error, message });
+    }
+    booking = prepared.booking;
+    preparedMoney = prepared;
+  }
+
   if (action === 'record_cash' || action === 'record_card') {
     const allowed = action === 'record_cash' ? actions.cash : actions.card;
-    if (!allowed) {
+    const remaining = preparedMoney && preparedMoney.viewMoney
+      ? preparedMoney.viewMoney.remainingCents
+      : (view.money && view.money.remainingCents);
+    if (!allowed && !(remaining > 0)) {
       return json(409, {
         ok: false,
         error: view.paid || view.locked ? 'zero_balance' : 'locked',
@@ -179,7 +209,8 @@ async function handlePost(event) {
     }
     const result = await recordOnSitePayment(booking, {
       method: action === 'record_cash' ? 'cash' : 'card_on_site',
-      expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
+      expectedBookingVersion: booking.bookingVersion,
+      reason: body.notes || (action === 'record_cash' ? 'quick_ops_cash' : 'quick_ops_card'),
     });
     if (!result.ok) {
       const message = result.error === 'postgres_payment_disabled'

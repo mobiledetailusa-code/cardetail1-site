@@ -48,6 +48,11 @@ button:disabled{opacity:.45}
 .msg{min-height:1.2em;margin:8px 0 0;color:#7a1f1f}
 .ok{color:#0b3d2e}
 .sub{color:#5b6b64;font-size:.9rem}
+.modes{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.mode{display:flex;align-items:flex-start;gap:8px;font:500 .95rem/1.3 system-ui,sans-serif}
+.mode input{width:auto;margin-top:3px}
+input[type=number],textarea{width:100%;box-sizing:border-box;margin:0 0 8px;padding:12px;border:1px solid #d7d0c4;border-radius:10px;font:1rem/1.3 system-ui,sans-serif;background:#fff}
+textarea{min-height:72px;resize:vertical}
 </style>
 </head>
 <body>
@@ -70,6 +75,43 @@ function neutralExpiredPage(kind = 'ops') {
 function field(label, value) {
   if (!value) return '';
   return `<div class="row"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`;
+}
+
+function amountChangeMarkup(view) {
+  const a = view.actions || {};
+  if (!a.adjust && !a.payment && !a.cash && !a.complete) return '';
+  const approved = escapeHtml((view.money && view.money.approvedLabel) || '');
+  return `
+<div class="modes" id="qo-amount">
+  <label class="mode"><input type="radio" name="amountMode" value="original" checked> Original amount ${approved}</label>
+  <label class="mode"><input type="radio" name="amountMode" value="plus"> Add to total — extra work</label>
+  <label class="mode"><input type="radio" name="amountMode" value="minus"> Reduce total — work not done</label>
+  <div class="adj-fields" id="qo-adj-fields" hidden>
+    <input id="qo-adj-amount" type="number" min="1" step="0.01" inputmode="decimal" placeholder="Amount $">
+    <textarea id="qo-adj-notes" rows="3" maxlength="500" placeholder="Notes required (what was added or skipped)"></textarea>
+  </div>
+</div>`;
+}
+
+function amountChangeClientScript() {
+  return `
+  function amountPayload(){
+    var box = document.getElementById('qo-amount');
+    if (!box) return {};
+    var mode = (box.querySelector('input[name="amountMode"]:checked') || {}).value || 'original';
+    var amount = document.getElementById('qo-adj-amount');
+    var notes = document.getElementById('qo-adj-notes');
+    return {
+      amountMode: mode,
+      amountDollars: amount && amount.value ? amount.value : '',
+      notes: notes && notes.value ? String(notes.value).trim() : ''
+    };
+  }
+  document.addEventListener('change', function(ev){
+    if (!ev.target || ev.target.name !== 'amountMode') return;
+    var extra = document.getElementById('qo-adj-fields');
+    if (extra) extra.hidden = ev.target.value === 'original';
+  });`;
 }
 
 function quickOpsPage(view, csrfToken) {
@@ -95,6 +137,7 @@ function quickOpsPage(view, csrfToken) {
     a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
     a.text ? '<button type="button" class="secondary" data-action="text">Text customer</button>' : '',
     a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
+    amountChangeMarkup(view),
     a.payment ? '<button type="button" class="secondary" data-action="copy_pay">Copy payment link</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link</button>' : '',
     a.cash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the remaining balance as cash? This uses the same Admin payment ledger.">Record cash</button>' : '',
@@ -140,6 +183,7 @@ ${request}
   var bookingVersion = ${JSON.stringify(view.bookingVersion || 0)};
   var msg = document.getElementById('qo-msg');
   function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
+  ${amountChangeClientScript()}
   document.addEventListener('click', async function(ev){
     var btn = ev.target.closest('[data-action]');
     if (!btn) return;
@@ -148,11 +192,12 @@ ${request}
     if (confirmText && !window.confirm(confirmText)) return;
     btn.disabled = true;
     try {
+      var payload = Object.assign({ action: action, bookingVersion: bookingVersion }, amountPayload());
       var res = await fetch('/.netlify/functions/admin-quick-ops', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'x-qo-csrf': csrf },
-        body: JSON.stringify({ action: action, bookingVersion: bookingVersion })
+        body: JSON.stringify(payload)
       });
       var data = await res.json().catch(function(){ return {}; });
       if (action === 'copy_pay' && data.payUrl) {
@@ -228,6 +273,8 @@ module.exports = {
   escapeHtml,
   chrome,
   field,
+  amountChangeMarkup,
+  amountChangeClientScript,
   neutralExpiredPage,
   quickOpsPage,
   paymentPage,
