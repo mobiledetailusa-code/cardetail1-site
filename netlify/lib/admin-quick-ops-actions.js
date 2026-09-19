@@ -9,6 +9,7 @@ const {
   moneyFromBooking,
   bookingStatus,
   paidInFull,
+  jobCompleted,
 } = require('./admin-quick-ops-view');
 const { createPaymentResumeToken } = require('./payment-resume-token');
 const { enqueueSms, smsSafeIdempotencyKey } = require('./sms-outbox');
@@ -224,6 +225,143 @@ async function recordOnSitePayment(booking, opts = {}) {
   return result;
 }
 
+function currentSchedule(booking) {
+  return {
+    date: String(booking.confirmedDate || booking.preferredDate || '').slice(0, 10),
+    time: String(
+      booking.confirmedTime
+      || booking.preferredTime
+      || booking.confirmedTimeWindow
+      || booking.preferredArrivalWindow
+      || ''
+    ).trim(),
+  };
+}
+
+/**
+ * Owner-initiated move of this one booking. Validates calendar date + known
+ * window only — no occupancy scan and no extra blob reads.
+ */
+async function rescheduleQuickOps(booking, opts = {}) {
+  const bookingId = String(booking && (booking.id || booking.bookingId) || '').trim();
+  if (!bookingId) return { ok: false, error: 'bookingId_required', statusCode: 400 };
+
+  const status = bookingStatus(booking);
+  if (status === 'cancelled') return { ok: false, error: 'cancelled', statusCode: 409 };
+
+  let shared = null;
+  try {
+    const { getSharedFinancialProjection } = require('./db/operational-payment');
+    shared = await getSharedFinancialProjection(booking, { env: opts.env });
+  } catch {
+    shared = null;
+  }
+  const money = moneyFromBooking(booking, shared);
+  if (paidInFull(booking, money) || (jobCompleted(booking) && !(money.remainingCents > 0))) {
+    return { ok: false, error: 'locked', statusCode: 409 };
+  }
+
+  const expectedRaw = opts.expectedBookingVersion != null
+    ? opts.expectedBookingVersion
+    : booking.bookingVersion;
+  const expected = Math.round(Number(expectedRaw));
+  const actual = Math.round(Number(booking.bookingVersion) || 0);
+  if (expectedRaw == null || expectedRaw === '' || !Number.isFinite(expected) || expected !== actual) {
+    return {
+      ok: false,
+      error: 'version_conflict',
+      statusCode: 409,
+      expectedBookingVersion: Number.isFinite(expected) ? expected : null,
+      actualBookingVersion: actual,
+    };
+  }
+
+  const {
+    isoDateParts,
+    normalizePreferredTime,
+    slotsForDate,
+    isClosedHoliday,
+  } = require('./operational-availability');
+  const parts = isoDateParts(opts.date);
+  if (!parts) return { ok: false, error: 'invalid_date', statusCode: 400 };
+  if (isClosedHoliday(parts.iso)) return { ok: false, error: 'date_unavailable', statusCode: 400 };
+  const slot = normalizePreferredTime(opts.time);
+  if (!slot) return { ok: false, error: 'invalid_time', statusCode: 400 };
+  const allowed = slotsForDate(parts.iso);
+  if (!allowed.length) return { ok: false, error: 'date_unavailable', statusCode: 400 };
+  if (!allowed.includes(slot)) return { ok: false, error: 'time_unavailable', statusCode: 400 };
+
+  const current = currentSchedule(booking);
+  if (current.date === parts.iso && normalizePreferredTime(current.time) === slot) {
+    return {
+      ok: true,
+      idempotent: true,
+      booking,
+      confirmedDate: parts.iso,
+      confirmedTime: slot,
+    };
+  }
+
+  const now = new Date().toISOString();
+  const { buildNextAggregate } = require('./booking-aggregate');
+  const { commitBooking } = require('./booking-repository');
+  const { buildRescheduleEventId } = require('./appointment-lifecycle-state');
+  const previousConfirmedDate = booking.confirmedDate || booking.preferredDate || '';
+  const job = String(booking.jobStatus || '').toLowerCase();
+  const next = buildNextAggregate(booking, {
+    confirmedDate: parts.iso,
+    preferredDate: parts.iso,
+    confirmedTime: slot,
+    preferredTime: slot,
+    confirmedTimeWindow: slot,
+    appointmentStatus: 'confirmed',
+    status: 'Rescheduled',
+    jobStatus: ['cancelled', 'archived_test', 'completed_paid'].includes(job)
+      ? booking.jobStatus
+      : 'confirmed',
+    rescheduledByAdmin: true,
+    rescheduledByAdminAt: now,
+    rescheduledByClient: false,
+    previousConfirmedDate,
+    rescheduleEventId: buildRescheduleEventId(bookingId, parts.iso, slot),
+    updatedAt: now,
+    eventLog: [
+      ...(Array.isArray(booking.eventLog) ? booking.eventLog : []),
+      {
+        action: 'quick_ops_reschedule',
+        by: 'quick_ops',
+        confirmedDate: parts.iso,
+        confirmedTime: slot,
+        at: now,
+      },
+    ],
+  });
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: expected,
+    nextAggregate: next,
+  });
+  if (!committed.ok) return committed;
+
+  try {
+    const { notifyRescheduled } = require('./appointment-lifecycle-notifications');
+    await notifyRescheduled(committed.booking, {
+      source: 'quick_ops',
+      prisma: opts.prisma,
+      env: opts.env,
+    });
+  } catch (err) {
+    console.warn('[quick-ops] reschedule notify failed', String(err && err.message || err).slice(0, 80));
+  }
+  return {
+    ok: true,
+    booking: committed.booking,
+    bookingVersion: committed.bookingVersion,
+    confirmedDate: parts.iso,
+    confirmedTime: slot,
+  };
+}
+
 async function mintPaymentLink(booking, opts = {}) {
   let shared = null;
   try {
@@ -304,4 +442,5 @@ module.exports = {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  rescheduleQuickOps,
 };
