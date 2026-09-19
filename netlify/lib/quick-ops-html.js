@@ -46,6 +46,8 @@ button.danger,.btn.danger{background:#7a1f1f}
 button:disabled{opacity:.45}
 .ghost{background:#efe8dc;color:#14201c}
 .msg{min-height:1.2em;margin:8px 0 0;color:#7a1f1f}
+label.field{display:flex;flex-direction:column;gap:6px;margin:0 0 10px;color:#5b6b64;font-size:.85rem}
+label.field input,label.field select{padding:12px;border:1px solid #d7d0c4;border-radius:10px;font:600 1rem/1.2 system-ui,sans-serif;color:#14201c;background:#fff}
 .ok{color:#0b3d2e}
 .sub{color:#5b6b64;font-size:.9rem}
 </style>
@@ -102,6 +104,14 @@ function quickOpsPage(view, csrfToken) {
     !a.payment && !a.cash && !a.card ? '<p class="sub">Paid / No balance due</p>' : '',
     lockedNote,
   ].filter(Boolean).join('');
+  const windows = Array.isArray(view.service && view.service.windows) ? view.service.windows : [];
+  const selectedWindow = String((view.service && view.service.windowRaw) || '').trim();
+  const schedule = a.reschedule ? `<section class="card">
+  <h2>Change day / time</h2>
+  <label class="field"><span>New date</span><input type="date" id="qo-date" value="${escapeHtml((view.service && view.service.dateIso) || '')}"/></label>
+  <label class="field"><span>Window</span><select id="qo-window">${windows.map((slot) => `<option value="${escapeHtml(slot)}"${slot === selectedWindow ? ' selected' : ''}>${escapeHtml(slot)}</option>`).join('')}</select></label>
+  <div class="actions"><button type="button" class="secondary" data-action="reschedule" data-confirm="Move this appointment to the new day and window?">Change day / time</button></div>
+</section>` : '';
   return chrome({
     title: 'Quick Ops',
     extraHeaders: { 'X-Qo-Csrf': csrfToken },
@@ -129,6 +139,7 @@ function quickOpsPage(view, csrfToken) {
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${request}
+${schedule}
 <section class="card">
   <h2>Actions</h2>
   <div class="actions">${buttons}</div>
@@ -152,7 +163,16 @@ ${request}
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'x-qo-csrf': csrf },
-        body: JSON.stringify({ action: action, bookingVersion: bookingVersion })
+        body: JSON.stringify((function(){
+          var payload = { action: action, bookingVersion: bookingVersion };
+          if (action === 'reschedule') {
+            var dateEl = document.getElementById('qo-date');
+            var winEl = document.getElementById('qo-window');
+            payload.date = dateEl ? dateEl.value : '';
+            payload.time = winEl ? winEl.value : '';
+          }
+          return payload;
+        })())
       });
       var data = await res.json().catch(function(){ return {}; });
       if (action === 'copy_pay' && data.payUrl) {
