@@ -4249,9 +4249,10 @@ const VEHICLE_VISUALS = {
   luxury_crossover:{ img:'assets/vehicles/studio/luxury-crossover.webp', alt:'Luxury crossover' },
   offroad:       { img:'assets/vehicles/studio/jeep-wrangler.webp',  alt:'Off-road SUV' },
   jeep_wrangler: { img:'assets/vehicles/studio/jeep-wrangler.webp',  alt:'Jeep Wrangler-style off-road SUV' },
-  luxurysuv:     { img:'assets/vehicles/studio/luxury-crossover.webp', alt:'Luxury performance SUV' },
+  luxurysuv:     { img:'assets/vehicles/studio/luxury-suv.webp', alt:'Luxury performance SUV' },
   luxurysedan:   { img:'assets/vehicles/studio/executive-sedan.webp', alt:'Luxury sedan' },
-  'suv-3row':    { img:'assets/vehicles/studio/family-suv-3row.webp', alt:'Three-row SUV' },
+  'suv-3row':    { img:'assets/vehicles/studio/suv-3row.webp', alt:'Full-size three-row SUV' },
+  fullsize_suv:  { img:'assets/vehicles/studio/suv-3row.webp', alt:'Full-size SUV' },
   suv3:          { img:'assets/vehicles/studio/family-suv-3row.webp', alt:'Three-row SUV' },
   family_suv3:   { img:'assets/vehicles/studio/family-suv-3row.webp', alt:'Three-row family SUV' },
   compact_van:   { img:'assets/vehicles/studio/compact-van.webp',    alt:'Compact van' },
@@ -4326,7 +4327,7 @@ const TIER_VISUAL_KEYS = {
 const PRECISION_VISUAL_KEYS = {
   minivan:1, family_minivan:1, compact:1, compact_sedan:1, midsize:1, executive_sedan:1, sedan:1,
   coupe:1, sport_coupe:1, convertible:1, wagon:1, premium_wagon:1, offroad:1, jeep_wrangler:1, pickup:1, midsize_pickup:1,
-  van:1, compact_van:1, cargo_van:1, passenger_van:1, suv:1, 'suv-3row':1, family_suv3:1, truck:1,
+  van:1, compact_van:1, cargo_van:1, passenger_van:1, suv:1, 'suv-3row':1, family_suv3:1, fullsize_suv:1, truck:1,
   compact_crossover:1, midsize_crossover:1, luxury_crossover:1,
   supercar:1, luxurysuv:1, luxurysedan:1,
   cruiser:1, touring_bagger:1, trike:1, sportbike:1, adventure:1, dirtbike:1, scooter:1, utv:1, utv_crew:1, atv:1, jetski:1, motorcycle:1, golfcart:1, equipment:1,
@@ -4414,7 +4415,7 @@ const MODEL_MAP = [
   // Jeep crossovers (distinct from Wrangler)
   ['renegade','compact_crossover'],['compass','compact_crossover'],['cherokee','midsize_crossover'],
   ['grand cherokee l','family_suv3'],['grand cherokee','luxury_crossover'],
-  ['grand wagoneer','family_suv3'],['wagoneer','family_suv3'],
+  ['grand wagoneer','fullsize_suv'],['wagoneer','fullsize_suv'],
   // Acura exacts
   ['ilx','compact_sedan'],['integra','sport_coupe'],['tlx','executive_sedan'],['rlx','executive_sedan'],
   ['rdx','luxury_crossover'],['zdx','luxury_crossover'],['mdx','family_suv3'],['nsx','supercar'],
@@ -4423,10 +4424,10 @@ const MODEL_MAP = [
   ['xc40','compact_crossover'],['xc60','luxury_crossover'],['xc90','family_suv3'],
   ['ex30','compact_crossover'],['ex90','family_suv3'],['c40','luxury_crossover'],
   // 3-row full-size SUVs
-  ['tahoe','family_suv3'],['suburban','family_suv3'],['escalade','family_suv3'],
-  ['expedition','family_suv3'],['navigator','family_suv3'],['sequoia','family_suv3'],
-  ['armada','family_suv3'],['qx80','family_suv3'],['qx60','family_suv3'],
-  ['gx','offroad'],['lx','family_suv3'],
+  ['tahoe','fullsize_suv'],['suburban','fullsize_suv'],['escalade','fullsize_suv'],
+  ['expedition','fullsize_suv'],['navigator','fullsize_suv'],['sequoia','fullsize_suv'],
+  ['armada','fullsize_suv'],['qx80','fullsize_suv'],['qx60','family_suv3'],
+  ['gx','offroad'],['lx','fullsize_suv'],
   ['pathfinder','family_suv3'],
   ['traverse','family_suv3'],['enclave','family_suv3'],['acadia','family_suv3'],
   ['pilot','family_suv3'],['palisade','family_suv3'],['telluride','family_suv3'],
@@ -4434,7 +4435,7 @@ const MODEL_MAP = [
   ['atlas','family_suv3'],['ascent','family_suv3'],['staria','family_minivan'],
   // compact / classic sedans
   ['dart','compact_sedan'],
-  ['infiniti qx','family_suv3'],['model x','family_suv3'],
+  ['infiniti qx','family_suv3'],['model x','fullsize_suv'],
   ['durango','family_suv3'],
   // 2-row crossovers
   ['cr-v','midsize_crossover'],['rav4','midsize_crossover'],['rogue','midsize_crossover'],['tucson','midsize_crossover'],['sportage','midsize_crossover'],
@@ -4627,7 +4628,13 @@ function getVehicleVisualKey(){
   // keep distinct silhouettes even when MODEL_MAP only knows a generic "van".
   if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey];
   const mapped=modelMapVisual(lbl);
-  return mapped || 'sedan';
+  if(mapped) return mapped;
+  // Never paint a sedan silhouette for SUV-priced or SUV-labeled vehicles.
+  if(ST.tierKey==='suv3') return 'family_suv3';
+  if(ST.tierKey==='suv2') return 'midsize_crossover';
+  if(/\b(escalade|tahoe|suburban|yukon|navigator|expedition|sequoia|armada|wagoneer|qx80|land cruiser)\b/.test(lbl)) return 'fullsize_suv';
+  if(/\b(suv|crossover|4x4|4wd)\b/.test(lbl)) return 'midsize_crossover';
+  return 'sedan';
 }
 function setVehicleVisual(){
   const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
@@ -6449,7 +6456,19 @@ function fillConfirm(){
   const projection=bkProjectVehicles(vehicles);
   const first=vehicles[0]||{};
   const visualKey=vehicles.length===1?(first.visualKey||getVehicleVisualKey()):'';
-  const visual=VEHICLE_VISUALS[visualKey||getVehicleVisualKey()]||CATEGORY_VISUALS[first.cat||ST.cat]||VEHICLE_VISUALS.sedan;
+  let resolvedKey=visualKey||getVehicleVisualKey();
+  // Re-resolve from stamped make/model when the cart key is missing or fell back to sedan.
+  if(vehicles.length===1 && (!resolvedKey || resolvedKey==='sedan') && (first.make || first.model || first.vehicleLabel)){
+    const prev={make:ST.make,model:ST.model,vehicleLabel:ST.vehicleLabel,tierKey:ST.tierKey,cat:ST.cat};
+    if(first.make) ST.make=first.make;
+    if(first.model) ST.model=first.model;
+    if(first.vehicleLabel) ST.vehicleLabel=first.vehicleLabel;
+    if(first.tierKey) ST.tierKey=first.tierKey;
+    if(first.cat) ST.cat=first.cat;
+    resolvedKey=getVehicleVisualKey();
+    ST.make=prev.make; ST.model=prev.model; ST.vehicleLabel=prev.vehicleLabel; ST.tierKey=prev.tierKey; ST.cat=prev.cat;
+  }
+  const visual=VEHICLE_VISUALS[resolvedKey]||CATEGORY_VISUALS[first.cat||ST.cat]||VEHICLE_VISUALS.sedan;
   const visualEl=document.getElementById('c-visual');
   if(visualEl){
     visualEl.style.display=vehicles.length>1?'none':'';
@@ -6777,6 +6796,8 @@ function buildCurrentVehicleItem(){
     pkgName: ST.pkg.name,
     pkgIcon: ST.pkg.icon||'🚗',
     visualKey: getVehicleVisualKey(),
+    make: ST.make || '',
+    model: ST.model || '',
     vehicleLabel: ST.vehicleLabel,
     tierLabel: (window.CD1BookingVehicleSummary?CD1BookingVehicleSummary.categoryTierLabel(ST):(ST.tier ? ST.tier.label : '')),
     tierKey: ST.tierKey || '',

@@ -128,6 +128,52 @@ test('getVehicleVisualKey prefers exact brand+model before pricing tier', () => 
   assert.ok(carsTail.indexOf('PRECISION_VISUAL_KEYS[ST.body]') > carsTail.indexOf('resolveBrandModelVisual'));
 });
 
+test('featured full-size SUVs use fullsize_suv studio art, never sedan', () => {
+  const { api, ST } = loadVisualRuntime();
+  const { getVehicleVisualKey, VEHICLE_VISUALS } = api;
+
+  assert.ok(VEHICLE_VISUALS.fullsize_suv, 'fullsize_suv visual key missing');
+  assert.match(VEHICLE_VISUALS.fullsize_suv.img, /studio\/suv-3row\.webp$/);
+  assert.doesNotMatch(VEHICLE_VISUALS.fullsize_suv.img, /premium\/suv-3-row|sedan\.webp|family-suv-3row/);
+  assert.match(VEHICLE_VISUALS.luxurysuv.img, /studio\/luxury-suv\.webp$/);
+
+  const cases = [
+    ['Cadillac', 'Escalade', '2023 Cadillac Escalade', 'fullsize_suv'],
+    ['Cadillac', 'Escalade ESV', '2022 Cadillac Escalade ESV', 'fullsize_suv'],
+    ['Chevrolet', 'Tahoe', '2024 Chevrolet Tahoe', 'fullsize_suv'],
+    ['Chevrolet', 'Suburban', '2021 Chevrolet Suburban', 'fullsize_suv'],
+    ['GMC', 'Yukon', '2023 GMC Yukon', 'fullsize_suv'],
+    ['Lincoln', 'Navigator', '2022 Lincoln Navigator', 'fullsize_suv'],
+    ['Ford', 'Expedition', '2023 Ford Expedition', 'fullsize_suv'],
+    ['Jeep', 'Wagoneer', '2024 Jeep Wagoneer', 'fullsize_suv'],
+  ];
+
+  for (const [make, model, label, expected] of cases) {
+    ST.cat = 'cars';
+    ST.tierKey = 'suv3';
+    ST.body = null;
+    ST.make = make;
+    ST.model = model;
+    ST.vehicleLabel = label;
+    assert.equal(getVehicleVisualKey(), expected, `${label} → ${expected}`);
+  }
+
+  // Midsize 3-row crossovers stay on family_suv3 (not the body-on-frame silhouette).
+  ST.make = 'Honda';
+  ST.model = 'Pilot';
+  ST.vehicleLabel = '2023 Honda Pilot';
+  assert.equal(getVehicleVisualKey(), 'family_suv3');
+
+  // SUV tier with empty make/model must never fall through to sedan.
+  ST.make = '';
+  ST.model = '';
+  ST.vehicleLabel = '';
+  ST.tierKey = 'suv3';
+  assert.equal(getVehicleVisualKey(), 'family_suv3');
+  ST.tierKey = 'suv2';
+  assert.equal(getVehicleVisualKey(), 'midsize_crossover');
+});
+
 test('precision across categories: cars, powersports, boats, rvs', () => {
   const { api, ST } = loadVisualRuntime();
   const { getVehicleVisualKey } = api;
@@ -250,7 +296,7 @@ test('exact brand+model icons: Jeep, Acura, Volvo, Toyota, Honda, Lexus', () => 
     ['Lexus', 'ES', 'executive_sedan'],
     ['Lexus', 'RX', 'luxury_crossover'],
     ['Lexus', 'GX', 'offroad'],
-    ['Lexus', 'LX', 'family_suv3'],
+    ['Lexus', 'LX', 'fullsize_suv'],
   ];
 
   for (const [make, model, visual] of cases) {
