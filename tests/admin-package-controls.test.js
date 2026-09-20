@@ -364,7 +364,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.postgresProjection.approvedCents, 17500);
     assert.equal(result.postgresProjection.settledCents, 5000);
-    assert.equal(result.postgresProjection.remainingCents, 10000);
+    assert.equal(result.postgresProjection.remainingCents, 12500);
     assert.equal(result.outstandingCreditCents, 0);
     const after = await store.get(id);
     assert.equal(after.bookingVersion, 2);
