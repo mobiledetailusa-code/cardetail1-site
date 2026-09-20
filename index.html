@@ -6082,7 +6082,11 @@ function renderAddons(){
   // Data-driven from the package's own included-features text; the global
   // add-on catalog and prices are unchanged.
   const _pkgInclTxt=[].concat(ST.pkg?.feats||[],ST.pkg?.ext||[],ST.pkg?.int||[]).join(' ').toLowerCase();
-  const _pkgIncludesAddon={rainx:/rain-?x/.test(_pkgInclTxt),claybar:/clay\s*bar/.test(_pkgInclTxt)};
+  const _pkgIncludesAddon={
+    rainx:/rain-?x/.test(_pkgInclTxt),
+    claybar:/clay\s*bar/.test(_pkgInclTxt),
+    engine:/engine\s*bay/.test(_pkgInclTxt),
+  };
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
