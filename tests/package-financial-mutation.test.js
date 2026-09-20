@@ -475,10 +475,10 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
   it('14) length-priced RV package change uses per-foot catalog pricing', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('RV');
-    // Travel trailer 24 ft: maint = 130 + 9*24 = 346 → 34600;
-    // full_basic = 255 + 21*24 = 759 → 75900 (multiplier 1 for travel).
+    // Travel trailer 24 ft: maint = 150 + 10*24 = 390 → 39000;
+    // full_basic = 295 + 24*24 = 871 → 87100 (multiplier 1 for travel).
     await seedBlob(baseBooking(id, {
-      approvedCents: 34600,
+      approvedCents: 39000,
       vehicles: [{
         vehicleId: 'veh_rv', cat: 'rvs', category: 'rvs', rvType: 'travel',
         lengthFt: 24, packageId: 'maint', pkgId: 'maint', pkgName: 'Maintenance Wash',
@@ -494,7 +494,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 75900);
+    assert.equal(result.postgresProjection.approvedCents, 87100);
     assert.equal(result.packageName, 'Full RV Detail');
   });
 });
