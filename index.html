@@ -984,7 +984,7 @@ body.rv-overlay-lock{overflow:hidden}
   align-items:stretch;
 }
 #bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs);min-width:0}
-#bk-cat-grid .svc-ico{display:block;width:100%;height:88px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0;position:relative;overflow:hidden}
+#bk-cat-grid .svc-ico{display:block;width:100%;height:88px;background:transparent;margin-bottom:0;font-size:0;position:relative;overflow:hidden}
 #bk-cat-grid .svc-ico-photo{height:88px}
 #bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from,#bk-cat-grid .svc-cat-note{padding-left:12px;padding-right:12px}
 #bk-cat-grid .svc-name{padding-top:10px;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:.01em}
@@ -998,12 +998,12 @@ body.rv-overlay-lock{overflow:hidden}
   #bk-cat-grid{grid-template-columns:1fr;gap:8px}
   #bk-cat-grid .svc-ico,#bk-cat-grid .svc-ico-photo{height:96px}
 }
-/* Photo cards: real photos with dark cinematic overlay */
+/* Photo cards (legacy non-3d): dark cinematic plate — 3D icons stay transparent */
 .svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
-.svc-ico-photo{background:#020a16}
-.svc-ico-photo img{width:100%;height:100%;object-fit:contain;display:block;filter:brightness(.62) saturate(1.35) contrast(1.08);transition:filter .35s ease}
-.svc-card:hover .svc-ico-photo img{filter:brightness(.82) saturate(1.4) contrast(1.08)}
-.svc-ico-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
+.svc-ico-photo:not(.svc-ico-photo--3d){background:#020a16}
+.svc-ico-photo:not(.svc-ico-photo--3d) img{width:100%;height:100%;object-fit:contain;display:block;filter:brightness(.62) saturate(1.35) contrast(1.08);transition:filter .35s ease}
+.svc-card:hover .svc-ico-photo:not(.svc-ico-photo--3d) img{filter:brightness(.82) saturate(1.4) contrast(1.08)}
+.svc-ico-photo:not(.svc-ico-photo--3d)::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
 .svc-ico-photo .photo-label{position:absolute;bottom:0;left:0;right:0;z-index:2;display:none}
 
 /* STRIP */

@@ -25,20 +25,50 @@
   align-items: center;
   justify-content: center;
   height: 112px;
-  background: transparent;
+  background: transparent !important;
+  background-image: none !important;
 }
 .svc-ico-photo--3d img {
   width: 100px;
   height: 100px;
   object-fit: contain;
   padding: 2px;
-  filter: drop-shadow(0 8px 16px rgba(8, 12, 20, 0.45)) !important;
+  /* Soft site-theme shadow — no dark plate behind the cutout */
+  filter: drop-shadow(0 4px 12px rgba(15, 23, 42, 0.14)) !important;
 }
 .svc-card:hover .svc-ico-photo--3d img {
-  filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.24)) !important;
+  filter: drop-shadow(0 8px 18px rgba(37, 99, 235, 0.18)) !important;
 }
 .svc-ico-photo--3d::after {
-  display: none;
+  display: none !important;
+  content: none !important;
+  background: none !important;
+}
+
+/* Booking Step 01 category tiles — refined floating icons on light theme */
+.booking-modal #bk-cat-grid .svc-ico,
+.booking-modal #bk-cat-grid .svc-ico-photo,
+.booking-modal #bk-cat-grid .svc-ico-photo--3d {
+  background: transparent !important;
+  background-image: none !important;
+}
+.booking-modal #bk-cat-grid .svc-ico-photo::after,
+.booking-modal #bk-cat-grid .svc-ico-photo--3d::after {
+  display: none !important;
+  content: none !important;
+}
+.booking-modal #bk-cat-grid .svc-ico-photo--3d {
+  height: 96px;
+  padding: 10px 10px 0;
+  box-sizing: border-box;
+}
+.booking-modal #bk-cat-grid .svc-ico-photo--3d img {
+  width: 84px;
+  height: 84px;
+  filter: drop-shadow(0 3px 10px rgba(15, 23, 42, 0.12)) !important;
+}
+.booking-modal #bk-cat-grid .svc-card:hover .svc-ico-photo--3d img {
+  filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.2)) !important;
 }
 
 .loc-visual--3d {

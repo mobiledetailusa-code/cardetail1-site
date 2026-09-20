@@ -100,6 +100,34 @@
 .booking-modal #bk-cat-grid #bkcat-trucks {
   grid-column: auto;
 }
+
+/* Category icons: no dark plate — cutouts float on the light card */
+.booking-modal #bk-cat-grid .svc-ico,
+.booking-modal #bk-cat-grid .svc-ico-photo,
+.booking-modal #bk-cat-grid .svc-ico-photo--3d {
+  background: transparent !important;
+  background-image: none !important;
+}
+.booking-modal #bk-cat-grid .svc-ico-photo::after,
+.booking-modal #bk-cat-grid .svc-ico-photo--3d::after {
+  display: none !important;
+  content: none !important;
+}
+.booking-modal #bk-cat-grid .svc-ico-photo--3d {
+  height: 96px;
+  padding: 10px 10px 0;
+  box-sizing: border-box;
+}
+.booking-modal #bk-cat-grid .svc-ico-photo--3d img {
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 10px rgba(15, 23, 42, 0.12)) !important;
+}
+.booking-modal #bk-cat-grid .svc-card:hover .svc-ico-photo--3d img {
+  filter: drop-shadow(0 6px 14px rgba(37, 99, 235, 0.2)) !important;
+}
+
 @media (max-width: 380px) {
   .booking-modal #bk-cat-grid.bk-cat-grid--tiles,
   .booking-modal #bk-cat-grid {

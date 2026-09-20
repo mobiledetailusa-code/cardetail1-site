@@ -62,6 +62,17 @@ test('booking steps use site theme atmosphere (hero photo too dark for readable 
   assert.doesNotMatch(light, /\.bcontent[\s\S]{0,200}url\(['\"]?[^'\"]*homepage-hero/);
 });
 
+test('booking category 3D icons float without dark background plate', () => {
+  const light = read('assets/booking-modal-light.css');
+  const icon3d = read('assets/icon-3d.css');
+  assert.match(light, /\.booking-modal #bk-cat-grid \.svc-ico-photo--3d[\s\S]*?background:\s*transparent\s*!important/);
+  assert.match(light, /\.booking-modal #bk-cat-grid \.svc-ico-photo--3d::after[\s\S]*?display:\s*none\s*!important/);
+  assert.match(icon3d, /\.svc-ico-photo--3d\s*\{[\s\S]*?background:\s*transparent\s*!important/);
+  assert.match(icon3d, /\.svc-ico-photo--3d::after\s*\{[\s\S]*?display:\s*none\s*!important/);
+  assert.match(index, /\.svc-ico-photo:not\(\.svc-ico-photo--3d\)\{background:#020a16\}/);
+  assert.doesNotMatch(index, /#bk-cat-grid \.svc-ico\{[^}]*background:linear-gradient\(180deg,#0c1e3a/);
+});
+
 test('initial booking pages keep card-save UI gated behind Pay online later', () => {
   const pages = fs.readdirSync(root)
     .filter(file => file.endsWith('.html'))
