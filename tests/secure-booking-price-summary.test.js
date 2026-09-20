@@ -64,25 +64,25 @@ function contrast(fg, bg) {
 describe('price calculation invariant', () => {
   it('estimated total = service + add-ons + adjustment - discount', () => {
     const ctx = buildSandbox();
-    const total = render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
-    assert.equal(total, 492);
-    assert.equal(ctx.els['bk-total-amount'].textContent, '$492.00');
+    const total = render(ctx, { servicePrice: 533, addonTotal: 0, travelFee: 25, discount: 0 });
+    assert.equal(total, 558);
+    assert.equal(ctx.els['bk-total-amount'].textContent, '$558.00');
   });
 
-  it('reference RV fixture renders $467.00 + $25.00 = $492.00 in details', () => {
+  it('reference RV fixture renders $533.00 + $25.00 = $558.00 in details', () => {
     const ctx = buildSandbox();
-    render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
+    render(ctx, { servicePrice: 533, addonTotal: 0, travelFee: 25, discount: 0 });
     const lines = ctx.els['bk-financial-lines'].innerHTML;
-    assert.match(lines, /Service price<\/span><span>\$467\.00/);
+    assert.match(lines, /Service price<\/span><span>\$533\.00/);
     assert.match(lines, /Mobile service adjustment<\/span><span>\$25\.00/);
-    assert.match(lines, /Estimated total<\/span><span>\$492\.00/);
+    assert.match(lines, /Estimated total<\/span><span>\$558\.00/);
   });
 
   it('expanded detail rows always sum to the displayed total', () => {
     const ctx = buildSandbox();
     const cases = [
       { servicePrice: 225, addonTotal: 45, travelFee: 0, discount: 0 },
-      { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 },
+      { servicePrice: 533, addonTotal: 0, travelFee: 25, discount: 0 },
       { servicePrice: 300, addonTotal: 135, travelFee: 55, discount: 22.5 },
     ];
     for (const c of cases) {
@@ -107,7 +107,7 @@ describe('price calculation invariant', () => {
 
   it('adjustment presence controls the supporting sentence', () => {
     const ctx = buildSandbox();
-    render(ctx, { servicePrice: 467, addonTotal: 0, travelFee: 25, discount: 0 });
+    render(ctx, { servicePrice: 533, addonTotal: 0, travelFee: 25, discount: 0 });
     assert.equal(ctx.els['bk-total-incl'].textContent, 'Includes the mobile service adjustment for your location.');
     render(ctx, { servicePrice: 225, addonTotal: 0, travelFee: 0, discount: 0 });
     assert.equal(ctx.els['bk-total-incl'].textContent, 'Mobile service included.');
@@ -128,10 +128,10 @@ describe('price calculation invariant', () => {
     const r = c.validateAndRecalculateBookingPricing({
       zipCode: '06850',
       vehicleCategory: 'rvs',
-      vehicles: [{ cat: 'rvs', pkgId: 'maint_light', subtotal: 467, lengthFt: 18, rvType: 'travel' }],
+      vehicles: [{ cat: 'rvs', pkgId: 'maint_light', subtotal: 533, lengthFt: 18, rvType: 'travel' }],
     });
     assert.equal(r.ok, true);
-    assert.equal(r.serviceSubtotal, 467);
+    assert.equal(r.serviceSubtotal, 533);
   });
 });
 
@@ -158,11 +158,9 @@ describe('price presentation', () => {
     assert.match(lightCss, /\.booking-modal \.bk-fin-total span\s*\{[^}]*color:\s*#0f172a/s);
   });
 
-  it('selecting a package auto-advances to vehicle (specialty) or keeps add-ons on package (cars)', () => {
-    assert.match(html, /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring && !ST\._holdPackageStep\)/);
-    assert.match(html, /setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\)/);
-    assert.match(html, /syncCarsAddonsPlacement/);
-    assert.match(html, /cars vehicle-first: stay on package and reveal add-ons inline/i);
+  it('selecting a package auto-advances to the vehicle step', () => {
+    assert.match(html, /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring && !ST\._holdPackageStep\) setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/);
+    assert.doesNotMatch(html, /stay on package step until Continue/);
   });
 
   it('no competing prominent Travel row in the collapsed summary', () => {

@@ -48,6 +48,7 @@ const FACTOR = 1 + PERCENT / 100;
 const TIER_PRICE_KEYS = [
   'maint', 'maint_light', 'interior', 'exterior', 'essential', 'wash',
   'full', 'full_basic', 'refresh', 'premium', 'custom',
+  'int_wash', 'int_wash_wax', 'maintenance', 'restore',
 ];
 const LENGTH_PRICE_KEYS = ['perFt', 'min', 'base', 'ratePerFoot'];
 
@@ -81,8 +82,9 @@ function transformPriceBlocks(src, visit) {
   let pkgKey = null;
 
   const out = lines.map((line) => {
-    if (/^\s*(const\s+)?PRICING\s*=\s*\{/.test(line)) { inPricing = true; depth = 0; }
-    if (/^\s*(const\s+)?LENGTH_PRICING\s*=\s*\{/.test(line)) { inLength = true; depth = 0; }
+    // index.html uses `let PRICING` / `let LENGTH_PRICING`; hubs use `const`.
+    if (/^\s*(?:const|let)\s+PRICING\s*=\s*\{/.test(line)) { inPricing = true; depth = 0; }
+    if (/^\s*(?:const|let)\s+LENGTH_PRICING\s*=\s*\{/.test(line)) { inLength = true; depth = 0; }
 
     if ((inPricing || inLength) && depth === 1) {
       const m = line.match(/^\s*'?([A-Za-z_][\w]*)'?\s*:\s*\{/);
@@ -177,20 +179,24 @@ const STATIC_PRICES = Object.freeze({
   carFullSmall: PRICING.cars.tiers.small.full,
   carFullSuv2: PRICING.cars.tiers.suv2.full,
   carFullSuv3: PRICING.cars.tiers.suv3.full,
+  trucks: minTierPrice('trucks', 'interior'),
   boats: LENGTH_PRICING.boats.packages.maint.min,
   rvs: LENGTH_PRICING.rvs.packages.maint.base
     + LENGTH_PRICING.rvs.packages.maint.ratePerFoot * LENGTH_PRICING.rvs.min,
-  powersports: minTierPrice('powersports', 'wash'),
+  powersports: minTierPrice('powersports', 'maintenance'),
 });
 
 function syncBookingPageSurfaces(src) {
   return src
     .replace(/(id="home-from-interior">\$)[\d,]+/g, `$1${STATIC_PRICES.carInterior}`)
     .replace(/(id="home-from-refresh">\$)[\d,]+/g, `$1${STATIC_PRICES.carRefresh}`)
+    .replace(/(id="home-from-full-note">)From \$[\d,]+ · priced by vehicle type/g,
+      `$1From $${STATIC_PRICES.carFullSmall} · priced by vehicle type`)
     .replace(
       /(id="home-from-full-note">)Sedans from \$[\d,]+ · SUVs from \$[\d,]+ · 3-row SUVs from \$[\d,]+/g,
       `$1Sedans from $${STATIC_PRICES.carFullSmall} · SUVs from $${STATIC_PRICES.carFullSuv2} · 3-row SUVs from $${STATIC_PRICES.carFullSuv3}`,
     )
+    .replace(/(id="bkfrom-trucks"[^>]*>From \$)[\d,]+/g, `$1${STATIC_PRICES.trucks}`)
     .replace(/(id="bkfrom-boats"[^>]*>From \$)[\d,]+/g, `$1${STATIC_PRICES.boats}`)
     .replace(/(id="bkfrom-powersports"[^>]*>From \$)[\d,]+/g, `$1${STATIC_PRICES.powersports}`)
     .replace(
@@ -201,6 +207,7 @@ function syncBookingPageSurfaces(src) {
     .replace(/(id="hfrom-rvs-amt">\$)[\d,]+/g, `$1${STATIC_PRICES.rvs}`)
     .replace(/(id="hfrom-powersports-amt">\$)[\d,]+/g, `$1${STATIC_PRICES.powersports}`)
     .replace(/^(\s*cars:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.carInterior}$2`)
+    .replace(/^(\s*trucks:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.trucks}$2`)
     .replace(/^(\s*boats:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.boats}$2`)
     .replace(/^(\s*powersports:\s*\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.powersports}$2`)
     .replace(
@@ -220,14 +227,20 @@ function syncSpecialtyPages(file, src) {
   if (file === 'boats-detailing.html') {
     return src
       .replace(/(<h3 class="sp-pkg-name">Marine Wash<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.maint.min}`)
+      .replace(/(<h3 class="sp-pkg-name">Essential Marine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.essential.min}`)
       .replace(/(<h3 class="sp-pkg-name">Full Marine Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.full.min}`)
       .replace(/(<h3 class="sp-pkg-name">Premium Marine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.premium.min}`);
   }
   if (file === 'powersports-detailing.html') {
     return src
-      .replace(/(<h3 class="sp-pkg-name">Wash &amp; Shine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'wash')}`)
-      .replace(/(<h3 class="sp-pkg-name">Full Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'full')}`)
-      .replace(/(<h3 class="sp-pkg-name">Premium Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'premium')}`);
+      .replace(/(<h3 class="sp-pkg-name">Maintenance Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'maintenance')}`)
+      .replace(/(<h3 class="sp-pkg-name">Correction \/ Restoration<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'restore')}`);
+  }
+  if (file === 'trucks-detailing.html') {
+    return src
+      .replace(/(<h3 class="sp-pkg-name">Interior Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('trucks', 'interior')}`)
+      .replace(/(<h3 class="sp-pkg-name">Interior \+ Wash<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('trucks', 'int_wash')}`)
+      .replace(/(<h3 class="sp-pkg-name">Interior \+ Wash &amp; Wax<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('trucks', 'int_wash_wax')}`);
   }
   if (file === 'rv-detailing.html') {
     let out = src;
@@ -242,7 +255,7 @@ function syncSpecialtyPages(file, src) {
 
 const pages = fs.readdirSync(ROOT)
   .filter((f) => f.endsWith('.html'))
-  .filter((f) => /const PRICING\s*=/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
+  .filter((f) => /(?:const|let)\s+PRICING\s*=/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
 
 let corrected = 0;
 for (const file of pages) {
@@ -262,7 +275,7 @@ for (const file of pages) {
 
 console.log(`\n${pages.length} pages synced from the catalog — ${corrected} values written`);
 
-for (const file of ['boats-detailing.html', 'powersports-detailing.html', 'rv-detailing.html']) {
+for (const file of ['boats-detailing.html', 'powersports-detailing.html', 'trucks-detailing.html', 'rv-detailing.html']) {
   const p = path.join(ROOT, file);
   const before = fs.readFileSync(p, 'utf8');
   const after = syncSpecialtyPages(file, before);
