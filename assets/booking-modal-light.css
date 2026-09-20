@@ -96,6 +96,118 @@
   border-color: var(--bbr, rgba(37, 99, 235, 0.22));
 }
 
+/* Compact package-step add-ons (rows, not tall cards) */
+.booking-modal .addon-row {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px 10px;
+  align-items: start;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .addon-row:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+}
+.booking-modal .addon-row.sel {
+  background: #f8fafc;
+  border-color: var(--blue, #2563eb);
+}
+.booking-modal .addon-row .addon-check {
+  position: static;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid #c5cad6;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
+}
+.booking-modal .addon-row.sel .addon-check {
+  border-color: var(--blue, #2563eb);
+  box-shadow: inset 0 0 0 3.5px var(--blue, #2563eb);
+  background: transparent;
+  color: transparent;
+}
+.booking-modal .addon-row .addon-name {
+  font-size: 13px;
+  margin: 0;
+  padding: 0;
+  line-height: 1.25;
+}
+.booking-modal .addon-row .addon-desc {
+  font-size: 11px;
+  margin: 2px 0 0;
+  line-height: 1.35;
+}
+.booking-modal .addon-row .addon-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+  white-space: nowrap;
+}
+.booking-modal .addon-row .addon-stepper {
+  grid-column: 2 / -1;
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+.booking-modal .addon-grid--compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.booking-modal .addon-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #475569);
+  margin: 10px 0 4px;
+}
+.booking-modal .addon-additional {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .addon-toggle-btn--link {
+  display: inline-flex;
+  width: auto;
+  padding: 6px 0;
+  margin-top: 4px;
+  background: transparent;
+  border: none;
+  color: var(--blue, #2563eb);
+  font-size: 12px;
+  font-weight: 600;
+}
+.booking-modal .bs2-sticky {
+  background: rgba(255, 255, 255, 0.97);
+  border-top: 1px solid var(--line, rgba(15, 23, 42, 0.08));
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.06);
+}
+.booking-modal #bs3-addons.bk-addons-compact .addon-header {
+  display: none;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart {
+  display: none;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart.vcart--has-items {
+  display: block;
+}
+.booking-modal #bs3-addons.bk-addons-compact .btn-add-veh {
+  width: auto;
+  padding: 6px 0;
+  margin: 4px 0 6px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  justify-content: flex-start;
+  font-size: 12.5px;
+}
+
 /* Quantity stepper */
 .booking-modal .aq-n {
   color: var(--ink, #0f172a);

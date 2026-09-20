@@ -60,8 +60,8 @@ test('signature pack copies refresh exterior and keeps interior restoration', ()
   assert.doesNotMatch(premium, /ceramic protection/i);
   assert.doesNotMatch(premium, /Long-lasting ceramic/);
   assert.match(premium, /int:CAR_INTERIOR_SERVICE_ITEMS/);
-  assert.match(premium, /Engine bay top clean/);
-  assert.match(refresh, /Engine bay top clean/);
+  assert.match(premium, /Engine Bay Light Cleaning & Wipe-Down/);
+  assert.match(refresh, /Engine Bay Light Cleaning & Wipe-Down/);
 });
 
 test('cars packages are ordered expensive-first with compact booking UI', () => {
@@ -76,6 +76,9 @@ test('cars packages are ordered expensive-first with compact booking UI', () => 
   assert.match(html, /bkBackFromVehicle/);
   assert.match(html, /function syncCarsAddonsPlacement\(\)/);
   assert.match(html, /bs2-addons-host/);
+  assert.match(html, /View everything included/);
+  assert.match(html, /bs2-sticky/);
+  assert.match(html, /addon-grid--compact/);
 });
 
 test('Maintenance Detail hides shampoo/steam add-ons', () => {
