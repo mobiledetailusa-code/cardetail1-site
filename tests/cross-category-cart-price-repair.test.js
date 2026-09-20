@@ -249,6 +249,21 @@ describe('cart intent + price resolution (function sandbox)', () => {
       { id: 'wash', name: 'Wash & Shine', icon: '🪣' },
     ];
     sandbox.window = sandbox;
+    sandbox.syncBs2StickyBar = function () {};
+    sandbox.syncActiveConfigIntoEditingCartSlot = function () {};
+    sandbox.getActiveBookingConfig = function () {
+      return {
+        pkgId: sandbox.ST.pkgId || '',
+        pkgName: (sandbox.ST.pkg && sandbox.ST.pkg.name) || '',
+        vehicleLabel: sandbox.ST.vehicleLabel || '',
+        vehicleLine: sandbox.ST.vehicleLabel || '',
+        basePrice: sandbox.ST.basePrice || 0,
+        addonTotal: sandbox.ST.addonTotal || 0,
+        currentService: (sandbox.ST.basePrice || 0) + (sandbox.ST.addonTotal || 0),
+        hasPackage: !!sandbox.ST.pkg,
+        hasVehicle: !!(sandbox.ST.vehicleLabel && sandbox.ST.tierKey),
+      };
+    };
     vm.createContext(sandbox);
     const code = [
       extractFunction(index, 'resetVehicleEntryFields'),

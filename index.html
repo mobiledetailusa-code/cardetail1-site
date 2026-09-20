@@ -800,23 +800,26 @@ body.rv-overlay-lock{overflow:hidden}
 #bs3-addons.bk-addons-compact .addon-header{display:none}
 #bs3-addons.bk-addons-compact .beye{font-size:10px;letter-spacing:.12em;margin-bottom:8px}
 .addon-grid--compact{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
-.addon-row{display:grid;grid-template-columns:18px 1fr auto;gap:8px 10px;align-items:start;text-align:left;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:var(--bg3);cursor:pointer;position:relative;user-select:none;transition:border-color .15s,background .15s}
+.addon-grid-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px;align-items:stretch}
+.addon-grid-cols--additional{max-width:100%}
+.addon-grid-cols--additional > .addon-row{max-width:min(100%,320px)}
+.addon-row{display:grid;grid-template-columns:18px 1fr auto;gap:6px 8px;align-items:start;text-align:left;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:var(--bg3);cursor:pointer;position:relative;user-select:none;transition:border-color .15s,background .15s;min-height:0}
 .addon-row:hover{border-color:var(--bbr)}
 .addon-row.sel{border-color:var(--blue);background:rgba(77,163,255,.06)}
 .addon-row .addon-check{position:static;width:16px;height:16px;margin-top:2px;border-radius:50%;border:2px solid rgba(255,255,255,.2);font-size:0;color:transparent;background:transparent;flex-shrink:0}
 .addon-row.sel .addon-check{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue);background:transparent;color:transparent}
 .addon-row .addon-name{font-size:13px;font-weight:600;margin:0;padding:0;line-height:1.25;color:var(--white)}
-.addon-row .addon-desc{font-size:11px;line-height:1.35;margin:2px 0 0;color:var(--mu)}
+.addon-row .addon-desc{font-size:11px;line-height:1.35;margin:2px 0 0;color:var(--mu);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
 .addon-row .addon-price{font-size:13px;font-weight:700;white-space:nowrap;padding-top:1px}
 .addon-row .addon-stepper{grid-column:2 / -1;justify-content:flex-start;margin-top:4px}
 .addon-section-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:10px 0 4px}
 .addon-additional{margin-top:6px;padding-top:8px;border-top:1px dashed var(--bbr)}
-.addon-all-wrap--compact .addon-all-inner{display:none;flex-direction:column;gap:4px;margin-top:6px}
-.addon-all-wrap--compact .addon-all-inner.open{display:flex}
+.addon-all-wrap--compact .addon-all-inner{display:none;margin-top:6px}
+.addon-all-wrap--compact .addon-all-inner.open{display:grid}
 .addon-toggle-btn--link{display:inline-flex;width:auto;padding:6px 0;margin-top:4px;background:transparent;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 .addon-toggle-btn--link:hover{background:transparent;text-decoration:underline}
 #bs3-addons.bk-addons-compact .vcart{display:none}
-#bs3-addons.bk-addons-compact .vcart.vcart--has-items{display:block;margin:10px 0 8px;padding:10px 12px}
+#bs3-addons.bk-addons-compact .vcart.vcart--has-items{display:block;margin:8px 0 6px;padding:8px 10px}
 #bs3-addons.bk-addons-compact .btn-add-veh{width:auto;padding:6px 0;margin:4px 0 6px;border:none;border-radius:0;background:transparent;font-size:12.5px;font-weight:600;justify-content:flex-start}
 #bs3-addons.bk-addons-compact .btn-add-veh:hover{background:transparent;text-decoration:underline}
 .bs2-sticky{position:sticky;bottom:0;z-index:30;display:none;align-items:center;gap:10px;margin:8px -4px 0;padding:10px 12px;border-top:1px solid var(--bbr);background:rgba(255,255,255,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 -6px 20px rgba(15,23,42,.06)}
@@ -1245,10 +1248,13 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 .vcart{background:var(--bg3);border:1px solid rgba(77,163,255,.2);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
 .vcart-title{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .vcart-item{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:12.5px}
-.vcart-item-info{line-height:1.7;flex:1}
+.vcart-item-info{line-height:1.35;flex:1;min-width:0}
 .vcart-thumb{width:86px;height:62px;flex:0 0 86px;border-radius:8px;background:#020a16;overflow:hidden}
 .vcart-thumb img{width:100%;height:100%;object-fit:contain;display:block}
 .vcart-item-name{font-weight:700;color:var(--white)}
+.vcart-item-vehicle{color:var(--mu);font-size:12px;margin-top:1px}
+.vcart-item-addons{color:var(--mu);font-size:11px;margin-top:2px}
+.vcart-item-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
 .vcart-item-price{font-weight:700;color:var(--blue);white-space:nowrap}
 .vcart-rm{background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:.2s}
 .vcart-rm:hover{color:var(--rd);background:var(--rddim)}
@@ -1712,17 +1718,28 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0,#f3f5f8);border-color:var(--line)}
 .booking-modal .bk-veh-zip b,.booking-modal .bk-veh-pill b{color:var(--ink)}
 .booking-modal .bk-veh-zip span,.booking-modal .bk-veh-pill span{color:var(--mu)}
-.booking-modal .addon-row{background:#fff;border-color:var(--line);color:var(--ink)}
+.booking-modal .addon-row{background:#fff;border-color:var(--line);color:var(--ink);min-height:64px}
 .booking-modal .addon-row:hover{border-color:rgba(37,99,235,.28)}
-.booking-modal .addon-row.sel{background:#f8fafc;border-color:var(--blue)}
+.booking-modal .addon-row.sel{background:#f1f5f9;border-color:var(--blue)}
 .booking-modal .addon-row .addon-name{color:var(--ink)}
-.booking-modal .addon-row .addon-desc{color:var(--ink-soft,#5b6578)}
+.booking-modal .addon-row .addon-desc{color:var(--ink-soft,#5b6578);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
 .booking-modal .addon-row .addon-price{color:var(--ink)}
 .booking-modal .addon-row .addon-check{border-color:#c5cad6}
 .booking-modal .addon-row.sel .addon-check{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
+.booking-modal .addon-grid-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px}
+.booking-modal .addon-grid-cols--additional > .addon-row{max-width:min(100%,320px)}
+.booking-modal .addon-all-wrap--compact .addon-all-inner.open{display:grid}
 .booking-modal .bs2-sticky{background:rgba(255,255,255,.97);border-top-color:var(--line)}
 .booking-modal .bs2-addons-host #bs3-addons{border-top-color:var(--line)}
 .booking-modal .addon-additional{border-top-color:var(--line)}
+.booking-modal .vcart{background:#f1f5f9;border-color:rgba(15,23,42,.08)}
+.booking-modal .vcart-title{color:#1e3a5f}
+.booking-modal .vcart-item{background:#fff;border-color:rgba(15,23,42,.06)}
+.booking-modal .vcart-item-name,.booking-modal .vcart-total{color:#0f172a}
+.booking-modal .vcart-item-vehicle,.booking-modal .vcart-item-addons,.booking-modal .vcart-empty{color:#475569}
+.booking-modal .vcart-item-price{color:#0f172a !important}
+.booking-modal .vcart-total{border-top-color:rgba(15,23,42,.08)}
+.booking-modal .vcart-rm{color:#64748b}
 .booking-modal .fi,.booking-modal .srch-in,.booking-modal .sel-s,.booking-modal .tchip,.booking-modal .addon,.booking-modal .card-gate,.booking-modal .terms-panel,.booking-modal .unit-box,.booking-modal .suc-card,.booking-modal .pay-box{background:var(--bg0);border-color:var(--line-strong);color:var(--ink)}
 .booking-modal .srch-dd{background:var(--bg1);box-shadow:var(--shadow-md);border-color:var(--line-strong)}
 .booking-modal .srch-item{border-bottom-color:var(--line)}
@@ -5130,6 +5147,73 @@ function syncPackageStepChrome() {
   syncBs2StickyBar();
 }
 
+/**
+ * Canonical CURRENT configuration for Step 03 surfaces (top summary, sticky).
+ * Always derived from live ST — never from ST.vehicles committed snapshots.
+ */
+function getActiveBookingConfig() {
+  const meta = (ST.pkgId && typeof PKG_COMPACT_META !== 'undefined' && PKG_COMPACT_META[ST.pkgId]) || null;
+  const pkgName = (meta && meta.shortName) || (ST.pkg && ST.pkg.name) || '';
+  const vehicleLine = window.CD1BookingVehicleSummary
+    ? CD1BookingVehicleSummary.formatAddonHeaderSummary(ST)
+    : (ST.vehicleLabel || '');
+  const currentService = (ST.basePrice || 0) + (ST.addonTotal || 0);
+  return {
+    pkgId: ST.pkgId || '',
+    pkgName,
+    vehicleLabel: ST.vehicleLabel || '',
+    vehicleLine: vehicleLine || '',
+    basePrice: ST.basePrice || 0,
+    addonTotal: ST.addonTotal || 0,
+    currentService,
+    hasPackage: !!ST.pkg,
+    hasVehicle: !!(ST.vehicleLabel && ST.tierKey),
+  };
+}
+
+/** Committed cart rows excluding the slot currently being edited/drafted. */
+function getCommittedCartVehicles() {
+  const list = Array.isArray(ST.vehicles) ? ST.vehicles : [];
+  if (ST._startingAdditionalVehicle) return list.slice();
+  const editIdx = Number.isInteger(ST._editingVehicleIndex) ? ST._editingVehicleIndex : -1;
+  if (editIdx >= 0 && editIdx < list.length) {
+    return list.filter((_, i) => i !== editIdx);
+  }
+  // Single-vehicle resume without an edit index: the only row is the live draft — not "committed others".
+  if (list.length === 1 && ST.pkg && ST.vehicleLabel && !ST._startingAdditionalVehicle) {
+    return [];
+  }
+  return list.slice();
+}
+
+/**
+ * Keep the cart slot under edit aligned with live ST so sticky/cart never diverge
+ * for the same active vehicle. Does not invent duplicate state.
+ */
+function syncActiveConfigIntoEditingCartSlot() {
+  if (ST._startingAdditionalVehicle) return;
+  const item = typeof buildCurrentVehicleItem === 'function' ? buildCurrentVehicleItem() : null;
+  if (!item) return;
+  const editIdx = Number.isInteger(ST._editingVehicleIndex) ? ST._editingVehicleIndex : -1;
+  if (editIdx >= 0 && editIdx < ST.vehicles.length) {
+    ST.vehicles[editIdx] = item;
+    return;
+  }
+  if (ST.vehicles.length === 1) {
+    ST.vehicles[0] = item;
+    ST._editingVehicleIndex = 0;
+  }
+}
+
+/** Sticky / continue total: other committed vehicles + current config + travel fee. */
+function bookingServiceTotalForSticky() {
+  const fee = typeof getTravelFeeAmount === 'function' ? getTravelFeeAmount() : 0;
+  const active = getActiveBookingConfig();
+  const others = getCommittedCartVehicles();
+  const othersSum = others.reduce((s, v) => s + (Number(v.subtotal) || 0), 0);
+  return othersSum + active.currentService + fee;
+}
+
 function syncBs2StickyBar() {
   const sticky = document.getElementById('bs2-sticky');
   const stickyNext = document.getElementById('bs2-sticky-next');
@@ -5141,25 +5225,32 @@ function syncBs2StickyBar() {
   if (!carsReady) {
     sticky.hidden = true;
     sticky.classList.remove('is-on');
+    if (pkgEl) pkgEl.textContent = '—';
+    if (carEl) carEl.textContent = '—';
+    if (priceEl) priceEl.textContent = '—';
+    if (stickyNext) stickyNext.disabled = true;
     return;
   }
   sticky.hidden = false;
   sticky.classList.add('is-on');
-  const meta = (ST.pkgId && PKG_COMPACT_META[ST.pkgId]) || null;
-  const pkgName = (meta && meta.shortName) || (ST.pkg && ST.pkg.name) || 'Select a package';
-  const carLine = window.CD1BookingVehicleSummary
-    ? CD1BookingVehicleSummary.formatAddonHeaderSummary(ST)
-    : (ST.vehicleLabel || '');
+  const active = getActiveBookingConfig();
+  const others = getCommittedCartVehicles();
+  const pkgName = active.pkgName || 'Select a package';
+  let carLine = active.vehicleLine || '—';
+  if (others.length) {
+    const n = others.length + (active.hasPackage ? 1 : 0);
+    carLine = (active.vehicleLine || active.vehicleLabel || 'Configuring') +
+      (n > 1 ? ` · ${n} vehicles in booking` : '');
+  }
   if (pkgEl) pkgEl.textContent = pkgName;
-  if (carEl) carEl.textContent = carLine || '—';
-  const fee = typeof getTravelFeeAmount === 'function' ? getTravelFeeAmount() : 0;
-  const total = (ST.basePrice || 0) + (ST.addonTotal || 0) + fee;
+  if (carEl) carEl.textContent = carLine;
+  const total = bookingServiceTotalForSticky();
   if (priceEl) {
-    priceEl.textContent = ST.pkg && total > 0
+    priceEl.textContent = active.hasPackage && total > 0
       ? (typeof bkMoney === 'function' ? bkMoney(total) : ('$' + total))
       : '—';
   }
-  if (stickyNext) stickyNext.disabled = !ST.pkg;
+  if (stickyNext) stickyNext.disabled = !active.hasPackage;
 }
 
 function renderBs2VehicleSummary() {
@@ -5626,7 +5717,9 @@ function selectPkg(id){
     if(ST.vehicleLabel) renderAddons();
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
+  syncActiveConfigIntoEditingCartSlot();
   syncPackageStepChrome();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
   // Specialty / package-first: auto-advance to vehicle.
   // Cars vehicle-first: stay on package and reveal add-ons inline (never jump back to Vehicle).
   if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep){
@@ -6304,11 +6397,11 @@ function renderAddons(){
   if(!grid) return;
   if(compactUi){
     grid.className='addon-grid addon-grid--compact';
-    let html='<div class="addon-section-label">Popular Add-ons</div>'+popularAddons.map(a=>addonCardHtml(a,true)).join('');
+    let html='<div class="addon-section-label">Popular Add-ons</div><div class="addon-grid-cols">'+popularAddons.map(a=>addonCardHtml(a,true)).join('')+'</div>';
     if(additionalAddons.length){
-      html+='<div class="addon-additional"><div class="addon-section-label">Additional Services</div>'+additionalAddons.map(a=>addonCardHtml(a,true)).join('')+'</div>';
+      html+='<div class="addon-additional"><div class="addon-section-label">Additional Services</div><div class="addon-grid-cols addon-grid-cols--additional">'+additionalAddons.map(a=>addonCardHtml(a,true)).join('')+'</div></div>';
     }
-    html+='<div class="addon-all-wrap addon-all-wrap--compact"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(a=>addonCardHtml(a,true)).join('')+'</div>'+
+    html+='<div class="addon-all-wrap addon-all-wrap--compact"><div class="addon-all-inner addon-grid-cols" id="addon-all-inner">'+otherAddons.map(a=>addonCardHtml(a,true)).join('')+'</div>'+
       '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
       '<button type="button" class="addon-toggle-btn addon-toggle-btn--link" id="addon-toggle-btn" onclick="toggleAllAddons()">View all add-ons →</button></div>';
     grid.innerHTML=html;
@@ -6401,7 +6494,9 @@ function toggleAddon(card){
     }
   }
   recalcAddonTotal(); updateTotal(); updateAddonSummary(); updateRvServiceSubtotal(); syncRvSuperintAddonDedup();
-  syncBs2StickyBar();
+  syncActiveConfigIntoEditingCartSlot();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
+  else syncBs2StickyBar();
 }
 
 // +/- stepper for per-unit add-ons. Adds the item on first increment, removes it at 0.
@@ -6421,6 +6516,9 @@ function addonQty(id, delta, ev){
   }
   setQtyDisplay(id, item.qty||0);
   recalcAddonTotal(); updateTotal(); updateAddonSummary();
+  syncActiveConfigIntoEditingCartSlot();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
+  else syncBs2StickyBar();
 }
 
 function updateTotal(){
@@ -6463,7 +6561,7 @@ function updateTotal(){
   }
   updateVcPriceDisplay();
   syncContinueGate();
-  syncBs2StickyBar();
+  if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
 }
 
 // ── BOOKING SCHEDULE (Step 4) ───────────────────────────────────────────────
@@ -7373,46 +7471,58 @@ function addCurrentVehicleAndContinue(){
 function removeVehicleFromCart(idx){
   ST.vehicles.splice(idx,1);
   if(Number.isInteger(ST._editingVehicleIndex)){
-    if(ST._editingVehicleIndex === idx) ST._editingVehicleIndex = ST.vehicles.length ? ST.vehicles.length - 1 : null;
-    else if(ST._editingVehicleIndex > idx) ST._editingVehicleIndex--;
+    if(ST._editingVehicleIndex === idx){
+      ST._editingVehicleIndex = ST.vehicles.length ? Math.min(idx, ST.vehicles.length - 1) : null;
+    } else if(ST._editingVehicleIndex > idx){
+      ST._editingVehicleIndex--;
+    }
   }
   renderVehicleCart();
+  if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
 }
 
 function renderVehicleCart(){
   if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.syncSeasonalOntoCart(ST, PRICING);
+  if(typeof syncActiveConfigIntoEditingCartSlot==='function') syncActiveConfigIntoEditingCartSlot();
   const wrap = document.getElementById('vcart-items');
   const totalEl = document.getElementById('vcart-total');
   const sumEl = document.getElementById('vcart-sum');
   const vcart = document.getElementById('vcart');
   if(!wrap) return;
-  if(!ST.vehicles.length){
+  // Cart shows committed vehicles + the live-synced editing slot (same ST source as sticky).
+  // While starting an additional vehicle, only prior committed rows appear (ST draft is separate).
+  const rows = Array.isArray(ST.vehicles) ? ST.vehicles : [];
+  if(!rows.length){
     wrap.innerHTML='<div class="vcart-empty">No vehicles added yet</div>';
     if(totalEl) totalEl.style.display='none';
     if(vcart) vcart.classList.remove('vcart--has-items');
+    if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
     return;
   }
   if(vcart) vcart.classList.add('vcart--has-items');
   let sum = 0;
-  wrap.innerHTML = ST.vehicles.map((v,i)=>{
+  wrap.innerHTML = rows.map((v,i)=>{
     sum += v.subtotal;
-    const addonStr = v.addons.length ? v.addons.map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ') : 'No add-ons';
+    const addonStr = (v.addons && v.addons.length) ? v.addons.map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ') : 'No add-ons';
     const visual = VEHICLE_VISUALS[v.visualKey]||CATEGORY_VISUALS[v.cat]||VEHICLE_VISUALS.sedan;
+    const pkgLabel = v.pkgName || 'Package';
     return `<div class="vcart-item">
-      <div class="vcart-thumb"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="vcart-thumb"><img src="${visual.img}" alt="${visual.alt||''}" width="720" height="720" loading="lazy" decoding="async"></div>
       <div class="vcart-item-info">
-        <div class="vcart-item-name">${v.pkgName} · ${v.vehicleLabel}</div>
-        <div style="color:var(--mu);font-size:11.5px;margin-top:2px">${addonStr}</div>
+        <div class="vcart-item-name">${pkgLabel}</div>
+        <div class="vcart-item-vehicle">${v.vehicleLabel||''}</div>
+        <div class="vcart-item-addons">${addonStr}</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <div class="vcart-item-meta">
         <div class="vcart-item-price">$${v.subtotal}</div>
-        <button class="vcart-rm" onclick="removeVehicleFromCart(${i})" title="Remove">✕</button>
+        <button type="button" class="vcart-rm" onclick="removeVehicleFromCart(${i})" title="Remove" aria-label="Remove vehicle">✕</button>
       </div>
     </div>`;
   }).join('');
   const fee = getTravelFeeAmount();
   if(totalEl){ totalEl.style.display='flex'; }
   if(sumEl){ sumEl.textContent = '$'+(sum + fee); }
+  if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
 }
 
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────

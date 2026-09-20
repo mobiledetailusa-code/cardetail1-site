@@ -96,23 +96,15 @@
   border-color: var(--bbr, rgba(37, 99, 235, 0.22));
 }
 
-/* Compact package-step add-ons (rows, not tall cards) */
 .booking-modal .addon-row {
-  display: grid;
-  grid-template-columns: 18px 1fr auto;
-  gap: 8px 10px;
-  align-items: start;
-  text-align: left;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid var(--line, rgba(15, 23, 42, 0.08));
+  min-height: 64px;
+  max-height: none;
 }
 .booking-modal .addon-row:hover {
   border-color: rgba(37, 99, 235, 0.28);
 }
 .booking-modal .addon-row.sel {
-  background: #f8fafc;
+  background: #f1f5f9;
   border-color: var(--blue, #2563eb);
 }
 .booking-modal .addon-row .addon-check {
@@ -134,14 +126,22 @@
 }
 .booking-modal .addon-row .addon-name {
   font-size: 13px;
+  font-weight: 600;
   margin: 0;
   padding: 0;
   line-height: 1.25;
+  color: var(--ink, #0f172a);
 }
 .booking-modal .addon-row .addon-desc {
   font-size: 11px;
   margin: 2px 0 0;
   line-height: 1.35;
+  color: var(--ink-soft, #5b6578);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 .booking-modal .addon-row .addon-price {
   font-size: 13px;
@@ -159,6 +159,15 @@
   flex-direction: column;
   gap: 4px;
 }
+.booking-modal .addon-grid-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 6px;
+  align-items: stretch;
+}
+.booking-modal .addon-grid-cols--additional > .addon-row {
+  max-width: min(100%, 320px);
+}
 .booking-modal .addon-section-label {
   font-size: 10px;
   font-weight: 700;
@@ -171,6 +180,13 @@
   margin-top: 6px;
   padding-top: 8px;
   border-top: 1px dashed var(--line, rgba(15, 23, 42, 0.08));
+}
+.booking-modal .addon-all-wrap--compact .addon-all-inner {
+  display: none;
+  margin-top: 6px;
+}
+.booking-modal .addon-all-wrap--compact .addon-all-inner.open {
+  display: grid;
 }
 .booking-modal .addon-toggle-btn--link {
   display: inline-flex;
@@ -196,6 +212,65 @@
 }
 .booking-modal #bs3-addons.bk-addons-compact .vcart.vcart--has-items {
   display: block;
+  margin: 8px 0 6px;
+  padding: 8px 10px;
+  background: #f1f5f9;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-title {
+  color: #1e3a5f;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-item {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  align-items: center;
+  gap: 8px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-thumb {
+  width: 56px;
+  height: 40px;
+  flex-basis: 56px;
+  border-radius: 6px;
+  background: #e8eef5;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-item-name {
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-item-vehicle {
+  color: #475569;
+  font-size: 11.5px;
+  margin-top: 1px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-item-addons {
+  color: #64748b;
+  font-size: 11px;
+  margin-top: 1px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-item-price {
+  color: #0f172a !important;
+  font-size: 13px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-total {
+  color: #0f172a;
+  border-top-color: rgba(15, 23, 42, 0.08);
+  padding-top: 6px;
+  margin-top: 2px;
+  font-size: 12.5px;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-rm {
+  color: #64748b;
+}
+.booking-modal #bs3-addons.bk-addons-compact .vcart-empty {
+  color: #64748b;
+  padding: 4px 0;
 }
 .booking-modal #bs3-addons.bk-addons-compact .btn-add-veh {
   width: auto;

@@ -79,6 +79,9 @@ test('cars packages are ordered expensive-first with compact booking UI', () => 
   assert.match(html, /View everything included/);
   assert.match(html, /bs2-sticky/);
   assert.match(html, /addon-grid--compact/);
+  assert.match(html, /addon-grid-cols/);
+  assert.match(html, /getActiveBookingConfig/);
+  assert.match(html, /bookingServiceTotalForSticky/);
 });
 
 test('Maintenance Detail hides shampoo/steam add-ons', () => {
