@@ -788,6 +788,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .confirm-vehicle-visual img{width:100%;height:100%;object-fit:contain;display:block}
 .oc-t{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
 .or{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.04)}
+.or[hidden]{display:none!important}
 .or:last-child{border-bottom:none}
 .ol{color:var(--mu)}
 .ov{color:var(--white);font-weight:500;text-align:right;max-width:58%;word-break:break-word}
@@ -2437,7 +2438,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
                 </div>
                 <div id="stripe-status" class="pay-status" style="display:none"></div>
               </div>
-              <div class="or" hidden><span class="ol">Preferred payment</span><span class="ov" id="c-pay-method">Select a preference</span></div>
+              <span id="c-pay-method" hidden>Select a preference</span>
             </div>
           </div>
           <div class="oc">
@@ -2455,7 +2456,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay online later</strong> — save a card securely first; nothing is charged today.</li>
             <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card or cash at service</strong> — no card needed to submit; pay when we finish the job.</li>
           </ul>
-          <div class="pay-badge">✓ Request first · Pay online · No charge today</div>
+          <div class="pay-badge">✓ Request first · No charge today</div>
         </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
@@ -3239,6 +3240,7 @@ const VEHICLE_VISUALS = {
   atv:         { img:'assets/vehicles/premium/atv.webp',            alt:'ATV receiving mobile detailing' },
   utv:         { img:'assets/vehicles/premium/utv.webp',            alt:'UTV receiving mobile detailing' },
 };
+window.VEHICLE_VISUALS = VEHICLE_VISUALS;
 const CATEGORY_VISUALS = {
   cars:        { img:'assets/vehicles/premium/cars-suvs.webp',       alt:'Cars SUVs and trucks mobile detailing' },
   boats:       { img:'assets/vehicles/premium/marine.webp',          alt:'Boat and marine mobile detailing' },
@@ -3246,6 +3248,7 @@ const CATEGORY_VISUALS = {
   powersports: { img:'assets/vehicles/premium/powersports.webp',     alt:'Motorcycle ATV and jet ski mobile detailing' },
   fleet:       { img:'assets/vehicles/premium/fleet-commercial.webp',alt:'Commercial fleet and work van mobile detailing' },
 };
+window.CATEGORY_VISUALS = CATEGORY_VISUALS;
 const TIER_VISUAL_KEYS = {
   small:'compact', sedan:'sedan', suv2:'suv', suv3:'suv-3row', compact_van:'van', midsize_van:'van', full_size_van:'van', full_size_van_passenger:'van', truck:'pickup',
   day_cab:'day_cab_semi', sleeper_cab:'sleeper_cab_semi',

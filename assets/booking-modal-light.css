@@ -335,6 +335,10 @@
 }
 
 /* Confirm / checkout */
+.booking-modal .confirm-vehicle-visual {
+  background: var(--bg2, #eef2f7);
+}
+
 .booking-modal .oc {
   background: var(--bg0, #f4f6f9);
   border-color: var(--line, rgba(15, 23, 42, 0.08));

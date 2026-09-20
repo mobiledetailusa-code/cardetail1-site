@@ -221,8 +221,8 @@
         "id": "request-first-badge",
         "anchor": "#bs5 .pay-badge",
         "match": "exact",
-        "texts": ["✓ Request first · Pay online · No charge today"],
-        "why": "Compact summary of request-first flow with online payment available."
+        "texts": ["✓ Request first · No charge today"],
+        "why": "Compact summary of request-first flow with no charge today."
       },
       {
         "id": "charged-today-label",

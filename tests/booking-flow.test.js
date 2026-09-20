@@ -23,7 +23,9 @@ test('Step 5 offers Pay online later and requires a card only for that option', 
   assert.match(index, /Choose Pay online later to save a card securely \(nothing charged today\)\./);
   assert.doesNotMatch(index, /bk-pay-rec-badge/);
   assert.doesNotMatch(index, /recommended payment method|Pay online later \(recommended\)|Recommended: Pay online/i);
-  assert.match(index, /Request first · Pay online · No charge today/);
+  assert.match(index, /Request first · No charge today/);
+  assert.doesNotMatch(index, /Request first · Pay online · No charge today/);
+  assert.doesNotMatch(index, /Preferred payment<\/span><span class="ov" id="c-pay-method"/);
   assert.match(index, /id="bk-online-card-wrap"[^>]*hidden/);
   assert.match(index, /id="cof-policy-ok"/);
   assert.match(index, /id="stripe-auth-btn"/);
