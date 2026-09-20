@@ -761,6 +761,7 @@ body.rv-overlay-lock{overflow:hidden}
 .pkg-c{border:1px solid var(--bbr);border-radius:12px;background:var(--bg2,#fff);overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
 .pkg-c:hover{border-color:rgba(37,99,235,.35)}
 .pkg-c.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1);background:linear-gradient(180deg,rgba(37,99,235,.04),transparent 48%)}
+.pkg-c--featured{border-color:rgba(37,99,235,.32)}
 .pkg-c-row{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;padding:12px 12px 8px}
 .pkg-c-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--bbr);margin-top:2px;flex-shrink:0}
 .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 4px var(--blue)}
@@ -1649,13 +1650,20 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .booking-modal .pkg{background:var(--bg1);border-color:var(--line);box-shadow:var(--shadow-sm)}
 .booking-modal .pkg:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
 .booking-modal .pkg.sel{background:var(--bdim)}
-.booking-modal .pkg-c{background:var(--bg1);border-color:var(--line)}
+.booking-modal .pkg-c{background:#fff;border-color:var(--line);box-shadow:var(--shadow-sm)}
 .booking-modal .pkg-c:hover{border-color:rgba(37,99,235,.35)}
-.booking-modal .pkg-c.sel{background:linear-gradient(180deg,rgba(37,99,235,.06),transparent 48%);border-color:var(--blue)}
+.booking-modal .pkg-c.sel{background:linear-gradient(180deg,#f7f9ff 0%,#fff 55%);border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
 .booking-modal .pkg-c-name,.booking-modal .pkg-c-price,.booking-modal .pkg-c-details b{color:var(--ink)}
+.booking-modal .pkg-c-tag,.booking-modal .pkg-c-chips,.booking-modal .pkg-c-dur,.booking-modal .pkg-c-details{color:var(--ink-soft,#5b6578)}
+.booking-modal .pkg-c-radio{border-color:#c5cad6}
+.booking-modal .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 4px var(--blue)}
 .booking-modal .pkg-c-badge{background:var(--ink);color:#fff}
-.booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0);border-color:var(--line)}
+.booking-modal .pkg-c-expand{border-top-color:var(--line);color:var(--blue)}
+.booking-modal .pkg-c-details{border-top-color:var(--line)}
+.booking-modal .pkg-c-chips span::after{color:#c5cad6}
+.booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0,#f3f5f8);border-color:var(--line)}
 .booking-modal .bk-veh-zip b,.booking-modal .bk-veh-pill b{color:var(--ink)}
+.booking-modal .bk-veh-zip span,.booking-modal .bk-veh-pill span{color:var(--mu)}
 .booking-modal .fi,.booking-modal .srch-in,.booking-modal .sel-s,.booking-modal .tchip,.booking-modal .addon,.booking-modal .card-gate,.booking-modal .terms-panel,.booking-modal .unit-box,.booking-modal .suc-card,.booking-modal .pay-box{background:var(--bg0);border-color:var(--line-strong);color:var(--ink)}
 .booking-modal .srch-dd{background:var(--bg1);box-shadow:var(--shadow-md);border-color:var(--line-strong)}
 .booking-modal .srch-item{border-bottom-color:var(--line)}
@@ -5356,7 +5364,7 @@ function renderPackages(cat){
         details=`<div><b>Includes</b><ul>${featList}</ul></div>`;
       }
       const openOnPopular = !!p.popular;
-      return `<div class="pkg-c${p.popular?' hero':''}${openOnPopular?' open':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
+      return `<div class="pkg-c${p.popular?' pkg-c--featured':''}${openOnPopular?' open':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
         <div class="pkg-c-row">
           <div class="pkg-c-radio" aria-hidden="true"></div>
           <div>
