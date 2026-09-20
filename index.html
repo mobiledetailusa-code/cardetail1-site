@@ -757,6 +757,43 @@ body.rv-overlay-lock{overflow:hidden}
 
 /* PACKAGE CARDS */
 .pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.pkg-grid--compact{display:flex;flex-direction:column;gap:8px;grid-template-columns:none}
+.pkg-c{border:1px solid var(--bbr);border-radius:12px;background:var(--bg2,#fff);overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.pkg-c:hover{border-color:rgba(37,99,235,.35)}
+.pkg-c.sel{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1);background:linear-gradient(180deg,rgba(37,99,235,.04),transparent 48%)}
+.pkg-c-row{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;padding:12px 12px 8px}
+.pkg-c-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--bbr);margin-top:2px;flex-shrink:0}
+.pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 4px var(--blue)}
+.pkg-c-name{font-size:14px;font-weight:700;color:var(--tx);letter-spacing:-.01em;margin:0 0 2px}
+.pkg-c-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:999px;background:var(--tx,#0f172a);color:#fff;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle}
+.pkg-c-tag{font-size:12px;color:var(--mu);line-height:1.35;margin:0}
+.pkg-c-chips{display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:6px;font-size:11px;font-weight:600;color:var(--mu)}
+.pkg-c-chips span::after{content:"·";margin-left:8px;color:var(--bbr)}
+.pkg-c-chips span:last-child::after{content:""}
+.pkg-c-meta{text-align:right;white-space:nowrap}
+.pkg-c-price{display:block;font-size:14px;font-weight:800;color:var(--tx)}
+.pkg-c-dur{font-size:10px;color:var(--mu);font-weight:600}
+.pkg-c-expand{display:flex;justify-content:space-between;align-items:center;width:calc(100% - 24px);margin:0 12px 10px 42px;padding:7px 0 0;border:none;border-top:1px solid var(--bbr);background:transparent;color:var(--blue);font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;text-align:left}
+.pkg-c-details{display:none;margin:0 12px 12px 42px;padding-top:8px;border-top:1px dashed var(--bbr);font-size:12px;color:var(--mu);columns:2;column-gap:16px}
+.pkg-c.open .pkg-c-details{display:block}
+.pkg-c-details b{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx);margin:0 0 4px}
+.pkg-c-details ul{margin:0 0 8px;padding-left:16px;break-inside:avoid}
+.pkg-c-details li{margin-bottom:2px}
+.bk-veh-summary{display:grid;grid-template-columns:auto 1fr;gap:8px;margin:0 0 14px}
+.bk-veh-summary[hidden]{display:none!important}
+.bk-veh-zip,.bk-veh-pill{border:1px solid var(--bbr);border-radius:12px;background:var(--bg3);padding:8px 10px;display:flex;align-items:center;gap:8px}
+.bk-veh-zip{min-width:100px}
+.bk-veh-zip b,.bk-veh-pill b{font-size:13px;font-weight:700;color:var(--tx);display:block;line-height:1.2}
+.bk-veh-zip span,.bk-veh-pill span{font-size:10px;font-weight:600;color:var(--mu);display:block}
+.bk-veh-pill img{width:44px;height:28px;object-fit:contain;flex-shrink:0}
+.bk-veh-edit{margin-left:auto;font-size:11px;font-weight:700;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit;padding:0}
+@media(max-width:560px){
+  .pkg-c-details{columns:1}
+  .pkg-c-expand{margin-left:12px;width:calc(100% - 24px)}
+  .pkg-c-details{margin-left:12px}
+  .bk-veh-summary{grid-template-columns:1fr}
+}
+
 .pkg{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:18px 16px 16px;cursor:pointer;position:relative;display:flex;flex-direction:column;transition:.2s}
 .pkg:hover{border-color:var(--bbr);transform:translateY(-3px)}
 .pkg.sel{border-color:var(--blue);background:rgba(77,163,255,.06)}
@@ -1612,6 +1649,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .booking-modal .pkg{background:var(--bg1);border-color:var(--line);box-shadow:var(--shadow-sm)}
 .booking-modal .pkg:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
 .booking-modal .pkg.sel{background:var(--bdim)}
+.booking-modal .pkg-c{background:var(--bg1);border-color:var(--line)}
+.booking-modal .pkg-c:hover{border-color:rgba(37,99,235,.35)}
+.booking-modal .pkg-c.sel{background:linear-gradient(180deg,rgba(37,99,235,.06),transparent 48%);border-color:var(--blue)}
+.booking-modal .pkg-c-name,.booking-modal .pkg-c-price,.booking-modal .pkg-c-details b{color:var(--ink)}
+.booking-modal .pkg-c-badge{background:var(--ink);color:#fff}
+.booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0);border-color:var(--line)}
+.booking-modal .bk-veh-zip b,.booking-modal .bk-veh-pill b{color:var(--ink)}
 .booking-modal .fi,.booking-modal .srch-in,.booking-modal .sel-s,.booking-modal .tchip,.booking-modal .addon,.booking-modal .card-gate,.booking-modal .terms-panel,.booking-modal .unit-box,.booking-modal .suc-card,.booking-modal .pay-box{background:var(--bg0);border-color:var(--line-strong);color:var(--ink)}
 .booking-modal .srch-dd{background:var(--bg1);box-shadow:var(--shadow-md);border-color:var(--line-strong)}
 .booking-modal .srch-item{border-bottom-color:var(--line)}
@@ -2653,15 +2697,16 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <!-- STEP 2: PACKAGES -->
       <div class="bsec" id="bs2">
-        <div class="beye">Step 02 — Package</div>
-        <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
-        <div class="bdesc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
+        <div class="beye" id="bs2-eye">Step 02 — Package</div>
+        <div class="btitle" id="bs2-title">CHOOSE YOUR<br>PACKAGE</div>
+        <div class="bdesc" id="bs2-desc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
         <div class="bdesc" id="bs2-rv-note" style="display:none;font-size:12px;color:var(--mu);margin:-8px 0 14px">Your exact service price is calculated on the Vehicle step after RV type and length are entered.</div>
+        <div id="bs2-vehicle-summary" class="bk-veh-summary" hidden></div>
         <div class="pkg-grid" id="pkg-grid"></div>
         <div class="pkg-detail-panel" id="pkg-detail-panel" hidden aria-live="polite"></div>
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
+          <button type="button" class="btn-b" id="back2" onclick="bkBackFromPackage()">← Back</button>
           <button type="button" class="btn-n" id="next2" disabled onclick="bkContinueFromPackage()">Continue to vehicle →</button>
         </div>
       </div>
@@ -2865,7 +2910,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
 
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
+          <button type="button" class="btn-b" id="back3" onclick="bkBackFromVehicle()">← Back</button>
           <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
         </div>
       </div>
@@ -3586,36 +3631,36 @@ let PRICING = {
       truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:155, maint:215, interior:235, full:275, refresh:395, premium:525},
     },
     packages:[
-      {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~2.5–3h', popular:true,  scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned','Engine bay top clean'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned','Engine bay top clean'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        miss:['Machine polish','Signature Restoration','Premium long-term sealant']},
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine bay top clean'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine bay top clean'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        miss:[]},
+      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine bay top clean'],
         int:[],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
-        miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
-      {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
-        int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
-        miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Engine bay top clean','Final quality inspection'],
+        miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~1.5–2h',            popular:false, scope:'int',
         ext:[],
         int:CAR_INTERIOR_SERVICE_ITEMS,
         feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~2.5–3h', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
-        int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'].concat(CAR_INTERIOR_SERVICE_ITEMS),
-        miss:['Machine polish','Signature Restoration','Premium long-term sealant']},
-      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
+      {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
+        int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
+      {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
         int:[],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
-        miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
-      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
-        int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'].concat(CAR_INTERIOR_SERVICE_ITEMS),
-        miss:[]}
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
@@ -4906,24 +4951,30 @@ function bkGoTo(n, opts = {}) {
   document.querySelectorAll('.bsec').forEach(s => {
     s.classList.toggle('on', panels.includes(s.id));
   });
+  syncBookingProgressLabels();
+  const tab = progressTabForPanel(n);
   document.querySelectorAll('.bpt').forEach((t, i) => {
     t.classList.remove('active', 'done');
-    if (i + 1 < n) t.classList.add('done');
-    else if (i + 1 === n) t.classList.add('active');
+    if (i + 1 < tab) t.classList.add('done');
+    else if (i + 1 === tab) t.classList.add('active');
   });
-  const activeTab = document.getElementById('bpt' + n);
+  const activeTab = document.getElementById('bpt' + tab);
   if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'center', block: 'nearest' });
   if (n === 2) {
     const n2 = document.getElementById('next2');
     if (n2) n2.disabled = !ST.pkg;
+    syncPackageStepChrome();
     const grid = document.getElementById('pkg-grid');
     if (grid && ST.pkgId) {
-      grid.querySelectorAll('.pkg').forEach(c => c.classList.remove('sel'));
+      grid.querySelectorAll('.pkg, .pkg-c').forEach(c => c.classList.remove('sel'));
       const card = document.getElementById('pk-' + ST.pkgId);
       if (card) card.classList.add('sel');
     }
   }
-  if (n === 3) renderVehicleCart();
+  if (n === 3) {
+    syncVehicleStepChrome();
+    renderVehicleCart();
+  }
   if (n === 4) fillStrip5();
   if (n === 5) {
     ensureStep5Defaults();
@@ -4950,6 +5001,101 @@ function bkGoTo(n, opts = {}) {
   if (window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 
+function carsVehicleFirstFlow() {
+  return ST.cat === 'cars';
+}
+
+function progressTabForPanel(n) {
+  if (!carsVehicleFirstFlow()) return n;
+  if (n === 2) return 3;
+  if (n === 3) return 2;
+  return n;
+}
+
+function syncBookingProgressLabels() {
+  const t2 = document.querySelector('#bpt2 span');
+  const t3 = document.querySelector('#bpt3 span');
+  if (carsVehicleFirstFlow()) {
+    if (t2) t2.textContent = 'Vehicle';
+    if (t3) t3.textContent = 'Package';
+  } else {
+    if (t2) t2.textContent = 'Package';
+    if (t3) t3.textContent = 'Vehicle';
+  }
+}
+
+function syncPackageStepChrome() {
+  const eye = document.getElementById('bs2-eye');
+  const title = document.getElementById('bs2-title');
+  const desc = document.getElementById('bs2-desc');
+  const next2 = document.getElementById('next2');
+  const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey;
+  if (carsReady) {
+    if (eye) eye.textContent = 'Step 02 — Package';
+    if (title) title.innerHTML = 'PICK YOUR<br>PACKAGE';
+    if (desc) desc.textContent = 'Packages ranked by value for your vehicle. Expand a row for full inclusions.';
+    if (next2) next2.textContent = ST.pkg ? 'Continue to add-ons →' : 'Continue to add-ons →';
+  } else {
+    if (eye) eye.textContent = 'Step 02 — Package';
+    if (title) title.innerHTML = 'CHOOSE YOUR<br>PACKAGE';
+    if (desc) desc.textContent = 'Review what\'s included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.';
+    if (next2) next2.textContent = 'Continue to vehicle →';
+  }
+  renderBs2VehicleSummary();
+}
+
+function renderBs2VehicleSummary() {
+  const el = document.getElementById('bs2-vehicle-summary');
+  if (!el) return;
+  const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel;
+  if (!carsReady) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const zipEl = document.getElementById('bk-zip');
+  const zip = zipEl ? String(zipEl.value || '').replace(/\D/g, '').slice(0, 5) : '';
+  const visualKey = typeof getVehicleVisualKey === 'function' ? getVehicleVisualKey() : '';
+  const visual = (VEHICLE_VISUALS[visualKey] || CATEGORY_VISUALS.cars || {});
+  const tierLbl = (window.CD1BookingVehicleSummary
+    ? CD1BookingVehicleSummary.categoryTierLabel(ST)
+    : (ST.displayLabel || (ST.tier && ST.tier.label) || '')) || 'Vehicle';
+  el.hidden = false;
+  el.innerHTML =
+    `<div class="bk-veh-zip"><div><span>ZIP</span><b>${zip || '—'}</b></div></div>` +
+    `<div class="bk-veh-pill">` +
+      (visual.img ? `<img src="${visual.img}" alt="${visual.alt || ''}" width="88" height="56" loading="lazy" decoding="async">` : '') +
+      `<div><span>${tierLbl}</span><b>${ST.vehicleLabel}</b></div>` +
+      `<button type="button" class="bk-veh-edit" onclick="bkBackFromPackage()">Edit</button>` +
+    `</div>`;
+}
+
+function syncVehicleStepChrome() {
+  const next3 = document.getElementById('next3');
+  const addons = document.getElementById('bs3-addons');
+  const title = document.querySelector('#bs3 .btitle');
+  const eye = document.querySelector('#bs3 .beye');
+  const desc = document.getElementById('bs3-desc');
+  const carsPendingPkg = carsVehicleFirstFlow() && !ST.pkg;
+  if (carsPendingPkg) {
+    if (eye) eye.textContent = 'Step 02 — Vehicle';
+    if (title) title.textContent = 'YOUR VEHICLE';
+    if (desc) desc.textContent = 'Enter your vehicle so we can lock size-based pricing, then pick a package.';
+    if (next3) next3.textContent = 'Continue to packages →';
+    if (addons) addons.style.display = 'none';
+  } else {
+    if (eye) eye.textContent = 'Step 03 — Vehicle';
+    if (title) title.textContent = 'YOUR VEHICLE';
+    if (desc) {
+      desc.textContent = carsVehicleFirstFlow() && ST.pkg
+        ? 'Review add-ons for your package, then continue to your details.'
+        : 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.';
+    }
+    if (next3) next3.textContent = 'Continue to Info →';
+    if (addons) addons.style.display = '';
+  }
+}
+
 function bkContinueFromPackage() {
   if (!ST.pkg) {
     if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(2, 'package_required');
@@ -4957,7 +5103,31 @@ function bkContinueFromPackage() {
     return;
   }
   if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
+  if (carsVehicleFirstFlow() && ST.vehicleLabel && ST.tierKey) {
+    setBasePrice();
+    syncVehicleStepChrome();
+    renderAddons();
+    syncContinueGate();
+    bkGoTo(3);
+    return;
+  }
   bkGoTo(3);
+}
+
+function bkBackFromPackage() {
+  if (carsVehicleFirstFlow() && ST.vehicleLabel) {
+    bkGoTo(3);
+    return;
+  }
+  bkGoTo(1);
+}
+
+function bkBackFromVehicle() {
+  if (carsVehicleFirstFlow() && !ST.pkg) {
+    bkGoTo(1);
+    return;
+  }
+  bkGoTo(2);
 }
 
 function bkContinueFromContact() {
@@ -5056,11 +5226,20 @@ function selectCategory(cat){
   renderTierChips(cat);
   renderVehicleCart();
   updateTotal();
-  bkGoTo(2);
+  syncBookingProgressLabels();
   const intentId=ST._prefillPkgId || ST._packageIntent || '';
   const pid=resolvePackageIntentForCategory(cat, intentId);
   ST._prefillPkgId='';
   const goVehicle = ST._startStep === 3 || ST._startStep === 'vehicle';
+  const forcePackage = ST._startStep === 2 || ST._startStep === 'package';
+  const carsDefaultVehicleFirst = cat==='cars' && !pid && !forcePackage;
+  if(carsDefaultVehicleFirst && !goVehicle){
+    syncVehicleStepChrome();
+    bkGoTo(3);
+  } else {
+    syncPackageStepChrome();
+    bkGoTo(2);
+  }
   if(pid){
     ST._startStep = null;
     requestAnimationFrame(()=>{
@@ -5072,7 +5251,7 @@ function selectCategory(cat){
       }
       if(goVehicle && ST.pkg) bkGoTo(3);
     });
-  } else if(ST._startStep === 2 || ST._startStep === 'package'){
+  } else if(forcePackage){
     ST._startStep = null;
     bkGoTo(2);
   } else {
@@ -5112,64 +5291,157 @@ function bindPowersportsPackageCopy(){
 }
 
 // ── STEP 2: PACKAGES ──────────────────────────────────────────────────────────
+const PKG_COMPACT_META = {
+  full: {
+    shortName: 'Premium Full Detail',
+    line: 'Inside/out refresh with engine bay',
+    chips: ['Shampoo · UV · jambs', 'Clay · wheels · glass', 'Engine bay'],
+  },
+  premium: {
+    shortName: 'Signature Restoration',
+    line: 'Correction + long-term sealant + deep interior',
+    chips: ['Paint correction', 'Sealant · Rain-X', 'Engine bay'],
+  },
+  refresh: {
+    shortName: 'Exterior Refresh & Protect',
+    line: 'Clay, polish, sealant — exterior only',
+    chips: ['Clay · polish', 'Sealant · wheels', 'Engine bay'],
+  },
+  interior: {
+    shortName: 'Interior Detail',
+    line: 'Deep clean cabin — shampoo & condition',
+    chips: [],
+  },
+  maint: {
+    shortName: 'Maintenance Detail',
+    line: 'Light keep-clean wash + quick interior',
+    chips: [],
+  },
+  wash: {
+    shortName: 'Exterior Hand Wash',
+    line: 'Quick exterior · wheels · glass',
+    chips: [],
+  },
+};
+
 function renderPackages(cat){
   const d=PRICING[cat];
   const grid=document.getElementById('pkg-grid');
-  const pkgKey = cat==='fleet'?'essential':'full';
+  if(!grid || !d) return;
   const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
   const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;
-  grid.innerHTML=packages.map(p=>{
-    let startPrice;
-    if(cat==='fleet' && p.id==='custom'){
-      startPrice = 0;
-    }else if((cat==='boats'||cat==='rvs') && LENGTH_PRICING[cat]?.packages[p.id]){
-      const rule = LENGTH_PRICING[cat].packages[p.id];
-      if(cat==='rvs'){
-        startPrice = null;
+  const useCompact = cat==='cars';
+  grid.classList.toggle('pkg-grid--compact', useCompact);
+
+  if(useCompact){
+    grid.innerHTML=packages.map(p=>{
+      const meta=PKG_COMPACT_META[p.id]||{shortName:p.name,line:p.tag,chips:[]};
+      let priceLabel='';
+      if(ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id]!=null){
+        const n=applyRichPrice(d.tiers[ST.tierKey][p.id])+getTravelFeeAmount();
+        priceLabel='$'+n;
       }else{
-        startPrice = applyRichPrice(rule.min);
+        const sampleTier=Object.values(d.tiers)[0];
+        const n=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior)+getTravelFeeAmount();
+        priceLabel='From $'+n;
       }
-    }else if(cat==='powersports'){
-      startPrice=applyRichPrice(powersportsPublicFromPriceForPackage(p.id));
-    }else{
-      const sampleTier=Object.values(d.tiers)[0];
-      startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
-    }
-    if(p.id!=='custom' && startPrice != null) startPrice += getTravelFeeAmount();
-    const rvRate = (cat==='rvs' && LENGTH_PRICING.rvs?.packages[p.id]) ? LENGTH_PRICING.rvs.packages[p.id] : null;
-    const pkgFrom = p.id==='custom'
-      ? 'quote required for mixed, large, or multi-location fleets'
-      : (rvRate
-        ? 'Price calculated from your vehicle details.'
-        : (cat==='powersports' ? 'Price set by vehicle type' : (p.note||'price set by vehicle size/type')));
-    const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
-    return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
-      ${p.popular?'<div class="pop-b">Most Popular</div>':''}
-      <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
-      <div class="pkg-name">${p.name}</div>
-      <div class="pkg-tag">${p.tag}</div>
-      <div class="pkg-price" aria-hidden="true"></div>
-      <div class="pkg-from">${pkgFrom}</div>
-      <div class="pkg-time">⏱ ${p.dur}</div>
-      <div class="pkg-div"></div>
-      <ul class="pkg-feats">
-        ${(p.ext||p.int)
-          ? `${(p.ext&&p.ext.length)?`<li class="grp">🚗 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
-            +`${(p.int&&p.int.length)?`<li class="grp">💺 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
-            +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
-          : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
-      </ul>
-      <button type="button" class="pkg-btn" onclick="event.stopPropagation();selectPkg('${p.id}')">Select Package</button>
-    </div>`;
-  }).join('');
+      const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
+      const extList=(p.ext||[]).map(f=>`<li>${f}</li>`).join('');
+      const intList=(p.int||[]).map(f=>`<li>${f}</li>`).join('');
+      const featList=(!p.ext&&!p.int&&p.feats)?(p.feats||[]).map(f=>`<li>${f}</li>`).join(''):'';
+      let details='';
+      if(extList||intList){
+        details=`${intList?`<div><b>Interior</b><ul>${intList}</ul></div>`:''}${extList?`<div><b>Exterior</b><ul>${extList}</ul></div>`:''}`;
+      }else if(featList){
+        details=`<div><b>Includes</b><ul>${featList}</ul></div>`;
+      }
+      const openOnPopular = !!p.popular;
+      return `<div class="pkg-c${p.popular?' hero':''}${openOnPopular?' open':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
+        <div class="pkg-c-row">
+          <div class="pkg-c-radio" aria-hidden="true"></div>
+          <div>
+            <p class="pkg-c-name">${meta.shortName||p.name}${p.popular?'<span class="pkg-c-badge">Most booked</span>':''}</p>
+            <p class="pkg-c-tag">${meta.line||p.tag||''}</p>
+            ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
+          </div>
+          <div class="pkg-c-meta">
+            <span class="pkg-c-price">${priceLabel}</span>
+            <span class="pkg-c-dur">${(p.dur||'').replace(/^~/,'')}</span>
+          </div>
+        </div>
+        ${details?`<button type="button" class="pkg-c-expand" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>${openOnPopular?'Hide inclusions':'Show inclusions'}</span><span data-expand-chev>${openOnPopular?'▴':'▾'}</span></button>
+        <div class="pkg-c-details">${details}</div>`:''}
+      </div>`;
+    }).join('');
+  }else{
+    grid.innerHTML=packages.map(p=>{
+      let startPrice;
+      if(cat==='fleet' && p.id==='custom'){
+        startPrice = 0;
+      }else if((cat==='boats'||cat==='rvs') && LENGTH_PRICING[cat]?.packages[p.id]){
+        const rule = LENGTH_PRICING[cat].packages[p.id];
+        if(cat==='rvs'){
+          startPrice = null;
+        }else{
+          startPrice = applyRichPrice(rule.min);
+        }
+      }else if(cat==='powersports'){
+        startPrice=applyRichPrice(powersportsPublicFromPriceForPackage(p.id));
+      }else{
+        const sampleTier=Object.values(d.tiers)[0];
+        startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
+      }
+      if(p.id!=='custom' && startPrice != null) startPrice += getTravelFeeAmount();
+      const rvRate = (cat==='rvs' && LENGTH_PRICING.rvs?.packages[p.id]) ? LENGTH_PRICING.rvs.packages[p.id] : null;
+      const pkgFrom = p.id==='custom'
+        ? 'quote required for mixed, large, or multi-location fleets'
+        : (rvRate
+          ? 'Price calculated from your vehicle details.'
+          : (cat==='powersports' ? 'Price set by vehicle type' : (p.note||'price set by vehicle size/type')));
+      const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
+      return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
+        ${p.popular?'<div class="pop-b">Most Popular</div>':''}
+        <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
+        <div class="pkg-name">${p.name}</div>
+        <div class="pkg-tag">${p.tag}</div>
+        <div class="pkg-price" aria-hidden="true"></div>
+        <div class="pkg-from">${pkgFrom}</div>
+        <div class="pkg-time">⏱ ${p.dur}</div>
+        <div class="pkg-div"></div>
+        <ul class="pkg-feats">
+          ${(p.ext||p.int)
+            ? `${(p.ext&&p.ext.length)?`<li class="grp">🚗 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
+              +`${(p.int&&p.int.length)?`<li class="grp">💺 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
+              +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
+            : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
+        </ul>
+        <button type="button" class="pkg-btn" onclick="event.stopPropagation();selectPkg('${p.id}')">Select Package</button>
+      </div>`;
+    }).join('');
+  }
   document.getElementById('next2').disabled=true;
   clearPkgDetailPanel();
+  syncPackageStepChrome();
+}
+
+function togglePkgExpand(id, ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  const el=document.getElementById('pk-'+id);
+  if(!el) return;
+  const open=el.classList.toggle('open');
+  const btn=el.querySelector('.pkg-c-expand');
+  if(btn){
+    const label=btn.querySelector('[data-expand-label]');
+    const chev=btn.querySelector('[data-expand-chev]');
+    if(label) label.textContent=open?'Hide inclusions':'Show inclusions';
+    if(chev) chev.textContent=open?'▴':'▾';
+  }
 }
 
 function selectPkg(id){
   const grid=document.getElementById('pkg-grid');
   if(grid){
-    grid.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
+    grid.querySelectorAll('.pkg, .pkg-c').forEach(c=>c.classList.remove('sel'));
     const el=document.getElementById('pk-'+id);
     if(el) el.classList.add('sel');
   }
@@ -5193,7 +5465,8 @@ function selectPkg(id){
     if(ST.vehicleLabel) renderAddons();
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
-  // Auto-advance to vehicle step after package selection
+  syncPackageStepChrome();
+  // Auto-advance after package selection (vehicle step, or cars add-ons when vehicle already known)
   if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep) setTimeout(()=>bkContinueFromPackage(), 180);
   if(window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
@@ -5614,6 +5887,10 @@ function isPublishedPricedPackage(){
 function syncContinueGate(){
   const btn=document.getElementById('next3');
   if(!btn) return;
+  if(ST.cat==='cars' && !ST.pkg){
+    btn.disabled = !(ST.vehicleLabel && ST.tierKey && !ST.classNeedsConfirm);
+    return;
+  }
   const published=isPublishedPricedPackage();
   const hasVehicle=!!(ST.vehicleLabel && ST.pkg);
   const priced=ST.basePrice > 0 && !ST._priceResolveFailed;
@@ -6844,6 +7121,17 @@ function addCurrentVehicleToCart(){
 }
 
 function addCurrentVehicleAndContinue(){
+  if(ST.cat==='cars' && !ST.pkg){
+    if(!ST.vehicleLabel || !ST.tierKey || ST.classNeedsConfirm){
+      alert('Please confirm your vehicle make, model, year, and size to continue.');
+      return;
+    }
+    renderPackages('cars');
+    syncPackageStepChrome();
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(3);
+    bkGoTo(2);
+    return;
+  }
   const item = commitCurrentVehicleToCart();
   if(!item && !ST.vehicles.length){ alert('Please configure at least one vehicle.'); return; }
   renderVehicleCart();
