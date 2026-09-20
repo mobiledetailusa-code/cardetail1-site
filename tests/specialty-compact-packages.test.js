@@ -124,6 +124,26 @@ test('boat/RV compact price labels stay length-based (no fake flat price)', () =
   );
 });
 
+test('boat packages use complete marine descriptions (no cascade "previous package included")', () => {
+  const boatsIdx = html.indexOf('boats: {');
+  const rvsIdx = html.indexOf('rvs: {', boatsIdx);
+  assert.ok(boatsIdx > 0 && rvsIdx > boatsIdx);
+  const boatsBlock = html.slice(boatsIdx, rvsIdx);
+  assert.doesNotMatch(boatsBlock, /Marine Wash included|Essential Marine included|Full Marine Detail included/i);
+  assert.doesNotMatch(boatsBlock, /Everything in |plus the |previous package/i);
+  for (const id of ["id:'maint'", "id:'essential'", "id:'full'", "id:'premium'"]) {
+    assert.match(boatsBlock, new RegExp(id + "[\\s\\S]*?feats:\\[[\\s\\S]*?Exterior hull wash above the waterline"));
+  }
+  assert.match(boatsBlock, /id:'essential'[\s\S]*?Non-skid surfaces scrubbed/);
+  assert.match(boatsBlock, /id:'essential'[\s\S]*?Vinyl seats and cushions cleaned and conditioned/);
+  assert.match(boatsBlock, /id:'full'[\s\S]*?Marine wax or sealant applied to exterior gel coat/);
+  assert.match(boatsBlock, /id:'full'[\s\S]*?Cockpit and cabin deep clean when present/);
+  assert.match(boatsBlock, /id:'premium'[\s\S]*?Machine-applied marine wax or sealant/);
+  assert.match(boatsBlock, /id:'premium'[\s\S]*?Oxidation assessment with light improvement where achievable/);
+  assert.match(boatsBlock, /Windshield cleaned/);
+  assert.doesNotMatch(boatsBlock, /\bGlass\b/);
+});
+
 test('RV/trailer packages group into Exterior, Interior, and Interior + Exterior', () => {
   assert.match(html, /function groupPackagesForDisplay\(/);
   assert.match(html, /pkg-c-section/);
