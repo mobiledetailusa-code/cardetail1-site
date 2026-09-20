@@ -76,13 +76,13 @@ function loadTryGenericConfirm(stOverrides, fields) {
       boatType: '', units: 1,
     }, stOverrides),
     PRICING: { powersports: { tiers: {
-      motorcycle: { label: 'Motorcycle', wash: 100, full: 225, premium: 315, maintenance: 175, restore: 225 },
-      motorcycle_large: { label: 'Large Motorcycle', wash: 100, full: 225, premium: 315, maintenance: 190, restore: 250 },
-      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 200, restore: 275 },
-      atv: { label: 'ATV', wash: 100, full: 225, premium: 315, maintenance: 175, restore: 215 },
-      utv: { label: 'UTV / Side-by-Side', wash: 125, full: 280, premium: 395 },
-      utv_standard: { label: 'Side-by-Side / UTV', wash: 125, full: 280, premium: 395, maintenance: 190, restore: 240 },
-      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 125, full: 280, premium: 395, maintenance: 200, restore: 275 },
+      motorcycle: { label: 'Motorcycle', wash: 115, full: 260, premium: 360, maintenance: 200, restore: 260 },
+      motorcycle_large: { label: 'Large Motorcycle', wash: 115, full: 260, premium: 360, maintenance: 220, restore: 290 },
+      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 230, restore: 315 },
+      atv: { label: 'ATV', wash: 115, full: 260, premium: 360, maintenance: 200, restore: 245 },
+      utv: { label: 'UTV / Side-by-Side', wash: 145, full: 320, premium: 455 },
+      utv_standard: { label: 'Side-by-Side / UTV', wash: 145, full: 320, premium: 455, maintenance: 220, restore: 275 },
+      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 145, full: 320, premium: 455, maintenance: 230, restore: 315 },
     } } },
     CD1PowersportsCatalog: PowersportsCatalog,
     CD1PowersportsBookingSafety: PowersportsSafety,
@@ -90,10 +90,10 @@ function loadTryGenericConfirm(stOverrides, fields) {
       getElementById(id) { return els[id] || null; },
     },
     BOAT_TYPE_LABELS: { pontoon: 'Pontoon / Tritoon', jetski: 'Jet Ski / PWC' },
-    getLengthPrice(cat, pkgId, ft) { return cat === 'rvs' ? 130 + 9 * Number(ft) : Math.max(170, 10 * Number(ft)); },
+    getLengthPrice(cat, pkgId, ft) { return cat === 'rvs' ? 150 + 10 * Number(ft) : Math.max(195, 12 * Number(ft)); },
     getBoatQuotePrice(pkgId, ft, type) {
-      if (type === 'jetski') return 100;
-      return Math.max(170, 10 * Number(ft));
+      if (type === 'jetski') return 115;
+      return Math.max(195, 12 * Number(ft));
     },
     applyRichPrice(n) { return Number(n) || 0; },
     setBasePrice() {
@@ -297,7 +297,7 @@ describe('shared first broken boundary: tryGenericConfirm uses ST.cat', () => {
     ]) {
       const { sandbox, els } = loadTryGenericConfirm({
         cat: 'powersports', pkgId: 'wash', tierKey,
-        tier: { label, wash: price, full: 225, premium: 315 },
+        tier: { label, wash: price, full: 260, premium: 360 },
       }, { make, model, year: '2023' });
       assert.doesNotThrow(() => sandbox.tryGenericConfirm());
       assert.equal(sandbox.ST.vehicleLabel, `2023 ${make} ${model}`);

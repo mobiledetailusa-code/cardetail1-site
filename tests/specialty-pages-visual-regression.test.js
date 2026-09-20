@@ -20,9 +20,9 @@ const PAGES = [
 ];
 
 const PRICES = {
-  'boats-detailing.html': ['From $170', 'From $380', 'From $595'],
+  'boats-detailing.html': ['From $195', 'From $435', 'From $685'],
   'rv-detailing.html': ['Select This RV Package', 'Full RV Detail', 'MOST POPULAR', 'BEST FINISH'],
-  'powersports-detailing.html': ['From $175', 'From $215'],
+  'powersports-detailing.html': ['From $200', 'From $245'],
 };
 
 test('specialty pages exist with unique SEO essentials', () => {

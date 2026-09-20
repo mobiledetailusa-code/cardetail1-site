@@ -271,12 +271,12 @@ test('static starting-price surfaces are verified against the catalog', () => {
 test('AI chat starting prices are derived from the same catalog', () => {
   const { BUSINESS_SYSTEM, CHAT_STARTING_PRICES } = require('../netlify/functions/ai-chat');
   assert.deepEqual(CHAT_STARTING_PRICES, {
-    cars: 190,
-    carMaintenance: 150,
-    carWash: 110,
-    boats: 170,
-    rvs: 238,
-    powersports: 175,
+    cars: 220,
+    carMaintenance: 175,
+    carWash: 125,
+    boats: 195,
+    rvs: 270,
+    powersports: 200,
   });
   for (const price of Object.values(CHAT_STARTING_PRICES)) {
     assert.match(BUSINESS_SYSTEM, new RegExp(`\\$${price}\\b`));

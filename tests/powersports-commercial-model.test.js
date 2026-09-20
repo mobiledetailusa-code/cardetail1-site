@@ -36,9 +36,9 @@ describe('Powersports commercial two-package model', () => {
 
   it('preserves historical dollar meaning for old package IDs', () => {
     const historical = {
-      motorcycle: { wash: 100, essential: 160, full: 225, premium: 315 },
-      atv: { wash: 100, essential: 160, full: 225, premium: 315 },
-      utv: { wash: 125, essential: 190, full: 280, premium: 395 },
+      motorcycle: { wash: 115, essential: 185, full: 260, premium: 360 },
+      atv: { wash: 115, essential: 185, full: 260, premium: 360 },
+      utv: { wash: 145, essential: 220, full: 320, premium: 455 },
     };
     for (const [tierKey, prices] of Object.entries(historical)) {
       for (const [pkgId, amount] of Object.entries(prices)) {
@@ -53,12 +53,12 @@ describe('Powersports commercial two-package model', () => {
 
   it('prices the approved public matrix on client and server', () => {
     const matrix = {
-      motorcycle: { maintenance: 175, restore: 225 },
-      motorcycle_large: { maintenance: 190, restore: 250 },
-      motorcycle_trike: { maintenance: 200, restore: 275 },
-      atv: { maintenance: 175, restore: 215 },
-      utv_standard: { maintenance: 190, restore: 240 },
-      utv_large: { maintenance: 200, restore: 275 },
+      motorcycle: { maintenance: 200, restore: 260 },
+      motorcycle_large: { maintenance: 220, restore: 290 },
+      motorcycle_trike: { maintenance: 230, restore: 315 },
+      atv: { maintenance: 200, restore: 245 },
+      utv_standard: { maintenance: 220, restore: 275 },
+      utv_large: { maintenance: 230, restore: 315 },
     };
     for (const [serviceClass, prices] of Object.entries(matrix)) {
       assert.equal(Catalog.priceTierForServiceClass(serviceClass), serviceClass);

@@ -368,7 +368,7 @@ test('no Netlify Function files changed in this UX scope', () => {
 
 test('package IDs and prices remain unchanged on index', () => {
   const index = read('index.html');
-  assert.ok(index.includes('refresh:320, premium:385'));
+  assert.ok(index.includes('refresh:370, premium:445'));
   assert.ok(index.includes('refresh:360, premium:470'));
 });
 

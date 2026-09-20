@@ -60,7 +60,7 @@ describe('boat vessel types in booking', () => {
     const sandbox = {
       ST: { cat: 'boats', boatType: 'jetski' },
       PRICING: {
-        powersports: { tiers: { jetski: { wash: 100, essential: 160, full: 225, premium: 310 } } },
+        powersports: { tiers: { jetski: { wash: 115, essential: 185, full: 260, premium: 355 } } },
       },
     };
     vm.createContext(sandbox);

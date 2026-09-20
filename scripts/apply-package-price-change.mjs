@@ -48,6 +48,7 @@ const FACTOR = 1 + PERCENT / 100;
 const TIER_PRICE_KEYS = [
   'maint', 'maint_light', 'interior', 'exterior', 'essential', 'wash',
   'full', 'full_basic', 'refresh', 'premium', 'custom',
+  'int_wash', 'int_wash_wax', 'maintenance', 'restore',
 ];
 const LENGTH_PRICE_KEYS = ['perFt', 'min', 'base', 'ratePerFoot'];
 
@@ -180,7 +181,7 @@ const STATIC_PRICES = Object.freeze({
   boats: LENGTH_PRICING.boats.packages.maint.min,
   rvs: LENGTH_PRICING.rvs.packages.maint.base
     + LENGTH_PRICING.rvs.packages.maint.ratePerFoot * LENGTH_PRICING.rvs.min,
-  powersports: minTierPrice('powersports', 'wash'),
+  powersports: minTierPrice('powersports', 'maintenance'),
 });
 
 function syncBookingPageSurfaces(src) {
@@ -225,9 +226,8 @@ function syncSpecialtyPages(file, src) {
   }
   if (file === 'powersports-detailing.html') {
     return src
-      .replace(/(<h3 class="sp-pkg-name">Wash &amp; Shine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'wash')}`)
-      .replace(/(<h3 class="sp-pkg-name">Full Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'full')}`)
-      .replace(/(<h3 class="sp-pkg-name">Premium Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'premium')}`);
+      .replace(/(<h3 class="sp-pkg-name">Maintenance Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'maintenance')}`)
+      .replace(/(<h3 class="sp-pkg-name">Correction \/ Restoration<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'restore')}`);
   }
   if (file === 'rv-detailing.html') {
     let out = src;
@@ -242,7 +242,7 @@ function syncSpecialtyPages(file, src) {
 
 const pages = fs.readdirSync(ROOT)
   .filter((f) => f.endsWith('.html'))
-  .filter((f) => /const PRICING\s*=/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
+  .filter((f) => /(?:const|let)\s+PRICING\s*=/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
 
 let corrected = 0;
 for (const file of pages) {

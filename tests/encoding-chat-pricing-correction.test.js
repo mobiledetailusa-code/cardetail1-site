@@ -114,8 +114,8 @@ test('chat does not use maint tier as promotional Cars minimum', () => {
 
 test('booking still contains Maintenance Detail at 150 and Interior Detail at 190', () => {
   const html = read('index.html');
-  assert.match(html, /maint:150/);
-  assert.match(html, /interior:190/);
+  assert.match(html, /maint:175/);
+  assert.match(html, /interior:220/);
   assert.match(html, /id:'maint'[\s\S]*?Maintenance Detail/);
   assert.match(html, /id:'interior'[\s\S]*?Interior Detail/);
 });
@@ -226,8 +226,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
 
 test('cars pricing formulas remain stable while RV ladder may update', () => {
   const html = read('index.html');
-  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:150,\s*interior:190/);
+  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:175,\s*interior:220/);
   assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 215, ratePerFoot: 14 \}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 340, ratePerFoot: 31 \}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 245, ratePerFoot: 16 \}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 390, ratePerFoot: 36 \}/);
 });
