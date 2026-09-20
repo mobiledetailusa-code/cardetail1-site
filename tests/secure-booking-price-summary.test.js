@@ -159,7 +159,11 @@ describe('price presentation', () => {
   });
 
   it('selecting a package auto-advances to the vehicle step', () => {
-    assert.match(html, /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring && !ST\._holdPackageStep\) setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/);
+    // Specialty / package-first auto-advances; cars vehicle-first stays on package for add-ons.
+    assert.match(
+      html,
+      /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring && !ST\._holdPackageStep\)\{[\s\S]*?setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/,
+    );
     assert.doesNotMatch(html, /stay on package step until Continue/);
   });
 

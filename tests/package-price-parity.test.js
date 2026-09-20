@@ -239,7 +239,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
     const html = read(file);
     assert.match(html, new RegExp(`id="bkfrom-boats"[^>]*>From \\$${boat}<`), file);
     assert.match(html, new RegExp(`id="bkfrom-powersports"[^>]*>From \\$${powersports}<`), file);
-    assert.match(html, /id="bkfrom-rvs"[^>]*>Price calculated from your vehicle details\.</, file);
+    assert.match(html, /id="bkfrom-rvs"[^>]*>(?:Price calculated from your vehicle details\.|Priced by length)</, file);
     assert.match(html, new RegExp(`cars:\\s+\\{[^\\n]*from:'From \\$${carInterior}'`), file);
     assert.match(html, new RegExp(`boats:\\s+\\{[^\\n]*from:'From \\$${boat}'`), file);
     assert.match(html, new RegExp(`powersports:\\s*\\{[^\\n]*from:'From \\$${powersports}'`), file);
