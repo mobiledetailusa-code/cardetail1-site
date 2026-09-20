@@ -47,9 +47,11 @@ test('Rain-X and clay bar are offered when the package does not include them', (
 
 // 2: Rain-X is hidden when the selected package already includes it.
 test('Rain-X is hidden when the package includes Rain-X (refresh / signature)', () => {
-  assert.equal(pkgIncludesAddon({ feats: ['Rain-X glass treatment'] }).rainx, true);
-  assert.equal(pkgIncludesAddon({ ext: ['Exterior glass cleaned + Rain-X treatment'] }).rainx, true);
+  assert.equal(pkgIncludesAddon({ feats: ['Rain-X windshield treatment'] }).rainx, true);
+  assert.equal(pkgIncludesAddon({ ext: ['Exterior windshield cleaned + Rain-X treatment'] }).rainx, true);
   assert.equal(pkgIncludesAddon({ ext: ['Rain-X windshield treatment'] }).rainx, true);
+  // Legacy glass wording still matches via Rain-X token
+  assert.equal(pkgIncludesAddon({ feats: ['Rain-X glass treatment'] }).rainx, true);
 });
 
 // 4: clay bar is hidden when the selected package already includes it.
@@ -60,7 +62,7 @@ test('clay bar is hidden when the package includes clay bar', () => {
 
 // Only rainx / claybar are ever deduped — other add-ons are never hidden by this logic.
 test('dedup predicate only ever targets rainx and claybar', () => {
-  const inc = pkgIncludesAddon({ feats: ['Rain-X glass treatment', 'Clay bar decontamination'] });
+  const inc = pkgIncludesAddon({ feats: ['Rain-X windshield treatment', 'Clay bar decontamination'] });
   assert.deepEqual(Object.keys(inc).sort(), ['claybar', 'rainx']);
 });
 

@@ -8,7 +8,7 @@ const RV_TYPE_MULTIPLIERS = {
 };
 
 const BOAT_PACKAGES = [
-  { id: 'maint', name: 'Marine Wash', tag: 'Regular upkeep — hull, deck & glass', duration: '~1.5–2h', description: 'Hull wash, deck rinse, glass, trailer rinse when accessible.' },
+  { id: 'maint', name: 'Marine Wash', tag: 'Regular upkeep — hull, deck & windshield', duration: '~1.5–2h', description: 'Hull wash, deck rinse, windshield, trailer rinse when accessible.' },
   { id: 'essential', name: 'Essential Marine', tag: 'Exterior protection + vinyl', duration: '~3–4h', description: 'Marine wash plus non-skid, vinyl conditioning, spray sealant.' },
   { id: 'full', name: 'Full Marine Detail', tag: 'Complete boat refresh', duration: '~4–6h', description: 'Essential plus cabin/cockpit deep clean and marine wax/sealant.' },
   { id: 'premium', name: 'Premium Marine', tag: 'Oxidation & max protection', duration: '~6–8h', description: 'Full marine plus machine wax/sealant and gloss enhancement.' },

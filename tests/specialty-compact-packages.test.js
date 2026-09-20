@@ -152,3 +152,48 @@ test('RV/trailer packages group into Exterior, Interior, and Interior + Exterior
   assert.equal(cars.length, 1);
   assert.equal(String(cars[0].label), '');
 });
+
+test('RV combined packages split includes into Interior and Exterior sections', () => {
+  assert.match(html, /function renderPkgCompactDetails\(/);
+  assert.match(html, /function formatPkgFeatureLabel\(/);
+  const formatFn = extractFunction(html, 'formatPkgFeatureLabel');
+  const renderFn = extractFunction(html, 'renderPkgCompactDetails');
+  const sandbox = { ENGINE_BAY_DETAIL_NOTE: 'note' };
+  vm.createContext(sandbox);
+  vm.runInContext(
+    formatFn + '\n' + renderFn +
+      '\nthis.formatPkgFeatureLabel = formatPkgFeatureLabel;' +
+      '\nthis.renderPkgCompactDetails = renderPkgCompactDetails;',
+    sandbox
+  );
+
+  // Pull maint_light ext/int from live PRICING copy in index.html
+  assert.match(html, /id:'maint_light'[\s\S]*?ext:\[[^\]]+\][\s\S]*?int:\[[^\]]+Interior mirrors and windshield/);
+  assert.doesNotMatch(html, /Interior mirrors and glass/);
+  assert.doesNotMatch(html, /id:'maint_light'[\s\S]*?feats:\[[^\]]*glass[^\]]*\]/);
+
+  const htmlOut = sandbox.renderPkgCompactDetails({
+    ext: ['Exterior hand wash', 'Wheels cleaned'],
+    int: ['Vacuum accessible floors', 'Interior mirrors and windshield'],
+  });
+  assert.match(htmlOut, /<b>Interior<\/b>/);
+  assert.match(htmlOut, /<b>Exterior<\/b>/);
+  assert.match(htmlOut, /Interior mirrors and windshield/);
+  assert.doesNotMatch(htmlOut, /<b>Includes<\/b>/);
+
+  const flat = sandbox.renderPkgCompactDetails({
+    feats: ['Only feats item'],
+  });
+  assert.match(flat, /<b>Includes<\/b>/);
+  assert.match(flat, /Only feats item/);
+});
+
+test('package and add-on copy uses windshield instead of glass', () => {
+  assert.match(html, /Interior windshield cleaned/);
+  assert.match(html, /Exterior windshield cleaned/);
+  assert.match(html, /Rain-X Windshield Treatment/);
+  assert.doesNotMatch(html, /Interior glass cleaned/);
+  assert.doesNotMatch(html, /Exterior glass cleaned/);
+  assert.doesNotMatch(html, /Rain-X Glass Treatment/);
+  assert.doesNotMatch(html, /Interior mirrors and glass/);
+});

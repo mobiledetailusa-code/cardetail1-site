@@ -45,8 +45,8 @@ const ADDON_DISPLAY = {
     description: 'Deep shampoo and scrub of rubber or fabric floor mats.',
   },
   rainx: {
-    name: 'Rain-X Glass Treatment',
-    description: 'Water-repellent Rain-X on windshield and front glass.',
+    name: 'Rain-X Windshield Treatment',
+    description: 'Water-repellent Rain-X on windshield.',
   },
   polymer: {
     name: 'Polymer Paint Sealant',
