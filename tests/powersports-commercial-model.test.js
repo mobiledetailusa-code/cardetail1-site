@@ -79,9 +79,9 @@ describe('Powersports commercial two-package model', () => {
       addons: [{ id: 'heavymud', qty: 1 }],
     }, '07102');
     assert.equal(withMud.ok, true);
-    assert.equal(withMud.basePrice, 200);
+    assert.equal(withMud.basePrice, 230);
     assert.equal(withMud.addonTotal, 55);
-    assert.equal(withMud.subtotal, 255);
+    assert.equal(withMud.subtotal, 285);
 
     const cart = ServerPricing.computeBookingServiceSubtotal({
       zipCode: '07102',
@@ -91,7 +91,7 @@ describe('Powersports commercial two-package model', () => {
       ],
     });
     assert.equal(cart.ok, true);
-    assert.equal(cart.serviceSubtotal, 375);
+    assert.equal(cart.serviceSubtotal, 430);
   });
 
   it('books supported trikes at the approved numeric prices', () => {
@@ -111,7 +111,7 @@ describe('Powersports commercial two-package model', () => {
     assert.equal(Catalog.resolve('Bobcat', 'S70 Skid Steer').publicStatus, 'contact');
     assert.equal(Catalog.resolve('Sea-Doo', 'Spark').publicStatus, 'route_boats');
     assert.equal(Catalog.resolve('Sea-Doo', 'Switch').publicStatus, 'route_boats');
-    assert.equal(ServerPricing.PRICING.powersports.tiers.jetski.wash, 100);
+    assert.equal(ServerPricing.PRICING.powersports.tiers.jetski.wash, 115);
     assert.equal(ServerPricing.PRICING.powersports.tiers.jetski.maintenance, undefined);
   });
 

@@ -274,7 +274,7 @@ describe('shared first broken boundary: tryGenericConfirm uses ST.cat', () => {
     }, { make: 'Airstream', model: 'Flying Cloud', year: '2021' });
     assert.doesNotThrow(() => sandbox.tryGenericConfirm());
     assert.equal(sandbox.ST.vehicleLabel, '2021 Airstream Flying Cloud · 20 ft');
-    assert.equal(sandbox.ST.basePrice, 310);
+    assert.equal(sandbox.ST.basePrice, 350);
     assert.equal(els.next3.disabled, false);
     assert.equal(els.vc.shown, true);
   });
@@ -285,15 +285,15 @@ describe('shared first broken boundary: tryGenericConfirm uses ST.cat', () => {
     }, { make: 'Bennington', model: 'L Series', year: '2020' });
     assert.doesNotThrow(() => sandbox.tryGenericConfirm());
     assert.equal(sandbox.ST.vehicleLabel, '2020 Bennington L Series · Pontoon / Tritoon · 22 ft');
-    assert.equal(sandbox.ST.basePrice, 220);
+    assert.equal(sandbox.ST.basePrice, 264);
     assert.equal(els.next3.disabled, false);
   });
 
   it('Powersports Motorcycle / ATV / UTV each enable Continue with a tier price', () => {
     for (const [make, model, tierKey, label, price] of [
-      ['Honda', 'Rebel 500', 'motorcycle', 'Motorcycle', 100],
-      ['Honda', 'FourTrax Rancher', 'atv', 'ATV / Quad', 100],
-      ['Honda', 'Pioneer 1000', 'utv_standard', 'Side-by-Side / UTV', 125],
+      ['Honda', 'Rebel 500', 'motorcycle', 'Motorcycle', 115],
+      ['Honda', 'FourTrax Rancher', 'atv', 'ATV / Quad', 115],
+      ['Honda', 'Pioneer 1000', 'utv_standard', 'Side-by-Side / UTV', 145],
     ]) {
       const { sandbox, els } = loadTryGenericConfirm({
         cat: 'powersports', pkgId: 'wash', tierKey,
@@ -429,14 +429,14 @@ describe('pricing + Review render for one fixture per category', () => {
       cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [],
     }, '07102');
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 240);
+    assert.equal(r.subtotal, 275);
     const totals = Review.presentationTotals({
-      vehicles: [{ basePrice: 240, addonTotal: 0, subtotal: 240 }],
+      vehicles: [{ basePrice: 275, addonTotal: 0, subtotal: 275 }],
       travelFeeAmount: 0,
-      totalPrice: 240,
+      totalPrice: 275,
     });
-    assert.equal(totals.estimatedTotal, 240);
-    assert.equal(Review.money(totals.estimatedTotal), '$240.00');
+    assert.equal(totals.estimatedTotal, 275);
+    assert.equal(Review.money(totals.estimatedTotal), '$275.00');
   });
 
   it('RV: 20 ft travel maint resolves and Review can render', () => {
@@ -444,13 +444,13 @@ describe('pricing + Review render for one fixture per category', () => {
       cat: 'rvs', pkgId: 'maint', lengthFt: 20, rvType: 'travel', addons: [],
     }, '07102');
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 310);
+    assert.equal(r.subtotal, 350);
     const totals = Review.presentationTotals({
-      vehicles: [{ basePrice: 310, addonTotal: 0, subtotal: 310 }],
+      vehicles: [{ basePrice: 350, addonTotal: 0, subtotal: 350 }],
       travelFeeAmount: 0,
-      totalPrice: 310,
+      totalPrice: 350,
     });
-    assert.equal(totals.estimatedTotal, 310);
+    assert.equal(totals.estimatedTotal, 350);
   });
 
   it('Boat: 22 ft pontoon maint resolves and Review can render', () => {
@@ -458,13 +458,13 @@ describe('pricing + Review render for one fixture per category', () => {
       cat: 'boats', pkgId: 'maint', lengthFt: 22, boatType: 'pontoon', addons: [],
     }, '07102');
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 220);
+    assert.equal(r.subtotal, 264);
     const totals = Review.presentationTotals({
-      vehicles: [{ basePrice: 220, addonTotal: 0, subtotal: 220 }],
+      vehicles: [{ basePrice: 264, addonTotal: 0, subtotal: 264 }],
       travelFeeAmount: 0,
-      totalPrice: 220,
+      totalPrice: 264,
     });
-    assert.equal(totals.estimatedTotal, 220);
+    assert.equal(totals.estimatedTotal, 264);
   });
 
   it('Powersports: motorcycle wash resolves and Review can render', () => {
@@ -472,13 +472,13 @@ describe('pricing + Review render for one fixture per category', () => {
       cat: 'powersports', pkgId: 'wash', tierKey: 'motorcycle', addons: [],
     }, '07102');
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 100);
+    assert.equal(r.subtotal, 115);
     const totals = Review.presentationTotals({
-      vehicles: [{ basePrice: 100, addonTotal: 0, subtotal: 100 }],
+      vehicles: [{ basePrice: 115, addonTotal: 0, subtotal: 115 }],
       travelFeeAmount: 0,
-      totalPrice: 100,
+      totalPrice: 115,
     });
-    assert.equal(totals.estimatedTotal, 100);
+    assert.equal(totals.estimatedTotal, 115);
   });
 });
 

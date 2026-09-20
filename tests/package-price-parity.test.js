@@ -145,12 +145,12 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   const entries = catalogPriceEntries();
   // 200 prior catalog + 6 commercial trucks tier package amounts (day_cab/sleeper × 3 pkgs)
   assert.equal(entries.length, 206);
-  assert.equal(PRICING.cars.tiers.full_size_van.interior, 260);
-  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 270);
-  assert.equal(PRICING.cars.tiers.compact_van.interior, 235);
-  assert.equal(PRICING.cars.tiers.midsize_van.interior, 235);
-  assert.equal(PRICING.trucks.tiers.day_cab.interior, 325);
-  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 500);
+  assert.equal(PRICING.cars.tiers.full_size_van.interior, 300);
+  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 310);
+  assert.equal(PRICING.cars.tiers.compact_van.interior, 270);
+  assert.equal(PRICING.cars.tiers.midsize_van.interior, 270);
+  assert.equal(PRICING.trucks.tiers.day_cab.interior, 375);
+  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 575);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);

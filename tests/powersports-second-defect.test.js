@@ -398,11 +398,11 @@ describe('Cars / RV / Boat dispatcher regression', () => {
     }, { make: 'Airstream', model: 'Flying Cloud', year: '2021' });
     sandbox.getLengthPrice = (cat, pkgId, ft) => {
       assert.equal(cat, 'rvs');
-      return 130 + 9 * Number(ft);
+      return 150 + 10 * Number(ft);
     };
     sandbox.tryGenericConfirm();
     assert.equal(sandbox.ST.vehicleLabel, '2021 Airstream Flying Cloud · 20 ft');
-    assert.equal(sandbox.ST.basePrice, 310);
+    assert.equal(sandbox.ST.basePrice, 350);
     assert.equal(els.next3.disabled, false);
     assert.equal(sandbox.ST.tierKey, 'travel');
   });
@@ -417,7 +417,7 @@ describe('Cars / RV / Boat dispatcher regression', () => {
     };
     sandbox.tryGenericConfirm();
     assert.equal(sandbox.ST.vehicleLabel, '2020 Bennington L Series · Pontoon / Tritoon · 22 ft');
-    assert.equal(sandbox.ST.basePrice, 220);
+    assert.equal(sandbox.ST.basePrice, 264);
     assert.equal(els.next3.disabled, false);
   });
 });

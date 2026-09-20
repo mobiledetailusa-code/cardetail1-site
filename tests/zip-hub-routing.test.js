@@ -59,7 +59,7 @@ test('index.html NJ_HUB_ZIP3 includes 080–089 prefixes', () => {
 test('index.html car pricing values unchanged (refresh tiers still present)', () => {
   const index = read('index.html');
   assert.ok(index.includes('refresh:370, premium:445'));
-  assert.ok(index.includes('refresh:360, premium:470'));
+  assert.ok(index.includes('refresh:415, premium:540'));
 });
 
 test('ZIP routing change is isolated to index.html hero resolver', () => {

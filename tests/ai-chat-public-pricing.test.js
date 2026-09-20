@@ -33,10 +33,10 @@ test('AI chat prompt does not describe general Cars detailing as starting at $15
   assert.doesNotMatch(prompt, /Cars \$150/);
 });
 
-test('AI chat prompt describes public Cars starting price as $190 Interior Detail', () => {
+test('AI chat prompt describes public Cars starting price as $220 Interior Detail', () => {
   const prompt = BUSINESS_SYSTEM;
   const pricing = extractPricingGuidance(prompt);
-  assert.match(pricing, /\$190/);
+  assert.match(pricing, /\$220/);
   assert.match(pricing, /Interior Detail/i);
 });
 
@@ -190,7 +190,7 @@ test('revops index changes do not alter package IDs or pricing formulas', () => 
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
   assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
   assert.match(html, /interior:220/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
 });
 
 test('ai-chat source and tests contain no credential literals', () => {

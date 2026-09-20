@@ -188,6 +188,8 @@ function syncBookingPageSurfaces(src) {
   return src
     .replace(/(id="home-from-interior">\$)[\d,]+/g, `$1${STATIC_PRICES.carInterior}`)
     .replace(/(id="home-from-refresh">\$)[\d,]+/g, `$1${STATIC_PRICES.carRefresh}`)
+    .replace(/(id="home-from-full-note">)From \$[\d,]+ · priced by vehicle type/g,
+      `$1From $${STATIC_PRICES.carFullSmall} · priced by vehicle type`)
     .replace(
       /(id="home-from-full-note">)Sedans from \$[\d,]+ · SUVs from \$[\d,]+ · 3-row SUVs from \$[\d,]+/g,
       `$1Sedans from $${STATIC_PRICES.carFullSmall} · SUVs from $${STATIC_PRICES.carFullSuv2} · 3-row SUVs from $${STATIC_PRICES.carFullSuv3}`,

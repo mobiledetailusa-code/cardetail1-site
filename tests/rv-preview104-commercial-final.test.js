@@ -121,7 +121,7 @@ test('authoritative LENGTH_PRICING.rvs rates', () => {
     assert.equal(rule.ratePerFoot, RATES[id].ratePerFoot, id);
     assert.equal(ADJUSTED_RATES[id], RATES[id].ratePerFoot, id);
   }
-  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 301);
+  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 340);
 });
 
 test('client and server LENGTH_PRICING.rvs synced', () => {
@@ -133,7 +133,7 @@ test('client and server LENGTH_PRICING.rvs synced', () => {
 });
 
 test('full_basic rate is bundle-efficient vs maint+interior per-ft sum', () => {
-  assert.equal(ADJUSTED_RATES.full_basic, 21);
+  assert.equal(ADJUSTED_RATES.full_basic, 24);
   assert.ok(ADJUSTED_RATES.full_basic < ADJUSTED_RATES.maint + ADJUSTED_RATES.interior);
 });
 
