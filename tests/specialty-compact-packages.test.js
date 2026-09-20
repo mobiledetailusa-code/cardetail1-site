@@ -69,11 +69,27 @@ test('compact add-ons chrome is not cars-only', () => {
 
 test('booking category card and labels say Semi Trucks (not generic Trucks)', () => {
   assert.match(html, /id="bkcat-trucks"[\s\S]*?<div class="svc-name"[^>]*>Semi Trucks<\/div>/);
-  assert.match(html, /svc-desc[^>]*>Semi truck · Day cab · Sleeper cab/);
+  assert.match(html, /id="bkcat-trucks"[\s\S]*?Day cab · Sleeper · Not pickups/);
   assert.match(html, /trucks:\s*\{\s*ico:'🚛',\s*name:'Semi Trucks'/);
-  assert.match(html, /Semi trucks, boats, RVs/);
-  assert.match(progress, /trucks:\s*'Semi Trucks'/);
+  assert.match(html, /bk-cat-grid--tiles/);
+  assert.match(html, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(html, /#bk-cat-grid #bkcat-trucks\{grid-column:1\/-1\}/);
+  assert.doesNotMatch(html, /id="bk-cat-grid"[^>]*style="grid-template-columns:1fr"/);
   assert.doesNotMatch(html, /id="bkcat-trucks"[\s\S]*?<div class="svc-name"[^>]*>Trucks<\/div>/);
+  assert.match(progress, /trucks:\s*'Semi Trucks'/);
+});
+
+test('Step 01 category tiles sit side-by-side (not stacked full-bleed)', () => {
+  assert.match(html, /bk-cat-grid--tiles/);
+  assert.match(html, /id="bk-cat-grid"/);
+  assert.match(html, /id="bkcat-cars"/);
+  assert.match(html, /id="bkcat-trucks"/);
+  assert.match(html, /id="bkcat-boats"/);
+  assert.match(html, /id="bkcat-rvs"/);
+  assert.match(html, /id="bkcat-powersports"/);
+  assert.doesNotMatch(html, /class="bk-cat-specialty-label"/);
+  assert.doesNotMatch(html, /#bkcat-trucks\{grid-column:1\/-1\}/);
+  assert.doesNotMatch(html, /style="grid-template-columns:1fr"/);
 });
 
 test('boat/RV compact price labels stay length-based (no fake flat price)', () => {
@@ -106,4 +122,33 @@ test('boat/RV compact price labels stay length-based (no fake flat price)', () =
     ),
     'From $400'
   );
+});
+
+test('RV/trailer packages group into Exterior, Interior, and Interior + Exterior', () => {
+  assert.match(html, /function groupPackagesForDisplay\(/);
+  assert.match(html, /pkg-c-section/);
+  assert.match(html, /pkg-grid--rv-grouped/);
+  const fn = extractFunction(html, 'groupPackagesForDisplay');
+  const sandbox = {};
+  vm.createContext(sandbox);
+  vm.runInContext(fn + '\nthis.groupPackagesForDisplay = groupPackagesForDisplay;', sandbox);
+  const pkgs = [
+    { id: 'maint', scope: 'ext' },
+    { id: 'maint_light', scope: 'both' },
+    { id: 'interior', scope: 'int' },
+    { id: 'full_basic', scope: 'both' },
+    { id: 'premium', scope: 'ext' },
+    { id: 'full', scope: 'both' },
+  ];
+  const groups = sandbox.groupPackagesForDisplay('rvs', pkgs);
+  assert.equal(groups.length, 3);
+  assert.equal(String(groups[0].label), 'Exterior');
+  assert.equal(String(groups[1].label), 'Interior');
+  assert.equal(String(groups[2].label), 'Interior + Exterior');
+  assert.equal(groups[0].items.map((p) => p.id).join(','), 'maint,premium');
+  assert.equal(groups[1].items.map((p) => p.id).join(','), 'interior');
+  assert.equal(groups[2].items.map((p) => p.id).join(','), 'maint_light,full_basic,full');
+  const cars = sandbox.groupPackagesForDisplay('cars', [{ id: 'full' }, { id: 'wash' }]);
+  assert.equal(cars.length, 1);
+  assert.equal(String(cars[0].label), '');
 });

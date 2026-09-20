@@ -767,6 +767,13 @@ body.rv-overlay-lock{overflow:hidden}
 .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
 .pkg-c-name{font-size:13.5px;font-weight:700;color:var(--tx);letter-spacing:-.01em;margin:0;line-height:1.25}
 .pkg-c-badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:var(--tx,#0f172a);color:#fff;font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;opacity:.85}
+.pkg-c-scope{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;border:1px solid var(--bbr)}
+.pkg-c-scope--ext{color:#1d4ed8;background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.22)}
+.pkg-c-scope--int{color:#0f766e;background:rgba(15,118,110,.08);border-color:rgba(15,118,110,.22)}
+.pkg-c-scope--both{color:#6d28d9;background:rgba(109,40,217,.08);border-color:rgba(109,40,217,.2)}
+.pkg-c-section{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:12px 0 6px;padding:0 2px}
+.pkg-grid--compact .pkg-c-section:first-child{margin-top:2px}
+.pkg-grid--rv-grouped{gap:6px}
 .pkg-c-tag{font-size:12px;color:var(--mu);line-height:1.3;margin:2px 0 0}
 .pkg-c-chips{display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--mu);line-height:1.35}
 .pkg-c-chips span{display:inline}
@@ -916,7 +923,7 @@ body.rv-overlay-lock{overflow:hidden}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
 #bk-cat-grid .svc-from,.tchip-from,.pkg-price{display:none!important}
 .ah-total-est{display:none;font-size:10px;color:var(--mu);text-align:right;margin-top:2px;max-width:180px;line-height:1.35}
-#bk-cat-grid .svc-cat-note{font-size:12px;color:#475569;font-weight:500;line-height:1.45;padding:0 14px 14px}
+#bk-cat-grid .svc-cat-note{font-size:11px;color:#475569;font-weight:500;line-height:1.35;padding:4px 12px 10px}
 
 /* VEHICLE CONFIRM CARD */
 .vc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;animation:fu .25s ease}
@@ -968,12 +975,29 @@ body.rv-overlay-lock{overflow:hidden}
 /* Premium vehicle visuals — booking Step 1 category cards */
 .svc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-ico img{width:96px;height:auto;display:block;max-width:100%}
-/* Step 1 category card: image-first layout */
-#bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs)}
-#bk-cat-grid .svc-ico{display:block;width:100%;height:130px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0;position:relative;overflow:hidden}
-#bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from{padding-left:14px;padding-right:14px}
-#bk-cat-grid .svc-name{padding-top:12px}
-#bk-cat-grid .svc-from{padding-bottom:14px}
+/* Step 1 category tiles — compact side-by-side blocks */
+#bk-cat-grid.bk-cat-grid--tiles,
+#bk-cat-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  align-items:stretch;
+}
+#bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs);min-width:0}
+#bk-cat-grid .svc-ico{display:block;width:100%;height:88px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0;position:relative;overflow:hidden}
+#bk-cat-grid .svc-ico-photo{height:88px}
+#bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from,#bk-cat-grid .svc-cat-note{padding-left:12px;padding-right:12px}
+#bk-cat-grid .svc-name{padding-top:10px;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:.01em}
+#bk-cat-grid .svc-desc{font-size:11px;line-height:1.35;margin-top:2px;color:var(--mu)}
+#bk-cat-grid .svc-from,#bk-cat-grid .svc-cat-note{padding-bottom:10px;padding-top:4px;font-size:11px;font-weight:500;line-height:1.35}
+#bk-cat-grid .bk-cat-specialty{grid-column:1/-1;margin-top:0;padding-top:0;border-top:none;display:contents}
+#bk-cat-grid .bk-cat-specialty-label{display:none}
+#bk-cat-grid #bkcat-trucks{grid-column:auto}
+@media(max-width:380px){
+  #bk-cat-grid.bk-cat-grid--tiles,
+  #bk-cat-grid{grid-template-columns:1fr;gap:8px}
+  #bk-cat-grid .svc-ico,#bk-cat-grid .svc-ico-photo{height:96px}
+}
 /* Photo cards: real photos with dark cinematic overlay */
 .svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
 .svc-ico-photo{background:#020a16}
@@ -1644,10 +1668,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-addon-chip:hover{border-color:var(--bbr);color:var(--blue);background:var(--bdim)}
 .car-addon-chip b{color:var(--blue);font-weight:600}
 .car-services-cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-#bk-cat-grid .bk-cat-specialty{margin-top:8px;padding-top:16px;border-top:1px dashed var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-#bk-cat-grid .bk-cat-specialty .svc-card{opacity:.92}
-#bk-cat-grid .bk-cat-specialty-label{grid-column:1/-1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:4px}
-#bk-cat-grid #bkcat-trucks{grid-column:1/-1}
+#bk-cat-grid .bk-cat-specialty{margin-top:0;padding-top:0;border-top:none;display:contents}
+#bk-cat-grid .bk-cat-specialty .svc-card{opacity:1}
+#bk-cat-grid .bk-cat-specialty-label{display:none}
+/* trucks sits in the same 2-col tile grid — never full-bleed */
+#bk-cat-grid #bkcat-trucks{grid-column:auto}
 @media(max-width:760px){
   .car-pkg-grid{grid-template-columns:1fr;gap:14px}
   .car-pkg-card--popular{order:-1}
@@ -1707,14 +1732,34 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .booking-modal .pkg-c:hover{border-color:rgba(37,99,235,.3)}
 .booking-modal .pkg-c.sel{background:#f8fafc;border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.1)}
 .booking-modal .pkg-c-name,.booking-modal .pkg-c-price,.booking-modal .pkg-c-details b{color:var(--ink)}
-.booking-modal .pkg-c-tag,.booking-modal .pkg-c-chips,.booking-modal .pkg-c-dur,.booking-modal .pkg-c-details,.booking-modal .pkg-c-note{color:var(--ink-soft,#5b6578)}
+.booking-modal .pkg-c-tag,.booking-modal .pkg-c-chips,.booking-modal .pkg-c-dur,.booking-modal .pkg-c-details,.booking-modal .pkg-c-note,.booking-modal .pkg-c-section{color:var(--ink-soft,#5b6578)}
+.booking-modal .pkg-c-scope--ext{color:#1d4ed8;background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.22)}
+.booking-modal .pkg-c-scope--int{color:#0f766e;background:rgba(15,118,110,.08);border-color:rgba(15,118,110,.22)}
+.booking-modal .pkg-c-scope--both{color:#5b21b6;background:rgba(91,33,182,.06);border-color:rgba(91,33,182,.18)}
 .booking-modal .pkg-c-radio{border-color:#c5cad6}
 .booking-modal .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
 .booking-modal .pkg-c-badge{background:var(--ink);color:#fff}
 .booking-modal .pkg-c-expand{color:var(--blue)}
 .booking-modal .pkg-c-details{border-top-color:var(--line)}
 .booking-modal .pkg-c-chips span::after{color:#c5cad6}
-.booking-modal .pkg-c-note{background:rgba(15,23,42,.03)}
+.booking-modal .pkg-c-section {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-c-scope--ext {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+.booking-modal .pkg-c-scope--int {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.08);
+  border-color: rgba(15, 118, 110, 0.22);
+}
+.booking-modal .pkg-c-scope--both {
+  color: #5b21b6;
+  background: rgba(91, 33, 182, 0.06);
+  border-color: rgba(91, 33, 182, 0.18);
+}
 .booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0,#f3f5f8);border-color:var(--line)}
 .booking-modal .bk-veh-zip b,.booking-modal .bk-veh-pill b{color:var(--ink)}
 .booking-modal .bk-veh-zip span,.booking-modal .bk-veh-pill span{color:var(--mu)}
@@ -2741,40 +2786,36 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <span>Enter your 5-digit ZIP code to unlock services and see local pricing</span>
         </div>
         <div class="bk-travel-line" id="bk-travel-line"></div>
-        <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:1fr">
+        <div class="service-grid bk-cat-grid--tiles" id="bk-cat-grid">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars, SUVs and pickups receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Cars &amp; SUVs</div>
-            <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Pickups · Vans</div>
-            <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
+            <div class="svc-name">Cars &amp; SUVs</div>
+            <div class="svc-desc">Sedans · SUVs · Pickups · Vans</div>
+            <div class="svc-cat-note" id="bkfrom-cars">Packages after ZIP</div>
           </div>
-          <div class="bk-cat-specialty">
-            <div class="bk-cat-specialty-label">Semi trucks, boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial day cab and tractor-trailer semis receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Semi Trucks</div>
-            <div class="svc-desc" style="font-size:12px">Semi truck · Day cab · Sleeper cab</div>
-            <div class="svc-cat-note" id="bkfrom-trucks">From $325 · semis only (not pickups)</div>
+            <div class="svc-name">Semi Trucks</div>
+            <div class="svc-desc">Day cab · Sleeper · Not pickups</div>
+            <div class="svc-cat-note" id="bkfrom-trucks">From $325</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Boats</div>
-            <div class="svc-desc" style="font-size:12px">Pontoon · Center console · Jet Ski / PWC</div>
-            <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $170</div>
+            <div class="svc-name">Boats</div>
+            <div class="svc-desc">Pontoon · Console · Jet Ski</div>
+            <div class="svc-cat-note" id="bkfrom-boats">From $170</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-rvs.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
-            <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Price calculated from your vehicle details.</div>
+            <div class="svc-name">RVs &amp; Trailers</div>
+            <div class="svc-desc">Trailers · 5th Wheel · Class A/C</div>
+            <div class="svc-cat-note" id="bkfrom-rvs">Priced by length</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Powersports</div>
-            <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Golf · Equipment</div>
-            <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $175</div>
-          </div>
-
+            <div class="svc-name">Powersports</div>
+            <div class="svc-desc">Motorcycle · ATV · UTV · Golf</div>
+            <div class="svc-cat-note" id="bkfrom-powersports">From $175</div>
           </div>
         </div>
       </div>
@@ -5148,7 +5189,9 @@ function syncPackageStepChrome() {
     if (title) title.innerHTML = 'Pick Your Package';
     if (desc) {
       desc.textContent = ST.cat === 'boats' || ST.cat === 'rvs'
-        ? 'Compare packages. Exact price locks in after length and type on the next step.'
+        ? (ST.cat === 'rvs'
+          ? 'Packages are grouped by Exterior, Interior, and combined. Exact price locks in after type and length.'
+          : 'Compare packages. Exact price locks in after length and type on the next step.')
         : 'Compare packages. Expand a row only when you need the full list — then continue to vehicle details.';
     }
     if (next2) next2.textContent = 'Continue to vehicle →';
@@ -5575,12 +5618,12 @@ const PKG_COMPACT_META_BY_CAT = {
     premium: { shortName: 'Premium Marine', line: 'Oxidation + max protection', chips: ['Polish', 'Wax', 'Gloss'] },
   },
   rvs: {
-    maint: { shortName: 'Maintenance Wash', line: 'Exterior keep-clean wash', chips: ['Wash', 'Wheels', 'Sealant'] },
-    maint_light: { shortName: 'Wash + Light Interior', line: 'Exterior + quick interior refresh', chips: ['Wash', 'Vacuum', 'Wipe-down'] },
-    interior: { shortName: 'Interior Detail', line: 'Cabin through living area', chips: ['Shampoo', 'Kitchen', 'Bath'] },
-    full_basic: { shortName: 'Full RV Detail', line: 'Complete interior + exterior wash', chips: ['Interior', 'Wash', 'Sealant'] },
-    premium: { shortName: 'Premium Exterior Detail', line: 'One-step polish + protection', chips: ['Polish', 'Sealant', 'Wheels'] },
-    full: { shortName: 'Premium Complete RV', line: 'Polish exterior + full interior', chips: ['Polish', 'Interior', 'Sealant'] },
+    maint: { shortName: 'Maintenance Wash', line: 'Exterior keep-clean wash', chips: ['Exterior', 'Wash', 'Sealant'] },
+    premium: { shortName: 'Premium Exterior Detail', line: 'One-step polish + protection', chips: ['Exterior', 'Polish', 'Sealant'] },
+    interior: { shortName: 'Interior Detail', line: 'Cabin through living area', chips: ['Interior', 'Shampoo', 'Kitchen'] },
+    maint_light: { shortName: 'Wash + Light Interior', line: 'Exterior + quick interior refresh', chips: ['In + Out', 'Wash', 'Vacuum'] },
+    full_basic: { shortName: 'Full RV Detail', line: 'Complete interior + exterior wash', chips: ['In + Out', 'Wash', 'Shampoo'] },
+    full: { shortName: 'Premium Complete RV', line: 'Polish exterior + full interior', chips: ['In + Out', 'Polish', 'Interior'] },
   },
   powersports: {
     maintenance: { shortName: 'Maintenance Detail', line: 'Routine clean + protection', chips: ['Wash', 'Plastics', 'Wax'] },
@@ -5642,6 +5685,57 @@ function renderPkgCompactDetails(p){
   return '';
 }
 
+
+/** Group RV/trailer packages into Exterior / Interior / Combined for the compact picker. */
+function groupPackagesForDisplay(cat, packages){
+  if(cat!=='rvs') return [{ label:'', items:packages }];
+  const exterior=[];
+  const interior=[];
+  const combined=[];
+  (packages||[]).forEach(p=>{
+    const scope=p.scope||'both';
+    if(scope==='ext') exterior.push(p);
+    else if(scope==='int') interior.push(p);
+    else combined.push(p);
+  });
+  const groups=[];
+  if(exterior.length) groups.push({ label:'Exterior', items:exterior });
+  if(interior.length) groups.push({ label:'Interior', items:interior });
+  if(combined.length) groups.push({ label:'Interior + Exterior', items:combined });
+  return groups.length ? groups : [{ label:'', items:packages||[] }];
+}
+
+function renderCompactPkgCardHtml(cat, p, d){
+  const presented = (cat==='powersports') ? presentPowersportsPackage(p, ST.tierKey) : p;
+  const meta=getPkgCompactMeta(cat, p.id)||{shortName:presented.name,line:presented.tag,chips:[]};
+  const priceLabel=compactPackagePriceLabel(cat, p, d);
+  const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
+  const details=renderPkgCompactDetails(presented);
+  const dur=(presented.dur||'').replace(/^~/,'');
+  const shortDur=dur.length>28 ? 'Varies by size' : dur;
+  const scope=presented.scope||'';
+  const scopeChip = (cat==='rvs' && scope==='ext') ? '<span class="pkg-c-scope pkg-c-scope--ext">Exterior</span>'
+    : (cat==='rvs' && scope==='int') ? '<span class="pkg-c-scope pkg-c-scope--int">Interior</span>'
+    : (cat==='rvs' && scope==='both') ? '<span class="pkg-c-scope pkg-c-scope--both">In + Out</span>'
+    : '';
+  return `<div class="pkg-c${presented.popular?' pkg-c--featured':''}${scope?` pkg-c--scope-${scope}`:''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
+    <div class="pkg-c-row">
+      <div class="pkg-c-radio" aria-hidden="true"></div>
+      <div>
+        <p class="pkg-c-name">${meta.shortName||presented.name}${presented.popular?'<span class="pkg-c-badge">Most booked</span>':''}${scopeChip}</p>
+        <p class="pkg-c-tag">${meta.line||presented.tag||''}</p>
+        ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
+      </div>
+      <div class="pkg-c-meta">
+        <span class="pkg-c-price">${priceLabel}</span>
+        <span class="pkg-c-dur">${shortDur}</span>
+      </div>
+    </div>
+    ${details?`<button type="button" class="pkg-c-expand" aria-expanded="false" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>View everything included</span><span data-expand-chev aria-hidden="true">→</span></button>
+    <div class="pkg-c-details" id="pk-details-${p.id}">${details}</div>`:''}
+  </div>`;
+}
+
 function renderPackages(cat){
   const d=PRICING[cat];
   const grid=document.getElementById('pkg-grid');
@@ -5650,32 +5744,15 @@ function renderPackages(cat){
   const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;
   const useCompact = usesCompactPackageUi(cat);
   grid.classList.toggle('pkg-grid--compact', useCompact);
+  grid.classList.toggle('pkg-grid--rv-grouped', useCompact && cat==='rvs');
 
   if(useCompact){
-    grid.innerHTML=packages.map(p=>{
-      const presented = (cat==='powersports') ? presentPowersportsPackage(p, ST.tierKey) : p;
-      const meta=getPkgCompactMeta(cat, p.id)||{shortName:presented.name,line:presented.tag,chips:[]};
-      const priceLabel=compactPackagePriceLabel(cat, p, d);
-      const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
-      const details=renderPkgCompactDetails(presented);
-      const dur=(presented.dur||'').replace(/^~/,'');
-      const shortDur=dur.length>28 ? 'Varies by size' : dur;
-      return `<div class="pkg-c${presented.popular?' pkg-c--featured':''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
-        <div class="pkg-c-row">
-          <div class="pkg-c-radio" aria-hidden="true"></div>
-          <div>
-            <p class="pkg-c-name">${meta.shortName||presented.name}${presented.popular?'<span class="pkg-c-badge">Most booked</span>':''}</p>
-            <p class="pkg-c-tag">${meta.line||presented.tag||''}</p>
-            ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
-          </div>
-          <div class="pkg-c-meta">
-            <span class="pkg-c-price">${priceLabel}</span>
-            <span class="pkg-c-dur">${shortDur}</span>
-          </div>
-        </div>
-        ${details?`<button type="button" class="pkg-c-expand" aria-expanded="false" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>View everything included</span><span data-expand-chev aria-hidden="true">→</span></button>
-        <div class="pkg-c-details" id="pk-details-${p.id}">${details}</div>`:''}
-      </div>`;
+    const groups=groupPackagesForDisplay(cat, packages);
+    grid.innerHTML=groups.map(g=>{
+      const label=g.label
+        ? `<div class="pkg-c-section" role="presentation">${g.label}</div>`
+        : '';
+      return label + g.items.map(p=>renderCompactPkgCardHtml(cat, p, d)).join('');
     }).join('');
   }else{
     grid.innerHTML=packages.map(p=>{

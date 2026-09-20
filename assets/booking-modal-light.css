@@ -20,13 +20,21 @@
   color: var(--tx);
 }
 
-/* Step 1 category grid */
+/* Step 1 category tiles */
+.booking-modal #bk-cat-grid.bk-cat-grid--tiles,
+.booking-modal #bk-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
 .booking-modal #bk-cat-grid .svc-name {
-  color: var(--ink);
+  color: var(--ink, #0f172a);
+  font-size: 14px;
 }
 .booking-modal #bk-cat-grid .svc-desc,
-.booking-modal #bk-cat-grid .svc-from {
-  color: var(--ink-soft);
+.booking-modal #bk-cat-grid .svc-from,
+.booking-modal #bk-cat-grid .svc-cat-note {
+  color: var(--ink-soft, #475569);
 }
 .booking-modal #bk-cat-grid .svc-btn {
   color: var(--blue);
@@ -40,6 +48,15 @@
 }
 .booking-modal #bk-cat-grid .svc-card.locked {
   opacity: 0.45;
+}
+.booking-modal #bk-cat-grid #bkcat-trucks {
+  grid-column: auto;
+}
+@media (max-width: 380px) {
+  .booking-modal #bk-cat-grid.bk-cat-grid--tiles,
+  .booking-modal #bk-cat-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Add-ons */
