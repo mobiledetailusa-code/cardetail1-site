@@ -52,15 +52,15 @@ describe('boat vessel types in booking', () => {
   });
 
   it('does not change marine length pricing or jet ski dollar amounts', () => {
-    assert.match(index, /maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
-    assert.match(index, /jetski:\s*\{label:'Jet Ski \/ PWC'[\s\S]*?wash:100,\s*essential:160,\s*full:225,\s*premium:310\}/);
+    assert.match(index, /maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
+    assert.match(index, /jetski:\s*\{label:'Jet Ski \/ PWC'[\s\S]*?wash:115,\s*essential:185,\s*full:260,\s*premium:355\}/);
   });
 
   it('jet ski uses PWC prices, not boat length mins', () => {
     const sandbox = {
       ST: { cat: 'boats', boatType: 'jetski' },
       PRICING: {
-        powersports: { tiers: { jetski: { wash: 100, essential: 160, full: 225, premium: 310 } } },
+        powersports: { tiers: { jetski: { wash: 115, essential: 185, full: 260, premium: 355 } } },
       },
     };
     vm.createContext(sandbox);
@@ -72,9 +72,9 @@ describe('boat vessel types in booking', () => {
       sandbox
     );
     assert.equal(sandbox.out.isPwc, true);
-    assert.equal(sandbox.out.wash, 100);
-    assert.equal(sandbox.out.full, 225);
-    assert.equal(sandbox.out.premium, 310);
+    assert.equal(sandbox.out.wash, 115);
+    assert.equal(sandbox.out.full, 260);
+    assert.equal(sandbox.out.premium, 355);
   });
 
   it('powersports chips hide jet ski; deep-link boatType is wired', () => {

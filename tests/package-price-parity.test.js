@@ -145,12 +145,12 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   const entries = catalogPriceEntries();
   // 200 prior catalog + 6 commercial trucks tier package amounts (day_cab/sleeper × 3 pkgs)
   assert.equal(entries.length, 206);
-  assert.equal(PRICING.cars.tiers.full_size_van.interior, 260);
-  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 270);
-  assert.equal(PRICING.cars.tiers.compact_van.interior, 235);
-  assert.equal(PRICING.cars.tiers.midsize_van.interior, 235);
-  assert.equal(PRICING.trucks.tiers.day_cab.interior, 325);
-  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 500);
+  assert.equal(PRICING.cars.tiers.full_size_van.interior, 300);
+  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 310);
+  assert.equal(PRICING.cars.tiers.compact_van.interior, 270);
+  assert.equal(PRICING.cars.tiers.midsize_van.interior, 270);
+  assert.equal(PRICING.trucks.tiers.day_cab.interior, 375);
+  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 575);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -239,7 +239,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
     const html = read(file);
     assert.match(html, new RegExp(`id="bkfrom-boats"[^>]*>From \\$${boat}<`), file);
     assert.match(html, new RegExp(`id="bkfrom-powersports"[^>]*>From \\$${powersports}<`), file);
-    assert.match(html, /id="bkfrom-rvs"[^>]*>Price calculated from your vehicle details\.</, file);
+    assert.match(html, /id="bkfrom-rvs"[^>]*>(?:Price calculated from your vehicle details\.|Priced by length)</, file);
     assert.match(html, new RegExp(`cars:\\s+\\{[^\\n]*from:'From \\$${carInterior}'`), file);
     assert.match(html, new RegExp(`boats:\\s+\\{[^\\n]*from:'From \\$${boat}'`), file);
     assert.match(html, new RegExp(`powersports:\\s*\\{[^\\n]*from:'From \\$${powersports}'`), file);
@@ -271,12 +271,12 @@ test('static starting-price surfaces are verified against the catalog', () => {
 test('AI chat starting prices are derived from the same catalog', () => {
   const { BUSINESS_SYSTEM, CHAT_STARTING_PRICES } = require('../netlify/functions/ai-chat');
   assert.deepEqual(CHAT_STARTING_PRICES, {
-    cars: 190,
-    carMaintenance: 150,
-    carWash: 110,
-    boats: 170,
-    rvs: 238,
-    powersports: 175,
+    cars: 220,
+    carMaintenance: 175,
+    carWash: 125,
+    boats: 195,
+    rvs: 270,
+    powersports: 200,
   });
   for (const price of Object.values(CHAT_STARTING_PRICES)) {
     assert.match(BUSINESS_SYSTEM, new RegExp(`\\$${price}\\b`));

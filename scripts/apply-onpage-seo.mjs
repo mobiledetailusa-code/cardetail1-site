@@ -73,7 +73,7 @@ const HOME_FAQ = [
   },
   {
     q: 'How much does mobile car detailing cost in Palisades Park?',
-    a: 'Interior Detail starts at $190 for sedans. Premium Full Detail starts at $240 for sedans, $260 for SUVs, and $270 for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $320. Enter your ZIP for the price on your vehicle size.',
+    a: 'Interior Detail starts at $220 for sedans. Premium Full Detail starts at $275 for sedans, $300 for SUVs, and $310 for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $370. Enter your ZIP for the price on your vehicle size.',
   },
   {
     q: 'Is there a travel fee for Bergen County?',
@@ -243,15 +243,15 @@ function patchIndex(html) {
 
   html = html.replace(
     /<meta name="description" content="[^"]*">/,
-    '<meta name="description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $190, full detail from $240 at your driveway. We bring water and power. Book online.">'
+    '<meta name="description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $220, full detail from $275 at your driveway. We bring water and power. Book online.">'
   );
   html = html.replace(
     /<meta property="og:description" content="[^"]*">/,
-    '<meta property="og:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $190, full detail from $240 at your driveway. Book online.">'
+    '<meta property="og:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $220, full detail from $275 at your driveway. Book online.">'
   );
   html = html.replace(
     /<meta name="twitter:description" content="[^"]*">/,
-    '<meta name="twitter:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $190, full detail from $240 at your driveway. Book online.">'
+    '<meta name="twitter:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $220, full detail from $275 at your driveway. Book online.">'
   );
 
   const ldStart = html.indexOf('<script type="application/ld+json">');
@@ -326,7 +326,7 @@ function patchIndex(html) {
 const HUB_TITLES = {
   'bergen-county-hub.html': {
     title: 'Mobile Car Detailing in Bergen County | Palisades Park, NJ',
-    desc: 'Mobile car detailing in Bergen County, NJ — Palisades Park, Fort Lee, Paramus, Hackensack, Englewood, Teaneck. Interior from $190. We come to your driveway.',
+    desc: 'Mobile car detailing in Bergen County, NJ — Palisades Park, Fort Lee, Paramus, Hackensack, Englewood, Teaneck. Interior from $220. We come to your driveway.',
     h1: null,
   },
   'hudson-county-hub.html': {
@@ -597,9 +597,9 @@ function writeLlms() {
 - [Fleet](https://cardetail1.com/fleet-services.html)
 
 ## Car packages (from prices, sedan unless noted)
-- Interior Detail from $190
-- Premium Full Detail from $240 (SUVs from $260, 3-row from $270)
-- Exterior Detail & Paint Enhancement from $320
+- Interior Detail from $220
+- Premium Full Detail from $275 (SUVs from $300, 3-row from $310)
+- Exterior Detail & Paint Enhancement from $370
 
 ## Facts
 - Address locality: Palisades Park, NJ 07650

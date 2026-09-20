@@ -113,10 +113,10 @@ describe('catalog integrity — all public package/tier mappings numeric', () =>
     });
     assert.equal(resolved.ok, true);
     assert.equal(resolved.tierKey, 'suv3');
-    assert.equal(PRICING.cars.tiers.suv3.refresh, 405);
+    assert.equal(PRICING.cars.tiers.suv3.refresh, 465);
     const priced = computeVehicleSubtotal({ cat: 'cars', pkgId: 'refresh', tierKey: 'suv3', addons: [] }, '07666');
     assert.equal(priced.ok, true);
-    assert.equal(priced.basePrice, 405);
+    assert.equal(priced.basePrice, 465);
   });
 });
 
@@ -249,6 +249,21 @@ describe('cart intent + price resolution (function sandbox)', () => {
       { id: 'wash', name: 'Wash & Shine', icon: '🪣' },
     ];
     sandbox.window = sandbox;
+    sandbox.syncBs2StickyBar = function () {};
+    sandbox.syncActiveConfigIntoEditingCartSlot = function () {};
+    sandbox.getActiveBookingConfig = function () {
+      return {
+        pkgId: sandbox.ST.pkgId || '',
+        pkgName: (sandbox.ST.pkg && sandbox.ST.pkg.name) || '',
+        vehicleLabel: sandbox.ST.vehicleLabel || '',
+        vehicleLine: sandbox.ST.vehicleLabel || '',
+        basePrice: sandbox.ST.basePrice || 0,
+        addonTotal: sandbox.ST.addonTotal || 0,
+        currentService: (sandbox.ST.basePrice || 0) + (sandbox.ST.addonTotal || 0),
+        hasPackage: !!sandbox.ST.pkg,
+        hasVehicle: !!(sandbox.ST.vehicleLabel && sandbox.ST.tierKey),
+      };
+    };
     vm.createContext(sandbox);
     const code = [
       extractFunction(index, 'resetVehicleEntryFields'),
@@ -301,11 +316,11 @@ describe('cart intent + price resolution (function sandbox)', () => {
       vehicles: [{
         cat: 'rvs', pkgId: 'maint_light', pkgName: 'Maintenance Wash + Light Interior',
         pkgIcon: '🪣', visualKey: 'rv', vehicleLabel: '2022 Dutchmen Astoria · 27 ft',
-        basePrice: 593, addons: [], addonTotal: 0, subtotal: 593, tierKey: 'travel',
+        basePrice: 677, addons: [], addonTotal: 0, subtotal: 677, tierKey: 'travel',
       }],
       _editingVehicleIndex: 0,
       _startingAdditionalVehicle: false,
-      cat: 'rvs', pkgId: 'maint_light', basePrice: 593,
+      cat: 'rvs', pkgId: 'maint_light', basePrice: 677,
       vehicleLabel: '2022 Dutchmen Astoria · 27 ft',
     });
     box.selectCategoryCartIntent('cars');
@@ -342,7 +357,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
       vehicleLabel: '2022 Dutchmen Astoria · 27 ft',
       tierKey: 'travel',
       tier: { label: '27 ft' },
-      basePrice: 593,
+      basePrice: 677,
       addons: [],
       addonTotal: 0,
       lengthFt: 27,
@@ -356,7 +371,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
     assert.equal(box.ST.vehicles[1].cat, 'rvs');
   });
 
-  it('C) Explorer + refresh resolves 405 and Continue enables', () => {
+  it('C) Explorer + refresh resolves 465 and Continue enables', () => {
     const box = loadCartFns({ cat: 'cars' });
     box.selectCategoryCartIntent('cars');
     box.ST.pkgId = 'refresh';
@@ -375,9 +390,9 @@ describe('cart intent + price resolution (function sandbox)', () => {
     box.ST.vehicleLabel = '2023 Ford Explorer';
     box.ST.classNeedsConfirm = false;
     box.setBasePrice();
-    assert.equal(box.ST.basePrice, 405);
+    assert.equal(box.ST.basePrice, 465);
     assert.equal(box.ST._priceResolveFailed, false);
-    assert.match(box.els['ah-total'].textContent, /\$405/);
+    assert.match(box.els['ah-total'].textContent, /\$465/);
     assert.equal(box.els.next3.disabled, false);
     assert.doesNotMatch(box.els['ah-total'].textContent, /Estimate/i);
   });
@@ -405,7 +420,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
       vehicles: [{
         cat: 'rvs', pkgId: 'maint_light', pkgName: 'Maintenance Wash + Light Interior',
         pkgIcon: '🪣', visualKey: 'rv', vehicleLabel: '2022 Dutchmen Astoria · 27 ft',
-        basePrice: 593, addons: [], addonTotal: 0, subtotal: 593,
+        basePrice: 677, addons: [], addonTotal: 0, subtotal: 677,
       }],
       _editingVehicleIndex: 0,
       _startingAdditionalVehicle: false,
@@ -419,7 +434,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
       displayLabel: '3-Row SUV',
       tierKey: 'suv3',
       tier: box.PRICING.cars.tiers.suv3,
-      basePrice: 405,
+      basePrice: 465,
       addons: [],
       addonTotal: 0,
     });
@@ -427,7 +442,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
     assert.equal(box.ST.vehicles.length, 1);
     assert.equal(box.ST.vehicles[0].pkgId, 'refresh');
     assert.match(box.ST.vehicles[0].vehicleLabel, /Explorer/);
-    assert.equal(box.ST.vehicles[0].basePrice, 405);
+    assert.equal(box.ST.vehicles[0].basePrice, 465);
     assert.doesNotMatch(box.ST.vehicles.map((v) => v.vehicleLabel).join(' '), /Dutchmen/);
   });
 });
@@ -461,9 +476,9 @@ describe('price regression matrix (representative fixtures)', () => {
 describe('Review presentation after clean single-vehicle car booking', () => {
   it('Review total matches Explorer refresh price', () => {
     const vehicles = [{
-      basePrice: 405,
+      basePrice: 465,
       addonTotal: 0,
-      subtotal: 405,
+      subtotal: 465,
       pkgId: 'refresh',
       vehicleLabel: '2023 Ford Explorer',
       cat: 'cars',
@@ -472,8 +487,8 @@ describe('Review presentation after clean single-vehicle car booking', () => {
     const totals = Review.presentationTotals({
       vehicles,
       travelFeeAmount: 0,
-      totalPrice: 405,
+      totalPrice: 465,
     });
-    assert.equal(totals.estimatedTotal, 405);
+    assert.equal(totals.estimatedTotal, 465);
   });
 });

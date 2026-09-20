@@ -16,17 +16,17 @@ const {
 const root = path.join(__dirname, '..');
 
 describe('trucks category pricing authority', () => {
-  it('exposes day_cab and sleeper_cab at $325 / $400 / $500', () => {
+  it('exposes day_cab and sleeper_cab at $375 / $460 / $575', () => {
     assert.ok(PRICING.trucks);
-    assert.equal(PRICING.trucks.tiers.day_cab.interior, 325);
-    assert.equal(PRICING.trucks.tiers.day_cab.int_wash, 400);
-    assert.equal(PRICING.trucks.tiers.day_cab.int_wash_wax, 500);
-    assert.equal(PRICING.trucks.tiers.sleeper_cab.interior, 325);
-    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash, 400);
-    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 500);
+    assert.equal(PRICING.trucks.tiers.day_cab.interior, 375);
+    assert.equal(PRICING.trucks.tiers.day_cab.int_wash, 460);
+    assert.equal(PRICING.trucks.tiers.day_cab.int_wash_wax, 575);
+    assert.equal(PRICING.trucks.tiers.sleeper_cab.interior, 375);
+    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash, 460);
+    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 575);
   });
 
-  it('prices sleeper interior detail at $325 for ZIP 07601', () => {
+  it('prices sleeper interior detail at $375 for ZIP 07601', () => {
     const r = computeVehicleSubtotal(
       {
         cat: 'trucks',
@@ -37,7 +37,7 @@ describe('trucks category pricing authority', () => {
       '07601'
     );
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 325);
+    assert.equal(r.subtotal, 375);
   });
 
   it('prices day cab int_wash_wax with superint add-on', () => {
@@ -51,7 +51,7 @@ describe('trucks category pricing authority', () => {
       '07601'
     );
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 500 + 125);
+    assert.equal(r.subtotal, 575 + 125);
   });
 });
 
@@ -88,7 +88,7 @@ describe('trucks booking checkout recalculation', () => {
   it('validateAndRecalculateBookingPricing accepts a trucks cart', () => {
     const result = validateAndRecalculateBookingPricing({
       zipCode: '07601',
-      totalPrice: 400,
+      totalPrice: 460,
       vehicles: [
         {
           cat: 'trucks',
@@ -100,7 +100,7 @@ describe('trucks booking checkout recalculation', () => {
       ],
     });
     assert.equal(result.ok, true);
-    assert.equal(result.serviceSubtotal, 400);
+    assert.equal(result.serviceSubtotal, 460);
   });
 });
 

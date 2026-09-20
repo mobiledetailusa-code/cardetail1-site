@@ -18,7 +18,7 @@ const PACKAGES = [
     name: 'Interior Detail',
     tag: 'Vacuum, shampoo, steam, and wipe-down for seats, carpets, and dash.',
     price: 190,
-    note: 'Sedans from $190 · SUVs from $215 · trucks from $235',
+    note: 'Sedans from $220 · SUVs from $245 · trucks from $270',
     time: '~1.5–2 hrs',
   },
   {
@@ -26,7 +26,7 @@ const PACKAGES = [
     name: 'Premium Full Detail',
     tag: 'Most booked — interior detail plus exterior wash, protection, and light paint cleaning.',
     price: 240,
-    note: 'Sedans from $240 · SUVs from $260 · 3-row from $270',
+    note: 'Sedans from $275 · SUVs from $300 · 3-row from $310',
     time: '~2.5–3 hrs',
     popular: true,
   },
@@ -64,7 +64,7 @@ const CITIES = [
     title: 'Mobile Car Detailing in Palisades Park, NJ | Cardetail1',
     h1: 'Mobile Car Detailing in Palisades Park, NJ',
     description:
-      'Mobile car detailing in Palisades Park, NJ — our home base. Interior from $190, full detail from $240 at your driveway. We bring water and power. Book online.',
+      'Mobile car detailing in Palisades Park, NJ — our home base. Interior from $220, full detail from $275 at your driveway. We bring water and power. Book online.',
     nearby: ['fort-lee', 'englewood', 'teaneck', 'hackensack', 'edgewater'],
     faqs: [
       {
@@ -85,7 +85,7 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Cardetail1 is based in Palisades Park, ZIP 07650 — not a shop you drop the car at. We load water, power, and professional chemicals in the van and detail in your driveway, parking pad, or an approved lot. Palisades Park is the shortest hop on our Bergen County route, so standard interior, full, and exterior packages here use the same core NJ pricing you see on the homepage: Interior Detail from $190, Premium Full Detail from $240 for sedans, and Exterior Detail & Paint Enhancement from $320.',
+      'Cardetail1 is based in Palisades Park, ZIP 07650 — not a shop you drop the car at. We load water, power, and professional chemicals in the van and detail in your driveway, parking pad, or an approved lot. Palisades Park is the shortest hop on our Bergen County route, so standard interior, full, and exterior packages here use the same core NJ pricing you see on the homepage: Interior Detail from $220, Premium Full Detail from $275 for sedans, and Exterior Detail & Paint Enhancement from $370.',
       'Broad Avenue and the residential blocks off it mix tight driveways, street parking, and small commercial lots. That is normal for this town, and it is why we ask for access notes when you book: where the vehicle will sit, whether we can stage next to it, and whether a HOA or landlord has vendor rules. We do not need your outdoor faucet. Same-week requests are easiest here because we are already in town.',
       'Most Palisades Park jobs we price are daily drivers — sedans, two-row SUVs, and family crossovers that pick up GWB-adjacent film, winter salt, and interior wear from kids or pets. Interior Detail is the right call when the cabin is the problem. Premium Full Detail is the package most customers book when they want inside and out in one visit. Heavy pet hair, odor, or stained carpets are add-ons at booking, not surprises on the invoice.',
       'Interior Detail in the live catalog is deep vacuum (seats, floors, trunk), fabric shampoo, leather conditioning, steam on vents and panels, dash and door trim with UV protectant, and interior glass. It does not include an exterior wash. Premium Full Detail stacks that cabin work with a hand wash, clay decontamination, spray sealant, wheels, and exterior glass — that is why it is marked most booked. Exterior Detail is clay, chemical decon, a single-pass enhancement polish, sealant, wheel and lug detail, Rain-X, and tire dressing, with no interior. Signature Restoration (from $385 sedan) is the ~3.5–4 hour inside-and-out path with single-pass correction, wheel and tire shine, plastic restoration, and the full interior list — not a ceramic-coating package.',
@@ -115,7 +115,7 @@ const CITIES = [
       },
       {
         q: 'Can you handle brake dust and GWB road film?',
-        a: 'Yes. Exterior Detail & Paint Enhancement (from $320) and Premium Full Detail both include exterior decontamination. Commuter film on light-colored paint is a common Fort Lee request.',
+        a: 'Yes. Exterior Detail & Paint Enhancement (from $370) and Premium Full Detail both include exterior decontamination. Commuter film on light-colored paint is a common Fort Lee request.',
       },
       {
         q: 'How do I book in Fort Lee?',
@@ -123,10 +123,10 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Fort Lee (ZIP 07024) sits next to our Palisades Park base, on the New Jersey side of the George Washington Bridge. Cardetail1 comes to houses, townhome lots, and approved garage or visitor spots — we bring water and power, so we are not asking the building for a hose. Core Bergen pricing applies: Interior Detail from $190, Premium Full Detail from $240 for sedans, Exterior Detail & Paint Enhancement from $320.',
+      'Fort Lee (ZIP 07024) sits next to our Palisades Park base, on the New Jersey side of the George Washington Bridge. Cardetail1 comes to houses, townhome lots, and approved garage or visitor spots — we bring water and power, so we are not asking the building for a hose. Core Bergen pricing applies: Interior Detail from $220, Premium Full Detail from $275 for sedans, Exterior Detail & Paint Enhancement from $370.',
       'Bridge and Route 9W commuting leaves a specific kind of mess: brake dust on wheels, film on white and silver paint, and interiors that get used hard on the NYC trip. Exterior-only work is the Exterior Detail package, not a $20 wash. If the cabin needs shampoo and steam as well, book Premium Full Detail. Pet hair and odor are listed add-ons so the quote stays honest.',
       'High-rise and garage jobs need a clear access plan. We cannot work in a stall that has no staging room or that forbids vendor equipment. Put the building name, floor or lot, and any COI request in the notes. Driveway jobs in the residential blocks toward Palisades Park and Leonia are simpler — same process as the home-base town, a few minutes on local roads.',
-      'What you actually get is the homepage spec, not a lighter “Fort Lee special.” Interior Detail: vacuum, shampoo, steam, UV on plastics, interior glass (~1.5–2 hrs). Premium Full Detail: that interior plus hand wash, clay, sealant, and wheels (SUVs from $260, 3-row from $270, ~2.5–3 hrs). Exterior Detail from $320 is the paint-enhancement path (~3.5–4 hrs). Garage jobs run longer if we have to work around pillars and low clearance.',
+      'What you actually get is the homepage spec, not a lighter “Fort Lee special.” Interior Detail: vacuum, shampoo, steam, UV on plastics, interior glass (~1.5–2 hrs). Premium Full Detail: that interior plus hand wash, clay, sealant, and wheels (SUVs from $300, 3-row from $310, ~2.5–3 hrs). Exterior Detail from $370 is the paint-enhancement path (~3.5–4 hrs). Garage jobs run longer if we have to work around pillars and low clearance.',
       'Enter ZIP 07024 to load pricing, submit the request, and wait for confirmation — no charge at request. Hours Monday–Friday 8AM–5PM. Call 551-373-5668 if the building needs a certificate of insurance before we are allowed in. Nearby pages: Palisades Park, Edgewater, Englewood, Teaneck. The Google listing (5.0 from 9 reviews, August 2026 snapshot) is the same profile linked from every page.',
     ],
   },
@@ -140,7 +140,7 @@ const CITIES = [
     title: 'Mobile Car Detailing in Paramus, NJ | Cardetail1',
     h1: 'Mobile Car Detailing in Paramus, NJ',
     description:
-      'Mobile car detailing in Paramus, NJ (07652). Interior from $190, full detail from $240 at your driveway. Bergen County core route from Palisades Park. Book online.',
+      'Mobile car detailing in Paramus, NJ (07652). Interior from $220, full detail from $275 at your driveway. Bergen County core route from Palisades Park. Book online.',
     nearby: ['ridgewood', 'hackensack', 'teaneck', 'englewood', 'palisades-park'],
     faqs: [
       {
@@ -149,7 +149,7 @@ const CITIES = [
       },
       {
         q: 'What package fits a family SUV after mall and highway use?',
-        a: 'Premium Full Detail is the most booked inside-and-out package (SUVs from $260, 3-row from $270). Interior-only starts at $215 for two-row SUVs. Exterior Detail from $320 if the paint and wheels are the issue.',
+        a: 'Premium Full Detail is the most booked inside-and-out package (SUVs from $300, 3-row from $310). Interior-only starts at $245 for two-row SUVs. Exterior Detail from $370 if the paint and wheels are the issue.',
       },
       {
         q: 'Is Paramus a travel-fee ZIP?',
@@ -161,7 +161,7 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Paramus (07652 / 07653) is a Bergen County driveway stop on our Palisades Park route — larger suburban lots than the Gold Coast, which usually means easier staging for a full interior or exterior job. We still bring our own water and power. Pricing matches the homepage catalog: Interior Detail from $190 (sedan), Premium Full Detail from $240 / $260 / $270 by size, Exterior Detail & Paint Enhancement from $320.',
+      'Paramus (07652 / 07653) is a Bergen County driveway stop on our Palisades Park route — larger suburban lots than the Gold Coast, which usually means easier staging for a full interior or exterior job. We still bring our own water and power. Pricing matches the homepage catalog: Interior Detail from $220 (sedan), Premium Full Detail from $275 / $300 / $310 by size, Exterior Detail & Paint Enhancement from $370.',
       'Route 4, Route 17, and mall-area traffic put film on paint and brake dust on wheels. Family SUVs and 3-row vehicles are common here; those sizes have their own “from” prices on Premium Full Detail, not a one-size sedan rate. If the interior is the problem after kids, sports gear, or pets, start with Interior Detail and add pet hair or odor only if you need them.',
       'Office-park and dealership-adjacent lots are fine when management allows a vendor to occupy a stall for a few hours. Say so in the notes. We do not do a drive-through wash; Exterior Detail is clay, decontamination, and protection sized to the vehicle. Two or more cars in one driveway should use the multi-vehicle checkout so both vehicles share one visit.',
       'Package contents do not change because you are in Paramus. Interior Detail is vacuum, shampoo, steam, and interior glass. Premium Full Detail adds the exterior wash, clay, and sealant. Exterior Detail is the machine-polish and protection package without cabin work. Add-ons (pet hair $95, odor $90, polymer sealant $25, 1-year carnauba $75) are optional lines at booking. Weather can delay exterior steps; we confirm the day after you request, Monday–Friday 8AM–5PM.',
@@ -191,7 +191,7 @@ const CITIES = [
       },
       {
         q: 'What does interior detailing cost in Hackensack?',
-        a: 'Interior Detail starts at $190 for sedans, $215 for two-row SUVs, and $235 for trucks. Final price follows vehicle size, condition, and add-ons after you enter ZIP 07601.',
+        a: 'Interior Detail starts at $220 for sedans, $245 for two-row SUVs, and $270 for trucks. Final price follows vehicle size, condition, and add-ons after you enter ZIP 07601.',
       },
       {
         q: 'Is 07601 in your free-travel zone?',
@@ -199,10 +199,10 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Hackensack (07601) is the Bergen County seat and a regular stop from our Palisades Park base. We detail at residential driveways and at office or medical-area lots when access is legal and there is room to stage. Water and power come with us. Packages and “from” prices are the same catalog as the homepage: Interior Detail from $190, Premium Full Detail from $240 for sedans, Exterior Detail from $320.',
-      'The mix here is daily drivers plus vehicles that sit in work lots. Interior Detail is the right product when the cabin is dusty, stained, or overdue for shampoo. Premium Full Detail covers inside and out in one appointment. If you manage more than one van or truck, use the fleet page for per-unit programs rather than stacking consumer packages blindly — fleet maintenance wash starts at $65 per unit on the fleet catalog, which is a different product than a $190 interior on a personal sedan.',
+      'Hackensack (07601) is the Bergen County seat and a regular stop from our Palisades Park base. We detail at residential driveways and at office or medical-area lots when access is legal and there is room to stage. Water and power come with us. Packages and “from” prices are the same catalog as the homepage: Interior Detail from $220, Premium Full Detail from $275 for sedans, Exterior Detail from $370.',
+      'The mix here is daily drivers plus vehicles that sit in work lots. Interior Detail is the right product when the cabin is dusty, stained, or overdue for shampoo. Premium Full Detail covers inside and out in one appointment. If you manage more than one van or truck, use the fleet page for per-unit programs rather than stacking consumer packages blindly — fleet maintenance wash starts at $65 per unit on the fleet catalog, which is a different product than a $220 interior on a personal sedan.',
       'Street parking and garage-only buildings need the same honesty as Fort Lee: we have to stand next to the car with tanks and hoses. If that is not allowed, say so before we confirm the day. South Hackensack (07606) and Maywood (07607) book the same way — enter the actual ZIP so pricing and routing stay correct. County-complex and hospital-area lots often need a visit from security; put that in the notes.',
-      'On the car catalog, Interior Detail includes trunk vacuum and interior glass; Premium Full Detail adds clay and a spray sealant on the paint. Exterior Detail from $320 is paint enhancement, not a rinse. Truck interior starts at $235. Add-ons for odor, mold (from $149), and biohazard are estimate-gated when the job is severe. Hours Monday–Friday 8AM–5PM. No charge when you submit ZIP 07601 on the booking form.',
+      'On the car catalog, Interior Detail includes trunk vacuum and interior glass; Premium Full Detail adds clay and a spray sealant on the paint. Exterior Detail from $370 is paint enhancement, not a rinse. Truck interior starts at $270. Add-ons for odor, mold (from $149), and biohazard are estimate-gated when the job is severe. Hours Monday–Friday 8AM–5PM. No charge when you submit ZIP 07601 on the booking form.',
       'Call 551-373-5668. Nearby pages: Teaneck, Paramus, Palisades Park, Englewood, Ridgewood. Google reviews on the listing (5.0 / 9, August 2026) include interior and exterior jobs — the quotes on this page are copied from that public snapshot, not invented testimonials.',
     ],
   },
@@ -216,7 +216,7 @@ const CITIES = [
     title: 'Mobile Car Detailing in Englewood, NJ | Cardetail1',
     h1: 'Mobile Car Detailing in Englewood, NJ',
     description:
-      'Mobile car detailing in Englewood, NJ (07631). Driveway interior, full, and exterior detail from our Palisades Park base. From $190 interior / $240 full. Book online.',
+      'Mobile car detailing in Englewood, NJ (07631). Driveway interior, full, and exterior detail from our Palisades Park base. From $220 interior / $275 full. Book online.',
     nearby: ['palisades-park', 'fort-lee', 'teaneck', 'hackensack', 'ridgewood'],
     faqs: [
       {
@@ -225,7 +225,7 @@ const CITIES = [
       },
       {
         q: 'Tree pollen and water spots — which package?',
-        a: 'Exterior Detail & Paint Enhancement (from $320) is the exterior-only path for film, pollen, and decontamination. Add Premium Full Detail when the interior needs shampoo and steam too.',
+        a: 'Exterior Detail & Paint Enhancement (from $370) is the exterior-only path for film, pollen, and decontamination. Add Premium Full Detail when the interior needs shampoo and steam too.',
       },
       {
         q: 'Can you work on a tree-lined driveway?',
@@ -237,10 +237,10 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Englewood (07631) is a short run north of Palisades Park. Cardetail1 details in residential driveways along the tree-lined streets and in approved lots — we bring water and power, and we price from the same Bergen County catalog: Interior Detail from $190, Premium Full Detail from $240 for sedans (SUVs from $260), Exterior Detail & Paint Enhancement from $320.',
+      'Englewood (07631) is a short run north of Palisades Park. Cardetail1 details in residential driveways along the tree-lined streets and in approved lots — we bring water and power, and we price from the same Bergen County catalog: Interior Detail from $220, Premium Full Detail from $275 for sedans (SUVs from $300), Exterior Detail & Paint Enhancement from $370.',
       'Pollen, shade-tree sap, and water spots show up on paint here more than beach salt. That is an exterior decontamination job, not a rinse. Interior work is still the Interior Detail package: vacuum, shampoo, steam, glass. Englewood Cliffs (07632) uses the same process; enter that ZIP if the car sits there so the quote is tied to the right block.',
       'Larger properties usually make staging easier than Fort Lee high-rises. If a HOA or gated driveway needs a vendor code, put it in the notes so we are not stuck at the curb. Luxury SUVs and sedans take the same packages; size and condition set the number, not a separate Englewood surcharge. Signature Restoration is the ~3.5–4 hour option when you want single-pass correction, wheel and tire shine, and plastic restoration on the paint plus a full interior.',
-      'What Interior Detail includes in Englewood is identical to Palisades Park: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. Exterior Detail from $320 is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Friday 8AM–5PM. Request with ZIP 07631; no payment at submission.',
+      'What Interior Detail includes in Englewood is identical to Palisades Park: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. Exterior Detail from $370 is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Friday 8AM–5PM. Request with ZIP 07631; no payment at submission.',
       'Call 551-373-5668 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack. Tenafly and Alpine remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is.',
     ],
   },
@@ -271,11 +271,11 @@ const CITIES = [
       },
       {
         q: 'What is the most booked package in towns like Teaneck?',
-        a: 'Premium Full Detail — inside and out — is marked most booked on the homepage. SUVs from $260, 3-row from $270.',
+        a: 'Premium Full Detail — inside and out — is marked most booked on the homepage. SUVs from $300, 3-row from $310.',
       },
     ],
     paragraphs: [
-      'Teaneck (07666) sits between Englewood and Hackensack, still on the Palisades Park core route. We detail in suburban driveways with our own water and power. Prices are the live catalog: Interior Detail from $190 sedan / $215 two-row SUV, Premium Full Detail from $240 / $260 / $270, Exterior Detail from $320.',
+      'Teaneck (07666) sits between Englewood and Hackensack, still on the Palisades Park core route. We detail in suburban driveways with our own water and power. Prices are the live catalog: Interior Detail from $220 sedan / $245 two-row SUV, Premium Full Detail from $275 / $300 / $310, Exterior Detail from $370.',
       'Family vehicles are the usual request: car seats, crumbs, and pet hair in the second row. Interior Detail is built for that cabin work. The pet-hair add-on exists because a household vacuum does not lift coat from honeycomb fabric — the before/after slider on the homepage is that job. Do not skip the add-on and expect packed-in coat to disappear inside the base interior price. Baby-seat cleaning is $20 per seat if you add it.',
       'Street-parked cars are possible when we can occupy the space legally for the duration (often 1.5–4 hours by package). If the township or a HOA limits that, use a driveway. We confirm access when we confirm the day. Someone 18+ needs to authorize the visit if you will not be home. Hours Monday–Friday 8AM–5PM.',
       'Package scope matches the rest of Bergen County. Interior Detail: vacuum, shampoo, steam, interior glass, UV on plastics. Premium Full Detail adds exterior wash, clay, and sealant. Exterior Detail is the paint-enhancement package. Odor treatment ($90) and Super Interior Upgrade ($125) are opt-in when the cabin is beyond a standard shampoo. ZIP 07666 loads core NJ pricing with no separate travel fee on the standard quote.',
@@ -292,7 +292,7 @@ const CITIES = [
     title: 'Mobile Car Detailing in Ridgewood, NJ | Cardetail1',
     h1: 'Mobile Car Detailing in Ridgewood, NJ',
     description:
-      'Mobile car detailing in Ridgewood, NJ (07450). Interior from $190, full detail from $240 at your driveway. Bergen County route from Palisades Park. Book online.',
+      'Mobile car detailing in Ridgewood, NJ (07450). Interior from $220, full detail from $275 at your driveway. Bergen County route from Palisades Park. Book online.',
     nearby: ['paramus', 'hackensack', 'teaneck', 'englewood', 'palisades-park'],
     faqs: [
       {
@@ -313,10 +313,10 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Ridgewood (07450) is northern Bergen County on our Palisades Park route. We come to the driveway with water and power. Package prices are not a special Ridgewood list — they are the same numbers on cardetail1.com: Interior Detail from $190, Premium Full Detail from $240 for sedans, Exterior Detail & Paint Enhancement from $320, sized up for SUVs and trucks at booking.',
+      'Ridgewood (07450) is northern Bergen County on our Palisades Park route. We come to the driveway with water and power. Package prices are not a special Ridgewood list — they are the same numbers on cardetail1.com: Interior Detail from $220, Premium Full Detail from $275 for sedans, Exterior Detail & Paint Enhancement from $370, sized up for SUVs and trucks at booking.',
       'Commuter vehicles and family SUVs pick up highway film and interior wear. Premium Full Detail is the inside-and-out appointment. If you only need the cabin, book Interior Detail. If the paint is dull from sitting under trees, Exterior Detail is the clay / polish / sealant path, not a hand wash sold as a detail. Two cars at the same house should go through multi-vehicle checkout so we route one visit.',
       'Lots here are often large enough for a van and a full-size SUV. That helps time-on-site; it does not change the catalog. Tell us about HOA gates or shared driveways in the notes. Hours remain Monday–Friday, 8AM–5PM. 07450 is in the Bergen hub ZIP map (074 prefix), not a long-distance quote.',
-      'Interior Detail includes seats, carpets, trunk, steam, and interior glass. Premium Full Detail adds wash, clay, and sealant. Exterior Detail from $320 includes single-pass paint enhancement and Rain-X. Add-ons (pet hair, odor, polymer, 1-year wax) are the same dollars as Palisades Park. We do not invent a Ridgewood travel surcharge on standard core pricing — enter the ZIP so the form can show the live total.',
+      'Interior Detail includes seats, carpets, trunk, steam, and interior glass. Premium Full Detail adds wash, clay, and sealant. Exterior Detail from $370 includes single-pass paint enhancement and Rain-X. Add-ons (pet hair, odor, polymer, 1-year wax) are the same dollars as Palisades Park. We do not invent a Ridgewood travel surcharge on standard core pricing — enter the ZIP so the form can show the live total.',
       'Submit ZIP 07450 or call 551-373-5668. Nearby dedicated pages: Paramus, Hackensack, Teaneck, Palisades Park. Glen Rock and Fair Lawn stay on the New Jersey hub accordion for now; those links still work as in-county anchors until they get their own files. Request first, pay after service — same as every other Bergen page.',
     ],
   },
@@ -351,7 +351,7 @@ const CITIES = [
       },
     ],
     paragraphs: [
-      'Edgewater (07020) is the Hudson waterfront town just south of Fort Lee, still a Palisades Park core ZIP (mapped in the Bergen hub ZIP5 list). Cardetail1 details cars at driveways and in approved garages; we bring water and power. Car package “from” prices: Interior Detail $190, Premium Full Detail $240 sedan, Exterior Detail $320. Boat work is a different catalog on boats-detailing.html, priced by vessel length, not by this car list.',
+      'Edgewater (07020) is the Hudson waterfront town just south of Fort Lee, still a Palisades Park core ZIP (mapped in the Bergen hub ZIP5 list). Cardetail1 details cars at driveways and in approved garages; we bring water and power. Car package “from” prices: Interior Detail $220, Premium Full Detail $275 sedan, Exterior Detail $370. Boat work is a different catalog on boats-detailing.html, priced by vessel length, not by this car list.',
       'River Road high-rises have the same constraint as Fort Lee: stall size, discharge rules, and COI requests. If the garage forbids our setup, we cannot do the job there. Townhome and house driveways off the waterfront streets are the straightforward path. Street parking only works if we can legally occupy the space for the full 1.5–4 hour window.',
       'Winter salt, garage dust, and commuter film are the usual exterior complaints. Use Exterior Detail or Premium Full Detail, not a wash. Interiors follow Interior Detail plus add-ons. Above-waterline marine jobs at marinas or storage lots use Marine Wash / Full Marine / Premium Marine and need marina rules in the notes — we do not clean underwater hulls.',
       'Car package contents are the Palisades Park catalog. Interior: vacuum, shampoo, steam, interior glass. Premium Full: interior plus wash, clay, sealant. Exterior Detail: clay, polish, sealant, Rain-X, wheels. 07020 does not add a special waterfront surcharge on standard core NJ car pricing; enter the ZIP so the form shows the live number. Hours Monday–Friday 8AM–5PM. No charge at request.',
