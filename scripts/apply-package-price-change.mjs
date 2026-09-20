@@ -211,6 +211,10 @@ function syncBookingPageSurfaces(src) {
     .replace(/^(\s*boats:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.boats}$2`)
     .replace(/^(\s*powersports:\s*\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.powersports}$2`)
     .replace(
+      /trucks:\s*\{\s*price:\s*\d+\s*\}/g,
+      "trucks:     { price: Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)) }",
+    )
+    .replace(
       /LENGTH_PRICING\.rvs\.packages\.exterior\.min/g,
       "getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel')",
     );

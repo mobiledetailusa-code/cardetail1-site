@@ -5546,7 +5546,7 @@ function onBkZipInput(val){
 
 function updateBkFromPrices(){
   const BASE = {
-    trucks:     { price: 325 },
+    trucks:     { price: Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)) },
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
     rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min },
     powersports:{ price: powersportsPublicFromPrice() },

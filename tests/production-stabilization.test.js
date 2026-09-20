@@ -57,6 +57,8 @@ test('index updateBkFromPrices derives specialty mins from LENGTH_PRICING / PRIC
   assert.match(html, /LENGTH_PRICING\.boats\.packages\.maint\.min/);
   assert.match(html, /Price calculated from your vehicle details/);
   assert.match(html, /PRICING\.powersports\.tiers/);
+  assert.match(html, /PRICING\.trucks\.tiers/);
+  assert.doesNotMatch(html, /trucks:\s*\{\s*price:\s*325\s*\}/);
   assert.match(html, /updateBkFromPrices\(\);/);
 });
 
