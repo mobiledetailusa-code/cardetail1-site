@@ -1,5 +1,19 @@
 /* Booking modal — light-theme contrast (scoped to .booking-modal only) */
 
+/*
+ * Homepage hero photo is too dark for in-step backgrounds
+ * (median luminance ~25/255 — busy dusk scene). Steps use the site
+ * luxury atmosphere instead: soft slate + brand blue + champagne washes
+ * so reading stays crisp on solid cards/inputs.
+ */
+.booking-modal-ov {
+  background-color: rgba(15, 23, 42, 0.72);
+  background-image:
+    linear-gradient(165deg, rgba(15, 23, 42, 0.82) 0%, rgba(18, 24, 33, 0.88) 55%, rgba(15, 23, 42, 0.9) 100%),
+    radial-gradient(ellipse 70% 50% at 82% 30%, rgba(77, 163, 255, 0.14), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 12% 80%, rgba(196, 165, 116, 0.1), transparent 50%);
+}
+
 /* Isolate light tokens so dark-themed hub pages still get a readable modal */
 .booking-modal {
   --bg0: #f4f6f9;
@@ -16,8 +30,42 @@
   --blue-hover: #1d4ed8;
   --bdim: rgba(37, 99, 235, 0.08);
   --bbr: rgba(37, 99, 235, 0.22);
+  --champagne: rgba(196, 165, 116, 0.14);
   --white: #ffffff;
   color: var(--tx);
+  background-color: var(--bg1, #ffffff);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 100% -8%, rgba(37, 99, 235, 0.1), transparent 52%),
+    radial-gradient(ellipse 70% 45% at -8% 108%, rgba(196, 165, 116, 0.08), transparent 48%),
+    linear-gradient(165deg, #f7f9fc 0%, #ffffff 44%, #f3f6fa 100%);
+}
+
+.booking-modal .bprog {
+  background: linear-gradient(180deg, rgba(247, 249, 252, 0.98), rgba(238, 242, 247, 0.96));
+  border-bottom: 1px solid rgba(196, 165, 116, 0.16);
+}
+
+.booking-modal .bcontent {
+  background: transparent;
+}
+
+/* Solid panels stay opaque so copy never sits on a busy photo */
+.booking-modal .pkg-c,
+.booking-modal .svc-card,
+.booking-modal .addon-row,
+.booking-modal .addon,
+.booking-modal .tchip,
+.booking-modal .fi,
+.booking-modal .srch-in,
+.booking-modal .sel-s,
+.booking-modal .fta,
+.booking-modal .length-box,
+.booking-modal .unit-box,
+.booking-modal .vc,
+.booking-modal .pay-box,
+.booking-modal .oc,
+.booking-modal .terms-panel {
+  background-color: var(--bg1, #ffffff);
 }
 
 /* Step 1 category tiles */

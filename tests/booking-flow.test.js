@@ -52,6 +52,16 @@ test('Pay online later card panel stays readable in the light booking modal', ()
   assert.match(block, /class="bk-online-card-body"/);
 });
 
+test('booking steps use site theme atmosphere (hero photo too dark for readable step bg)', () => {
+  const light = read('assets/booking-modal-light.css');
+  assert.match(light, /Homepage hero photo is too dark for in-step backgrounds/);
+  assert.match(light, /rgba\(196,\s*165,\s*116/);
+  assert.match(light, /\.booking-modal\s*\{[\s\S]*?radial-gradient\(ellipse 90% 55% at 100%/);
+  assert.match(light, /\.booking-modal \.bprog\s*\{[\s\S]*?rgba\(196,\s*165,\s*116/);
+  assert.doesNotMatch(light, /\.booking-modal[\s\S]{0,400}url\(['\"]?[^'\"]*homepage-hero/);
+  assert.doesNotMatch(light, /\.bcontent[\s\S]{0,200}url\(['\"]?[^'\"]*homepage-hero/);
+});
+
 test('initial booking pages keep card-save UI gated behind Pay online later', () => {
   const pages = fs.readdirSync(root)
     .filter(file => file.endsWith('.html'))
