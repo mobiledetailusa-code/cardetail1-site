@@ -158,9 +158,11 @@ describe('price presentation', () => {
     assert.match(lightCss, /\.booking-modal \.bk-fin-total span\s*\{[^}]*color:\s*#0f172a/s);
   });
 
-  it('selecting a package auto-advances to the vehicle step', () => {
-    assert.match(html, /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring && !ST\._holdPackageStep\) setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\);/);
-    assert.doesNotMatch(html, /stay on package step until Continue/);
+  it('selecting a package auto-advances to vehicle (specialty) or keeps add-ons on package (cars)', () => {
+    assert.match(html, /if\(ST\.pkg && currentBkStep < 3 && !ST\._restoring && !ST\._holdPackageStep\)/);
+    assert.match(html, /setTimeout\(\(\)=>bkContinueFromPackage\(\), 180\)/);
+    assert.match(html, /syncCarsAddonsPlacement/);
+    assert.match(html, /cars vehicle-first: stay on package and reveal add-ons inline/i);
   });
 
   it('no competing prominent Travel row in the collapsed summary', () => {

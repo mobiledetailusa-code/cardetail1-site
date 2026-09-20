@@ -905,7 +905,11 @@ body.rv-overlay-lock{overflow:hidden}
 .aq-n{min-width:22px;text-align:center;font-weight:700;color:var(--white);font-size:15px}
 /* Inline add-ons inside the Vehicle step — revealed only after a vehicle is confirmed */
 #bs3-addons{display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--bbr);animation:addonReveal .25s ease}
+#vc.show ~ #bs3-addons-home #bs3-addons,
 #vc.show ~ #bs3-addons{display:block}
+.bs2-addons-host{margin:8px 0 4px}
+.bs2-addons-host #bs3-addons{display:block;margin-top:12px;padding-top:16px;border-top:1px solid var(--bbr)}
+.booking-modal .bs2-addons-host #bs3-addons{border-top-color:var(--line)}
 @keyframes addonReveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .addon-popular-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;padding-bottom:8px;border-bottom:1px solid var(--bbr);margin-bottom:0}
 .addon-all-wrap{grid-column:1/-1}
@@ -2712,6 +2716,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div id="bs2-vehicle-summary" class="bk-veh-summary" hidden></div>
         <div class="pkg-grid" id="pkg-grid"></div>
         <div class="pkg-detail-panel" id="pkg-detail-panel" hidden aria-live="polite"></div>
+        <div id="bs2-addons-host" class="bs2-addons-host" hidden></div>
         <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row">
           <button type="button" class="btn-b" id="back2" onclick="bkBackFromPackage()">← Back</button>
@@ -2897,6 +2902,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
 
         <!-- INLINE ADD-ONS — revealed once a vehicle/length is confirmed (#vc.show) -->
+        <div id="bs3-addons-home">
         <div id="bs3-addons">
           <div class="beye" style="margin-top:0">Enhance your service</div>
           <div class="addon-header">
@@ -2915,6 +2921,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
 
           <button type="button" class="btn-add-veh" onclick="addCurrentVehicleToCart()">＋ Add Another Vehicle</button>
+        </div>
         </div>
 
         <div class="btn-row">
@@ -5039,10 +5046,14 @@ function syncPackageStepChrome() {
   const next2 = document.getElementById('next2');
   const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey;
   if (carsReady) {
-    if (eye) eye.textContent = 'Step 02 — Package';
+    if (eye) eye.textContent = 'Step 03 — Package';
     if (title) title.innerHTML = 'PICK YOUR<br>PACKAGE';
-    if (desc) desc.textContent = 'Packages ranked by value for your vehicle. Expand a row for full inclusions.';
-    if (next2) next2.textContent = ST.pkg ? 'Continue to add-ons →' : 'Continue to add-ons →';
+    if (desc) {
+      desc.textContent = ST.pkg
+        ? 'Package selected — add extras below, or continue to your details.'
+        : 'Packages ranked by value for your vehicle. Expand a row for full inclusions.';
+    }
+    if (next2) next2.textContent = ST.pkg ? 'Continue to Info →' : 'Select a package';
   } else {
     if (eye) eye.textContent = 'Step 02 — Package';
     if (title) title.innerHTML = 'CHOOSE YOUR<br>PACKAGE';
@@ -5050,6 +5061,7 @@ function syncPackageStepChrome() {
     if (next2) next2.textContent = 'Continue to vehicle →';
   }
   renderBs2VehicleSummary();
+  syncCarsAddonsPlacement();
 }
 
 function renderBs2VehicleSummary() {
@@ -5078,6 +5090,25 @@ function renderBs2VehicleSummary() {
     `</div>`;
 }
 
+/** Cars vehicle-first: keep add-ons on the package step so selecting a pack never jumps back to Vehicle. */
+function syncCarsAddonsPlacement() {
+  const addons = document.getElementById('bs3-addons');
+  const home = document.getElementById('bs3-addons-home');
+  const host = document.getElementById('bs2-addons-host');
+  if (!addons || !home || !host) return;
+  const onPackage = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey && !!ST.pkg && currentBkStep === 2;
+  if (onPackage) {
+    if (addons.parentElement !== host) host.appendChild(addons);
+    host.hidden = false;
+    addons.style.display = 'block';
+  } else {
+    if (addons.parentElement !== home) home.appendChild(addons);
+    host.hidden = true;
+    if (carsVehicleFirstFlow() && !ST.pkg) addons.style.display = 'none';
+    else addons.style.display = '';
+  }
+}
+
 function syncVehicleStepChrome() {
   const next3 = document.getElementById('next3');
   const addons = document.getElementById('bs3-addons');
@@ -5095,13 +5126,12 @@ function syncVehicleStepChrome() {
     if (eye) eye.textContent = 'Step 03 — Vehicle';
     if (title) title.textContent = 'YOUR VEHICLE';
     if (desc) {
-      desc.textContent = carsVehicleFirstFlow() && ST.pkg
-        ? 'Review add-ons for your package, then continue to your details.'
-        : 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.';
+      desc.textContent = 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.';
     }
     if (next3) next3.textContent = 'Continue to Info →';
     if (addons) addons.style.display = '';
   }
+  syncCarsAddonsPlacement();
 }
 
 function bkContinueFromPackage() {
@@ -5110,15 +5140,20 @@ function bkContinueFromPackage() {
     alert('Please select a package to continue.');
     return;
   }
-  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
+  // Cars: vehicle already locked — commit + Info (add-ons stay on this package step).
   if (carsVehicleFirstFlow() && ST.vehicleLabel && ST.tierKey) {
     setBasePrice();
-    syncVehicleStepChrome();
-    renderAddons();
-    syncContinueGate();
-    bkGoTo(3);
+    const item = commitCurrentVehicleToCart();
+    if (!item && !ST.vehicles.length) {
+      alert('Please configure at least one vehicle.');
+      return;
+    }
+    renderVehicleCart();
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
+    bkGoTo(4);
     return;
   }
+  if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
   bkGoTo(3);
 }
 
@@ -5474,8 +5509,19 @@ function selectPkg(id){
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
   syncPackageStepChrome();
-  // Auto-advance after package selection (vehicle step, or cars add-ons when vehicle already known)
-  if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep) setTimeout(()=>bkContinueFromPackage(), 180);
+  // Specialty / package-first: auto-advance to vehicle.
+  // Cars vehicle-first: stay on package and reveal add-ons inline (never jump back to Vehicle).
+  if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep){
+    if(carsVehicleFirstFlow() && ST.vehicleLabel && ST.tierKey){
+      setBasePrice();
+      renderAddons();
+      syncCarsAddonsPlacement();
+      const host=document.getElementById('bs2-addons-host');
+      if(host) try{ host.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
+    }else{
+      setTimeout(()=>bkContinueFromPackage(), 180);
+    }
+  }
   if(window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 

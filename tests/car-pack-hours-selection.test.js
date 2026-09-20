@@ -74,6 +74,8 @@ test('cars packages are ordered expensive-first with compact booking UI', () => 
   assert.match(html, /Continue to packages/);
   assert.match(html, /bkBackFromPackage/);
   assert.match(html, /bkBackFromVehicle/);
+  assert.match(html, /function syncCarsAddonsPlacement\(\)/);
+  assert.match(html, /bs2-addons-host/);
 });
 
 test('Maintenance Detail hides shampoo/steam add-ons', () => {
