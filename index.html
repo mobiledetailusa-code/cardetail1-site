@@ -1871,7 +1871,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
     <div class="specialty-service-links">
-      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
+      <a class="specialty-service-link" href="trucks-detailing.html">Semi Trucks</a>
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
       <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
@@ -2070,7 +2070,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-services-cta">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
-      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Trucks, boats, RVs &amp; powersports</button>
+      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Semi trucks, boats, RVs &amp; powersports</button>
     </div>
   </div>
 </div>
@@ -2749,11 +2749,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
           </div>
           <div class="bk-cat-specialty">
-            <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
+            <div class="bk-cat-specialty-label">Semi trucks, boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial day cab and tractor-trailer semis receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Trucks</div>
-            <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
+            <div class="svc-name" style="font-size:22px">Semi Trucks</div>
+            <div class="svc-desc" style="font-size:12px">Semi truck · Day cab · Sleeper cab</div>
             <div class="svc-cat-note" id="bkfrom-trucks">From $325 · semis only (not pickups)</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
@@ -2808,7 +2808,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs3">
         <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
-        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.</div>
+        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Semi trucks need cab type first.</div>
 
         <!-- Boat vessel type (boats only) — same pattern as RV / trailer type -->
         <div id="boat-type-wrap" style="display:none;margin-bottom:14px">
@@ -2890,7 +2890,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <div class="tchip-desc">Sleeper tractor — bunk &amp; living space</div>
             </button>
           </div>
-          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are commercial semis only.</p>
+          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Semi trucks here are commercial tractor-trailers only.</p>
         </div>
 
         <!-- Make / model / year first — size class is auto-detected from the catalog -->
@@ -5100,6 +5100,12 @@ function carsVehicleFirstFlow() {
   return ST.cat === 'cars';
 }
 
+/** Compact package rows + dense add-on grid (cars + specialty). Fleet stays card/quote UI. */
+function usesCompactPackageUi(cat) {
+  const c = cat || ST.cat;
+  return c === 'cars' || c === 'trucks' || c === 'boats' || c === 'rvs' || c === 'powersports';
+}
+
 function progressTabForPanel(n) {
   if (!carsVehicleFirstFlow()) return n;
   if (n === 2) return 3;
@@ -5126,7 +5132,8 @@ function syncPackageStepChrome() {
   const next2 = document.getElementById('next2');
   const bs2 = document.getElementById('bs2');
   const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey;
-  if (bs2) bs2.classList.toggle('bk-pkg-dense', carsReady);
+  const compactCat = usesCompactPackageUi(ST.cat);
+  if (bs2) bs2.classList.toggle('bk-pkg-dense', compactCat && (carsReady || !carsVehicleFirstFlow()));
   if (carsReady) {
     if (eye) eye.textContent = 'Step 03 — Package';
     if (title) title.innerHTML = 'Pick Your Package';
@@ -5136,6 +5143,15 @@ function syncPackageStepChrome() {
         : 'Compare packages for your vehicle. Expand a row only when you need the full list.';
     }
     if (next2) next2.textContent = ST.pkg ? 'Continue to Info →' : 'Select a package';
+  } else if (compactCat && !carsVehicleFirstFlow()) {
+    if (eye) eye.textContent = 'Step 02 — Package';
+    if (title) title.innerHTML = 'Pick Your Package';
+    if (desc) {
+      desc.textContent = ST.cat === 'boats' || ST.cat === 'rvs'
+        ? 'Compare packages. Exact price locks in after length and type on the next step.'
+        : 'Compare packages. Expand a row only when you need the full list — then continue to vehicle details.';
+    }
+    if (next2) next2.textContent = 'Continue to vehicle →';
   } else {
     if (eye) eye.textContent = 'Step 02 — Package';
     if (title) title.innerHTML = 'CHOOSE YOUR<br>PACKAGE';
@@ -5144,6 +5160,7 @@ function syncPackageStepChrome() {
   }
   renderBs2VehicleSummary();
   syncCarsAddonsPlacement();
+  syncSpecialtyAddonsChrome();
   syncBs2StickyBar();
 }
 
@@ -5152,7 +5169,9 @@ function syncPackageStepChrome() {
  * Always derived from live ST — never from ST.vehicles committed snapshots.
  */
 function getActiveBookingConfig() {
-  const meta = (ST.pkgId && typeof PKG_COMPACT_META !== 'undefined' && PKG_COMPACT_META[ST.pkgId]) || null;
+  const meta = (ST.pkgId && typeof getPkgCompactMeta === 'function')
+    ? getPkgCompactMeta(ST.cat, ST.pkgId)
+    : ((ST.pkgId && typeof PKG_COMPACT_META !== 'undefined' && PKG_COMPACT_META[ST.pkgId]) || null);
   const pkgName = (meta && meta.shortName) || (ST.pkg && ST.pkg.name) || '';
   const vehicleLine = window.CD1BookingVehicleSummary
     ? CD1BookingVehicleSummary.formatAddonHeaderSummary(ST)
@@ -5300,6 +5319,15 @@ function syncCarsAddonsPlacement() {
   }
 }
 
+/** Specialty (package-first): keep add-ons on the vehicle step but use the compact grid chrome. */
+function syncSpecialtyAddonsChrome() {
+  const addons = document.getElementById('bs3-addons');
+  if (!addons) return;
+  if (carsVehicleFirstFlow()) return;
+  const compact = usesCompactPackageUi(ST.cat) && !!ST.pkg;
+  addons.classList.toggle('bk-addons-compact', compact);
+}
+
 function syncVehicleStepChrome() {
   const next3 = document.getElementById('next3');
   const addons = document.getElementById('bs3-addons');
@@ -5317,12 +5345,13 @@ function syncVehicleStepChrome() {
     if (eye) eye.textContent = 'Step 03 — Vehicle';
     if (title) title.textContent = 'YOUR VEHICLE';
     if (desc) {
-      desc.textContent = 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.';
+      desc.textContent = 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Semi trucks need cab type first.';
     }
     if (next3) next3.textContent = 'Continue to Info →';
     if (addons) addons.style.display = '';
   }
   syncCarsAddonsPlacement();
+  syncSpecialtyAddonsChrome();
 }
 
 function bkContinueFromPackage() {
@@ -5525,38 +5554,73 @@ function bindPowersportsPackageCopy(){
 }
 
 // ── STEP 2: PACKAGES ──────────────────────────────────────────────────────────
-const PKG_COMPACT_META = {
-  full: {
-    shortName: 'Premium Full Detail',
-    line: 'Complete inside/out refresh',
-    chips: ['Shampoo', 'Clay', 'Protection', 'Engine Bay'],
+const PKG_COMPACT_META_BY_CAT = {
+  cars: {
+    full: { shortName: 'Premium Full Detail', line: 'Complete inside/out refresh', chips: ['Shampoo', 'Clay', 'Protection', 'Engine Bay'] },
+    premium: { shortName: 'Signature Restoration', line: 'Correction + deep restoration', chips: ['Paint Correction', 'Sealant', 'Rain-X', 'Engine Bay'] },
+    refresh: { shortName: 'Exterior Refresh & Protect', line: 'Exterior paint enhancement', chips: ['Clay', 'Polish', 'Sealant', 'Engine Bay'] },
+    interior: { shortName: 'Interior Detail', line: 'Deep clean cabin', chips: ['Shampoo', 'Condition', 'UV'] },
+    maint: { shortName: 'Maintenance Detail', line: 'Keep-clean wash + light interior', chips: ['Wash', 'Clay', 'Quick interior'] },
+    wash: { shortName: 'Exterior Hand Wash', line: 'Basic exterior service', chips: ['Wash', 'Wheels', 'Glass'] },
   },
-  premium: {
-    shortName: 'Signature Restoration',
-    line: 'Correction + deep restoration',
-    chips: ['Paint Correction', 'Sealant', 'Rain-X', 'Engine Bay'],
+  trucks: {
+    interior: { shortName: 'Interior Detail', line: 'Cab interior — day cab or sleeper', chips: ['Vacuum', 'Surfaces', 'Glass'] },
+    int_wash: { shortName: 'Interior + Wash', line: 'Cab interior + tractor exterior wash', chips: ['Interior', 'Wash', 'Wheels'] },
+    int_wash_wax: { shortName: 'Interior + Wash & Wax', line: 'Cab + wash + wax/sealant', chips: ['Interior', 'Wash', 'Wax'] },
   },
-  refresh: {
-    shortName: 'Exterior Refresh & Protect',
-    line: 'Exterior paint enhancement',
-    chips: ['Clay', 'Polish', 'Sealant', 'Engine Bay'],
+  boats: {
+    maint: { shortName: 'Marine Wash', line: 'Hull, deck & glass upkeep', chips: ['Hull', 'Deck', 'Glass'] },
+    essential: { shortName: 'Essential Marine', line: 'Protection + vinyl conditioning', chips: ['Non-skid', 'Vinyl', 'Sealant'] },
+    full: { shortName: 'Full Marine Detail', line: 'Complete boat refresh', chips: ['Cabin', 'Wax', 'Teak'] },
+    premium: { shortName: 'Premium Marine', line: 'Oxidation + max protection', chips: ['Polish', 'Wax', 'Gloss'] },
   },
-  interior: {
-    shortName: 'Interior Detail',
-    line: 'Deep clean cabin',
-    chips: ['Shampoo', 'Condition', 'UV'],
+  rvs: {
+    maint: { shortName: 'Maintenance Wash', line: 'Exterior keep-clean wash', chips: ['Wash', 'Wheels', 'Sealant'] },
+    maint_light: { shortName: 'Wash + Light Interior', line: 'Exterior + quick interior refresh', chips: ['Wash', 'Vacuum', 'Wipe-down'] },
+    interior: { shortName: 'Interior Detail', line: 'Cabin through living area', chips: ['Shampoo', 'Kitchen', 'Bath'] },
+    full_basic: { shortName: 'Full RV Detail', line: 'Complete interior + exterior wash', chips: ['Interior', 'Wash', 'Sealant'] },
+    premium: { shortName: 'Premium Exterior Detail', line: 'One-step polish + protection', chips: ['Polish', 'Sealant', 'Wheels'] },
+    full: { shortName: 'Premium Complete RV', line: 'Polish exterior + full interior', chips: ['Polish', 'Interior', 'Sealant'] },
   },
-  maint: {
-    shortName: 'Maintenance Detail',
-    line: 'Keep-clean wash + light interior',
-    chips: ['Wash', 'Clay', 'Quick interior'],
-  },
-  wash: {
-    shortName: 'Exterior Hand Wash',
-    line: 'Basic exterior service',
-    chips: ['Wash', 'Wheels', 'Glass'],
+  powersports: {
+    maintenance: { shortName: 'Maintenance Detail', line: 'Routine clean + protection', chips: ['Wash', 'Plastics', 'Wax'] },
+    restore: { shortName: 'Correction / Restoration', line: 'Polish, oxidation & finishing', chips: ['Compound', 'Polish', 'Chrome'] },
   },
 };
+/** Car-only alias for older callers — prefer getPkgCompactMeta(cat, id). */
+const PKG_COMPACT_META = PKG_COMPACT_META_BY_CAT.cars;
+
+function getPkgCompactMeta(cat, pkgId) {
+  const byCat = PKG_COMPACT_META_BY_CAT[cat] || {};
+  return byCat[pkgId] || null;
+}
+
+function compactPackagePriceLabel(cat, p, d) {
+  const fee = typeof getTravelFeeAmount === 'function' ? getTravelFeeAmount() : 0;
+  if (cat === 'cars' || cat === 'trucks') {
+    if (ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id] != null) {
+      return '$' + (applyRichPrice(d.tiers[ST.tierKey][p.id]) + fee);
+    }
+    const sampleTiers = Object.values(d.tiers)[0] || {};
+    const sample = sampleTiers[p.id] || sampleTiers.maint || sampleTiers.wash || sampleTiers.interior || sampleTiers.int_wash;
+    if (sample != null) return 'From $' + (applyRichPrice(sample) + fee);
+    return 'Select vehicle';
+  }
+  if (cat === 'boats' && LENGTH_PRICING.boats && LENGTH_PRICING.boats.packages[p.id]) {
+    const rule = LENGTH_PRICING.boats.packages[p.id];
+    return 'From $' + (applyRichPrice(rule.min) + fee);
+  }
+  if (cat === 'rvs' && LENGTH_PRICING.rvs && LENGTH_PRICING.rvs.packages[p.id]) {
+    return 'By length';
+  }
+  if (cat === 'powersports') {
+    const from = powersportsPublicFromPriceForPackage(p.id);
+    if (from !== Infinity && from > 0) return 'From $' + (applyRichPrice(from) + fee);
+    return 'By machine';
+  }
+  return p.note || 'By vehicle';
+}
+
 const ENGINE_BAY_DETAIL_NOTE = 'Surface dust, accessible components and surrounding areas cleaned and wiped. Heavy grease, oil buildup or restoration may require an additional service.';
 
 function formatPkgFeatureLabel(f){
@@ -5584,34 +5648,29 @@ function renderPackages(cat){
   if(!grid || !d) return;
   const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
   const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;
-  const useCompact = cat==='cars';
+  const useCompact = usesCompactPackageUi(cat);
   grid.classList.toggle('pkg-grid--compact', useCompact);
 
   if(useCompact){
     grid.innerHTML=packages.map(p=>{
-      const meta=PKG_COMPACT_META[p.id]||{shortName:p.name,line:p.tag,chips:[]};
-      let priceLabel='';
-      if(ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id]!=null){
-        const n=applyRichPrice(d.tiers[ST.tierKey][p.id])+getTravelFeeAmount();
-        priceLabel='$'+n;
-      }else{
-        const sampleTier=Object.values(d.tiers)[0];
-        const n=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior)+getTravelFeeAmount();
-        priceLabel='From $'+n;
-      }
+      const presented = (cat==='powersports') ? presentPowersportsPackage(p, ST.tierKey) : p;
+      const meta=getPkgCompactMeta(cat, p.id)||{shortName:presented.name,line:presented.tag,chips:[]};
+      const priceLabel=compactPackagePriceLabel(cat, p, d);
       const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
-      const details=renderPkgCompactDetails(p);
-      return `<div class="pkg-c${p.popular?' pkg-c--featured':''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
+      const details=renderPkgCompactDetails(presented);
+      const dur=(presented.dur||'').replace(/^~/,'');
+      const shortDur=dur.length>28 ? 'Varies by size' : dur;
+      return `<div class="pkg-c${presented.popular?' pkg-c--featured':''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
         <div class="pkg-c-row">
           <div class="pkg-c-radio" aria-hidden="true"></div>
           <div>
-            <p class="pkg-c-name">${meta.shortName||p.name}${p.popular?'<span class="pkg-c-badge">Most booked</span>':''}</p>
-            <p class="pkg-c-tag">${meta.line||p.tag||''}</p>
+            <p class="pkg-c-name">${meta.shortName||presented.name}${presented.popular?'<span class="pkg-c-badge">Most booked</span>':''}</p>
+            <p class="pkg-c-tag">${meta.line||presented.tag||''}</p>
             ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
           </div>
           <div class="pkg-c-meta">
             <span class="pkg-c-price">${priceLabel}</span>
-            <span class="pkg-c-dur">${(p.dur||'').replace(/^~/,'')}</span>
+            <span class="pkg-c-dur">${shortDur}</span>
           </div>
         </div>
         ${details?`<button type="button" class="pkg-c-expand" aria-expanded="false" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>View everything included</span><span data-expand-chev aria-hidden="true">→</span></button>
@@ -6358,7 +6417,7 @@ function renderAddons(){
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
   let popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);
   const DRIVEWAY_ID='seasonal_driveway_cleanup';
-  const compactUi = carsVehicleFirstFlow();
+  const compactUi = usesCompactPackageUi(ST.cat);
   let additionalAddons=[];
   if(compactUi){
     additionalAddons = popularAddons.filter(a=>a.id===DRIVEWAY_ID);
@@ -7946,7 +8005,7 @@ function chatStartingPricesReply(){
   const b=getCategoryFromBases();
   return "Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n"
     +"🚗 Cars & Pickups — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
-    +"🚛 Trucks (semis) — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
+    +"🚛 Semi trucks — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
     +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
     +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
     +"🏕️ RVs & Trailers — <b>price calculated from your exact length &amp; package</b>\n\n"
@@ -7981,7 +8040,7 @@ const ZONE_POPULAR = {
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $190' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $325' },
+  trucks:     { ico:'🚛', name:'Semi Trucks',      desc:'Day cab & tractor-trailer', from:'From $325' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $170' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $175' },
