@@ -457,11 +457,57 @@
     document.head.appendChild(g);
   }
 
+  // Consent Mode v2: load Ads tag on every page so Google receives tag pings, while
+  // ad cookies stay denied until Marketing opt-in (fixes "conversion never received data").
+  function syncGtagConsentMode(consent) {
+    ensureGtag();
+    if (!global.__cd1GtagConsentDefaulted) {
+      global.gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        wait_for_update: 500,
+      });
+      global.__cd1GtagConsentDefaulted = true;
+    }
+    var marketing = !!(consent && consent.marketing);
+    var analytics = !!(consent && consent.analytics);
+    global.gtag('consent', 'update', {
+      ad_storage: marketing ? 'granted' : 'denied',
+      ad_user_data: marketing ? 'granted' : 'denied',
+      ad_personalization: marketing ? 'granted' : 'denied',
+      analytics_storage: analytics ? 'granted' : 'denied',
+    });
+  }
+
+  function initGoogleAds(consent) {
+    var adsId = global.CD1_GOOGLE_ADS_ID || 'AW-11321647982';
+    if (!adsId) return;
+    var adsPageViewSendTo = global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq';
+
+    syncGtagConsentMode(consent);
+    loadGtagJs(adsId, 'cd1-gtag-ads');
+    if (!global.__cd1GtagBootstrapped) {
+      global.gtag('js', new Date());
+      global.__cd1GtagBootstrapped = true;
+    }
+    if (!global.__cd1GoogleAdsConfigured) {
+      global.gtag('config', adsId);
+      global.__cd1GoogleAdsConfigured = true;
+    }
+    // Official Page view conversion snippet — fires once per page load.
+    // With Consent Mode denied, Google still gets cookieless pings for diagnostics/modeling.
+    if (!global.__cd1GoogleAdsPageViewFired) {
+      global.gtag('event', 'conversion', { send_to: adsPageViewSendTo });
+      global.__cd1GoogleAdsPageViewFired = true;
+    }
+  }
+
   function initAdapters() {
     var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
     var gtmId = global.CD1_GTM_CONTAINER_ID || '';
     var gaId = global.CD1_GA4_MEASUREMENT_ID || '';
-    var adsId = global.CD1_GOOGLE_ADS_ID || 'AW-11321647982';
     var clarityId = global.CD1_CLARITY_PROJECT_ID || '';
 
     if (consent.analytics && gtmId && !document.getElementById('cd1-gtm')) {
@@ -473,6 +519,7 @@
       document.head.appendChild(s);
     } else if (consent.analytics && gaId && !gtmId && !global.__cd1Ga4Configured) {
       ensureGtag();
+      syncGtagConsentMode(consent);
       loadGtagJs(gaId, 'cd1-gtag-ga4');
       if (!global.__cd1GtagBootstrapped) {
         global.gtag('js', new Date());
@@ -482,21 +529,7 @@
       global.__cd1Ga4Configured = true;
     }
 
-    // Google Ads base tag (gtag.js) — marketing opt-in only.
-    // Official snippet: gtag/js?id=AW-… + gtag('config', 'AW-…')
-    // Page view conversion: gtag('event', 'conversion', { send_to: 'AW-…/…' })
-    if (consent.marketing && adsId && !global.__cd1GoogleAdsConfigured) {
-      var adsPageViewSendTo = global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq';
-      ensureGtag();
-      loadGtagJs(adsId, 'cd1-gtag-ads');
-      if (!global.__cd1GtagBootstrapped) {
-        global.gtag('js', new Date());
-        global.__cd1GtagBootstrapped = true;
-      }
-      global.gtag('config', adsId);
-      global.gtag('event', 'conversion', { send_to: adsPageViewSendTo });
-      global.__cd1GoogleAdsConfigured = true;
-    }
+    initGoogleAds(consent);
 
     if (consent.analytics && clarityId && !document.getElementById('cd1-clarity')) {
       var c = document.createElement('script');
@@ -505,6 +538,15 @@
       c.src = 'https://www.clarity.ms/tag/' + encodeURIComponent(clarityId);
       document.head.appendChild(c);
     }
+  }
+
+  if (typeof document !== 'undefined' && !global.__cd1ConsentListenerBound) {
+    global.__cd1ConsentListenerBound = true;
+    document.addEventListener('cd1:consent-changed', function (ev) {
+      try {
+        syncGtagConsentMode(ev && ev.detail ? ev.detail : (global.Cardetail1Consent && global.Cardetail1Consent.getConsent()));
+      } catch (e) { /* never block */ }
+    });
   }
 
   function track(eventName, properties) {

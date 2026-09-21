@@ -346,13 +346,15 @@ test('duplicate GTM install guarded by id cd1-gtm', () => {
   assert.match(src, /cd1-gtm/);
 });
 
-test('Google Ads AW tag loads only after marketing consent', () => {
+test('Google Ads AW tag uses Consent Mode and always configures', () => {
   const src = fs.readFileSync(path.join(root, 'assets/revenue-events.js'), 'utf8');
   assert.match(src, /AW-11321647982/);
   assert.match(src, /CD1_GOOGLE_ADS_ID/);
-  assert.match(src, /consent\.marketing && adsId/);
+  assert.match(src, /consent', 'default'/);
+  assert.match(src, /ad_storage/);
+  assert.match(src, /initGoogleAds/);
   assert.match(src, /__cd1GoogleAdsConfigured/);
-  assert.doesNotMatch(src, /consent\.analytics && adsId/);
+  assert.doesNotMatch(src, /consent\.marketing && adsId/);
 });
 
 test('Google Ads Page view conversion send_to is wired', () => {
@@ -361,6 +363,7 @@ test('Google Ads Page view conversion send_to is wired', () => {
   assert.match(src, /CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO/);
   assert.match(src, /gtag\('event', 'conversion'/);
   assert.match(src, /send_to:\s*adsPageViewSendTo/);
+  assert.match(src, /__cd1GoogleAdsPageViewFired/);
 });
 
 test('CSP allows Google Ads gtag domains', () => {
@@ -368,6 +371,8 @@ test('CSP allows Google Ads gtag domains', () => {
   assert.match(toml, /www\.googletagmanager\.com/);
   assert.match(toml, /www\.googleadservices\.com/);
   assert.match(toml, /www\.google\.com/);
+  assert.match(toml, /googleads\.g\.doubleclick\.net/);
+  assert.match(toml, /pagead2\.googlesyndication\.com/);
 });
 
 // ── REGRESSION / FILES ──────────────────────────────────────────────────────
