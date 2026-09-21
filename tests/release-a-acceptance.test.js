@@ -203,15 +203,15 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
       vehicleCategory: 'cars',
       package: 'Premium Detail',
       packageId: 'full',
-      totalPrice: 250,
+      totalPrice: 275,
       vehicles: [{
         cat: 'cars',
         pkgId: 'full',
         pkgName: 'Premium Detail',
         tierKey: 'small',
         tierLabel: 'Small Car',
-        basePrice: 250,
-        subtotal: 250,
+        basePrice: 275,
+        subtotal: 275,
         addons: [],
       }],
     };
@@ -269,7 +269,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
           vehicleCategory: 'cars',
           package: 'Premium Detail',
           packageId: 'full',
-          totalPrice: 250,
+          totalPrice: 275,
           vehicles: base.vehicles,
         }),
         headers: {},
@@ -337,8 +337,8 @@ describe('Release A — canonical quote (PDA-01, PDA-07)', () => {
     canonicalAddonPrice,
   } = require('../netlify/lib/canonical-quote');
 
-  it('SUV3 Premium is $560 at audited catalog baseline', () => {
-    assert.equal(canonicalCarPackagePrice('suv3', 'premium'), 560);
+  it('SUV3 Premium is $575 at audited catalog baseline', () => {
+    assert.equal(canonicalCarPackagePrice('suv3', 'premium'), 575);
     // Use a non-rich ZIP so the audited catalog baseline is not multiplied.
     const quoted = quoteService({
       zip: '07102',
@@ -355,7 +355,7 @@ describe('Release A — canonical quote (PDA-01, PDA-07)', () => {
       }],
     });
     assert.equal(quoted.ok, true);
-    assert.equal(quoted.quote.approvedCents, 56000);
+    assert.equal(quoted.quote.approvedCents, 57500);
   });
 
   it('Odor Removal is $90 in canonical catalog', () => {
@@ -978,7 +978,7 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
         },
       });
       assert.equal(submitted.ok, true);
-      assert.equal(submitted.changeRequest.proposedApprovedCents, 56000);
+      assert.equal(submitted.changeRequest.proposedApprovedCents, 57500);
 
       const decided = await decideChangeRequestCommand({
         bookingId,
@@ -991,13 +991,13 @@ describe('Release A — decide applies canonical quote not proposedTotal (PDA-01
         true,
         `decide failed: ${decided.error || 'unknown'} ${decided.reason || ''} ${decided.statusCode || ''}`
       );
-      assert.equal(decided.booking.ledger.approvedCents, 56000);
-      assert.equal(decided.booking.approvedFinalAmount, 560);
+      assert.equal(decided.booking.ledger.approvedCents, 57500);
+      assert.equal(decided.booking.approvedFinalAmount, 575);
       assert.notEqual(decided.booking.approvedFinalAmount, 9999);
       // Package Stage 1 — this is the Postgres-authoritative projection, not a
       // Blob-only figure; proves the adjustment was written to Postgres.
       assert.ok(decided.postgresProjection, 'decide must return a Postgres projection for package changes');
-      assert.equal(decided.postgresProjection.approvedCents, 56000);
+      assert.equal(decided.postgresProjection.approvedCents, 57500);
       assert.notEqual(decided.postgresProjection.approvedCents, 999900, 'must ignore inflated proposedTotal (9999)');
 
       const final = await getBookingRecord(bookingId);
@@ -1257,7 +1257,7 @@ describe('Release A — cross-store index failure recovery', () => {
       assert.equal(decided.ok, true);
       const final = await getBookingRecord(bookingId);
       assert.equal(final.booking.changeRequests.some((r) => r.status === 'applied'), true);
-      assert.equal(final.booking.ledger.approvedCents, 56000);
+      assert.equal(final.booking.ledger.approvedCents, 57500);
     } finally {
       tech.blobsStore = origBlobs;
       setBookingStoreOverride(null);

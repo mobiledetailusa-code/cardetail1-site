@@ -121,8 +121,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
       }],
     }, { travelCents: 1000, basedOnBookingVersion: 1 });
     assert.equal(quoted.ok, true);
-    // SUV3 Premium $560 + $10 travel
-    assert.equal(quoted.quote.approvedCents, 57000);
+    // SUV3 Premium $575 + $10 travel
+    assert.equal(quoted.quote.approvedCents, 58500);
     const proposedTotal = quoted.approvedDollars;
 
     const after = simulateAdminApproveMoney(booking, proposedTotal, {
@@ -139,15 +139,15 @@ describe('e2e simulate: customer package change → admin approve → customer p
 
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.package, 'Signature Interior & Exterior Restoration');
-    assert.equal(projected.approvedFinalAmount, 570);
-    assert.equal(projected.totalPrice, 570);
-    assert.equal(projected.amountDueApproved, 570);
+    assert.equal(projected.approvedFinalAmount, 585);
+    assert.equal(projected.totalPrice, 585);
+    assert.equal(projected.amountDueApproved, 585);
     assert.equal(projected.payLink, '');
     assert.equal(projected.customerChangePending, false);
 
     const pay = canPayBalance(after);
     assert.equal(pay.ok, true);
-    assert.equal(computeDue(after), 570);
+    assert.equal(computeDue(after), 585);
     assert.equal(detectMoneyConflict(after).ok, true);
   });
 
@@ -203,8 +203,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
       }],
     });
     assert.equal(quoted.ok, true);
-    // SUV3 Full $280 + pet $95 + odor $90 = $465
-    assert.equal(quoted.quote.approvedCents, 46500);
+    // SUV3 Full $325 + pet $95 + odor $90 = $510
+    assert.equal(quoted.quote.approvedCents, 51000);
     const proposedTotal = quoted.approvedDollars;
     const selected = resolveAddonsByIds(['pethair', 'odor']).map((a) => ({
       ...a,
@@ -217,8 +217,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     });
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.addons.length, 2);
-    assert.equal(projected.approvedFinalAmount, 465);
-    assert.equal(projected.amountDueApproved, 465);
+    assert.equal(projected.approvedFinalAmount, 510);
+    assert.equal(projected.amountDueApproved, 510);
     assert.equal(projected.payLink, '');
   });
 });
