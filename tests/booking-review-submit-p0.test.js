@@ -392,6 +392,156 @@ describe('false-failure contract', () => {
       global.ST = prevST;
     }
   });
+
+  it('treats gateway 504 after draft as ambiguous and reconciles on retry', async () => {
+    assert.equal(Review.isAmbiguousFinalizeFailure('booking_submit_failed_504', 504, {}), true);
+    assert.equal(Review.isAmbiguousFinalizeFailure('booking_verification_unavailable', 503, {
+      error: 'booking_verification_unavailable',
+    }), false);
+
+    const alerts = [];
+    const els = {
+      'terms-ok': { checked: true },
+      'sub-btn': { classList: { add() {}, remove() {} }, disabled: false },
+    };
+    let finalizeCalls = 0;
+    const win = {
+      OS_PREVIEW_ACTIVE: false,
+      BACKEND_BASE: '/.netlify/functions',
+      document: {
+        getElementById(id) { return els[id] || null; },
+        querySelectorAll() { return []; },
+      },
+      ST: {
+        payMethod: 'cash_onsite',
+        draftRegistered: true,
+        bookingId: 'CD1-DRAFT3',
+        draftSaveToken: 'tok',
+        bookingPersisted: false,
+        submitInFlight: false,
+        lastPersistedBooking: null,
+      },
+      alert(msg) { alerts.push(String(msg)); },
+      bookingRequestHeaders() { return { 'Content-Type': 'application/json' }; },
+      buildBookingPayload() {
+        return {
+          paymentMethodPreference: 'cash_onsite',
+          paymentMethod: 'cash_onsite',
+          draftBookingId: 'CD1-DRAFT3',
+          draftSaveToken: 'tok',
+          totalPrice: 250,
+        };
+      },
+      saveLocalBooking() {},
+      bkGoTo() {},
+      fetch: async () => {
+        finalizeCalls += 1;
+        if (finalizeCalls === 1) {
+          return {
+            ok: false,
+            status: 504,
+            json: async () => { throw new Error('unexpected end of json'); },
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            bookingCreated: true,
+            idempotent: true,
+            id: 'CD1-DRAFT3',
+            status: 'Pending Review',
+          }),
+        };
+      },
+    };
+    const prevFetch = global.fetch;
+    const prevAlert = global.alert;
+    const prevDoc = global.document;
+    const prevST = global.ST;
+    global.fetch = win.fetch;
+    global.alert = win.alert;
+    global.document = win.document;
+    global.ST = win.ST;
+    try {
+      const result = await Review.submit(win);
+      assert.equal(result.ok, true);
+      assert.equal(result.kind, 'reconciled');
+      assert.equal(result.id, 'CD1-DRAFT3');
+      assert.equal(alerts.length, 0);
+      assert.equal(finalizeCalls, 2);
+    } finally {
+      global.fetch = prevFetch;
+      global.alert = prevAlert;
+      global.document = prevDoc;
+      global.ST = prevST;
+    }
+  });
+
+  it('shows check-My-Garage copy when gateway timeout persists after retry', async () => {
+    const alerts = [];
+    const els = {
+      'terms-ok': { checked: true },
+      'sub-btn': { classList: { add() {}, remove() {} }, disabled: false },
+    };
+    const win = {
+      OS_PREVIEW_ACTIVE: false,
+      BACKEND_BASE: '/.netlify/functions',
+      document: {
+        getElementById(id) { return els[id] || null; },
+        querySelectorAll() { return []; },
+      },
+      ST: {
+        payMethod: 'cash_onsite',
+        draftRegistered: true,
+        bookingId: 'CD1-DRAFT4',
+        draftSaveToken: 'tok',
+        bookingPersisted: false,
+        submitInFlight: false,
+        lastPersistedBooking: null,
+      },
+      alert(msg) { alerts.push(String(msg)); },
+      bookingRequestHeaders() { return { 'Content-Type': 'application/json' }; },
+      buildBookingPayload() {
+        return {
+          paymentMethodPreference: 'cash_onsite',
+          paymentMethod: 'cash_onsite',
+          draftBookingId: 'CD1-DRAFT4',
+          draftSaveToken: 'tok',
+          totalPrice: 250,
+        };
+      },
+      saveLocalBooking() {},
+      bkGoTo() {},
+      fetch: async () => ({
+        ok: false,
+        status: 502,
+        json: async () => ({}),
+      }),
+    };
+    const prevFetch = global.fetch;
+    const prevAlert = global.alert;
+    const prevDoc = global.document;
+    const prevST = global.ST;
+    global.fetch = win.fetch;
+    global.alert = win.alert;
+    global.document = win.document;
+    global.ST = win.ST;
+    try {
+      const result = await Review.submit(win);
+      assert.equal(result.ok, false);
+      assert.equal(result.kind, 'ambiguous');
+      assert.equal(alerts.length, 1);
+      assert.match(alerts[0], /could not confirm|My Garage/i);
+      assert.doesNotMatch(alerts[0], /was not submitted/i);
+    } finally {
+      global.fetch = prevFetch;
+      global.alert = prevAlert;
+      global.document = prevDoc;
+      global.ST = prevST;
+    }
+  });
 });
 
 describe('single submit surface', () => {

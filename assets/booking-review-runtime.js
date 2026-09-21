@@ -559,12 +559,33 @@
     return !!RETRYABLE_FINALIZE_CODES[String(code || '')];
   }
 
+  /**
+   * Gateway / empty-body failures after a draft was held: the booking may already
+   * be persisted while notifications or the response timed out. Never tell the
+   * customer "not submitted" for these — reconcile or ask them to check My Garage.
+   * Known application error codes (even on HTTP 503) are definitive, not ambiguous.
+   */
+  function isAmbiguousFinalizeFailure(code, status, data) {
+    var c = String(code || (data && (data.error || data.message)) || '');
+    if (NETWORK_RE.test(c)) return true;
+    if (/^booking_submit_failed_(502|503|504)$/.test(c)) return true;
+    if (c) return false;
+    var st = Number(status) || 0;
+    return st === 502 || st === 503 || st === 504;
+  }
+
+  function ambiguousConfirmMessage() {
+    return 'We could not confirm whether your booking request was received. Please wait a moment and check My Garage or contact us before submitting again. No payment was collected.';
+  }
+
   function rejectFromResponse(data, status) {
     var code = (data && (data.error || data.message)) || ('booking_submit_failed_' + status);
     var err = new Error(code);
     err.code = code;
+    err.status = status;
     err.userMessage = (data && data.userMessage) || '';
     err.retryable = !!(data && data.retryable) || isRetryableFinalizeCode(code);
+    err.ambiguous = isAmbiguousFinalizeFailure(code, status, data);
     return err;
   }
 
@@ -758,9 +779,15 @@
           alert(attempt.data.userMessage || SUBMIT_FAILURE_CODES.offer_already_redeemed);
           return { ok: false, kind: 'rejected', code: errCode };
         }
-        // Draft already held the slot; a transient verification blip should not
-        // force the customer to dismiss an alert and click Submit again.
-        if (ST.draftRegistered && (isRetryableFinalizeCode(errCode) || (attempt.data && attempt.data.retryable))) {
+        var failCode = errCode || ('booking_submit_failed_' + attempt.res.status);
+        // Draft already held the slot; verification blips / gateway timeouts must
+        // not force the customer to dismiss an alert and click Submit again.
+        var shouldSilentRetry = ST.draftRegistered && (
+          isRetryableFinalizeCode(errCode) ||
+          (attempt.data && attempt.data.retryable) ||
+          isAmbiguousFinalizeFailure(failCode, attempt.res.status, attempt.data)
+        );
+        if (shouldSilentRetry) {
           await sleep(450);
           attempt = await finalizeOnce(attachPreference(win.buildBookingPayload()));
           if (isPersistedResponse(attempt.res, attempt.data)) {
@@ -772,6 +799,11 @@
           if (errCode === 'booking_slot_unavailable' || errCode === 'booking_date_unavailable' || errCode === 'booking_time_unavailable') {
             alert(attempt.data.userMessage || 'That time is unavailable. Choose another slot and submit again. No payment was collected.');
             return { ok: false, kind: 'rejected', code: errCode };
+          }
+          failCode = errCode || ('booking_submit_failed_' + attempt.res.status);
+          if (isAmbiguousFinalizeFailure(failCode, attempt.res.status, attempt.data)) {
+            alert(ambiguousConfirmMessage());
+            return { ok: false, kind: 'ambiguous', code: failCode };
           }
         }
         throw rejectFromResponse(attempt.data, attempt.res.status);
@@ -787,7 +819,8 @@
       }
       var code = String((e && (e.code || e.message)) || '');
       var userMessage = (e && e.userMessage) || '';
-      if ((NETWORK_RE.test(code) || isRetryableFinalizeCode(code) || (e && e.retryable)) && ST.draftRegistered && !persisted) {
+      var ambiguous = !!(e && e.ambiguous) || isAmbiguousFinalizeFailure(code, e && e.status, null);
+      if ((ambiguous || isRetryableFinalizeCode(code) || (e && e.retryable)) && ST.draftRegistered && !persisted) {
         try {
           await sleep(450);
           var retryRes = await postBooking(attachPreference(win.buildBookingPayload()));
@@ -797,10 +830,23 @@
             recovered.kind = 'reconciled';
             return recovered;
           }
-        } catch (e2) { /* still ambiguous / rejected */ }
-        if (NETWORK_RE.test(code)) {
-          alert('We could not confirm whether your booking request was received. Please wait a moment and check My Garage or contact us before submitting again. No payment was collected.');
-          return { ok: false, kind: 'ambiguous' };
+          if (ambiguous || isAmbiguousFinalizeFailure(
+            (retryData && retryData.error) || ('booking_submit_failed_' + retryRes.status),
+            retryRes.status,
+            retryData
+          )) {
+            alert(ambiguousConfirmMessage());
+            return { ok: false, kind: 'ambiguous', code: code };
+          }
+        } catch (e2) {
+          if (ambiguous) {
+            alert(ambiguousConfirmMessage());
+            return { ok: false, kind: 'ambiguous', code: code };
+          }
+        }
+        if (ambiguous) {
+          alert(ambiguousConfirmMessage());
+          return { ok: false, kind: 'ambiguous', code: code };
         }
       }
       if (typeof console !== 'undefined' && console.warn) console.warn('Booking submission failed:', code);
@@ -882,6 +928,7 @@
     classifyError: classifyError,
     notSubmittedMessage: notSubmittedMessage,
     isRetryableFinalizeCode: isRetryableFinalizeCode,
+    isAmbiguousFinalizeFailure: isAmbiguousFinalizeFailure,
     isPersistedResponse: isPersistedResponse,
     submit: submit,
     install: install,
