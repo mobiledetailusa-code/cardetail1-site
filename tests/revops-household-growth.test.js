@@ -372,6 +372,7 @@ test('CSP allows Google Ads gtag domains', () => {
   assert.match(toml, /www\.googleadservices\.com/);
   assert.match(toml, /www\.google\.com/);
   assert.match(toml, /googleads\.g\.doubleclick\.net/);
+  assert.match(toml, /ad\.doubleclick\.net/);
   assert.match(toml, /pagead2\.googlesyndication\.com/);
 });
 
