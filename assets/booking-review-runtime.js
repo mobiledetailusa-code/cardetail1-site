@@ -6,8 +6,8 @@
  *   - estimated totals use the same cart + travel-fee total that the payload sends
  *   - a persisted booking never renders as "not submitted"
  *   - payment preference selects how the customer wants to pay later
- *   - Pay online later (recommended) requires a saved card on file; other
- *     preferences stay no-card at request time
+ *   - Pay online later requires a saved card on file; other preferences stay
+ *     no-card at request time
  *   - this module never talks to Stripe directly (page JS owns SetupIntent)
  *
  * This module NEVER prices a package and NEVER creates Stripe/ledger/receipt objects.
@@ -35,7 +35,7 @@
       value: 'online_after_service',
       label: 'Pay online later',
       button: 'Pay online later',
-      recommended: true,
+      recommended: false,
       requiresCard: true,
     },
     card_onsite: {
@@ -57,9 +57,9 @@
   });
 
   var PREFERENCE_VALUES = Object.keys(REQUEST_PREFERENCES);
-  var ONLINE_HELP = 'Pay online later is our recommended payment method. Save a card securely (nothing charged today). Final payment is requested online after service when approved.';
+  var ONLINE_HELP = 'Pay online later requires a saved card. Save a card securely (nothing charged today). Final payment is requested online after service when approved.';
   var ONSITE_HELP = 'Card or cash at service — no card needed to submit. Nothing is charged or authorized when you send this request.';
-  var DEFAULT_HELP = 'Pay online later is our recommended payment method. Choose it to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.';
+  var DEFAULT_HELP = 'Choose Pay online later to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.';
   var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
   var SUBMIT_FAILURE_CODES = {
     draft_token_invalid: 'Your booking session expired. Please submit the request again.',
@@ -294,13 +294,19 @@
     }
     var first = vehicles[0] || {};
     var visualEl = root.document && root.document.getElementById('c-visual');
-    if (visualEl && typeof root.getVehicleVisualKey === 'function' && root.VEHICLE_VISUALS) {
+    // Page scripts declare VEHICLE_VISUALS with `const` (not on window). Prefer
+    // window exports when present; otherwise keep whatever the page fillConfirm painted.
+    var vehicleVisuals = root.VEHICLE_VISUALS || null;
+    var categoryVisuals = root.CATEGORY_VISUALS || null;
+    if (visualEl && typeof root.getVehicleVisualKey === 'function' && vehicleVisuals) {
       var visualKey = vehicles.length === 1 ? (first.visualKey || root.getVehicleVisualKey()) : '';
-      var visual = root.VEHICLE_VISUALS[visualKey || root.getVehicleVisualKey()]
-        || (root.CATEGORY_VISUALS && root.CATEGORY_VISUALS[first.cat || ST.cat])
-        || root.VEHICLE_VISUALS.sedan;
+      var visual = vehicleVisuals[visualKey || root.getVehicleVisualKey()]
+        || (categoryVisuals && categoryVisuals[first.cat || ST.cat])
+        || vehicleVisuals.sedan;
       visualEl.style.display = vehicles.length > 1 ? 'none' : '';
-      visualEl.innerHTML = vehicles.length > 1 ? '' : '<img src="' + visual.img + '" alt="' + (visual.alt || '') + '" width="720" height="720" loading="lazy" decoding="async">';
+      visualEl.innerHTML = vehicles.length > 1 || !visual || !visual.img
+        ? ''
+        : '<img src="' + visual.img + '" alt="' + (visual.alt || '') + '" width="720" height="720" loading="lazy" decoding="async">';
     }
     var titleEl = root.document && root.document.getElementById('c-service-title');
     if (titleEl) titleEl.textContent = vehicles.length > 1 ? ('Service · ' + vehicles.length + ' vehicles') : 'Service';
@@ -736,7 +742,14 @@
     win.showSuccess = function (payload) { return showSuccess(payload); };
     win.submitBooking = function () { return submit(win); };
     var origFill = win.fillConfirm;
-    win.fillConfirm = function () { return fillReviewSubmit(); };
+    // Keep the page's fillConfirm for vehicle studio art (it closes over
+    // VEHICLE_VISUALS). Then overlay the canonical review/payment summary.
+    win.fillConfirm = function () {
+      if (typeof origFill === 'function') {
+        try { origFill.apply(win, arguments); } catch (eFill) { /* page fill */ }
+      }
+      return fillReviewSubmit();
+    };
     if (typeof origFill === 'function') win._origFillConfirm = origFill;
     wrapGoTo(win);
     win.__cd1BookingReviewInstalled = true;

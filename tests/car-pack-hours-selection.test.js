@@ -39,8 +39,8 @@ test('interior service list is shared on interior, full, and signature packs', (
   assert.match(html, /Door jambs cleaned/);
   assert.match(html, /truck bed where applicable/);
   const cars = carPackagesBlock();
-  const maint = cars.split("id:'interior'")[0];
-  const refresh = cars.split("id:'refresh'")[1].split("id:'premium'")[0];
+  const maint = cars.match(/id:'maint'[\s\S]*?miss:\[[^\]]*\]/)?.[0] || '';
+  const refresh = cars.match(/id:'refresh'[\s\S]*?miss:\[[^\]]*\]/)?.[0] || '';
   assert.match(cars, /id:'interior'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
   assert.match(cars, /id:'full'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
   assert.match(cars, /id:'premium'[\s\S]*?int:CAR_INTERIOR_SERVICE_ITEMS/);
@@ -51,8 +51,8 @@ test('interior service list is shared on interior, full, and signature packs', (
 
 test('signature pack copies refresh exterior and keeps interior restoration', () => {
   const cars = carPackagesBlock();
-  const premium = cars.match(/id:'premium'[\s\S]*?miss:\[\]/)[0];
-  const refresh = cars.split("id:'refresh'")[1].split("id:'premium'")[0];
+  const premium = cars.match(/id:'premium'[\s\S]*?miss:\[\]/)?.[0] || '';
+  const refresh = cars.match(/id:'refresh'[\s\S]*?miss:\[[^\]]*\]/)?.[0] || '';
   const refreshExt = refresh.match(/ext:(\[[\s\S]*?\])/);
   const premiumExt = premium.match(/ext:(\[[\s\S]*?\])/);
   assert.ok(refreshExt && premiumExt, 'refresh/premium ext arrays missing');
@@ -60,6 +60,28 @@ test('signature pack copies refresh exterior and keeps interior restoration', ()
   assert.doesNotMatch(premium, /ceramic protection/i);
   assert.doesNotMatch(premium, /Long-lasting ceramic/);
   assert.match(premium, /int:CAR_INTERIOR_SERVICE_ITEMS/);
+  assert.match(premium, /Engine Bay Light Cleaning & Wipe-Down/);
+  assert.match(refresh, /Engine Bay Light Cleaning & Wipe-Down/);
+});
+
+test('cars packages are ordered expensive-first with compact booking UI', () => {
+  const cars = carPackagesBlock();
+  const ids = [...cars.matchAll(/id:'(full|premium|refresh|interior|maint|wash)'/g)].map((m) => m[1]);
+  assert.deepEqual(ids, ['full', 'premium', 'refresh', 'interior', 'maint', 'wash']);
+  assert.match(html, /pkg-grid--compact/);
+  assert.match(html, /function carsVehicleFirstFlow\(\)/);
+  assert.match(html, /function togglePkgExpand\(/);
+  assert.match(html, /Continue to packages/);
+  assert.match(html, /bkBackFromPackage/);
+  assert.match(html, /bkBackFromVehicle/);
+  assert.match(html, /function syncCarsAddonsPlacement\(\)/);
+  assert.match(html, /bs2-addons-host/);
+  assert.match(html, /View everything included/);
+  assert.match(html, /bs2-sticky/);
+  assert.match(html, /addon-grid--compact/);
+  assert.match(html, /addon-grid-cols/);
+  assert.match(html, /getActiveBookingConfig/);
+  assert.match(html, /bookingServiceTotalForSticky/);
 });
 
 test('Maintenance Detail hides shampoo/steam add-ons', () => {

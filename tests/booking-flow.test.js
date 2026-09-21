@@ -17,12 +17,15 @@ const stripeConfig = read('netlify/functions/stripe-config.js');
 const webhook = read('netlify/functions/stripe-webhook.js');
 const lookup = read('netlify/functions/lookup-booking.js');
 
-test('Step 5 recommends Pay online later and requires a card only for that option', () => {
+test('Step 5 offers Pay online later and requires a card only for that option', () => {
   assert.match(index, /Step 05 — Review &amp; Submit/);
   assert.match(index, /No payment is collected when you submit this booking request\./);
-  assert.match(index, /Pay online later is our recommended payment method\./);
-  assert.match(index, /bk-pay-rec-badge">Recommended</);
-  assert.match(index, /Request first · Recommended: Pay online · No charge today/);
+  assert.match(index, /Choose Pay online later to save a card securely \(nothing charged today\)\./);
+  assert.doesNotMatch(index, /bk-pay-rec-badge/);
+  assert.doesNotMatch(index, /recommended payment method|Pay online later \(recommended\)|Recommended: Pay online/i);
+  assert.match(index, /Request first · No charge today/);
+  assert.doesNotMatch(index, /Request first · Pay online · No charge today/);
+  assert.doesNotMatch(index, /Preferred payment<\/span><span class="ov" id="c-pay-method"/);
   assert.match(index, /id="bk-online-card-wrap"[^>]*hidden/);
   assert.match(index, /id="cof-policy-ok"/);
   assert.match(index, /id="stripe-auth-btn"/);

@@ -757,6 +757,93 @@ body.rv-overlay-lock{overflow:hidden}
 
 /* PACKAGE CARDS */
 .pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.pkg-grid--compact{display:flex;flex-direction:column;gap:6px;grid-template-columns:none;margin-bottom:10px}
+.pkg-c{border:1px solid var(--bbr);border-radius:10px;background:var(--bg2,#fff);overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.pkg-c:hover{border-color:rgba(37,99,235,.35)}
+.pkg-c.sel{border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.12);background:linear-gradient(180deg,rgba(37,99,235,.04),transparent 48%)}
+.pkg-c--featured{border-color:rgba(37,99,235,.28)}
+.pkg-c-row{display:grid;grid-template-columns:18px 1fr auto;gap:8px 10px;align-items:start;padding:10px 12px 6px}
+.pkg-c-radio{width:16px;height:16px;border-radius:50%;border:2px solid var(--bbr);margin-top:3px;flex-shrink:0}
+.pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
+.pkg-c-name{font-size:13.5px;font-weight:700;color:var(--tx);letter-spacing:-.01em;margin:0;line-height:1.25}
+.pkg-c-badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:var(--tx,#0f172a);color:#fff;font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;opacity:.85}
+.pkg-c-tag{font-size:12px;color:var(--mu);line-height:1.3;margin:2px 0 0}
+.pkg-c-chips{display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--mu);line-height:1.35}
+.pkg-c-chips span{display:inline}
+.pkg-c-chips span::after{content:" · ";color:var(--bbr)}
+.pkg-c-chips span:last-child::after{content:""}
+.pkg-c-meta{text-align:right;white-space:nowrap;padding-top:1px}
+.pkg-c-price{display:block;font-size:14px;font-weight:800;color:var(--tx);letter-spacing:-.02em}
+.pkg-c-dur{font-size:10px;color:var(--mu);font-weight:500}
+.pkg-c-expand{display:inline-flex;align-items:center;gap:4px;width:auto;margin:0 12px 8px 38px;padding:0;border:none;background:transparent;color:var(--blue);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;text-align:left}
+.pkg-c-expand[aria-expanded="true"]{margin-bottom:4px}
+.pkg-c-details{display:none;margin:0 12px 10px 38px;padding-top:8px;border-top:1px solid var(--bbr);font-size:11.5px;color:var(--mu);columns:2;column-gap:16px}
+.pkg-c.open .pkg-c-details{display:block}
+.pkg-c-details b{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx);margin:0 0 3px}
+.pkg-c-details ul{margin:0 0 8px;padding-left:15px;break-inside:avoid}
+.pkg-c-details li{margin-bottom:2px}
+.pkg-c-note{font-size:10.5px;line-height:1.4;color:var(--mu);margin:0 0 6px;padding:6px 8px;background:rgba(15,23,42,.03);border-radius:6px;break-inside:avoid}
+.bk-veh-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 10px;padding:0;border:none;background:transparent}
+.bk-veh-summary[hidden]{display:none!important}
+.bk-veh-zip,.bk-veh-pill{border:1px solid var(--bbr);border-radius:8px;background:var(--bg3);padding:6px 10px;display:flex;align-items:center;gap:8px}
+.bk-veh-zip{min-width:72px}
+.bk-veh-pill{flex:1;min-width:0}
+.bk-veh-zip b,.bk-veh-pill b{font-size:12.5px;font-weight:700;color:var(--tx);display:block;line-height:1.2}
+.bk-veh-zip span,.bk-veh-pill span{font-size:9.5px;font-weight:600;color:var(--mu);display:block;letter-spacing:.02em}
+.bk-veh-pill img{width:36px;height:22px;object-fit:contain;flex-shrink:0}
+.bk-veh-edit{margin-left:auto;font-size:11px;font-weight:600;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 0;flex-shrink:0}
+#bs2.bk-pkg-dense .btitle{font-size:clamp(22px,4vw,32px);margin-bottom:4px}
+#bs2.bk-pkg-dense .bdesc{font-size:13px;margin-bottom:12px;max-width:520px}
+#bs2.bk-pkg-dense .beye{margin-bottom:4px}
+.bs2-addons-host{margin:4px 0 0}
+.bs2-addons-host #bs3-addons{display:block;margin-top:8px;padding-top:12px;border-top:1px solid var(--bbr)}
+#bs3-addons.bk-addons-compact .addon-header{display:none}
+#bs3-addons.bk-addons-compact .beye{font-size:10px;letter-spacing:.12em;margin-bottom:8px}
+.addon-grid--compact{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.addon-grid-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px;align-items:stretch}
+.addon-grid-cols--additional{max-width:100%}
+.addon-grid-cols--additional > .addon-row{max-width:min(100%,320px)}
+.addon-row{display:grid;grid-template-columns:18px 1fr auto;gap:6px 8px;align-items:start;text-align:left;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:var(--bg3);cursor:pointer;position:relative;user-select:none;transition:border-color .15s,background .15s;min-height:0}
+.addon-row:hover{border-color:var(--bbr)}
+.addon-row.sel{border-color:var(--blue);background:rgba(77,163,255,.06)}
+.addon-row .addon-check{position:static;width:16px;height:16px;margin-top:2px;border-radius:50%;border:2px solid rgba(255,255,255,.2);font-size:0;color:transparent;background:transparent;flex-shrink:0}
+.addon-row.sel .addon-check{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue);background:transparent;color:transparent}
+.addon-row .addon-name{font-size:13px;font-weight:600;margin:0;padding:0;line-height:1.25;color:var(--white)}
+.addon-row .addon-desc{font-size:11px;line-height:1.35;margin:2px 0 0;color:var(--mu);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.addon-row .addon-price{font-size:13px;font-weight:700;white-space:nowrap;padding-top:1px}
+.addon-row .addon-stepper{grid-column:2 / -1;justify-content:flex-start;margin-top:4px}
+.addon-section-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:10px 0 4px}
+.addon-additional{margin-top:6px;padding-top:8px;border-top:1px dashed var(--bbr)}
+.addon-all-wrap--compact .addon-all-inner{display:none;margin-top:6px}
+.addon-all-wrap--compact .addon-all-inner.open{display:grid}
+.addon-toggle-btn--link{display:inline-flex;width:auto;padding:6px 0;margin-top:4px;background:transparent;border:none;color:var(--blue);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.addon-toggle-btn--link:hover{background:transparent;text-decoration:underline}
+#bs3-addons.bk-addons-compact .vcart{display:none}
+#bs3-addons.bk-addons-compact .vcart.vcart--has-items{display:block;margin:8px 0 6px;padding:8px 10px}
+#bs3-addons.bk-addons-compact .btn-add-veh{width:auto;padding:6px 0;margin:4px 0 6px;border:none;border-radius:0;background:transparent;font-size:12.5px;font-weight:600;justify-content:flex-start}
+#bs3-addons.bk-addons-compact .btn-add-veh:hover{background:transparent;text-decoration:underline}
+.bs2-sticky{position:sticky;bottom:0;z-index:30;display:none;align-items:center;gap:10px;margin:8px -4px 0;padding:10px 12px;border-top:1px solid var(--bbr);background:rgba(255,255,255,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 -6px 20px rgba(15,23,42,.06)}
+.bs2-sticky.is-on{display:flex}
+.bs2-sticky-info{flex:1;min-width:0}
+.bs2-sticky-info strong{display:block;font-size:12.5px;font-weight:700;color:var(--ink,#0f172a);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bs2-sticky-info span{display:block;font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bs2-sticky-price{font-size:15px;font-weight:800;color:var(--ink,#0f172a);white-space:nowrap}
+.bs2-sticky .btn-n{flex:0 0 auto;width:auto;min-width:140px;padding:10px 16px;font-size:12px}
+#bs2.bk-pkg-dense .bs2-disclaimer{font-size:10.5px;line-height:1.4;margin:8px 0 6px;text-align:left}
+#bs2.bk-pkg-dense #bs2-btn-row .btn-n{display:none}
+@media(max-width:560px){
+  .pkg-c-details{columns:1}
+  .pkg-c-expand,.pkg-c-details{margin-left:12px}
+  .bk-veh-summary{flex-direction:column;align-items:stretch}
+  .bs2-sticky{flex-wrap:wrap;gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px))}
+  .bs2-sticky-info{flex:1 1 calc(100% - 90px)}
+  .bs2-sticky-price{margin-left:auto}
+  .bs2-sticky .btn-n{flex:1 1 100%;min-width:0;width:100%}
+}
+@media(prefers-reduced-motion:reduce){
+  .pkg-c,.addon-row,.bs2-sticky{transition:none}
+}
+
 .pkg{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:18px 16px 16px;cursor:pointer;position:relative;display:flex;flex-direction:column;transition:.2s}
 .pkg:hover{border-color:var(--bbr);transform:translateY(-3px)}
 .pkg.sel{border-color:var(--blue);background:rgba(77,163,255,.06)}
@@ -867,6 +954,7 @@ body.rv-overlay-lock{overflow:hidden}
 .aq-n{min-width:22px;text-align:center;font-weight:700;color:var(--white);font-size:15px}
 /* Inline add-ons inside the Vehicle step — revealed only after a vehicle is confirmed */
 #bs3-addons{display:none;margin-top:22px;padding-top:20px;border-top:1px solid var(--bbr);animation:addonReveal .25s ease}
+#vc.show ~ #bs3-addons-home #bs3-addons,
 #vc.show ~ #bs3-addons{display:block}
 @keyframes addonReveal{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .addon-popular-label{grid-column:1/-1;font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.1em;padding-bottom:8px;border-bottom:1px solid var(--bbr);margin-bottom:0}
@@ -962,6 +1050,7 @@ body.rv-overlay-lock{overflow:hidden}
 .confirm-vehicle-visual img{width:100%;height:100%;object-fit:contain;display:block}
 .oc-t{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
 .or{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;font-size:12.5px;border-bottom:1px solid rgba(255,255,255,.04)}
+.or[hidden]{display:none!important}
 .or:last-child{border-bottom:none}
 .ol{color:var(--mu)}
 .ov{color:var(--white);font-weight:500;text-align:right;max-width:58%;word-break:break-word}
@@ -1159,10 +1248,13 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 .vcart{background:var(--bg3);border:1px solid rgba(77,163,255,.2);border-radius:var(--r);padding:14px 16px;margin-bottom:14px}
 .vcart-title{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 .vcart-item{background:var(--bg2);border:1px solid rgba(255,255,255,.07);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;font-size:12.5px}
-.vcart-item-info{line-height:1.7;flex:1}
+.vcart-item-info{line-height:1.35;flex:1;min-width:0}
 .vcart-thumb{width:86px;height:62px;flex:0 0 86px;border-radius:8px;background:#020a16;overflow:hidden}
 .vcart-thumb img{width:100%;height:100%;object-fit:contain;display:block}
 .vcart-item-name{font-weight:700;color:var(--white)}
+.vcart-item-vehicle{color:var(--mu);font-size:12px;margin-top:1px}
+.vcart-item-addons{color:var(--mu);font-size:11px;margin-top:2px}
+.vcart-item-meta{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
 .vcart-item-price{font-weight:700;color:var(--blue);white-space:nowrap}
 .vcart-rm{background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:.2s}
 .vcart-rm:hover{color:var(--rd);background:var(--rddim)}
@@ -1611,6 +1703,43 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .booking-modal .pkg{background:var(--bg1);border-color:var(--line);box-shadow:var(--shadow-sm)}
 .booking-modal .pkg:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
 .booking-modal .pkg.sel{background:var(--bdim)}
+.booking-modal .pkg-c{background:#fff;border-color:var(--line);box-shadow:none}
+.booking-modal .pkg-c:hover{border-color:rgba(37,99,235,.3)}
+.booking-modal .pkg-c.sel{background:#f8fafc;border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.1)}
+.booking-modal .pkg-c-name,.booking-modal .pkg-c-price,.booking-modal .pkg-c-details b{color:var(--ink)}
+.booking-modal .pkg-c-tag,.booking-modal .pkg-c-chips,.booking-modal .pkg-c-dur,.booking-modal .pkg-c-details,.booking-modal .pkg-c-note{color:var(--ink-soft,#5b6578)}
+.booking-modal .pkg-c-radio{border-color:#c5cad6}
+.booking-modal .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
+.booking-modal .pkg-c-badge{background:var(--ink);color:#fff}
+.booking-modal .pkg-c-expand{color:var(--blue)}
+.booking-modal .pkg-c-details{border-top-color:var(--line)}
+.booking-modal .pkg-c-chips span::after{color:#c5cad6}
+.booking-modal .pkg-c-note{background:rgba(15,23,42,.03)}
+.booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0,#f3f5f8);border-color:var(--line)}
+.booking-modal .bk-veh-zip b,.booking-modal .bk-veh-pill b{color:var(--ink)}
+.booking-modal .bk-veh-zip span,.booking-modal .bk-veh-pill span{color:var(--mu)}
+.booking-modal .addon-row{background:#fff;border-color:var(--line);color:var(--ink);min-height:64px}
+.booking-modal .addon-row:hover{border-color:rgba(37,99,235,.28)}
+.booking-modal .addon-row.sel{background:#f1f5f9;border-color:var(--blue)}
+.booking-modal .addon-row .addon-name{color:var(--ink)}
+.booking-modal .addon-row .addon-desc{color:var(--ink-soft,#5b6578);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.booking-modal .addon-row .addon-price{color:var(--ink)}
+.booking-modal .addon-row .addon-check{border-color:#c5cad6}
+.booking-modal .addon-row.sel .addon-check{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
+.booking-modal .addon-grid-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px}
+.booking-modal .addon-grid-cols--additional > .addon-row{max-width:min(100%,320px)}
+.booking-modal .addon-all-wrap--compact .addon-all-inner.open{display:grid}
+.booking-modal .bs2-sticky{background:rgba(255,255,255,.97);border-top-color:var(--line)}
+.booking-modal .bs2-addons-host #bs3-addons{border-top-color:var(--line)}
+.booking-modal .addon-additional{border-top-color:var(--line)}
+.booking-modal .vcart{background:#f1f5f9;border-color:rgba(15,23,42,.08)}
+.booking-modal .vcart-title{color:#1e3a5f}
+.booking-modal .vcart-item{background:#fff;border-color:rgba(15,23,42,.06)}
+.booking-modal .vcart-item-name,.booking-modal .vcart-total{color:#0f172a}
+.booking-modal .vcart-item-vehicle,.booking-modal .vcart-item-addons,.booking-modal .vcart-empty{color:#475569}
+.booking-modal .vcart-item-price{color:#0f172a !important}
+.booking-modal .vcart-total{border-top-color:rgba(15,23,42,.08)}
+.booking-modal .vcart-rm{color:#64748b}
 .booking-modal .fi,.booking-modal .srch-in,.booking-modal .sel-s,.booking-modal .tchip,.booking-modal .addon,.booking-modal .card-gate,.booking-modal .terms-panel,.booking-modal .unit-box,.booking-modal .suc-card,.booking-modal .pay-box{background:var(--bg0);border-color:var(--line-strong);color:var(--ink)}
 .booking-modal .srch-dd{background:var(--bg1);box-shadow:var(--shadow-md);border-color:var(--line-strong)}
 .booking-modal .srch-item{border-bottom-color:var(--line)}
@@ -2652,16 +2781,26 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
       <!-- STEP 2: PACKAGES -->
       <div class="bsec" id="bs2">
-        <div class="beye">Step 02 — Package</div>
-        <div class="btitle">CHOOSE YOUR<br>PACKAGE</div>
-        <div class="bdesc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
+        <div class="beye" id="bs2-eye">Step 02 — Package</div>
+        <div class="btitle" id="bs2-title">CHOOSE YOUR<br>PACKAGE</div>
+        <div class="bdesc" id="bs2-desc">Review what's included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.</div>
         <div class="bdesc" id="bs2-rv-note" style="display:none;font-size:12px;color:var(--mu);margin:-8px 0 14px">Your exact service price is calculated on the Vehicle step after RV type and length are entered.</div>
+        <div id="bs2-vehicle-summary" class="bk-veh-summary" hidden></div>
         <div class="pkg-grid" id="pkg-grid"></div>
         <div class="pkg-detail-panel" id="pkg-detail-panel" hidden aria-live="polite"></div>
-        <p style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
-        <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(1)">← Back</button>
+        <div id="bs2-addons-host" class="bs2-addons-host" hidden></div>
+        <p class="bs2-disclaimer" id="bs2-disclaimer" style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
+        <div class="btn-row" id="bs2-btn-row">
+          <button type="button" class="btn-b" id="back2" onclick="bkBackFromPackage()">← Back</button>
           <button type="button" class="btn-n" id="next2" disabled onclick="bkContinueFromPackage()">Continue to vehicle →</button>
+        </div>
+        <div id="bs2-sticky" class="bs2-sticky" hidden>
+          <div class="bs2-sticky-info">
+            <strong id="bs2-sticky-pkg">—</strong>
+            <span id="bs2-sticky-car">—</span>
+          </div>
+          <div class="bs2-sticky-price" id="bs2-sticky-price">$0</div>
+          <button type="button" class="btn-n" id="bs2-sticky-next" disabled onclick="bkContinueFromPackage()">Continue to Info →</button>
         </div>
       </div>
 
@@ -2843,6 +2982,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         </div>
 
         <!-- INLINE ADD-ONS — revealed once a vehicle/length is confirmed (#vc.show) -->
+        <div id="bs3-addons-home">
         <div id="bs3-addons">
           <div class="beye" style="margin-top:0">Enhance your service</div>
           <div class="addon-header">
@@ -2862,9 +3002,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
           <button type="button" class="btn-add-veh" onclick="addCurrentVehicleToCart()">＋ Add Another Vehicle</button>
         </div>
+        </div>
 
         <div class="btn-row">
-          <button type="button" class="btn-b" onclick="bkGoTo(2)">← Back</button>
+          <button type="button" class="btn-b" id="back3" onclick="bkBackFromVehicle()">← Back</button>
           <button type="button" class="btn-n" id="next3" disabled onclick="addCurrentVehicleAndContinue()">Continue to Info →</button>
         </div>
       </div>
@@ -3076,7 +3217,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="bk-charged-label">Charged today</span>
               <span class="bk-charged-amt">$0.00</span>
             </div>
-            <p class="bk-charged-copy">No payment is collected when you submit this booking request. Card at service and cash need no card today. Pay online later (recommended) asks you to save a card securely first — still nothing charged today.</p>
+            <p class="bk-charged-copy">No payment is collected when you submit this booking request. Card at service and cash need no card today. Pay online later asks you to save a card securely first — still nothing charged today.</p>
           </div>
           <div class="oc">
             <div class="oc-t">Appointment</div>
@@ -3093,14 +3234,14 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="oc-t">Preferred payment method</div>
             <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
               <div class="bk-pay-pref-row">
-                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Pay online later</span><span class="bk-pay-rec-badge">Recommended</span></button>
+                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Pay online later</span></button>
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
-              <p class="bk-pay-pref-help" id="bk-pay-pref-copy">Pay online later is our recommended payment method. Choose it to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.</p>
+              <p class="bk-pay-pref-help" id="bk-pay-pref-copy">Choose Pay online later to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.</p>
               <p class="bk-pay-pref-help" id="bk-pay-pref-err" hidden role="alert"></p>
               <div class="bk-online-card-wrap" id="bk-online-card-wrap" hidden>
-                <p class="bk-online-rec-msg" id="bk-online-rec-msg">Pay online later is the recommended payment method. Save your card securely below to continue — nothing is charged today. Final payment is requested online after service when approved.</p>
+                <p class="bk-online-rec-msg" id="bk-online-rec-msg">Pay online later requires saving a card securely below — nothing is charged today. Final payment is requested online after service when approved.</p>
                 <div id="cof-wrap">
                   <div class="fl bk-online-card-title">Card required for Pay online later</div>
                   <div class="bk-online-card-body">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
@@ -3124,7 +3265,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
                 </div>
                 <div id="stripe-status" class="pay-status" style="display:none"></div>
               </div>
-              <div class="or" hidden><span class="ol">Preferred payment</span><span class="ov" id="c-pay-method">Select a preference</span></div>
+              <span id="c-pay-method" hidden>Select a preference</span>
             </div>
           </div>
           <div class="oc">
@@ -3139,10 +3280,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="pay-box">
           <div class="pay-t">What happens next · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
           <ul style="list-style:none;padding:0;margin:0 0 10px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay online later (recommended)</strong> — save a card securely first; nothing is charged today.</li>
+            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay online later</strong> — save a card securely first; nothing is charged today.</li>
             <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card or cash at service</strong> — no card needed to submit; pay when we finish the job.</li>
           </ul>
-          <div class="pay-badge">✓ Request first · Recommended: Pay online · No charge today</div>
+          <div class="pay-badge">✓ Request first · No charge today</div>
         </div>
         <div class="btn-row">
           <button type="button" class="btn-b" onclick="bkGoTo(4)">← Back</button>
@@ -3585,36 +3726,36 @@ let PRICING = {
       truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:180, maint:245, interior:270, full:315, refresh:455, premium:605},
     },
     packages:[
-      {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~2.5–3h', popular:true,  scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned','Engine Bay Light Cleaning & Wipe-Down'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        miss:['Machine polish','Signature Restoration','Premium long-term sealant']},
+      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
+        int:CAR_INTERIOR_SERVICE_ITEMS,
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        miss:[]},
+      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
         int:[],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
-        miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
-      {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
-        int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
-        miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down','Final quality inspection'],
+        miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~1.5–2h',            popular:false, scope:'int',
         ext:[],
         int:CAR_INTERIOR_SERVICE_ITEMS,
         feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~2.5–3h', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
-        int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'].concat(CAR_INTERIOR_SERVICE_ITEMS),
-        miss:['Machine polish','Signature Restoration','Premium long-term sealant']},
-      {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
+      {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
+        int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
+      {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
         int:[],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
-        miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
-      {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
-        int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'].concat(CAR_INTERIOR_SERVICE_ITEMS),
-        miss:[]}
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
@@ -4248,9 +4389,10 @@ const VEHICLE_VISUALS = {
   luxury_crossover:{ img:'assets/vehicles/studio/luxury-crossover.webp', alt:'Luxury crossover' },
   offroad:       { img:'assets/vehicles/studio/jeep-wrangler.webp',  alt:'Off-road SUV' },
   jeep_wrangler: { img:'assets/vehicles/studio/jeep-wrangler.webp',  alt:'Jeep Wrangler-style off-road SUV' },
-  luxurysuv:     { img:'assets/vehicles/studio/luxury-crossover.webp', alt:'Luxury performance SUV' },
+  luxurysuv:     { img:'assets/vehicles/studio/luxury-suv.webp', alt:'Luxury performance SUV' },
   luxurysedan:   { img:'assets/vehicles/studio/executive-sedan.webp', alt:'Luxury sedan' },
-  'suv-3row':    { img:'assets/vehicles/studio/family-suv-3row.webp', alt:'Three-row SUV' },
+  'suv-3row':    { img:'assets/vehicles/studio/suv-3row.webp', alt:'Full-size three-row SUV' },
+  fullsize_suv:  { img:'assets/vehicles/studio/suv-3row.webp', alt:'Full-size SUV' },
   suv3:          { img:'assets/vehicles/studio/family-suv-3row.webp', alt:'Three-row SUV' },
   family_suv3:   { img:'assets/vehicles/studio/family-suv-3row.webp', alt:'Three-row family SUV' },
   compact_van:   { img:'assets/vehicles/studio/compact-van.webp',    alt:'Compact van' },
@@ -4325,7 +4467,7 @@ const TIER_VISUAL_KEYS = {
 const PRECISION_VISUAL_KEYS = {
   minivan:1, family_minivan:1, compact:1, compact_sedan:1, midsize:1, executive_sedan:1, sedan:1,
   coupe:1, sport_coupe:1, convertible:1, wagon:1, premium_wagon:1, offroad:1, jeep_wrangler:1, pickup:1, midsize_pickup:1,
-  van:1, compact_van:1, cargo_van:1, passenger_van:1, suv:1, 'suv-3row':1, family_suv3:1, truck:1,
+  van:1, compact_van:1, cargo_van:1, passenger_van:1, suv:1, 'suv-3row':1, family_suv3:1, fullsize_suv:1, truck:1,
   compact_crossover:1, midsize_crossover:1, luxury_crossover:1,
   supercar:1, luxurysuv:1, luxurysedan:1,
   cruiser:1, touring_bagger:1, trike:1, sportbike:1, adventure:1, dirtbike:1, scooter:1, utv:1, utv_crew:1, atv:1, jetski:1, motorcycle:1, golfcart:1, equipment:1,
@@ -4413,7 +4555,7 @@ const MODEL_MAP = [
   // Jeep crossovers (distinct from Wrangler)
   ['renegade','compact_crossover'],['compass','compact_crossover'],['cherokee','midsize_crossover'],
   ['grand cherokee l','family_suv3'],['grand cherokee','luxury_crossover'],
-  ['grand wagoneer','family_suv3'],['wagoneer','family_suv3'],
+  ['grand wagoneer','fullsize_suv'],['wagoneer','fullsize_suv'],
   // Acura exacts
   ['ilx','compact_sedan'],['integra','sport_coupe'],['tlx','executive_sedan'],['rlx','executive_sedan'],
   ['rdx','luxury_crossover'],['zdx','luxury_crossover'],['mdx','family_suv3'],['nsx','supercar'],
@@ -4422,10 +4564,10 @@ const MODEL_MAP = [
   ['xc40','compact_crossover'],['xc60','luxury_crossover'],['xc90','family_suv3'],
   ['ex30','compact_crossover'],['ex90','family_suv3'],['c40','luxury_crossover'],
   // 3-row full-size SUVs
-  ['tahoe','family_suv3'],['suburban','family_suv3'],['escalade','family_suv3'],
-  ['expedition','family_suv3'],['navigator','family_suv3'],['sequoia','family_suv3'],
-  ['armada','family_suv3'],['qx80','family_suv3'],['qx60','family_suv3'],
-  ['gx','offroad'],['lx','family_suv3'],
+  ['tahoe','fullsize_suv'],['suburban','fullsize_suv'],['escalade','fullsize_suv'],
+  ['expedition','fullsize_suv'],['navigator','fullsize_suv'],['sequoia','fullsize_suv'],
+  ['armada','fullsize_suv'],['qx80','fullsize_suv'],['qx60','family_suv3'],
+  ['gx','offroad'],['lx','fullsize_suv'],
   ['pathfinder','family_suv3'],
   ['traverse','family_suv3'],['enclave','family_suv3'],['acadia','family_suv3'],
   ['pilot','family_suv3'],['palisade','family_suv3'],['telluride','family_suv3'],
@@ -4433,7 +4575,7 @@ const MODEL_MAP = [
   ['atlas','family_suv3'],['ascent','family_suv3'],['staria','family_minivan'],
   // compact / classic sedans
   ['dart','compact_sedan'],
-  ['infiniti qx','family_suv3'],['model x','family_suv3'],
+  ['infiniti qx','family_suv3'],['model x','fullsize_suv'],
   ['durango','family_suv3'],
   // 2-row crossovers
   ['cr-v','midsize_crossover'],['rav4','midsize_crossover'],['rogue','midsize_crossover'],['tucson','midsize_crossover'],['sportage','midsize_crossover'],
@@ -4626,7 +4768,13 @@ function getVehicleVisualKey(){
   // keep distinct silhouettes even when MODEL_MAP only knows a generic "van".
   if(ST.tierKey && TIER_VISUAL_KEYS[ST.tierKey]) return TIER_VISUAL_KEYS[ST.tierKey];
   const mapped=modelMapVisual(lbl);
-  return mapped || 'sedan';
+  if(mapped) return mapped;
+  // Never paint a sedan silhouette for SUV-priced or SUV-labeled vehicles.
+  if(ST.tierKey==='suv3') return 'family_suv3';
+  if(ST.tierKey==='suv2') return 'midsize_crossover';
+  if(/\b(escalade|tahoe|suburban|yukon|navigator|expedition|sequoia|armada|wagoneer|qx80|land cruiser)\b/.test(lbl)) return 'fullsize_suv';
+  if(/\b(suv|crossover|4x4|4wd)\b/.test(lbl)) return 'midsize_crossover';
+  return 'sedan';
 }
 function setVehicleVisual(){
   const v=VEHICLE_VISUALS[getVehicleVisualKey()]||VEHICLE_VISUALS.sedan;
@@ -4898,24 +5046,30 @@ function bkGoTo(n, opts = {}) {
   document.querySelectorAll('.bsec').forEach(s => {
     s.classList.toggle('on', panels.includes(s.id));
   });
+  syncBookingProgressLabels();
+  const tab = progressTabForPanel(n);
   document.querySelectorAll('.bpt').forEach((t, i) => {
     t.classList.remove('active', 'done');
-    if (i + 1 < n) t.classList.add('done');
-    else if (i + 1 === n) t.classList.add('active');
+    if (i + 1 < tab) t.classList.add('done');
+    else if (i + 1 === tab) t.classList.add('active');
   });
-  const activeTab = document.getElementById('bpt' + n);
+  const activeTab = document.getElementById('bpt' + tab);
   if (activeTab && activeTab.scrollIntoView) activeTab.scrollIntoView({ inline: 'center', block: 'nearest' });
   if (n === 2) {
     const n2 = document.getElementById('next2');
     if (n2) n2.disabled = !ST.pkg;
+    syncPackageStepChrome();
     const grid = document.getElementById('pkg-grid');
     if (grid && ST.pkgId) {
-      grid.querySelectorAll('.pkg').forEach(c => c.classList.remove('sel'));
+      grid.querySelectorAll('.pkg, .pkg-c').forEach(c => c.classList.remove('sel'));
       const card = document.getElementById('pk-' + ST.pkgId);
       if (card) card.classList.add('sel');
     }
   }
-  if (n === 3) renderVehicleCart();
+  if (n === 3) {
+    syncVehicleStepChrome();
+    renderVehicleCart();
+  }
   if (n === 4) fillStrip5();
   if (n === 5) {
     ensureStep5Defaults();
@@ -4942,14 +5096,272 @@ function bkGoTo(n, opts = {}) {
   if (window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 
+function carsVehicleFirstFlow() {
+  return ST.cat === 'cars';
+}
+
+function progressTabForPanel(n) {
+  if (!carsVehicleFirstFlow()) return n;
+  if (n === 2) return 3;
+  if (n === 3) return 2;
+  return n;
+}
+
+function syncBookingProgressLabels() {
+  const t2 = document.querySelector('#bpt2 span');
+  const t3 = document.querySelector('#bpt3 span');
+  if (carsVehicleFirstFlow()) {
+    if (t2) t2.textContent = 'Vehicle';
+    if (t3) t3.textContent = 'Package';
+  } else {
+    if (t2) t2.textContent = 'Package';
+    if (t3) t3.textContent = 'Vehicle';
+  }
+}
+
+function syncPackageStepChrome() {
+  const eye = document.getElementById('bs2-eye');
+  const title = document.getElementById('bs2-title');
+  const desc = document.getElementById('bs2-desc');
+  const next2 = document.getElementById('next2');
+  const bs2 = document.getElementById('bs2');
+  const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey;
+  if (bs2) bs2.classList.toggle('bk-pkg-dense', carsReady);
+  if (carsReady) {
+    if (eye) eye.textContent = 'Step 03 — Package';
+    if (title) title.innerHTML = 'Pick Your Package';
+    if (desc) {
+      desc.textContent = ST.pkg
+        ? 'Add extras if you like — then continue.'
+        : 'Compare packages for your vehicle. Expand a row only when you need the full list.';
+    }
+    if (next2) next2.textContent = ST.pkg ? 'Continue to Info →' : 'Select a package';
+  } else {
+    if (eye) eye.textContent = 'Step 02 — Package';
+    if (title) title.innerHTML = 'CHOOSE YOUR<br>PACKAGE';
+    if (desc) desc.textContent = 'Review what\'s included in your package before entering vehicle details. Price updates by vehicle size or exact length for boats, RVs and travel trailers.';
+    if (next2) next2.textContent = 'Continue to vehicle →';
+  }
+  renderBs2VehicleSummary();
+  syncCarsAddonsPlacement();
+  syncBs2StickyBar();
+}
+
+/**
+ * Canonical CURRENT configuration for Step 03 surfaces (top summary, sticky).
+ * Always derived from live ST — never from ST.vehicles committed snapshots.
+ */
+function getActiveBookingConfig() {
+  const meta = (ST.pkgId && typeof PKG_COMPACT_META !== 'undefined' && PKG_COMPACT_META[ST.pkgId]) || null;
+  const pkgName = (meta && meta.shortName) || (ST.pkg && ST.pkg.name) || '';
+  const vehicleLine = window.CD1BookingVehicleSummary
+    ? CD1BookingVehicleSummary.formatAddonHeaderSummary(ST)
+    : (ST.vehicleLabel || '');
+  const currentService = (ST.basePrice || 0) + (ST.addonTotal || 0);
+  return {
+    pkgId: ST.pkgId || '',
+    pkgName,
+    vehicleLabel: ST.vehicleLabel || '',
+    vehicleLine: vehicleLine || '',
+    basePrice: ST.basePrice || 0,
+    addonTotal: ST.addonTotal || 0,
+    currentService,
+    hasPackage: !!ST.pkg,
+    hasVehicle: !!(ST.vehicleLabel && ST.tierKey),
+  };
+}
+
+/** Committed cart rows excluding the slot currently being edited/drafted. */
+function getCommittedCartVehicles() {
+  const list = Array.isArray(ST.vehicles) ? ST.vehicles : [];
+  if (ST._startingAdditionalVehicle) return list.slice();
+  const editIdx = Number.isInteger(ST._editingVehicleIndex) ? ST._editingVehicleIndex : -1;
+  if (editIdx >= 0 && editIdx < list.length) {
+    return list.filter((_, i) => i !== editIdx);
+  }
+  // Single-vehicle resume without an edit index: the only row is the live draft — not "committed others".
+  if (list.length === 1 && ST.pkg && ST.vehicleLabel && !ST._startingAdditionalVehicle) {
+    return [];
+  }
+  return list.slice();
+}
+
+/**
+ * Keep the cart slot under edit aligned with live ST so sticky/cart never diverge
+ * for the same active vehicle. Does not invent duplicate state.
+ */
+function syncActiveConfigIntoEditingCartSlot() {
+  if (ST._startingAdditionalVehicle) return;
+  const item = typeof buildCurrentVehicleItem === 'function' ? buildCurrentVehicleItem() : null;
+  if (!item) return;
+  const editIdx = Number.isInteger(ST._editingVehicleIndex) ? ST._editingVehicleIndex : -1;
+  if (editIdx >= 0 && editIdx < ST.vehicles.length) {
+    ST.vehicles[editIdx] = item;
+    return;
+  }
+  if (ST.vehicles.length === 1) {
+    ST.vehicles[0] = item;
+    ST._editingVehicleIndex = 0;
+  }
+}
+
+/** Sticky / continue total: other committed vehicles + current config + travel fee. */
+function bookingServiceTotalForSticky() {
+  const fee = typeof getTravelFeeAmount === 'function' ? getTravelFeeAmount() : 0;
+  const active = getActiveBookingConfig();
+  const others = getCommittedCartVehicles();
+  const othersSum = others.reduce((s, v) => s + (Number(v.subtotal) || 0), 0);
+  return othersSum + active.currentService + fee;
+}
+
+function syncBs2StickyBar() {
+  const sticky = document.getElementById('bs2-sticky');
+  const stickyNext = document.getElementById('bs2-sticky-next');
+  const pkgEl = document.getElementById('bs2-sticky-pkg');
+  const carEl = document.getElementById('bs2-sticky-car');
+  const priceEl = document.getElementById('bs2-sticky-price');
+  const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey && currentBkStep === 2;
+  if (!sticky) return;
+  if (!carsReady) {
+    sticky.hidden = true;
+    sticky.classList.remove('is-on');
+    if (pkgEl) pkgEl.textContent = '—';
+    if (carEl) carEl.textContent = '—';
+    if (priceEl) priceEl.textContent = '—';
+    if (stickyNext) stickyNext.disabled = true;
+    return;
+  }
+  sticky.hidden = false;
+  sticky.classList.add('is-on');
+  const active = getActiveBookingConfig();
+  const others = getCommittedCartVehicles();
+  const pkgName = active.pkgName || 'Select a package';
+  let carLine = active.vehicleLine || '—';
+  if (others.length) {
+    const n = others.length + (active.hasPackage ? 1 : 0);
+    carLine = (active.vehicleLine || active.vehicleLabel || 'Configuring') +
+      (n > 1 ? ` · ${n} vehicles in booking` : '');
+  }
+  if (pkgEl) pkgEl.textContent = pkgName;
+  if (carEl) carEl.textContent = carLine;
+  const total = bookingServiceTotalForSticky();
+  if (priceEl) {
+    priceEl.textContent = active.hasPackage && total > 0
+      ? (typeof bkMoney === 'function' ? bkMoney(total) : ('$' + total))
+      : '—';
+  }
+  if (stickyNext) stickyNext.disabled = !active.hasPackage;
+}
+
+function renderBs2VehicleSummary() {
+  const el = document.getElementById('bs2-vehicle-summary');
+  if (!el) return;
+  const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel;
+  if (!carsReady) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  const zipEl = document.getElementById('bk-zip');
+  const zip = zipEl ? String(zipEl.value || '').replace(/\D/g, '').slice(0, 5) : '';
+  const visualKey = typeof getVehicleVisualKey === 'function' ? getVehicleVisualKey() : '';
+  const visual = (VEHICLE_VISUALS[visualKey] || CATEGORY_VISUALS.cars || {});
+  const tierLbl = (window.CD1BookingVehicleSummary
+    ? CD1BookingVehicleSummary.categoryTierLabel(ST)
+    : (ST.displayLabel || (ST.tier && ST.tier.label) || '')) || 'Vehicle';
+  el.hidden = false;
+  el.innerHTML =
+    `<div class="bk-veh-zip"><div><span>ZIP</span><b>${zip || '—'}</b></div></div>` +
+    `<div class="bk-veh-pill">` +
+      (visual.img ? `<img src="${visual.img}" alt="${visual.alt || ''}" width="88" height="56" loading="lazy" decoding="async">` : '') +
+      `<div><span>${tierLbl}</span><b>${ST.vehicleLabel}</b></div>` +
+      `<button type="button" class="bk-veh-edit" onclick="bkBackFromPackage()">Edit</button>` +
+    `</div>`;
+}
+
+/** Cars vehicle-first: keep add-ons on the package step so selecting a pack never jumps back to Vehicle. */
+function syncCarsAddonsPlacement() {
+  const addons = document.getElementById('bs3-addons');
+  const home = document.getElementById('bs3-addons-home');
+  const host = document.getElementById('bs2-addons-host');
+  if (!addons || !home || !host) return;
+  const onPackage = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey && !!ST.pkg && currentBkStep === 2;
+  if (onPackage) {
+    if (addons.parentElement !== host) host.appendChild(addons);
+    host.hidden = false;
+    addons.style.display = 'block';
+    addons.classList.add('bk-addons-compact');
+  } else {
+    if (addons.parentElement !== home) home.appendChild(addons);
+    host.hidden = true;
+    addons.classList.remove('bk-addons-compact');
+    if (carsVehicleFirstFlow() && !ST.pkg) addons.style.display = 'none';
+    else addons.style.display = '';
+  }
+}
+
+function syncVehicleStepChrome() {
+  const next3 = document.getElementById('next3');
+  const addons = document.getElementById('bs3-addons');
+  const title = document.querySelector('#bs3 .btitle');
+  const eye = document.querySelector('#bs3 .beye');
+  const desc = document.getElementById('bs3-desc');
+  const carsPendingPkg = carsVehicleFirstFlow() && !ST.pkg;
+  if (carsPendingPkg) {
+    if (eye) eye.textContent = 'Step 02 — Vehicle';
+    if (title) title.textContent = 'YOUR VEHICLE';
+    if (desc) desc.textContent = 'Enter your vehicle so we can lock size-based pricing, then pick a package.';
+    if (next3) next3.textContent = 'Continue to packages →';
+    if (addons) addons.style.display = 'none';
+  } else {
+    if (eye) eye.textContent = 'Step 03 — Vehicle';
+    if (title) title.textContent = 'YOUR VEHICLE';
+    if (desc) {
+      desc.textContent = 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.';
+    }
+    if (next3) next3.textContent = 'Continue to Info →';
+    if (addons) addons.style.display = '';
+  }
+  syncCarsAddonsPlacement();
+}
+
 function bkContinueFromPackage() {
   if (!ST.pkg) {
     if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(2, 'package_required');
     alert('Please select a package to continue.');
     return;
   }
+  // Cars: vehicle already locked — commit + Info (add-ons stay on this package step).
+  if (carsVehicleFirstFlow() && ST.vehicleLabel && ST.tierKey) {
+    setBasePrice();
+    const item = commitCurrentVehicleToCart();
+    if (!item && !ST.vehicles.length) {
+      alert('Please configure at least one vehicle.');
+      return;
+    }
+    renderVehicleCart();
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
+    bkGoTo(4);
+    return;
+  }
   if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(2);
   bkGoTo(3);
+}
+
+function bkBackFromPackage() {
+  if (carsVehicleFirstFlow() && ST.vehicleLabel) {
+    bkGoTo(3);
+    return;
+  }
+  bkGoTo(1);
+}
+
+function bkBackFromVehicle() {
+  if (carsVehicleFirstFlow() && !ST.pkg) {
+    bkGoTo(1);
+    return;
+  }
+  bkGoTo(2);
 }
 
 function bkContinueFromContact() {
@@ -5048,11 +5460,20 @@ function selectCategory(cat){
   renderTierChips(cat);
   renderVehicleCart();
   updateTotal();
-  bkGoTo(2);
+  syncBookingProgressLabels();
   const intentId=ST._prefillPkgId || ST._packageIntent || '';
   const pid=resolvePackageIntentForCategory(cat, intentId);
   ST._prefillPkgId='';
   const goVehicle = ST._startStep === 3 || ST._startStep === 'vehicle';
+  const forcePackage = ST._startStep === 2 || ST._startStep === 'package';
+  const carsDefaultVehicleFirst = cat==='cars' && !pid && !forcePackage;
+  if(carsDefaultVehicleFirst && !goVehicle){
+    syncVehicleStepChrome();
+    bkGoTo(3);
+  } else {
+    syncPackageStepChrome();
+    bkGoTo(2);
+  }
   if(pid){
     ST._startStep = null;
     requestAnimationFrame(()=>{
@@ -5064,7 +5485,7 @@ function selectCategory(cat){
       }
       if(goVehicle && ST.pkg) bkGoTo(3);
     });
-  } else if(ST._startStep === 2 || ST._startStep === 'package'){
+  } else if(forcePackage){
     ST._startStep = null;
     bkGoTo(2);
   } else {
@@ -5104,66 +5525,177 @@ function bindPowersportsPackageCopy(){
 }
 
 // ── STEP 2: PACKAGES ──────────────────────────────────────────────────────────
+const PKG_COMPACT_META = {
+  full: {
+    shortName: 'Premium Full Detail',
+    line: 'Complete inside/out refresh',
+    chips: ['Shampoo', 'Clay', 'Protection', 'Engine Bay'],
+  },
+  premium: {
+    shortName: 'Signature Restoration',
+    line: 'Correction + deep restoration',
+    chips: ['Paint Correction', 'Sealant', 'Rain-X', 'Engine Bay'],
+  },
+  refresh: {
+    shortName: 'Exterior Refresh & Protect',
+    line: 'Exterior paint enhancement',
+    chips: ['Clay', 'Polish', 'Sealant', 'Engine Bay'],
+  },
+  interior: {
+    shortName: 'Interior Detail',
+    line: 'Deep clean cabin',
+    chips: ['Shampoo', 'Condition', 'UV'],
+  },
+  maint: {
+    shortName: 'Maintenance Detail',
+    line: 'Keep-clean wash + light interior',
+    chips: ['Wash', 'Clay', 'Quick interior'],
+  },
+  wash: {
+    shortName: 'Exterior Hand Wash',
+    line: 'Basic exterior service',
+    chips: ['Wash', 'Wheels', 'Glass'],
+  },
+};
+const ENGINE_BAY_DETAIL_NOTE = 'Surface dust, accessible components and surrounding areas cleaned and wiped. Heavy grease, oil buildup or restoration may require an additional service.';
+
+function formatPkgFeatureLabel(f){
+  if(!f) return '';
+  if(/engine bay/i.test(f)) return 'Engine Bay Light Cleaning & Wipe-Down';
+  return f;
+}
+
+function renderPkgCompactDetails(p){
+  const hasEngine = [].concat(p.ext||[],p.feats||[]).some(f=>/engine bay/i.test(f||''));
+  const extList=(p.ext||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join('');
+  const intList=(p.int||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join('');
+  const featList=(!p.ext&&!p.int&&p.feats)?(p.feats||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
+  const note = hasEngine ? `<p class="pkg-c-note">${ENGINE_BAY_DETAIL_NOTE}</p>` : '';
+  if(extList||intList){
+    return `${intList?`<div><b>Interior</b><ul>${intList}</ul></div>`:''}${extList?`<div><b>Exterior</b><ul>${extList}</ul>${note}</div>`:note}`;
+  }
+  if(featList) return `<div><b>Includes</b><ul>${featList}</ul>${note}</div>`;
+  return '';
+}
+
 function renderPackages(cat){
   const d=PRICING[cat];
   const grid=document.getElementById('pkg-grid');
-  const pkgKey = cat==='fleet'?'essential':'full';
+  if(!grid || !d) return;
   const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
   const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;
-  grid.innerHTML=packages.map(p=>{
-    let startPrice;
-    if(cat==='fleet' && p.id==='custom'){
-      startPrice = 0;
-    }else if((cat==='boats'||cat==='rvs') && LENGTH_PRICING[cat]?.packages[p.id]){
-      const rule = LENGTH_PRICING[cat].packages[p.id];
-      if(cat==='rvs'){
-        startPrice = null;
+  const useCompact = cat==='cars';
+  grid.classList.toggle('pkg-grid--compact', useCompact);
+
+  if(useCompact){
+    grid.innerHTML=packages.map(p=>{
+      const meta=PKG_COMPACT_META[p.id]||{shortName:p.name,line:p.tag,chips:[]};
+      let priceLabel='';
+      if(ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id]!=null){
+        const n=applyRichPrice(d.tiers[ST.tierKey][p.id])+getTravelFeeAmount();
+        priceLabel='$'+n;
       }else{
-        startPrice = applyRichPrice(rule.min);
+        const sampleTier=Object.values(d.tiers)[0];
+        const n=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior)+getTravelFeeAmount();
+        priceLabel='From $'+n;
       }
-    }else if(cat==='powersports'){
-      startPrice=applyRichPrice(powersportsPublicFromPriceForPackage(p.id));
-    }else{
-      const sampleTier=Object.values(d.tiers)[0];
-      startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
-    }
-    if(p.id!=='custom' && startPrice != null) startPrice += getTravelFeeAmount();
-    const rvRate = (cat==='rvs' && LENGTH_PRICING.rvs?.packages[p.id]) ? LENGTH_PRICING.rvs.packages[p.id] : null;
-    const pkgFrom = p.id==='custom'
-      ? 'quote required for mixed, large, or multi-location fleets'
-      : (rvRate
-        ? 'Price calculated from your vehicle details.'
-        : (cat==='powersports' ? 'Price set by vehicle type' : (p.note||'price set by vehicle size/type')));
-    const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
-    return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
-      ${p.popular?'<div class="pop-b">Most Popular</div>':''}
-      <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
-      <div class="pkg-name">${p.name}</div>
-      <div class="pkg-tag">${p.tag}</div>
-      <div class="pkg-price" aria-hidden="true"></div>
-      <div class="pkg-from">${pkgFrom}</div>
-      <div class="pkg-time">⏱ ${p.dur}</div>
-      <div class="pkg-div"></div>
-      <ul class="pkg-feats">
-        ${(p.ext||p.int)
-          ? `${(p.ext&&p.ext.length)?`<li class="grp">🚗 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
-            +`${(p.int&&p.int.length)?`<li class="grp">💺 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
-            +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
-          : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
-      </ul>
-      <button type="button" class="pkg-btn" onclick="event.stopPropagation();selectPkg('${p.id}')">Select Package</button>
-    </div>`;
-  }).join('');
+      const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
+      const details=renderPkgCompactDetails(p);
+      return `<div class="pkg-c${p.popular?' pkg-c--featured':''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
+        <div class="pkg-c-row">
+          <div class="pkg-c-radio" aria-hidden="true"></div>
+          <div>
+            <p class="pkg-c-name">${meta.shortName||p.name}${p.popular?'<span class="pkg-c-badge">Most booked</span>':''}</p>
+            <p class="pkg-c-tag">${meta.line||p.tag||''}</p>
+            ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
+          </div>
+          <div class="pkg-c-meta">
+            <span class="pkg-c-price">${priceLabel}</span>
+            <span class="pkg-c-dur">${(p.dur||'').replace(/^~/,'')}</span>
+          </div>
+        </div>
+        ${details?`<button type="button" class="pkg-c-expand" aria-expanded="false" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>View everything included</span><span data-expand-chev aria-hidden="true">→</span></button>
+        <div class="pkg-c-details" id="pk-details-${p.id}">${details}</div>`:''}
+      </div>`;
+    }).join('');
+  }else{
+    grid.innerHTML=packages.map(p=>{
+      let startPrice;
+      if(cat==='fleet' && p.id==='custom'){
+        startPrice = 0;
+      }else if((cat==='boats'||cat==='rvs') && LENGTH_PRICING[cat]?.packages[p.id]){
+        const rule = LENGTH_PRICING[cat].packages[p.id];
+        if(cat==='rvs'){
+          startPrice = null;
+        }else{
+          startPrice = applyRichPrice(rule.min);
+        }
+      }else if(cat==='powersports'){
+        startPrice=applyRichPrice(powersportsPublicFromPriceForPackage(p.id));
+      }else{
+        const sampleTier=Object.values(d.tiers)[0];
+        startPrice=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior);
+      }
+      if(p.id!=='custom' && startPrice != null) startPrice += getTravelFeeAmount();
+      const rvRate = (cat==='rvs' && LENGTH_PRICING.rvs?.packages[p.id]) ? LENGTH_PRICING.rvs.packages[p.id] : null;
+      const pkgFrom = p.id==='custom'
+        ? 'quote required for mixed, large, or multi-location fleets'
+        : (rvRate
+          ? 'Price calculated from your vehicle details.'
+          : (cat==='powersports' ? 'Price set by vehicle type' : (p.note||'price set by vehicle size/type')));
+      const packVisual=(typeof icon3dPack==='function'&&icon3dPack(p.id, cat))||categoryVisual;
+      return `<div class="pkg${p.popular?' pop':''}" id="pk-${p.id}" onclick="selectPkg('${p.id}')">
+        ${p.popular?'<div class="pop-b">Most Popular</div>':''}
+        <div class="pkg-visual pkg-visual--3d"><img src="${packVisual.img}" alt="${packVisual.alt}" width="256" height="256" loading="lazy" decoding="async"></div>
+        <div class="pkg-name">${p.name}</div>
+        <div class="pkg-tag">${p.tag}</div>
+        <div class="pkg-price" aria-hidden="true"></div>
+        <div class="pkg-from">${pkgFrom}</div>
+        <div class="pkg-time">⏱ ${p.dur}</div>
+        <div class="pkg-div"></div>
+        <ul class="pkg-feats">
+          ${(p.ext||p.int)
+            ? `${(p.ext&&p.ext.length)?`<li class="grp">🚗 Exterior</li>`+p.ext.map(f=>`<li>${f}</li>`).join(''):''}`
+              +`${(p.int&&p.int.length)?`<li class="grp">💺 Interior</li>`+p.int.map(f=>`<li>${f}</li>`).join(''):''}`
+              +`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`
+            : `${p.feats.map(f=>`<li>${f}</li>`).join('')}`+`${p.miss.map(f=>`<li class="no">${f}</li>`).join('')}`}
+        </ul>
+        <button type="button" class="pkg-btn" onclick="event.stopPropagation();selectPkg('${p.id}')">Select Package</button>
+      </div>`;
+    }).join('');
+  }
   document.getElementById('next2').disabled=true;
   clearPkgDetailPanel();
+  syncPackageStepChrome();
+}
+
+function togglePkgExpand(id, ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  const el=document.getElementById('pk-'+id);
+  if(!el) return;
+  const open=el.classList.toggle('open');
+  const btn=el.querySelector('.pkg-c-expand');
+  if(btn){
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const label=btn.querySelector('[data-expand-label]');
+    const chev=btn.querySelector('[data-expand-chev]');
+    if(label) label.textContent=open?'Hide inclusions':'View everything included';
+    if(chev) chev.textContent=open?'▴':'→';
+  }
 }
 
 function selectPkg(id){
   const grid=document.getElementById('pkg-grid');
   if(grid){
-    grid.querySelectorAll('.pkg').forEach(c=>c.classList.remove('sel'));
+    grid.querySelectorAll('.pkg, .pkg-c').forEach(c=>{
+      c.classList.remove('sel');
+      if(c.getAttribute('role')==='radio') c.setAttribute('aria-checked','false');
+    });
     const el=document.getElementById('pk-'+id);
-    if(el) el.classList.add('sel');
+    if(el){
+      el.classList.add('sel');
+      if(el.getAttribute('role')==='radio') el.setAttribute('aria-checked','true');
+    }
   }
   const changed=ST.pkgId!==id;
   ST.pkgId=id;
@@ -5185,8 +5717,23 @@ function selectPkg(id){
     if(ST.vehicleLabel) renderAddons();
   }
   if(ST.cat==='rvs') updateRvServiceSubtotal();
-  // Auto-advance to vehicle step after package selection
-  if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep) setTimeout(()=>bkContinueFromPackage(), 180);
+  syncActiveConfigIntoEditingCartSlot();
+  syncPackageStepChrome();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
+  // Specialty / package-first: auto-advance to vehicle.
+  // Cars vehicle-first: stay on package and reveal add-ons inline (never jump back to Vehicle).
+  if(ST.pkg && currentBkStep < 3 && !ST._restoring && !ST._holdPackageStep){
+    if(carsVehicleFirstFlow() && ST.vehicleLabel && ST.tierKey){
+      setBasePrice();
+      renderAddons();
+      syncCarsAddonsPlacement();
+      syncBs2StickyBar();
+      const host=document.getElementById('bs2-addons-host');
+      if(host) try{ host.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
+    }else{
+      setTimeout(()=>bkContinueFromPackage(), 180);
+    }
+  }
   if(window.CD1BookingProgress && !ST._restoring) CD1BookingProgress.persist();
 }
 
@@ -5606,6 +6153,10 @@ function isPublishedPricedPackage(){
 function syncContinueGate(){
   const btn=document.getElementById('next3');
   if(!btn) return;
+  if(ST.cat==='cars' && !ST.pkg){
+    btn.disabled = !(ST.vehicleLabel && ST.tierKey && !ST.classNeedsConfirm);
+    return;
+  }
   const published=isPublishedPricedPackage();
   const hasVehicle=!!(ST.vehicleLabel && ST.pkg);
   const priced=ST.basePrice > 0 && !ST._priceResolveFailed;
@@ -5772,13 +6323,15 @@ function addonRequiresShampooOrSteam(a){
 
 function renderAddons(){
   if(!ST.pkg) return;
-  document.getElementById('ah-pkg').textContent=(ST.pkg?.name||'')+' Package';
-  document.getElementById('ah-car').textContent=(window.CD1BookingVehicleSummary?CD1BookingVehicleSummary.formatAddonHeaderSummary(ST):(ST.vehicleLabel||''));
+  const ahPkg=document.getElementById('ah-pkg');
+  const ahCar=document.getElementById('ah-car');
+  if(ahPkg) ahPkg.textContent=(ST.pkg?.name||'')+' Package';
+  if(ahCar) ahCar.textContent=(window.CD1BookingVehicleSummary?CD1BookingVehicleSummary.formatAddonHeaderSummary(ST):(ST.vehicleLabel||''));
   // Called on every vehicle confirm (keystroke/blur). Only rebuild the grid — and reset
   // selections — when the package scope actually changes, so add-ons picked inline survive
   // small vehicle edits. Otherwise just refresh the live running total.
   const key=ST.cat+'|'+ST.pkgId+'|'+(ST.pkg?.scope||'both');
-  if(ST._addonKey===key){ updateTotal(); return; }
+  if(ST._addonKey===key){ updateTotal(); syncBs2StickyBar(); return; }
   ST._addonKey=key;
   ST.addons=[]; ST.addonTotal=0;
   // Only show add-ons relevant to the selected package's scope.
@@ -5789,7 +6342,11 @@ function renderAddons(){
   // Data-driven from the package's own included-features text; the global
   // add-on catalog and prices are unchanged.
   const _pkgInclTxt=[].concat(ST.pkg?.feats||[],ST.pkg?.ext||[],ST.pkg?.int||[]).join(' ').toLowerCase();
-  const _pkgIncludesAddon={rainx:/rain-?x/.test(_pkgInclTxt),claybar:/clay\s*bar/.test(_pkgInclTxt)};
+  const _pkgIncludesAddon={
+    rainx:/rain-?x/.test(_pkgInclTxt),
+    claybar:/clay\s*bar/.test(_pkgInclTxt),
+    engine:/engine\s*bay/.test(_pkgInclTxt),
+  };
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
@@ -5799,25 +6356,70 @@ function renderAddons(){
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
-  const popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);
-  const otherAddons=addons.filter(a=>!popularAddons.some(p=>p.id===a.id));
-  function addonCardHtml(a){
+  let popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);
+  const DRIVEWAY_ID='seasonal_driveway_cleanup';
+  const compactUi = carsVehicleFirstFlow();
+  let additionalAddons=[];
+  if(compactUi){
+    additionalAddons = popularAddons.filter(a=>a.id===DRIVEWAY_ID);
+    popularAddons = popularAddons.filter(a=>a.id!==DRIVEWAY_ID);
+    // Prefer automotive popular slots: rainx / polymer / sanitize when available.
+    if(popularAddons.length < 3){
+      const prefer=['rainx','polymer','sanitize','pethair','odor','headlight'];
+      prefer.forEach(id=>{
+        if(popularAddons.length >= 3) return;
+        if(popularAddons.some(a=>a.id===id)) return;
+        const hit=addons.find(a=>a.id===id);
+        if(hit) popularAddons.push(hit);
+      });
+    }
+  }
+  const otherAddons=addons.filter(a=>!popularAddons.some(p=>p.id===a.id) && !additionalAddons.some(p=>p.id===a.id));
+  // If driveway was filtered from popular, keep it available under Additional / all.
+  if(compactUi){
+    const driveway=addons.find(a=>a.id===DRIVEWAY_ID);
+    if(driveway && !additionalAddons.some(a=>a.id===DRIVEWAY_ID) && !otherAddons.some(a=>a.id===DRIVEWAY_ID) && !popularAddons.some(a=>a.id===DRIVEWAY_ID)){
+      additionalAddons.push(driveway);
+    }
+  }
+  function addonCardHtml(a, rowMode){
     const isQty=!!a.qty;
     const isSeasonalParent=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.isParentId(a.id);
     const seasonalOn=isSeasonalParent&&CD1SeasonalDriveway.selectedIds(ST).indexOf(a.id)>=0;
     const click=isSeasonalParent?"event.stopPropagation();CD1SeasonalDriveway.onCardClick('"+a.id+"')":'toggleAddon(this)';
+    const shortDesc=(a.desc||'').length>72 ? (a.desc||'').slice(0,69)+'…' : (a.desc||'');
+    if(rowMode){
+      return `<div class="addon addon-row${isQty?' addon-unit':''}${seasonalOn?' sel':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" role="checkbox" aria-checked="${seasonalOn?'true':'false'}" tabindex="0" onclick="${click}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"><div class="addon-check" aria-hidden="true">✓</div><div><div class="addon-name">${a.name}</div><div class="addon-desc">${shortDesc}</div></div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
+    }
     return `<div class="addon${isQty?' addon-unit':''}${seasonalOn?' sel':''}" data-price="${a.price}" data-id="${a.id}" data-unit="${isQty?1:0}" onclick="${click}"><div class="addon-check">✓</div><div class="addon-name">${a.name}</div><div class="addon-desc">${a.desc}</div><div class="addon-price">+$${a.price}${isQty?'<span class="addon-each">each</span>':''}</div>${isQty?`<div class="addon-stepper" onclick="event.stopPropagation()"><button type="button" class="aq-btn" onclick="addonQty('${a.id}',-1,event)" aria-label="Less">−</button><span class="aq-n" id="aq-${a.id}">0</span><button type="button" class="aq-btn" onclick="addonQty('${a.id}',1,event)" aria-label="More">＋</button></div>`:''}</div>`;
   }
-  document.getElementById('addon-grid').innerHTML=
-    '<div class="addon-popular-label">Popular Add-ons</div>'+
-    popularAddons.map(addonCardHtml).join('')+
-    '<div class="addon-all-wrap"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(addonCardHtml).join('')+'</div>'+
-    '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
-    '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
+  const grid=document.getElementById('addon-grid');
+  if(!grid) return;
+  if(compactUi){
+    grid.className='addon-grid addon-grid--compact';
+    let html='<div class="addon-section-label">Popular Add-ons</div><div class="addon-grid-cols">'+popularAddons.map(a=>addonCardHtml(a,true)).join('')+'</div>';
+    if(additionalAddons.length){
+      html+='<div class="addon-additional"><div class="addon-section-label">Additional Services</div><div class="addon-grid-cols addon-grid-cols--additional">'+additionalAddons.map(a=>addonCardHtml(a,true)).join('')+'</div></div>';
+    }
+    html+='<div class="addon-all-wrap addon-all-wrap--compact"><div class="addon-all-inner addon-grid-cols" id="addon-all-inner">'+otherAddons.map(a=>addonCardHtml(a,true)).join('')+'</div>'+
+      '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
+      '<button type="button" class="addon-toggle-btn addon-toggle-btn--link" id="addon-toggle-btn" onclick="toggleAllAddons()">View all add-ons →</button></div>';
+    grid.innerHTML=html;
+  }else{
+    grid.className='addon-grid';
+    grid.innerHTML=
+      '<div class="addon-popular-label">Popular Add-ons</div>'+
+      popularAddons.map(a=>addonCardHtml(a,false)).join('')+
+      '<div class="addon-all-wrap"><div class="addon-all-inner" id="addon-all-inner">'+otherAddons.map(a=>addonCardHtml(a,false)).join('')+'</div>'+
+      '<div id="addon-selected-summary" class="addon-selected-summary" style="display:none"></div>'+
+      '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
+  }
   syncRvSuperintAddonDedup();
   if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.mountAddonGrid(ST, PRICING);
   if(typeof recalcAddonTotal==='function') recalcAddonTotal();
   updateTotal();
+  syncBs2StickyBar();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
 }
 function toggleAllAddons(){
   const inner=document.getElementById('addon-all-inner');
@@ -5825,7 +6427,10 @@ function toggleAllAddons(){
   if(!inner) return;
   const open=inner.classList.contains('open');
   inner.classList.toggle('open',!open);
-  btn.textContent=open?'Show All Add-ons ▾':'Hide Add-ons ▴';
+  const compact=btn && btn.classList.contains('addon-toggle-btn--link');
+  if(btn) btn.textContent=open
+    ? (compact ? 'View all add-ons →' : 'Show All Add-ons ▾')
+    : (compact ? 'Hide add-ons ▴' : 'Hide Add-ons ▴');
   updateAddonSummary();
 }
 function updateAddonSummary(){
@@ -5874,19 +6479,24 @@ function toggleAddon(card){
   const name=card.querySelector('.addon-name').textContent;
   if(card.classList.contains('sel')){
     card.classList.remove('sel'); ST.addons=ST.addons.filter(a=>a.id!==id);
+    if(card.getAttribute('role')==='checkbox') card.setAttribute('aria-checked','false');
     if(isQty) setQtyDisplay(id,0);
   }else{
     card.classList.add('sel'); ST.addons.push(isQty?{id,name,price,qty:1}:{id,name,price});
+    if(card.getAttribute('role')==='checkbox') card.setAttribute('aria-checked','true');
     if(isQty) setQtyDisplay(id,1);
     if(ST.cat==='rvs' && id==='superint'){
       ST.addons = ST.addons.filter(a => a.id !== 'pethair' && a.id !== 'odor');
       ['pethair','odor'].forEach(pid => {
         const c = document.querySelector('.addon[data-id="'+pid+'"]');
-        if(c){ c.classList.remove('sel'); setQtyDisplay(pid,0); }
+        if(c){ c.classList.remove('sel'); if(c.getAttribute('role')==='checkbox') c.setAttribute('aria-checked','false'); setQtyDisplay(pid,0); }
       });
     }
   }
   recalcAddonTotal(); updateTotal(); updateAddonSummary(); updateRvServiceSubtotal(); syncRvSuperintAddonDedup();
+  syncActiveConfigIntoEditingCartSlot();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
+  else syncBs2StickyBar();
 }
 
 // +/- stepper for per-unit add-ons. Adds the item on first increment, removes it at 0.
@@ -5906,6 +6516,9 @@ function addonQty(id, delta, ev){
   }
   setQtyDisplay(id, item.qty||0);
   recalcAddonTotal(); updateTotal(); updateAddonSummary();
+  syncActiveConfigIntoEditingCartSlot();
+  if(typeof renderVehicleCart==='function') renderVehicleCart();
+  else syncBs2StickyBar();
 }
 
 function updateTotal(){
@@ -5948,6 +6561,7 @@ function updateTotal(){
   }
   updateVcPriceDisplay();
   syncContinueGate();
+  if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
 }
 
 // ── BOOKING SCHEDULE (Step 4) ───────────────────────────────────────────────
@@ -6448,7 +7062,19 @@ function fillConfirm(){
   const projection=bkProjectVehicles(vehicles);
   const first=vehicles[0]||{};
   const visualKey=vehicles.length===1?(first.visualKey||getVehicleVisualKey()):'';
-  const visual=VEHICLE_VISUALS[visualKey||getVehicleVisualKey()]||CATEGORY_VISUALS[first.cat||ST.cat]||VEHICLE_VISUALS.sedan;
+  let resolvedKey=visualKey||getVehicleVisualKey();
+  // Re-resolve from stamped make/model when the cart key is missing or fell back to sedan.
+  if(vehicles.length===1 && (!resolvedKey || resolvedKey==='sedan') && (first.make || first.model || first.vehicleLabel)){
+    const prev={make:ST.make,model:ST.model,vehicleLabel:ST.vehicleLabel,tierKey:ST.tierKey,cat:ST.cat};
+    if(first.make) ST.make=first.make;
+    if(first.model) ST.model=first.model;
+    if(first.vehicleLabel) ST.vehicleLabel=first.vehicleLabel;
+    if(first.tierKey) ST.tierKey=first.tierKey;
+    if(first.cat) ST.cat=first.cat;
+    resolvedKey=getVehicleVisualKey();
+    ST.make=prev.make; ST.model=prev.model; ST.vehicleLabel=prev.vehicleLabel; ST.tierKey=prev.tierKey; ST.cat=prev.cat;
+  }
+  const visual=VEHICLE_VISUALS[resolvedKey]||CATEGORY_VISUALS[first.cat||ST.cat]||VEHICLE_VISUALS.sedan;
   const visualEl=document.getElementById('c-visual');
   if(visualEl){
     visualEl.style.display=vehicles.length>1?'none':'';
@@ -6776,6 +7402,8 @@ function buildCurrentVehicleItem(){
     pkgName: ST.pkg.name,
     pkgIcon: ST.pkg.icon||'🚗',
     visualKey: getVehicleVisualKey(),
+    make: ST.make || '',
+    model: ST.model || '',
     vehicleLabel: ST.vehicleLabel,
     tierLabel: (window.CD1BookingVehicleSummary?CD1BookingVehicleSummary.categoryTierLabel(ST):(ST.tier ? ST.tier.label : '')),
     tierKey: ST.tierKey || '',
@@ -6822,6 +7450,17 @@ function addCurrentVehicleToCart(){
 }
 
 function addCurrentVehicleAndContinue(){
+  if(ST.cat==='cars' && !ST.pkg){
+    if(!ST.vehicleLabel || !ST.tierKey || ST.classNeedsConfirm){
+      alert('Please confirm your vehicle make, model, year, and size to continue.');
+      return;
+    }
+    renderPackages('cars');
+    syncPackageStepChrome();
+    if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(3);
+    bkGoTo(2);
+    return;
+  }
   const item = commitCurrentVehicleToCart();
   if(!item && !ST.vehicles.length){ alert('Please configure at least one vehicle.'); return; }
   renderVehicleCart();
@@ -6832,43 +7471,58 @@ function addCurrentVehicleAndContinue(){
 function removeVehicleFromCart(idx){
   ST.vehicles.splice(idx,1);
   if(Number.isInteger(ST._editingVehicleIndex)){
-    if(ST._editingVehicleIndex === idx) ST._editingVehicleIndex = ST.vehicles.length ? ST.vehicles.length - 1 : null;
-    else if(ST._editingVehicleIndex > idx) ST._editingVehicleIndex--;
+    if(ST._editingVehicleIndex === idx){
+      ST._editingVehicleIndex = ST.vehicles.length ? Math.min(idx, ST.vehicles.length - 1) : null;
+    } else if(ST._editingVehicleIndex > idx){
+      ST._editingVehicleIndex--;
+    }
   }
   renderVehicleCart();
+  if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
 }
 
 function renderVehicleCart(){
   if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.syncSeasonalOntoCart(ST, PRICING);
+  if(typeof syncActiveConfigIntoEditingCartSlot==='function') syncActiveConfigIntoEditingCartSlot();
   const wrap = document.getElementById('vcart-items');
   const totalEl = document.getElementById('vcart-total');
   const sumEl = document.getElementById('vcart-sum');
+  const vcart = document.getElementById('vcart');
   if(!wrap) return;
-  if(!ST.vehicles.length){
+  // Cart shows committed vehicles + the live-synced editing slot (same ST source as sticky).
+  // While starting an additional vehicle, only prior committed rows appear (ST draft is separate).
+  const rows = Array.isArray(ST.vehicles) ? ST.vehicles : [];
+  if(!rows.length){
     wrap.innerHTML='<div class="vcart-empty">No vehicles added yet</div>';
     if(totalEl) totalEl.style.display='none';
+    if(vcart) vcart.classList.remove('vcart--has-items');
+    if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
     return;
   }
+  if(vcart) vcart.classList.add('vcart--has-items');
   let sum = 0;
-  wrap.innerHTML = ST.vehicles.map((v,i)=>{
+  wrap.innerHTML = rows.map((v,i)=>{
     sum += v.subtotal;
-    const addonStr = v.addons.length ? v.addons.map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ') : 'No add-ons';
+    const addonStr = (v.addons && v.addons.length) ? v.addons.map(a=>a.name+(a.qty>1?' ×'+a.qty:'')).join(', ') : 'No add-ons';
     const visual = VEHICLE_VISUALS[v.visualKey]||CATEGORY_VISUALS[v.cat]||VEHICLE_VISUALS.sedan;
+    const pkgLabel = v.pkgName || 'Package';
     return `<div class="vcart-item">
-      <div class="vcart-thumb"><img src="${visual.img}" alt="${visual.alt}" width="720" height="720" loading="lazy" decoding="async"></div>
+      <div class="vcart-thumb"><img src="${visual.img}" alt="${visual.alt||''}" width="720" height="720" loading="lazy" decoding="async"></div>
       <div class="vcart-item-info">
-        <div class="vcart-item-name">${v.pkgName} · ${v.vehicleLabel}</div>
-        <div style="color:var(--mu);font-size:11.5px;margin-top:2px">${addonStr}</div>
+        <div class="vcart-item-name">${pkgLabel}</div>
+        <div class="vcart-item-vehicle">${v.vehicleLabel||''}</div>
+        <div class="vcart-item-addons">${addonStr}</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <div class="vcart-item-meta">
         <div class="vcart-item-price">$${v.subtotal}</div>
-        <button class="vcart-rm" onclick="removeVehicleFromCart(${i})" title="Remove">✕</button>
+        <button type="button" class="vcart-rm" onclick="removeVehicleFromCart(${i})" title="Remove" aria-label="Remove vehicle">✕</button>
       </div>
     </div>`;
   }).join('');
   const fee = getTravelFeeAmount();
   if(totalEl){ totalEl.style.display='flex'; }
   if(sumEl){ sumEl.textContent = '$'+(sum + fee); }
+  if(typeof syncBs2StickyBar==='function') syncBs2StickyBar();
 }
 
 // ── RESTORE RESTART ─────────────────────────────────────────────────────────────
