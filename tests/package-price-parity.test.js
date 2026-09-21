@@ -150,7 +150,7 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   assert.equal(PRICING.cars.tiers.compact_van.interior, 245);
   assert.equal(PRICING.cars.tiers.midsize_van.interior, 245);
   assert.equal(PRICING.trucks.tiers.day_cab.interior, 340);
-  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 520);
+  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 650);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);

@@ -60,7 +60,16 @@ Flat starting menu for commercial trucks. Values from operator:
 | `int_wash` | Interior + Wash | **$400** | Interior + tractor exterior hand wash, wheels, tire shine |
 | `int_wash_wax` | Interior + Wash & Wax | **$500** | Interior + wash + wax / sealant on accessible painted panels |
 
-v1: **same package dollars for day cab and sleeper**; differentiate via add-ons (`superint`) and notes. Optional phase-2 sleeper uplift (~+25%) if ops wants automatic pricing.
+v1 shipped **same package dollars for day cab and sleeper**; differentiate via add-ons (`superint`) and notes.
+**Phase 2 (live):** sleeper cab automatic uplift (~+25%), rounded to $5:
+
+| Package | Day cab | Sleeper cab |
+|---------|--------:|------------:|
+| Interior Detail | $340 | **$425** |
+| Interior + Wash | $415 | **$520** |
+| Interior + Wash & Wax | $520 | **$650** |
+
+Heavily loaded sleepers may still add **`superint` (+$125)**.
 
 ### Relationship to Cars pickup tier
 
@@ -136,3 +145,4 @@ Until phase 2, heavy sleeper work → **`superint` (+$125)** + notes.
 
 | 2026-09-16 | Home specialty nav + `trucks-detailing.html`; EN-only copy; footer Cars & SUVs separate from Trucks / Semis; checkout coerce hardened |
 | 2026-09-16 | Home loc carousel shows Trucks card; cat icon = day cab + tractor-trailer |
+| 2026-09-21 | Phase-2 sleeper uplift (~+25%): sleeper $425 / $520 / $650 vs day cab $340 / $415 / $520 |

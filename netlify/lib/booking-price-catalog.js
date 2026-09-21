@@ -48,7 +48,7 @@ const PRICING = {
   trucks: {
     tiers: {
       day_cab: { label: 'Day Cab / Single Cab', interior: 340, int_wash: 415, int_wash_wax: 520 },
-      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 340, int_wash: 415, int_wash_wax: 520 },
+      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 425, int_wash: 520, int_wash_wax: 650 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
