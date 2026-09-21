@@ -262,7 +262,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.equal(submitted.ok, true, submitted.error + ' ' + (submitted.message || ''));
     assert.equal(submitted.changeRequest.status, 'pending');
     assert.equal(submitted.changeRequest.target.vehicleId, 'veh_bronco');
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
 
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 2, 'authoritative booking not mutated on submit');
@@ -353,7 +353,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.ok(['rejected', 'declined'].includes(String(cr.status)) || cr.decision === 'reject' || cr.adminDecision === 'reject' || cr.status === 'rejected');
   });
 
-  it('admin approval removes only Bronco and reprices to $421', async () => {
+  it('admin approval removes only Bronco and reprices to $487', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -366,7 +366,7 @@ describe('vehicle_remove_request policy + commands', () => {
       target: { vehicleId: 'veh_bronco' },
       delta: {},
     });
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
 
     const decided = await decideChangeRequestCommand({
       bookingId,
@@ -379,11 +379,11 @@ describe('vehicle_remove_request policy + commands', () => {
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 42100);
+    assert.equal(after.booking.ledger.approvedCents, 48700);
     assert.ok(after.booking.bookingVersion > submitted.booking.bookingVersion);
   });
 
-  it('admin approval removing boat leaves Bronco at $370', async () => {
+  it('admin approval removing boat leaves Bronco at $400', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -396,7 +396,7 @@ describe('vehicle_remove_request policy + commands', () => {
       target: { vehicleId: 'veh_boat' },
       delta: {},
     });
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 37000);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 40000);
     const decided = await decideChangeRequestCommand({
       bookingId,
       requestId: submitted.changeRequest.requestId,
@@ -408,7 +408,7 @@ describe('vehicle_remove_request policy + commands', () => {
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_bronco');
-    assert.equal(after.booking.ledger.approvedCents, 37000);
+    assert.equal(after.booking.ledger.approvedCents, 40000);
   });
 
   it('paid booking approval records an explicit credit without auto-refunding', async () => {
@@ -444,12 +444,12 @@ describe('vehicle_remove_request policy + commands', () => {
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, decided.error);
-    assert.equal(decided.outstandingCreditCents, 37000);
+    assert.equal(decided.outstandingCreditCents, 30400);
 
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 42100);
+    assert.equal(after.booking.ledger.approvedCents, 48700);
     assert.equal(after.booking.ledger.settledCents, 79100);
     assert.equal(after.booking.ledger.refundedCents || 0, 0);
     assert.equal(after.booking.vehicleHistory.length, 1);

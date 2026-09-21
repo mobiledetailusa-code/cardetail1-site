@@ -96,7 +96,7 @@ function loadBookingFns() {
       },
       powersports: {
         packages: [{ id: 'wash', name: 'Wash', scope: 'ext', feats: [] }],
-        tiers: { motorcycle: { label: 'Motorcycle', wash: 100 } },
+        tiers: { motorcycle: { label: 'Motorcycle', wash: 115 } },
         addons: [],
       },
     },
@@ -303,7 +303,7 @@ describe('wiring + pricing identity', () => {
 
   it('observed RV/Boat fixture totals remain 445 / 220 from length formulas', () => {
     assert.equal(130 + 9 * 35, 445);
-    assert.equal(Math.max(170, 10 * 22), 220);
+    assert.equal(Math.max(195, 12 * 22), 264);
   });
 
   it('booking-progress snapshot does not persist displayLabel', () => {

@@ -84,11 +84,13 @@ test('full_size_van is a published numeric cars tier (server)', () => {
     assert.equal(typeof tier[pkg], 'number');
     assert.ok(Number.isFinite(tier[pkg]));
   }
-  const suv3 = PRICING.cars.tiers.suv3;
-  for (const pkg of ['wash', 'maint', 'interior', 'full', 'refresh', 'premium']) {
-    const expected = Math.round((suv3[pkg] * 1.1) / 5) * 5;
-    assert.equal(tier[pkg], expected, `${pkg} should be suv3+10% round5`);
-  }
+  // Absolute catalog values after market uplift (each tier rounded independently).
+  assert.equal(tier.wash, 195);
+  assert.equal(tier.maint, 270);
+  assert.equal(tier.interior, 300);
+  assert.equal(tier.full, 340);
+  assert.equal(tier.refresh, 510);
+  assert.equal(tier.premium, 685);
 });
 
 test('DISPLAY includes full_size_van', () => {

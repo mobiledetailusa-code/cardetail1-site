@@ -48,6 +48,7 @@ const FACTOR = 1 + PERCENT / 100;
 const TIER_PRICE_KEYS = [
   'maint', 'maint_light', 'interior', 'exterior', 'essential', 'wash',
   'full', 'full_basic', 'refresh', 'premium', 'custom',
+  'int_wash', 'int_wash_wax', 'maintenance', 'restore',
 ];
 const LENGTH_PRICE_KEYS = ['perFt', 'min', 'base', 'ratePerFoot'];
 
@@ -81,8 +82,9 @@ function transformPriceBlocks(src, visit) {
   let pkgKey = null;
 
   const out = lines.map((line) => {
-    if (/^\s*(const\s+)?PRICING\s*=\s*\{/.test(line)) { inPricing = true; depth = 0; }
-    if (/^\s*(const\s+)?LENGTH_PRICING\s*=\s*\{/.test(line)) { inLength = true; depth = 0; }
+    // index.html uses `let PRICING` / `let LENGTH_PRICING`; hubs use `const`.
+    if (/^\s*(?:const|let)\s+PRICING\s*=\s*\{/.test(line)) { inPricing = true; depth = 0; }
+    if (/^\s*(?:const|let)\s+LENGTH_PRICING\s*=\s*\{/.test(line)) { inLength = true; depth = 0; }
 
     if ((inPricing || inLength) && depth === 1) {
       const m = line.match(/^\s*'?([A-Za-z_][\w]*)'?\s*:\s*\{/);
@@ -173,24 +175,31 @@ function minTierPrice(category, packageId) {
 
 const STATIC_PRICES = Object.freeze({
   carInterior: minTierPrice('cars', 'interior'),
+  carInteriorSuv2: PRICING.cars.tiers.suv2.interior,
+  carInteriorTruck: PRICING.cars.tiers.truck.interior,
   carRefresh: minTierPrice('cars', 'refresh'),
   carFullSmall: PRICING.cars.tiers.small.full,
   carFullSuv2: PRICING.cars.tiers.suv2.full,
   carFullSuv3: PRICING.cars.tiers.suv3.full,
+  carPremiumSmall: PRICING.cars.tiers.small.premium,
+  trucks: minTierPrice('trucks', 'interior'),
   boats: LENGTH_PRICING.boats.packages.maint.min,
   rvs: LENGTH_PRICING.rvs.packages.maint.base
     + LENGTH_PRICING.rvs.packages.maint.ratePerFoot * LENGTH_PRICING.rvs.min,
-  powersports: minTierPrice('powersports', 'wash'),
+  powersports: minTierPrice('powersports', 'maintenance'),
 });
 
 function syncBookingPageSurfaces(src) {
   return src
     .replace(/(id="home-from-interior">\$)[\d,]+/g, `$1${STATIC_PRICES.carInterior}`)
     .replace(/(id="home-from-refresh">\$)[\d,]+/g, `$1${STATIC_PRICES.carRefresh}`)
+    .replace(/(id="home-from-full-note">)From \$[\d,]+ · priced by vehicle type/g,
+      `$1From $${STATIC_PRICES.carFullSmall} · priced by vehicle type`)
     .replace(
       /(id="home-from-full-note">)Sedans from \$[\d,]+ · SUVs from \$[\d,]+ · 3-row SUVs from \$[\d,]+/g,
       `$1Sedans from $${STATIC_PRICES.carFullSmall} · SUVs from $${STATIC_PRICES.carFullSuv2} · 3-row SUVs from $${STATIC_PRICES.carFullSuv3}`,
     )
+    .replace(/(id="bkfrom-trucks"[^>]*>From \$)[\d,]+/g, `$1${STATIC_PRICES.trucks}`)
     .replace(/(id="bkfrom-boats"[^>]*>From \$)[\d,]+/g, `$1${STATIC_PRICES.boats}`)
     .replace(/(id="bkfrom-powersports"[^>]*>From \$)[\d,]+/g, `$1${STATIC_PRICES.powersports}`)
     .replace(
@@ -201,12 +210,128 @@ function syncBookingPageSurfaces(src) {
     .replace(/(id="hfrom-rvs-amt">\$)[\d,]+/g, `$1${STATIC_PRICES.rvs}`)
     .replace(/(id="hfrom-powersports-amt">\$)[\d,]+/g, `$1${STATIC_PRICES.powersports}`)
     .replace(/^(\s*cars:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.carInterior}$2`)
+    .replace(/^(\s*trucks:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.trucks}$2`)
     .replace(/^(\s*boats:\s+\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.boats}$2`)
     .replace(/^(\s*powersports:\s*\{.*from:'From \$)[\d,]+('.*)$/gm, `$1${STATIC_PRICES.powersports}$2`)
+    .replace(
+      /trucks:\s*\{\s*price:\s*\d+\s*\}/g,
+      "trucks:     { price: Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)) }",
+    )
     .replace(
       /LENGTH_PRICING\.rvs\.packages\.exterior\.min/g,
       "getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel')",
     );
+}
+
+/** Car offer / From$ / FAQ copy — only on pages that advertise car Premium Full Detail. */
+function syncCarMarketingSurfaces(src) {
+  if (!/"name":\s*"Premium Full Detail"/.test(src)
+    && !/<h3 class="sp-pkg-name">Premium Full Detail<\/h3>/.test(src)
+    && !/Interior Detail starts at \$/.test(src)) {
+    return src;
+  }
+  let out = src;
+  out = syncOfferPrice(out, 'Interior Detail', STATIC_PRICES.carInterior);
+  out = syncOfferPrice(out, 'Premium Full Detail', STATIC_PRICES.carFullSmall);
+  out = syncOfferPrice(out, 'Exterior Detail & Paint Enhancement', STATIC_PRICES.carRefresh);
+  // index.html nests Service name inside itemOffered, with price as sibling.
+  out = out.replace(
+    /("name":\s*"Interior Detail"\s*\},[\s\n]*"price":\s*")[\d,]+/g,
+    `$1${STATIC_PRICES.carInterior}`,
+  );
+  out = out.replace(
+    /("name":\s*"Premium Full Detail"\s*\},[\s\n]*"price":\s*")[\d,]+/g,
+    `$1${STATIC_PRICES.carFullSmall}`,
+  );
+  out = out.replace(
+    /("name":\s*"Exterior Detail & Paint Enhancement"\s*\},[\s\n]*"price":\s*")[\d,]+/g,
+    `$1${STATIC_PRICES.carRefresh}`,
+  );
+  out = out
+    .replace(
+      /(<h3 class="sp-pkg-name">Interior Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/g,
+      `$1${STATIC_PRICES.carInterior}`,
+    )
+    .replace(
+      /(<h3 class="sp-pkg-name">Premium Full Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/g,
+      `$1${STATIC_PRICES.carFullSmall}`,
+    )
+    .replace(
+      /(<h3 class="sp-pkg-name">Exterior Detail(?: &amp;|&) Paint Enhancement<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/g,
+      `$1${STATIC_PRICES.carRefresh}`,
+    );
+  const {
+    carInterior: ci,
+    carInteriorSuv2: ciSuv,
+    carInteriorTruck: ciTruck,
+    carFullSmall: cf,
+    carFullSuv2: cfSuv,
+    carFullSuv3: cfSuv3,
+    carRefresh: cr,
+    carPremiumSmall: cp,
+  } = STATIC_PRICES;
+  out = out
+    .replace(
+      /Interior Detail starts at \$[\d,]+ for sedans\. Premium Full Detail starts at \$[\d,]+ for sedans, \$[\d,]+ for SUVs, and \$[\d,]+ for 3-row SUVs\. Exterior (?:Detail & Paint Enhancement|Refresh &amp; Protect|Refresh & Protect) starts at \$[\d,]+/g,
+      `Interior Detail starts at $${ci} for sedans. Premium Full Detail starts at $${cf} for sedans, $${cfSuv} for SUVs, and $${cfSuv3} for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $${cr}`,
+    )
+    .replace(
+      /Interior Detail starts at \$[\d,]+ for sedans, \$[\d,]+ for two-row SUVs, and \$[\d,]+ for trucks/g,
+      `Interior Detail starts at $${ci} for sedans, $${ciSuv} for two-row SUVs, and $${ciTruck} for trucks`,
+    )
+    .replace(
+      /From \$[\d,]+ interior \/ \$[\d,]+ full/g,
+      `From $${ci} interior / $${cf} full`,
+    )
+    .replace(
+      /Interior from \$[\d,]+, full detail from \$[\d,]+/g,
+      `Interior from $${ci}, full detail from $${cf}`,
+    )
+    .replace(
+      /Interior Detail from \$[\d,]+ sedan \/ \$[\d,]+ two-row SUV, Premium Full Detail from \$[\d,]+ \/ \$[\d,]+ \/ \$[\d,]+/g,
+      `Interior Detail from $${ci} sedan / $${ciSuv} two-row SUV, Premium Full Detail from $${cf} / $${cfSuv} / $${cfSuv3}`,
+    )
+    .replace(
+      /Premium Full Detail from \$[\d,]+ \/ \$[\d,]+ \/ \$[\d,]+ by size/g,
+      `Premium Full Detail from $${cf} / $${cfSuv} / $${cfSuv3} by size`,
+    )
+    .replace(
+      /\(SUVs from \$[\d,]+, 3-row from \$[\d,]+\)\. Interior-only starts at \$[\d,]+ for two-row SUVs/g,
+      `(SUVs from $${cfSuv}, 3-row from $${cfSuv3}). Interior-only starts at $${ciSuv} for two-row SUVs`,
+    )
+    .replace(
+      /SUVs from \$[\d,]+, 3-row from \$[\d,]+/g,
+      `SUVs from $${cfSuv}, 3-row from $${cfSuv3}`,
+    )
+    .replace(
+      /\(SUVs from \$[\d,]+, 3-row from \$[\d,]+,/g,
+      `(SUVs from $${cfSuv}, 3-row from $${cfSuv3},`,
+    )
+    .replace(
+      /Exterior Detail &(?:amp;)? Paint Enhancement \(from \$[\d,]+\)/g,
+      `Exterior Detail & Paint Enhancement (from $${cr})`,
+    )
+    .replace(
+      /Exterior Detail &amp; Paint Enhancement \(from \$[\d,]+\)/g,
+      `Exterior Detail &amp; Paint Enhancement (from $${cr})`,
+    )
+    .replace(
+      /Signature Restoration \(from \$[\d,]+ sedan\)/g,
+      `Signature Restoration (from $${cp} sedan)`,
+    )
+    .replace(
+      /Interior Detail from \$[\d,]+/g,
+      `Interior Detail from $${ci}`,
+    )
+    .replace(
+      /Premium Full Detail from \$[\d,]+ for sedans/g,
+      `Premium Full Detail from $${cf} for sedans`,
+    )
+    .replace(
+      /Exterior Detail(?: &amp; Paint Enhancement| & Paint Enhancement)? from \$[\d,]+/g,
+      (match) => match.replace(/\$[\d,]+/, `$${cr}`),
+    );
+  return out;
 }
 
 function replacePackageMinimum(src, packageMarker, value) {
@@ -216,33 +341,68 @@ function replacePackageMinimum(src, packageMarker, value) {
   return src.replace(re, `$1${value}`);
 }
 
+function syncOfferPrice(src, offerName, value) {
+  const re = new RegExp(
+    `("name":\\s*"${offerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}",\\s*"price":\\s*")[\\d,]+`,
+  );
+  return src.replace(re, `$1${value}`);
+}
+
 function syncSpecialtyPages(file, src) {
   if (file === 'boats-detailing.html') {
-    return src
+    let out = src
       .replace(/(<h3 class="sp-pkg-name">Marine Wash<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.maint.min}`)
+      .replace(/(<h3 class="sp-pkg-name">Essential Marine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.essential.min}`)
       .replace(/(<h3 class="sp-pkg-name">Full Marine Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.full.min}`)
       .replace(/(<h3 class="sp-pkg-name">Premium Marine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${LENGTH_PRICING.boats.packages.premium.min}`);
+    out = syncOfferPrice(out, 'Marine Wash', LENGTH_PRICING.boats.packages.maint.min);
+    out = syncOfferPrice(out, 'Full Marine Detail', LENGTH_PRICING.boats.packages.full.min);
+    out = syncOfferPrice(out, 'Premium Marine', LENGTH_PRICING.boats.packages.premium.min);
+    return out;
   }
   if (file === 'powersports-detailing.html') {
-    return src
-      .replace(/(<h3 class="sp-pkg-name">Wash &amp; Shine<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'wash')}`)
-      .replace(/(<h3 class="sp-pkg-name">Full Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'full')}`)
-      .replace(/(<h3 class="sp-pkg-name">Premium Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${minTierPrice('powersports', 'premium')}`);
+    const maint = minTierPrice('powersports', 'maintenance');
+    const restore = minTierPrice('powersports', 'restore');
+    let out = src
+      .replace(/(<h3 class="sp-pkg-name">Maintenance Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${maint}`)
+      .replace(/(<h3 class="sp-pkg-name">Correction \/ Restoration<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${restore}`);
+    out = syncOfferPrice(out, 'Maintenance Detail', maint);
+    out = syncOfferPrice(out, 'Correction / Restoration Detail', restore);
+    return out;
+  }
+  if (file === 'trucks-detailing.html') {
+    const interior = minTierPrice('trucks', 'interior');
+    const intWash = minTierPrice('trucks', 'int_wash');
+    const intWashWax = minTierPrice('trucks', 'int_wash_wax');
+    let out = src
+      .replace(/(<h3 class="sp-pkg-name">Interior Detail<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${interior}`)
+      .replace(/(<h3 class="sp-pkg-name">Interior \+ Wash<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${intWash}`)
+      .replace(/(<h3 class="sp-pkg-name">Interior \+ Wash &amp; Wax<\/h3>[\s\S]*?<div class="sp-pkg-price">From \$)[\d,]+/, `$1${intWashWax}`)
+      .replace(/(Day cab and sleeper cab packages from \$)[\d,]+/, `$1${interior}`);
+    out = syncOfferPrice(out, 'Interior Detail', interior);
+    out = syncOfferPrice(out, 'Interior + Wash', intWash);
+    out = syncOfferPrice(out, 'Interior + Wash & Wax', intWashWax);
+    return out;
   }
   if (file === 'rv-detailing.html') {
     let out = src;
+    const mins = {};
     for (const [packageId, rule] of Object.entries(LENGTH_PRICING.rvs.packages)) {
       const minimum = rule.base + rule.ratePerFoot * LENGTH_PRICING.rvs.min;
+      mins[packageId] = minimum;
       out = replacePackageMinimum(out, `data-rv-tier="${packageId}"`, minimum);
     }
+    out = syncOfferPrice(out, 'Maintenance Wash', mins.maint);
+    out = syncOfferPrice(out, 'Interior Detail', mins.interior);
+    out = syncOfferPrice(out, 'Full RV Detail', mins.full_basic);
     return out;
   }
   return src;
 }
 
-const pages = fs.readdirSync(ROOT)
-  .filter((f) => f.endsWith('.html'))
-  .filter((f) => /const PRICING\s*=/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
+const allHtml = fs.readdirSync(ROOT).filter((f) => f.endsWith('.html'));
+const pages = allHtml.filter((f) =>
+  /(?:const|let)\s+PRICING\s*=/.test(fs.readFileSync(path.join(ROOT, f), 'utf8')));
 
 let corrected = 0;
 for (const file of pages) {
@@ -255,6 +415,7 @@ for (const file of pages) {
     return authoritative;
   });
   after = syncBookingPageSurfaces(after);
+  after = syncCarMarketingSurfaces(after);
   if (before !== after) fs.writeFileSync(p, after);
   corrected += drift;
   console.log(`${before === after ? 'in sync ' : 'synced  '} ${file}${drift ? `  (${drift} values)` : ''}`);
@@ -262,10 +423,27 @@ for (const file of pages) {
 
 console.log(`\n${pages.length} pages synced from the catalog — ${corrected} values written`);
 
-for (const file of ['boats-detailing.html', 'powersports-detailing.html', 'rv-detailing.html']) {
+for (const file of ['boats-detailing.html', 'powersports-detailing.html', 'trucks-detailing.html', 'rv-detailing.html']) {
   const p = path.join(ROOT, file);
   const before = fs.readFileSync(p, 'utf8');
   const after = syncSpecialtyPages(file, before);
   if (after !== before) fs.writeFileSync(p, after);
   console.log(`${after === before ? 'in sync ' : 'synced  '} ${file}`);
 }
+
+let marketingSynced = 0;
+for (const file of allHtml) {
+  if (pages.includes(file)) continue; // already ran syncCarMarketingSurfaces
+  if (['boats-detailing.html', 'powersports-detailing.html', 'trucks-detailing.html', 'rv-detailing.html'].includes(file)) {
+    continue;
+  }
+  const p = path.join(ROOT, file);
+  const before = fs.readFileSync(p, 'utf8');
+  const after = syncCarMarketingSurfaces(before);
+  if (after !== before) {
+    fs.writeFileSync(p, after);
+    marketingSynced += 1;
+    console.log(`synced   ${file}  (car marketing)`);
+  }
+}
+console.log(`\n${marketingSynced} additional pages synced for car marketing/JSON-LD`);

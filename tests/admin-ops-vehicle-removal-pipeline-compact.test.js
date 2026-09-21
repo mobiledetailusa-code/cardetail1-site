@@ -259,7 +259,7 @@ describe('vehicle_remove approval path (server)', () => {
     setBookingStoreOverride(null);
   });
 
-  it('submit + admin projection + approve Bronco → $421; boat path → $370', async () => {
+  it('submit + admin projection + approve Bronco → $487; boat path → $400', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -275,7 +275,7 @@ describe('vehicle_remove approval path (server)', () => {
     });
     assert.equal(submitted.ok, true, submitted.error);
     assert.ok(submitted.changeRequest.requestId);
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 42100);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
     assert.equal((await getBookingRecord(bookingId)).booking.vehicles.length, 2);
 
     const job = projectJobForAdmin((await getBookingRecord(bookingId)).booking);
@@ -312,7 +312,7 @@ describe('vehicle_remove approval path (server)', () => {
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 42100);
+    assert.equal(after.booking.ledger.approvedCents, 48700);
 
     store = createMemoryStore({ [bookingId]: twoVehicleFixture({ id: bookingId }) });
     setBookingStoreOverride(store);
@@ -323,7 +323,7 @@ describe('vehicle_remove approval path (server)', () => {
       target: { vehicleId: 'veh_boat' },
       delta: {},
     });
-    assert.equal(subBoat.changeRequest.proposedApprovedCents, 37000);
+    assert.equal(subBoat.changeRequest.proposedApprovedCents, 40000);
   });
 
   it('paid booking approval records credit due without auto-refund', async () => {
@@ -355,8 +355,8 @@ describe('vehicle_remove approval path (server)', () => {
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, decided.error);
-    assert.equal(decided.outstandingCreditCents, 37000);
-    assert.equal(decided.booking.ledger.approvedCents, 42100);
+    assert.equal(decided.outstandingCreditCents, 30400);
+    assert.equal(decided.booking.ledger.approvedCents, 48700);
     assert.equal(decided.booking.ledger.settledCents, 79100);
     assert.equal(decided.booking.ledger.refundedCents || 0, 0);
   });
