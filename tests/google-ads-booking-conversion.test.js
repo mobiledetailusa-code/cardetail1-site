@@ -111,7 +111,6 @@ function successEvidence(overrides = {}) {
   return Object.assign({
     ok: true,
     bookingCreated: true,
-    bookingId: 'CD1-ADS-1',
     id: 'CD1-ADS-1',
     approvedFinalAmount: 250,
     currency: 'USD',
@@ -152,7 +151,7 @@ describe('Google Ads booking conversion fire gates', () => {
   it('1) Cash persisted booking fires exactly one conversion', () => {
     const { ctx, conversions } = harness;
     const ok = ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-      bookingId: 'CD1-CASH-1',
+      id: 'CD1-CASH-1',
       approvedFinalAmount: 250,
     }));
     void ok;
@@ -166,7 +165,7 @@ describe('Google Ads booking conversion fire gates', () => {
   it('2) Card persisted booking fires exactly one conversion', () => {
     const { ctx, conversions } = harness;
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-      bookingId: 'CD1-CARD-1',
+      id: 'CD1-CARD-1',
       approvedFinalAmount: 310,
     }));
     const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
@@ -181,14 +180,14 @@ describe('Google Ads booking conversion fire gates', () => {
       ok: true,
       bookingCreated: true,
       isDraft: true,
-      bookingId: 'CD1-DRAFT-1',
+      id: 'CD1-DRAFT-1',
       approvedFinalAmount: 250,
     });
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
       ok: true,
       bookingCreated: true,
       isDraft: true,
-      bookingId: 'CD1-DRAFT-1',
+      id: 'CD1-DRAFT-1',
       approvedFinalAmount: 250,
     });
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
@@ -201,7 +200,7 @@ describe('Google Ads booking conversion fire gates', () => {
     ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
       ok: true,
       bookingCreated: false,
-      bookingId: 'CD1-SETUP-ONLY',
+      id: 'CD1-SETUP-ONLY',
       approvedFinalAmount: 250,
     });
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
@@ -212,7 +211,7 @@ describe('Google Ads booking conversion fire gates', () => {
     ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
       ok: false,
       bookingCreated: false,
-      bookingId: null,
+      id: null,
       error: 'price_mismatch',
       approvedFinalAmount: 250,
     });
@@ -226,7 +225,7 @@ describe('Google Ads booking conversion fire gates', () => {
         ok: false,
         bookingCreated: false,
         httpStatus: status,
-        bookingId: 'CD1-HTTP-' + status,
+        id: 'CD1-HTTP-' + status,
         approvedFinalAmount: 250,
       });
     }
@@ -238,7 +237,7 @@ describe('Google Ads booking conversion fire gates', () => {
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
       ok: true,
       bookingCreated: false,
-      bookingId: 'CD1-NOCREATE',
+      id: 'CD1-NOCREATE',
       approvedFinalAmount: 250,
     });
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
@@ -257,7 +256,7 @@ describe('Google Ads booking conversion fire gates', () => {
   it('9) Idempotent retry uses same transaction_id and does not create a different conversion identity', () => {
     const { ctx, conversions } = harness;
     const evidence = successEvidence({
-      bookingId: 'CD1-IDEMP-1',
+      id: 'CD1-IDEMP-1',
       approvedFinalAmount: 250,
     });
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(evidence);
@@ -274,7 +273,7 @@ describe('Google Ads booking conversion fire gates', () => {
   it('10) Conversion value equals authoritative approvedFinalAmount', () => {
     const { ctx, conversions } = harness;
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-      bookingId: 'CD1-VAL-1',
+      id: 'CD1-VAL-1',
       approvedFinalAmount: 396.5,
       // Client estimate must not win over approvedFinalAmount
       value: 1,
@@ -294,7 +293,7 @@ describe('Google Ads booking conversion fire gates', () => {
     };
     assert.doesNotThrow(() => {
       ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-        bookingId: 'CD1-BLOCK-1',
+        id: 'CD1-BLOCK-1',
         approvedFinalAmount: 250,
       }));
     });
@@ -304,7 +303,7 @@ describe('Google Ads booking conversion fire gates', () => {
     // Tracker still returns without throwing
     assert.equal(
       ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-        bookingId: 'CD1-BLOCK-2',
+        id: 'CD1-BLOCK-2',
         approvedFinalAmount: 250,
       })),
       false
@@ -325,7 +324,7 @@ describe('Google Ads booking conversion fire gates', () => {
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
       ok: true,
       bookingCreated: true,
-      bookingId: 'CD1-NOVAL',
+      id: 'CD1-NOVAL',
     });
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
   });
@@ -333,7 +332,7 @@ describe('Google Ads booking conversion fire gates', () => {
   it('conversion payload never includes PII fields', () => {
     const { ctx, conversions } = harness;
     ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-      bookingId: 'CD1-PII-1',
+      id: 'CD1-PII-1',
       approvedFinalAmount: 250,
       email: 'leak@example.com',
       phone: '2015550100',
@@ -354,11 +353,11 @@ describe('Google Ads booking conversion fire gates', () => {
 });
 
 describe('canonical persist path wires Ads evidence', () => {
-  it('booking-review-runtime markPersisted passes bookingId + approvedFinalAmount', () => {
+  it('booking-review-runtime markPersisted passes id + approvedFinalAmount', () => {
     const runtime = read('assets/booking-review-runtime.js');
     assert.match(runtime, /onBookingSubmitted\(\{/);
     assert.match(runtime, /approvedFinalAmount:\s*approvedAmount/);
-    assert.match(runtime, /bookingId:\s*data\.id\s*\|\|\s*payload\.id/);
+    assert.match(runtime, /transaction_id:\s*data\.id\s*\|\|\s*payload\.id/);
     assert.match(runtime, /bookingCreated:\s*data\.bookingCreated === true\s*\|\|\s*!!data\.idempotent/);
   });
 

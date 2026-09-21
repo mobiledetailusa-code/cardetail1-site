@@ -757,8 +757,8 @@
             ok: true,
             bookingCreated: data.bookingCreated === true || !!data.idempotent,
             idempotent: !!data.idempotent,
-            bookingId: data.id || payload.id,
             id: data.id || payload.id,
+            transaction_id: data.id || payload.id,
             approvedFinalAmount: approvedAmount,
             currency: 'USD',
           });

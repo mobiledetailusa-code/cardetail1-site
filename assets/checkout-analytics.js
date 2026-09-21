@@ -171,19 +171,16 @@
   /**
    * Canonical booking-success signal. Google Ads "Booking submitted" conversion
    * fires only when evidence proves durable persist + authoritative value.
-   * evidence: { ok, bookingCreated, idempotent?, bookingId|id, approvedFinalAmount|value }
+   * evidence: { ok, bookingCreated, idempotent?, id|transaction_id, approvedFinalAmount|value }
+   * First-party emit stays anonymous (no durable booking identifiers).
    */
   function onBookingSubmitted(evidence) {
     evidence = evidence || {};
-    var bookingId = evidence.bookingId || evidence.id || evidence.transaction_id || null;
+    var txId = evidence.transaction_id || evidence.id || null;
     var approved = evidence.approvedFinalAmount != null
       ? evidence.approvedFinalAmount
       : (evidence.value != null ? evidence.value : null);
-    emit('booking_submitted', {
-      estimated_value: estimatedValue(),
-      booking_id: bookingId || undefined,
-      approved_final_amount: approved != null ? Number(approved) : undefined,
-    });
+    emit('booking_submitted', { estimated_value: estimatedValue() });
     // Google Ads AW-…/yrOD… — only after finalize persist evidence (not Page view).
     try {
       if (global.Cardetail1Revenue && typeof global.Cardetail1Revenue.trackGoogleAdsBookingConversion === 'function') {
@@ -192,8 +189,8 @@
           bookingCreated: evidence.bookingCreated === true,
           idempotent: !!evidence.idempotent,
           isDraft: evidence.isDraft === true,
-          bookingId: bookingId,
-          transaction_id: bookingId,
+          id: txId,
+          transaction_id: txId,
           approvedFinalAmount: approved,
           value: approved,
           currency: evidence.currency || 'USD',

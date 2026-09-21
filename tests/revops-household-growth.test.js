@@ -377,6 +377,7 @@ test('Google Ads booking success conversion send_to is wired', () => {
   assert.match(rev, /adsBookingTxSeen/);
   assert.match(chk, /onBookingSubmitted[\s\S]*trackGoogleAdsBookingConversion/);
   assert.match(chk, /approvedFinalAmount/);
+  assert.doesNotMatch(chk, /booking_id|bookingId/);
   assert.doesNotMatch(chk, /booking_submitted[\s\S]*purchase/);
   // Page view label must remain separate from booking conversion.
   assert.match(rev, /AW-11321647982\/r6SRCJeL998YEO7GypYq/);
