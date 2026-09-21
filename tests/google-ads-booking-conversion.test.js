@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Google Ads "Booking submitted" conversion — fire only after durable finalize.
- * Cash and Card share the same send_to; Page view label stays separate.
+ * Google Ads "Booking submitted" conversion — fire only after durable finalize
+ * with backend approvedFinalAmount. Cash and Card share the same send_to.
  */
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
@@ -32,7 +32,6 @@ function loadAnalyticsHarness() {
     String,
     Boolean,
     Error,
-    // Keep timers real enough for code paths, but flush/clear after each assertion.
     setTimeout(fn, ms) {
       const id = { cancelled: false };
       pendingTimers.push(id);
@@ -118,14 +117,13 @@ function successEvidence(overrides = {}) {
 }
 
 describe('Google Ads booking conversion send_to identity', () => {
-  it('12) Page view conversion remains separate from booking conversion', () => {
+  it('L) Page View and Booking submitted labels remain different', () => {
     const rev = read('assets/revenue-events.js');
     assert.match(rev, new RegExp(PAGE_VIEW_SEND_TO.replace(/\//g, '\\/')));
     assert.match(rev, new RegExp(BOOKING_SEND_TO.replace(/\//g, '\\/')));
     assert.notEqual(PAGE_VIEW_SEND_TO, BOOKING_SEND_TO);
     assert.match(rev, /CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO/);
     assert.match(rev, /CD1_GOOGLE_ADS_BOOKING_SEND_TO|CD1_GOOGLE_ADS_PURCHASE_SEND_TO/);
-    // Booking tracker must refuse to reuse the page-view send_to override.
     assert.match(rev, /sendTo === global\.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO/);
   });
 
@@ -148,18 +146,137 @@ describe('Google Ads booking conversion fire gates', () => {
     if (harness && harness.cleanup) harness.cleanup();
   });
 
+  it('A) Backend approvedFinalAmount fires the conversion', () => {
+    const { ctx, conversions } = harness;
+    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
+      id: 'CD1-AUTH-1',
+      approvedFinalAmount: 250,
+    }));
+    const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
+    assert.equal(booking.length, 1);
+    assert.equal(booking[0].value, 250);
+    assert.equal(booking[0].currency, 'USD');
+    assert.equal(booking[0].transaction_id, 'CD1-AUTH-1');
+  });
+
+  it('B) Missing backend approvedFinalAmount fires zero even with client totals', () => {
+    const { ctx, conversions } = harness;
+    ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
+      ok: true,
+      bookingCreated: true,
+      id: 'CD1-CLIENT-TOTAL',
+      totalPrice: 999,
+      value: 999,
+      // no approvedFinalAmount
+    });
+    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
+      ok: true,
+      bookingCreated: true,
+      id: 'CD1-CLIENT-TOTAL-2',
+      // client-looking fields must not unlock Ads
+      value: 888,
+    });
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('C) Missing ok fires zero conversions', () => {
+    const { ctx, conversions } = harness;
+    ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
+      bookingCreated: true,
+      id: 'CD1-NOOK',
+      approvedFinalAmount: 250,
+    });
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('D) ok:false fires zero conversions', () => {
+    const { ctx, conversions } = harness;
+    ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
+      ok: false,
+      bookingCreated: true,
+      id: 'CD1-OKFALSE',
+      approvedFinalAmount: 250,
+    });
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('E) bookingCreated:false fires zero conversions', () => {
+    const { ctx, conversions } = harness;
+    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
+      ok: true,
+      bookingCreated: false,
+      id: 'CD1-NOCREATE',
+      approvedFinalAmount: 250,
+    });
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('F) Missing durable ID fires zero conversions', () => {
+    const { ctx, conversions } = harness;
+    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
+      ok: true,
+      bookingCreated: true,
+      approvedFinalAmount: 250,
+    });
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('G+H) gtag throw does not break checkout; later retry can emit', () => {
+    const { ctx, conversions } = harness;
+    let threw = false;
+    const broken = function () {
+      threw = true;
+      throw new Error('network_blocked');
+    };
+    ctx.gtag = broken;
+    assert.doesNotThrow(() => {
+      const r = ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+        id: 'CD1-RETRY-1',
+        approvedFinalAmount: 250,
+      }));
+      assert.equal(r, false);
+    });
+    assert.equal(threw, true);
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+
+    // Restore gtag — same booking id may emit on later retry.
+    threw = false;
+    ctx.gtag = function () {
+      const args = Array.prototype.slice.call(arguments);
+      if (args[0] === 'event' && args[1] === 'conversion') {
+        conversions.push(Object.assign({ _event: 'conversion' }, args[2] || {}));
+      }
+    };
+    const ok = ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-RETRY-1',
+      approvedFinalAmount: 250,
+    }));
+    assert.equal(ok, true);
+    const booking = conversions.filter((c) => c.transaction_id === 'CD1-RETRY-1');
+    assert.equal(booking.length, 1);
+    assert.equal(booking[0].value, 250);
+  });
+
+  it('I) After successful gtag queueing, same booking ID does not emit again', () => {
+    const { ctx, conversions } = harness;
+    const evidence = successEvidence({ id: 'CD1-ONCE-1', approvedFinalAmount: 250 });
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(evidence), true);
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(evidence), false);
+    assert.equal(ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(Object.assign({}, evidence, { idempotent: true })) || true, true);
+    const booking = conversions.filter((c) => c.transaction_id === 'CD1-ONCE-1');
+    assert.equal(booking.length, 1);
+  });
+
   it('1) Cash persisted booking fires exactly one conversion', () => {
     const { ctx, conversions } = harness;
-    const ok = ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
+    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
       id: 'CD1-CASH-1',
       approvedFinalAmount: 250,
     }));
-    void ok;
     const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
     assert.equal(booking.length, 1);
     assert.equal(booking[0].transaction_id, 'CD1-CASH-1');
     assert.equal(booking[0].value, 250);
-    assert.equal(booking[0].currency, 'USD');
   });
 
   it('2) Card persisted booking fires exactly one conversion', () => {
@@ -183,150 +300,26 @@ describe('Google Ads booking conversion fire gates', () => {
       id: 'CD1-DRAFT-1',
       approvedFinalAmount: 250,
     });
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('value fallbacks (opts.value / totalPrice) never unlock conversion', () => {
+    const { ctx, conversions } = harness;
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
       ok: true,
       bookingCreated: true,
-      isDraft: true,
-      id: 'CD1-DRAFT-1',
-      approvedFinalAmount: 250,
-    });
+      id: 'CD1-VALFB',
+      value: 250,
+      totalPrice: 250,
+    }), false);
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
   });
 
-  it('4) Card setup without finalize fires zero conversions', () => {
-    const { ctx, conversions } = harness;
-    // payment_info_saved / SetupIntent success alone — no onBookingSubmitted evidence
-    ctx.Cardetail1CheckoutAnalytics.onPaymentInfoSaved();
-    ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
-      ok: true,
-      bookingCreated: false,
-      id: 'CD1-SETUP-ONLY',
-      approvedFinalAmount: 250,
-    });
-    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-  });
-
-  it('5) price_mismatch fires zero conversions', () => {
-    const { ctx, conversions } = harness;
-    ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
-      ok: false,
-      bookingCreated: false,
-      id: null,
-      error: 'price_mismatch',
-      approvedFinalAmount: 250,
-    });
-    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-  });
-
-  it('6) HTTP 400/409/503/504 fires zero conversions', () => {
-    const { ctx, conversions } = harness;
-    for (const status of [400, 409, 503, 504]) {
-      ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
-        ok: false,
-        bookingCreated: false,
-        httpStatus: status,
-        id: 'CD1-HTTP-' + status,
-        approvedFinalAmount: 250,
-      });
-    }
-    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-  });
-
-  it('7) bookingCreated:false fires zero conversions', () => {
-    const { ctx, conversions } = harness;
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
-      ok: true,
-      bookingCreated: false,
-      id: 'CD1-NOCREATE',
-      approvedFinalAmount: 250,
-    });
-    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-  });
-
-  it('8) Missing booking ID fires zero conversions', () => {
-    const { ctx, conversions } = harness;
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
-      ok: true,
-      bookingCreated: true,
-      approvedFinalAmount: 250,
-    });
-    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-  });
-
-  it('9) Idempotent retry uses same transaction_id and does not create a different conversion identity', () => {
-    const { ctx, conversions } = harness;
-    const evidence = successEvidence({
-      id: 'CD1-IDEMP-1',
-      approvedFinalAmount: 250,
-    });
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(evidence);
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(Object.assign({}, evidence, { idempotent: true }));
-    ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(Object.assign({}, evidence, {
-      idempotent: true,
-      transaction_id: 'CD1-IDEMP-1',
-    }));
-    const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
-    assert.equal(booking.length, 1);
-    assert.equal(booking[0].transaction_id, 'CD1-IDEMP-1');
-  });
-
-  it('10) Conversion value equals authoritative approvedFinalAmount', () => {
-    const { ctx, conversions } = harness;
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-      id: 'CD1-VAL-1',
-      approvedFinalAmount: 396.5,
-      // Client estimate must not win over approvedFinalAmount
-      value: 1,
-    }));
-    const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
-    assert.equal(booking.length, 1);
-    assert.equal(booking[0].value, 396.5);
-    assert.equal(booking[0].currency, 'USD');
-  });
-
-  it('11) Google tracking failure does not affect booking success', () => {
-    const { ctx, conversions } = harness;
-    let threw = false;
-    ctx.gtag = function () {
-      threw = true;
-      throw new Error('network_blocked');
-    };
-    assert.doesNotThrow(() => {
-      ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
-        id: 'CD1-BLOCK-1',
-        approvedFinalAmount: 250,
-      }));
-    });
-    assert.equal(threw, true);
-    // Conversion attempt recorded as blocked; no successful conversion payload
-    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-    // Tracker still returns without throwing
-    assert.equal(
-      ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-        id: 'CD1-BLOCK-2',
-        approvedFinalAmount: 250,
-      })),
-      false
-    );
-  });
-
-  it('page load alone does not fire booking conversion (only Page view path)', () => {
+  it('page load alone does not fire booking conversion', () => {
     const { ctx, conversions } = harness;
     ctx.Cardetail1Revenue.initAdapters();
-    const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
-    const pageView = conversions.filter((c) => c.send_to === PAGE_VIEW_SEND_TO);
-    assert.equal(booking.length, 0);
-    assert.ok(pageView.length >= 1);
-  });
-
-  it('missing authoritative value fires zero conversions', () => {
-    const { ctx, conversions } = harness;
-    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted({
-      ok: true,
-      bookingCreated: true,
-      id: 'CD1-NOVAL',
-    });
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+    assert.ok(conversions.filter((c) => c.send_to === PAGE_VIEW_SEND_TO).length >= 1);
   });
 
   it('conversion payload never includes PII fields', () => {
@@ -345,24 +338,39 @@ describe('Google Ads booking conversion fire gates', () => {
     const payload = booking[0];
     assert.equal(payload.email, undefined);
     assert.equal(payload.phone, undefined);
-    assert.equal(payload.firstName, undefined);
-    assert.equal(payload.address, undefined);
-    assert.equal(payload.zipCode, undefined);
     assert.deepEqual(Object.keys(payload).sort(), ['_event', 'currency', 'send_to', 'transaction_id', 'value'].sort());
   });
 });
 
 describe('canonical persist path wires Ads evidence', () => {
-  it('booking-review-runtime markPersisted passes id + approvedFinalAmount', () => {
+  it('markPersisted uses only data.approvedFinalAmount for Ads value', () => {
     const runtime = read('assets/booking-review-runtime.js');
-    assert.match(runtime, /onBookingSubmitted\(\{/);
+    assert.match(runtime, /data\.approvedFinalAmount/);
     assert.match(runtime, /approvedFinalAmount:\s*approvedAmount/);
     assert.match(runtime, /transaction_id:\s*data\.id\s*\|\|\s*payload\.id/);
-    assert.match(runtime, /bookingCreated:\s*data\.bookingCreated === true\s*\|\|\s*!!data\.idempotent/);
+    // Must not fall back to client payload totals for Ads.
+    assert.doesNotMatch(
+      runtime,
+      /approvedAmount[\s\S]{0,200}payload\.totalPrice/
+    );
+    assert.doesNotMatch(
+      runtime,
+      /approvedAmount[\s\S]{0,200}data\.totalPrice/
+    );
   });
 
-  it('idempotent finalize response includes approvedFinalAmount', () => {
+  it('K) Idempotent finalize returns server-stored approvedFinalAmount', () => {
     const src = read('netlify/functions/submit-booking.js');
-    assert.match(src, /idempotent:\s*true[\s\S]{0,400}approvedFinalAmount:/);
+    assert.match(src, /idempotent:\s*true[\s\S]{0,600}approvedFinalAmount:/);
+    assert.match(src, /storedApproved/);
+    assert.match(src, /booking\.approvedFinalAmount \?\? existing\.approvedFinalAmount/);
+  });
+
+  it('tracker requires opts.ok === true and bookingCreated === true', () => {
+    const rev = read('assets/revenue-events.js');
+    assert.match(rev, /opts\.ok !== true/);
+    assert.match(rev, /opts\.bookingCreated !== true/);
+    assert.match(rev, /adsBookingTxMark\(txId\)/);
+    assert.match(rev, /__cd1GoogleAdsBookingTxInFlight/);
   });
 });

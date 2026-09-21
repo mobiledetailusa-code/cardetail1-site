@@ -507,7 +507,7 @@
   /**
    * Google Ads "Booking submitted" conversion — fires only after finalize evidence
    * that a booking was durably persisted (ok + bookingCreated + durable id +
-   * authoritative value). Cash and Card share this same conversion.
+   * backend approvedFinalAmount). Cash and Card share this same conversion.
    *
    * send_to is the Google-provided booking conversion label (not Page view).
    * transaction_id = durable booking ID so Google dedupes retries / idempotent
@@ -553,21 +553,16 @@
 
   function resolveAuthoritativeBookingValue(opts) {
     opts = opts || {};
-    var candidates = [
-      opts.approvedFinalAmount,
-      opts.value,
-      opts.totalPrice,
-    ];
-    for (var i = 0; i < candidates.length; i++) {
-      if (candidates[i] == null || candidates[i] === '') continue;
-      var n = Number(candidates[i]);
-      if (Number.isFinite(n) && n >= 0) return n;
-    }
-    return null;
+    // Strict: only backend approvedFinalAmount — never value/totalPrice/client cart.
+    if (opts.approvedFinalAmount == null || opts.approvedFinalAmount === '') return null;
+    var n = Number(opts.approvedFinalAmount);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
   }
 
   function trackGoogleAdsBookingConversion(opts) {
     opts = opts || {};
+    var inFlightKey = null;
     try {
       // Prefer explicit booking send_to; fall back to legacy PURCHASE env name.
       var sendTo = global.CD1_GOOGLE_ADS_BOOKING_SEND_TO
@@ -579,9 +574,9 @@
       if (!txId) return false;
       txId = String(txId);
 
-      // Require durable persist evidence — never fire on drafts / partial card-save.
-      if (opts.bookingCreated !== true && !opts.idempotent) return false;
-      if (opts.ok === false) return false;
+      // Strict durable-persist evidence — missing `ok` is not success.
+      if (opts.ok !== true) return false;
+      if (opts.bookingCreated !== true) return false;
       if (opts.isDraft === true) return false;
 
       var value = resolveAuthoritativeBookingValue(opts);
@@ -589,16 +584,20 @@
 
       if (adsBookingTxSeen(txId)) return false;
 
+      // Synchronous in-flight guard (double-click) without permanently marking
+      // the tx until gtag returns without throwing.
+      if (!global.__cd1GoogleAdsBookingTxInFlight) {
+        global.__cd1GoogleAdsBookingTxInFlight = Object.create(null);
+      }
+      if (global.__cd1GoogleAdsBookingTxInFlight[txId]) return false;
+      global.__cd1GoogleAdsBookingTxInFlight[txId] = true;
+      inFlightKey = txId;
+
       var consent = global.Cardetail1Consent
         ? global.Cardetail1Consent.getConsent()
         : { analytics: false, marketing: false };
       initGoogleAds(consent);
       ensureGtag();
-
-      // Reserve the transaction_id before emit so double-clicks / parallel
-      // retries cannot create a second browser conversion identity.
-      adsBookingTxMark(txId);
-      global.__cd1GoogleAdsBookingConversionFired = true;
 
       global.gtag('event', 'conversion', {
         send_to: sendTo,
@@ -606,9 +605,18 @@
         currency: opts.currency || 'USD',
         transaction_id: txId,
       });
+      // Persist as emitted only after gtag accepted/queued the call.
+      adsBookingTxMark(txId);
+      global.__cd1GoogleAdsBookingConversionFired = true;
       return true;
     } catch (e) {
       return false;
+    } finally {
+      try {
+        if (inFlightKey && global.__cd1GoogleAdsBookingTxInFlight) {
+          delete global.__cd1GoogleAdsBookingTxInFlight[inFlightKey];
+        }
+      } catch (eClear) { /* ignore */ }
     }
   }
 
