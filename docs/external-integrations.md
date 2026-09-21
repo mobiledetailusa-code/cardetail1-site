@@ -36,7 +36,7 @@ Base tag + **Page view** conversion load on every public page via `assets/revenu
 - Marketing opt-in → `ad_*` = `granted`; Analytics opt-in → `analytics_storage` = `granted`
 - Tag + conversion always fire so Google Ads receives pings (cookieless when denied); full attribution cookies only after Marketing accept
 
-CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` / `googleads.g.doubleclick.net` / `pagead2.googlesyndication.com`.
+CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` / `googleads.g.doubleclick.net` / `ad.doubleclick.net` / `pagead2.googlesyndication.com`.
 
 ## Microsoft Clarity
 
