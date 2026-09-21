@@ -6,7 +6,7 @@
 |----------|----------|--------------|
 | **Necessary** | Booking, security, session, payment init | Always on |
 | **Analytics** | GA4, GTM, Clarity, non-essential HubSpot tracking | Opt-in |
-| **Marketing** | Ads pixels, remarketing, promotional automation | Opt-in |
+| **Marketing** | Google Ads gtag (`AW-11321647982`), remarketing, promotional automation | Opt-in |
 
 Banner: `assets/consent-manager.js` — optional categories **not preselected**. Version `2026-07-revops-v1` stored in `localStorage`.
 

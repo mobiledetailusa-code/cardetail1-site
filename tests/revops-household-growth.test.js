@@ -346,6 +346,22 @@ test('duplicate GTM install guarded by id cd1-gtm', () => {
   assert.match(src, /cd1-gtm/);
 });
 
+test('Google Ads AW tag loads only after marketing consent', () => {
+  const src = fs.readFileSync(path.join(root, 'assets/revenue-events.js'), 'utf8');
+  assert.match(src, /AW-11321647982/);
+  assert.match(src, /CD1_GOOGLE_ADS_ID/);
+  assert.match(src, /consent\.marketing && adsId/);
+  assert.match(src, /__cd1GoogleAdsConfigured/);
+  assert.doesNotMatch(src, /consent\.analytics && adsId/);
+});
+
+test('CSP allows Google Ads gtag domains', () => {
+  const toml = fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8');
+  assert.match(toml, /www\.googletagmanager\.com/);
+  assert.match(toml, /www\.googleadservices\.com/);
+  assert.match(toml, /www\.google\.com/);
+});
+
 // ── REGRESSION / FILES ──────────────────────────────────────────────────────
 
 test('multi-vehicle landing page books via working checkout CTA', () => {

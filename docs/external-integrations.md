@@ -23,6 +23,14 @@ Browser HubSpot tracking: **not installed** — audit found no existing snippet;
 
 Loaded only after Analytics consent. CSP updated in `netlify.toml` for GTM/GA4/Clarity domains.
 
+## Google Ads (gtag.js)
+
+| Variable | Purpose |
+|----------|---------|
+| `CD1_GOOGLE_ADS_ID` | Optional override; default `AW-11321647982` |
+
+Base tag loaded from `assets/revenue-events.js` (`initAdapters`) only after **Marketing** consent. Uses the official gtag snippet (`gtag/js?id=AW-…` + `gtag('config', …)`). Does not require Analytics consent. CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` for the tag.
+
 ## Microsoft Clarity
 
 | Variable | Purpose |

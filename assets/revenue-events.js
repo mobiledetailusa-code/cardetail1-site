@@ -437,10 +437,31 @@
     });
   }
 
+  function ensureGtag() {
+    global.dataLayer = global.dataLayer || [];
+    if (typeof global.gtag !== 'function') {
+      global.gtag = function () { global.dataLayer.push(arguments); };
+    }
+  }
+
+  function hasGtagScript() {
+    return !!(document.getElementById('cd1-gtag-ga4') || document.getElementById('cd1-gtag-ads'));
+  }
+
+  function loadGtagJs(tagId, scriptId) {
+    if (document.getElementById(scriptId) || hasGtagScript()) return;
+    var g = document.createElement('script');
+    g.id = scriptId;
+    g.async = true;
+    g.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(tagId);
+    document.head.appendChild(g);
+  }
+
   function initAdapters() {
     var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
     var gtmId = global.CD1_GTM_CONTAINER_ID || '';
     var gaId = global.CD1_GA4_MEASUREMENT_ID || '';
+    var adsId = global.CD1_GOOGLE_ADS_ID || 'AW-11321647982';
     var clarityId = global.CD1_CLARITY_PROJECT_ID || '';
 
     if (consent.analytics && gtmId && !document.getElementById('cd1-gtm')) {
@@ -450,15 +471,28 @@
       s.async = true;
       s.src = 'https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(gtmId);
       document.head.appendChild(s);
-    } else if (consent.analytics && gaId && !global.gtag && !gtmId) {
-      var g = document.createElement('script');
-      g.async = true;
-      g.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(gaId);
-      document.head.appendChild(g);
-      global.dataLayer = global.dataLayer || [];
-      global.gtag = function () { global.dataLayer.push(arguments); };
-      global.gtag('js', new Date());
+    } else if (consent.analytics && gaId && !gtmId && !global.__cd1Ga4Configured) {
+      ensureGtag();
+      loadGtagJs(gaId, 'cd1-gtag-ga4');
+      if (!global.__cd1GtagBootstrapped) {
+        global.gtag('js', new Date());
+        global.__cd1GtagBootstrapped = true;
+      }
       global.gtag('config', gaId, { anonymize_ip: true });
+      global.__cd1Ga4Configured = true;
+    }
+
+    // Google Ads base tag (gtag.js) — marketing opt-in only.
+    // Official snippet: gtag/js?id=AW-… + gtag('config', 'AW-…')
+    if (consent.marketing && adsId && !global.__cd1GoogleAdsConfigured) {
+      ensureGtag();
+      loadGtagJs(adsId, 'cd1-gtag-ads');
+      if (!global.__cd1GtagBootstrapped) {
+        global.gtag('js', new Date());
+        global.__cd1GtagBootstrapped = true;
+      }
+      global.gtag('config', adsId);
+      global.__cd1GoogleAdsConfigured = true;
     }
 
     if (consent.analytics && clarityId && !document.getElementById('cd1-clarity')) {
