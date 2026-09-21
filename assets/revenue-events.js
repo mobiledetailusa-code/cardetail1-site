@@ -484,7 +484,9 @@
 
     // Google Ads base tag (gtag.js) — marketing opt-in only.
     // Official snippet: gtag/js?id=AW-… + gtag('config', 'AW-…')
+    // Page view conversion: gtag('event', 'conversion', { send_to: 'AW-…/…' })
     if (consent.marketing && adsId && !global.__cd1GoogleAdsConfigured) {
+      var adsPageViewSendTo = global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq';
       ensureGtag();
       loadGtagJs(adsId, 'cd1-gtag-ads');
       if (!global.__cd1GtagBootstrapped) {
@@ -492,6 +494,7 @@
         global.__cd1GtagBootstrapped = true;
       }
       global.gtag('config', adsId);
+      global.gtag('event', 'conversion', { send_to: adsPageViewSendTo });
       global.__cd1GoogleAdsConfigured = true;
     }
 

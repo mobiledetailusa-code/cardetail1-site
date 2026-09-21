@@ -355,6 +355,14 @@ test('Google Ads AW tag loads only after marketing consent', () => {
   assert.doesNotMatch(src, /consent\.analytics && adsId/);
 });
 
+test('Google Ads Page view conversion send_to is wired', () => {
+  const src = fs.readFileSync(path.join(root, 'assets/revenue-events.js'), 'utf8');
+  assert.match(src, /AW-11321647982\/r6SRCJeL998YEO7GypYq/);
+  assert.match(src, /CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO/);
+  assert.match(src, /gtag\('event', 'conversion'/);
+  assert.match(src, /send_to:\s*adsPageViewSendTo/);
+});
+
 test('CSP allows Google Ads gtag domains', () => {
   const toml = fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8');
   assert.match(toml, /www\.googletagmanager\.com/);

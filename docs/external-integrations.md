@@ -28,8 +28,9 @@ Loaded only after Analytics consent. CSP updated in `netlify.toml` for GTM/GA4/C
 | Variable | Purpose |
 |----------|---------|
 | `CD1_GOOGLE_ADS_ID` | Optional override; default `AW-11321647982` |
+| `CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO` | Optional override; default `AW-11321647982/r6SRCJeL998YEO7GypYq` |
 
-Base tag loaded from `assets/revenue-events.js` (`initAdapters`) only after **Marketing** consent. Uses the official gtag snippet (`gtag/js?id=AW-…` + `gtag('config', …)`). Does not require Analytics consent. CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` for the tag.
+Base tag + **Page view** conversion event loaded from `assets/revenue-events.js` (`initAdapters`) only after **Marketing** consent. Uses the official snippets (`gtag/js?id=AW-…`, `gtag('config', …)`, then `gtag('event', 'conversion', { send_to: … })`). Does not require Analytics consent. CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` for the tag.
 
 ## Microsoft Clarity
 
