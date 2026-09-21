@@ -311,7 +311,7 @@ describe('vehicle_remove_request policy + commands', () => {
         vehicles: [twoVehicleFixture().vehicles[0]],
         approvedFinalAmount: 380,
         totalPrice: 380,
-        ledger: { approvedCents: 33500, settledCents: 0, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 38000, settledCents: 0, creditedCents: 0, entries: [] },
       }),
     });
     setBookingStoreOverride(store);
@@ -353,7 +353,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.ok(['rejected', 'declined'].includes(String(cr.status)) || cr.decision === 'reject' || cr.adminDecision === 'reject' || cr.status === 'rejected');
   });
 
-  it('admin approval removes only Bronco and reprices to $487', async () => {
+  it('admin approval removes only Bronco and reprices to $443', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -383,7 +383,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.ok(after.booking.bookingVersion > submitted.booking.bookingVersion);
   });
 
-  it('admin approval removing boat leaves Bronco at $400', async () => {
+  it('admin approval removing boat leaves Bronco at $380', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
