@@ -160,6 +160,16 @@ describe('false-failure contract', () => {
     assert.match(Review.notSubmittedMessage('booking_store_unavailable'), /not submitted|unavailable/i);
   });
 
+  it('maps booking_verification_unavailable and prefers server userMessage', () => {
+    assert.equal(Review.isRetryableFinalizeCode('booking_verification_unavailable'), true);
+    assert.match(Review.notSubmittedMessage('booking_verification_unavailable'), /could not verify|try again/i);
+    assert.match(
+      Review.notSubmittedMessage('booking_verification_unavailable', 'Server said wait a moment.'),
+      /Server said wait a moment/
+    );
+    assert.match(Review.notSubmittedMessage('offer_application_unavailable'), /welcome offer/i);
+  });
+
   it('showFallbackSuccess never asks the customer to resubmit', () => {
     const els = {};
     const doc = {
@@ -200,6 +210,187 @@ describe('false-failure contract', () => {
     assert.equal(Review.isPersistedResponse({ ok: true }, { ok: true, bookingCreated: true, id: 'CD1-1' }), true);
     assert.equal(Review.isPersistedResponse({ ok: true }, { ok: true, idempotent: true, id: 'CD1-1' }), true);
     assert.equal(Review.isPersistedResponse({ ok: false }, { ok: false, error: 'booking_store_unavailable' }), false);
+  });
+
+  it('auto-retries finalize once after draft when verification is briefly unavailable', async () => {
+    const alerts = [];
+    const calls = [];
+    const els = {
+      'terms-ok': { checked: true },
+      'sub-btn': { classList: { add() {}, remove() {} }, disabled: false },
+      'bk-pay-pref-err': { hidden: true, textContent: '' },
+    };
+    const win = {
+      OS_PREVIEW_ACTIVE: false,
+      BACKEND_BASE: '/.netlify/functions',
+      document: {
+        getElementById(id) { return els[id] || null; },
+        querySelectorAll() { return []; },
+      },
+      ST: {
+        payMethod: 'cash_onsite',
+        draftRegistered: false,
+        bookingPersisted: false,
+        submitInFlight: false,
+        lastPersistedBooking: null,
+      },
+      alert(msg) { alerts.push(String(msg)); },
+      bookingRequestHeaders() { return { 'Content-Type': 'application/json' }; },
+      buildBookingPayload() {
+        return {
+          paymentMethodPreference: win.ST.payMethod,
+          paymentMethod: win.ST.payMethod,
+          totalPrice: 250,
+          draftBookingId: win.ST.bookingId || undefined,
+          draftSaveToken: win.ST.draftSaveToken || undefined,
+        };
+      },
+      captureDraftSaveResponse(draftData) {
+        win.ST.bookingId = draftData.id;
+        win.ST.draftRegistered = true;
+        win.ST.draftSaveToken = draftData.draftSaveToken;
+      },
+      saveLocalBooking() {},
+      Cardetail1BookingReview: Review,
+      bkGoTo() {},
+      fetch: async (_url, opts) => {
+        const body = JSON.parse(opts.body);
+        calls.push(body);
+        if (body.isDraft) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              ok: true,
+              id: 'CD1-DRAFT1',
+              draftSaveToken: 'tok',
+              draftSaveTokenExp: Date.now() + 60000,
+              bookingVersion: 1,
+            }),
+          };
+        }
+        if (calls.filter((c) => !c.isDraft).length === 1) {
+          return {
+            ok: false,
+            status: 503,
+            json: async () => ({
+              ok: false,
+              bookingCreated: false,
+              error: 'booking_verification_unavailable',
+              userMessage: 'We could not verify whether this time is still available. Nothing was booked. Please wait a moment and try again.',
+            }),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            bookingCreated: true,
+            id: 'CD1-FINAL1',
+            status: 'Pending Review',
+          }),
+        };
+      },
+    };
+    win.window = win;
+    win.globalThis = win;
+    const prevFetch = global.fetch;
+    const prevAlert = global.alert;
+    const prevDoc = global.document;
+    const prevST = global.ST;
+    global.fetch = win.fetch;
+    global.alert = win.alert;
+    global.document = win.document;
+    global.ST = win.ST;
+    try {
+      const result = await Review.submit(win);
+      assert.equal(result.ok, true);
+      assert.equal(result.kind, 'reconciled');
+      assert.equal(result.id, 'CD1-FINAL1');
+      assert.equal(alerts.length, 0, 'must not alert when silent retry succeeds');
+      assert.equal(calls.filter((c) => c.isDraft).length, 1);
+      assert.equal(calls.filter((c) => !c.isDraft).length, 2);
+      assert.equal(win.ST.bookingPersisted, true);
+    } finally {
+      global.fetch = prevFetch;
+      global.alert = prevAlert;
+      global.document = prevDoc;
+      global.ST = prevST;
+    }
+  });
+
+  it('surfaces server userMessage when verification still fails after retry', async () => {
+    const alerts = [];
+    const els = {
+      'terms-ok': { checked: true },
+      'sub-btn': { classList: { add() {}, remove() {} }, disabled: false },
+    };
+    let finalizeCalls = 0;
+    const win = {
+      OS_PREVIEW_ACTIVE: false,
+      BACKEND_BASE: '/.netlify/functions',
+      document: {
+        getElementById(id) { return els[id] || null; },
+        querySelectorAll() { return []; },
+      },
+      ST: {
+        payMethod: 'cash_onsite',
+        draftRegistered: true,
+        bookingId: 'CD1-DRAFT2',
+        draftSaveToken: 'tok',
+        bookingPersisted: false,
+        submitInFlight: false,
+        lastPersistedBooking: null,
+      },
+      alert(msg) { alerts.push(String(msg)); },
+      bookingRequestHeaders() { return { 'Content-Type': 'application/json' }; },
+      buildBookingPayload() {
+        return {
+          paymentMethodPreference: 'cash_onsite',
+          paymentMethod: 'cash_onsite',
+          draftBookingId: 'CD1-DRAFT2',
+          draftSaveToken: 'tok',
+          totalPrice: 250,
+        };
+      },
+      saveLocalBooking() {},
+      bkGoTo() {},
+      fetch: async () => {
+        finalizeCalls += 1;
+        return {
+          ok: false,
+          status: 503,
+          json: async () => ({
+            ok: false,
+            bookingCreated: false,
+            error: 'booking_verification_unavailable',
+            userMessage: 'Please wait a moment and try again.',
+          }),
+        };
+      },
+    };
+    const prevFetch = global.fetch;
+    const prevAlert = global.alert;
+    const prevDoc = global.document;
+    const prevST = global.ST;
+    global.fetch = win.fetch;
+    global.alert = win.alert;
+    global.document = win.document;
+    global.ST = win.ST;
+    try {
+      const result = await Review.submit(win);
+      assert.equal(result.ok, false);
+      assert.equal(result.code, 'booking_verification_unavailable');
+      assert.ok(finalizeCalls >= 2, 'should retry at least once');
+      assert.equal(alerts.length, 1);
+      assert.match(alerts[0], /Please wait a moment and try again/);
+    } finally {
+      global.fetch = prevFetch;
+      global.alert = prevAlert;
+      global.document = prevDoc;
+      global.ST = prevST;
+    }
   });
 });
 
