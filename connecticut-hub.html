@@ -5588,6 +5588,9 @@ function cofCheckboxChanged(){
   const cb=document.getElementById('cof-policy-ok');
   if(!cb) return;
   if(cb.checked && ST.payMethod && !stripeElements && !ST.cardOnFileSaved && !cardInitInProgress) initCardOnFile();
+  else if(window.Cardetail1BookingReview && typeof Cardetail1BookingReview.syncOnlineCardPanel==='function'){
+    Cardetail1BookingReview.syncOnlineCardPanel(ST.payMethod);
+  }
   updateCofAuthButtonState();
 }
 

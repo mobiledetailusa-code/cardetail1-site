@@ -61,10 +61,17 @@
   var ONSITE_HELP = 'Card or cash at service — no card needed to submit. Nothing is charged or authorized when you send this request.';
   var DEFAULT_HELP = 'Choose Pay online later to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.';
   var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
+  var RETRYABLE_FINALIZE_CODES = {
+    booking_verification_unavailable: true,
+    offer_application_unavailable: true,
+    offer_redemption_lookup_unavailable: true,
+    offer_redemption_claim_unavailable: true,
+  };
   var SUBMIT_FAILURE_CODES = {
     draft_token_invalid: 'Your booking session expired. Please submit the request again.',
     booking_policy_required: 'Please accept the Terms & Conditions before submitting.',
     booking_store_unavailable: 'Booking storage is temporarily unavailable. Please try again in a moment.',
+    booking_verification_unavailable: 'We could not verify whether this time is still available. Nothing was booked. Please wait a moment and try again.',
     booking_slot_unavailable: 'That time slot is no longer available. Choose another date or time and submit again. No payment was collected.',
     booking_time_unavailable: 'That time is unavailable. Choose another slot and submit again.',
     booking_date_unavailable: 'That date is unavailable. Choose another day and submit again.',
@@ -76,6 +83,10 @@
     card_on_file_required: 'Pay online later requires a saved card. Save your card securely above, then submit.',
     card_on_file_policy_required: 'Accept the card-on-file authorization to continue with Pay online later.',
     card_on_file_not_saved: 'Your card is still being verified. Please wait a few seconds and try again.',
+    offer_application_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',
+    offer_redemption_lookup_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',
+    offer_redemption_claim_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',
+    offer_already_redeemed: 'This welcome offer was already used. Refresh the review total and submit again. Your booking was not submitted.',
   };
 
   function money(n) {
@@ -345,17 +356,57 @@
     return !!(meta && meta.requiresCard);
   }
 
+  function revealOnlineCardPanel(opts) {
+    opts = opts || {};
+    var doc = root.document;
+    if (!doc) return;
+    var wrap = doc.getElementById('bk-online-card-wrap');
+    if (!wrap) return;
+    wrap.hidden = false;
+    if (opts.scroll !== false) {
+      try {
+        wrap.scrollIntoView({ block: 'nearest', behavior: opts.smooth === false ? 'auto' : 'smooth' });
+      } catch (eScroll) { /* older browsers */ }
+    }
+    if (opts.focusPolicy) {
+      var cof = doc.getElementById('cof-policy-ok');
+      if (cof && typeof cof.focus === 'function') {
+        try { cof.focus(); } catch (eFocus) { /* ignore */ }
+      }
+    }
+  }
+
   function syncOnlineCardPanel(preference) {
     var doc = root.document;
     if (!doc) return;
     var wrap = doc.getElementById('bk-online-card-wrap');
     var copy = doc.getElementById('bk-pay-pref-copy');
+    var cardSlot = doc.getElementById('card-container');
     var online = preference === 'online_after_service';
     if (wrap) wrap.hidden = !online;
     if (copy) {
       if (online) copy.textContent = ONLINE_HELP;
       else if (preference === 'card_onsite' || preference === 'cash_onsite') copy.textContent = ONSITE_HELP;
       else copy.textContent = DEFAULT_HELP;
+    }
+    if (online) {
+      revealOnlineCardPanel({ scroll: true });
+      var ST = getST();
+      var cof = doc.getElementById('cof-policy-ok');
+      var policyOk = !!(cof && cof.checked);
+      var stripeMounted = !!(cardSlot && cardSlot.querySelector('iframe, .StripeElement, .__PrivateStripeElement'));
+      if (cardSlot && !ST.cardOnFileSaved && !stripeMounted) {
+        if (!policyOk) {
+          cardSlot.setAttribute('data-cd1-card-hint', '1');
+          cardSlot.innerHTML = '<p class="bk-card-slot-hint" style="margin:0;font-size:13px;color:var(--mu, #6b7280);line-height:1.45">Check the authorization box below to unlock the secure card form. Nothing is charged today.</p>';
+        } else if (cardSlot.getAttribute('data-cd1-card-hint') === '1') {
+          cardSlot.removeAttribute('data-cd1-card-hint');
+          cardSlot.innerHTML = '';
+        }
+      }
+    } else if (cardSlot && cardSlot.getAttribute('data-cd1-card-hint') === '1') {
+      cardSlot.removeAttribute('data-cd1-card-hint');
+      cardSlot.innerHTML = '';
     }
   }
 
@@ -498,8 +549,50 @@
     return { kind: 'rejected', retry: true, code: code };
   }
 
-  function notSubmittedMessage(code) {
+  function notSubmittedMessage(code, userMessage) {
+    var custom = String(userMessage || '').trim();
+    if (custom) return custom;
     return SUBMIT_FAILURE_CODES[code] || ('Your booking request was not submitted. No payment was collected. Please try again.');
+  }
+
+  function isRetryableFinalizeCode(code) {
+    return !!RETRYABLE_FINALIZE_CODES[String(code || '')];
+  }
+
+  /**
+   * Gateway / empty-body failures after a draft was held: the booking may already
+   * be persisted while notifications or the response timed out. Never tell the
+   * customer "not submitted" for these — reconcile or ask them to check My Garage.
+   * Known application error codes (even on HTTP 503) are definitive, not ambiguous.
+   */
+  function isAmbiguousFinalizeFailure(code, status, data) {
+    var c = String(code || (data && (data.error || data.message)) || '');
+    if (NETWORK_RE.test(c)) return true;
+    if (/^booking_submit_failed_(502|503|504)$/.test(c)) return true;
+    if (c) return false;
+    var st = Number(status) || 0;
+    return st === 502 || st === 503 || st === 504;
+  }
+
+  function ambiguousConfirmMessage() {
+    return 'We could not confirm whether your booking request was received. Please wait a moment and check My Garage or contact us before submitting again. No payment was collected.';
+  }
+
+  function rejectFromResponse(data, status) {
+    var code = (data && (data.error || data.message)) || ('booking_submit_failed_' + status);
+    var err = new Error(code);
+    err.code = code;
+    err.status = status;
+    err.userMessage = (data && data.userMessage) || '';
+    err.retryable = !!(data && data.retryable) || isRetryableFinalizeCode(code);
+    err.ambiguous = isAmbiguousFinalizeFailure(code, status, data);
+    return err;
+  }
+
+  function sleep(ms) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, ms);
+    });
   }
 
   function applyPersistedFields(payload, data) {
@@ -610,7 +703,7 @@
         } else {
           alert(SUBMIT_FAILURE_CODES.card_on_file_policy_required);
         }
-        if (cofOk) cofOk.focus();
+        revealOnlineCardPanel({ scroll: true, focusPolicy: true });
         return { ok: false, kind: 'rejected', code: 'card_on_file_policy_required' };
       }
       if (!ST.cardOnFileSaved) {
@@ -621,8 +714,11 @@
         } else {
           alert(SUBMIT_FAILURE_CODES.card_on_file_required);
         }
+        revealOnlineCardPanel({ scroll: true });
         var saveBtn = win.document.getElementById('stripe-auth-btn');
-        if (saveBtn) saveBtn.scrollIntoView({ block: 'center' });
+        if (saveBtn) {
+          try { saveBtn.scrollIntoView({ block: 'center' }); } catch (eSave) { /* ignore */ }
+        }
         return { ok: false, kind: 'rejected', code: 'card_on_file_required' };
       }
     }
@@ -633,41 +729,17 @@
 
     var payload = attachPreference(win.buildBookingPayload());
     var persisted = false;
-    try {
-      if (!ST.draftRegistered) {
-        var draftPayload = Object.assign({}, payload, { isDraft: true });
-        delete draftPayload.draftBookingId;
-        delete draftPayload.draftSaveToken;
-        var draftRes = await postBooking(draftPayload);
-        var draftData = await draftRes.json().catch(function () { return {}; });
-        if (!draftRes.ok || !draftData.ok) {
-          // Gateway HTML 504 / empty body during draft must not look like a silent failure.
-          var draftStatus = Number(draftRes && draftRes.status) || 0;
-          if (draftStatus === 502 || draftStatus === 503 || draftStatus === 504 || draftStatus === 0) {
-            alert('Booking is temporarily unavailable (the server timed out). Please wait a moment and try again. No payment was collected.');
-            return { ok: false, kind: 'rejected', code: draftData.error || ('booking_draft_failed_' + draftStatus) };
-          }
-          throw new Error(draftData.error || draftData.message || ('booking_draft_failed_' + draftRes.status));
-        }
-        if (typeof win.captureDraftSaveResponse === 'function') win.captureDraftSaveResponse(draftData);
-        payload = attachPreference(win.buildBookingPayload());
-      }
 
-      var res = await postBooking(payload);
+    async function finalizeOnce(body) {
+      var res = await postBooking(body);
       var data = await res.json().catch(function () { return {}; });
-      if (!isPersistedResponse(res, data)) {
-        if (data.error === 'booking_slot_unavailable' || data.error === 'booking_date_unavailable' || data.error === 'booking_time_unavailable') {
-          alert(data.userMessage || 'That time is unavailable. Choose another slot and submit again. No payment was collected.');
-          return { ok: false, kind: 'rejected', code: data.error };
-        }
-        throw new Error(data.error || data.message || ('booking_submit_failed_' + res.status));
-      }
-      if (data.bookingCreated !== true && !data.idempotent) {
-        throw new Error('booking_not_persisted');
-      }
+      return { res: res, data: data };
+    }
+
+    async function markPersisted(data) {
       persisted = true;
       ST.bookingPersisted = true;
-      payload = applyPersistedFields(payload, data);
+      payload = applyPersistedFields(attachPreference(win.buildBookingPayload()), data);
       ST.lastPersistedBooking = payload;
       if (typeof win.saveLocalBooking === 'function') win.saveLocalBooking(payload);
       if (win.Cardetail1CheckoutAnalytics && typeof win.Cardetail1CheckoutAnalytics.onBookingSubmitted === 'function') {
@@ -680,31 +752,112 @@
         showFallbackSuccess(payload);
       }
       return { ok: true, kind: 'persisted', id: payload.id };
+    }
+
+    try {
+      if (!ST.draftRegistered) {
+        var draftPayload = Object.assign({}, payload, { isDraft: true });
+        delete draftPayload.draftBookingId;
+        delete draftPayload.draftSaveToken;
+        var draftRes = await postBooking(draftPayload);
+        var draftData = await draftRes.json().catch(function () { return {}; });
+        if (!draftRes.ok || !draftData.ok) {
+          var draftFail = rejectFromResponse(draftData, draftRes.status);
+          // Gateway HTML timeouts during draft must not look like a silent "not submitted"
+          // with no actionable copy — nothing was booked yet.
+          if (draftFail.ambiguous || isAmbiguousFinalizeFailure(draftFail.code, draftRes.status, draftData)) {
+            alert('Booking is temporarily unavailable (the server timed out). Please wait a moment and try again. No payment was collected.');
+            return { ok: false, kind: 'rejected', code: draftFail.code };
+          }
+          throw draftFail;
+        }
+        if (typeof win.captureDraftSaveResponse === 'function') win.captureDraftSaveResponse(draftData);
+        payload = attachPreference(win.buildBookingPayload());
+      }
+
+      var attempt = await finalizeOnce(payload);
+      if (!isPersistedResponse(attempt.res, attempt.data)) {
+        var errCode = attempt.data && attempt.data.error;
+        if (errCode === 'booking_slot_unavailable' || errCode === 'booking_date_unavailable' || errCode === 'booking_time_unavailable') {
+          alert(attempt.data.userMessage || 'That time is unavailable. Choose another slot and submit again. No payment was collected.');
+          return { ok: false, kind: 'rejected', code: errCode };
+        }
+        if (errCode === 'offer_already_redeemed') {
+          alert(attempt.data.userMessage || SUBMIT_FAILURE_CODES.offer_already_redeemed);
+          return { ok: false, kind: 'rejected', code: errCode };
+        }
+        var failCode = errCode || ('booking_submit_failed_' + attempt.res.status);
+        // Draft already held the slot; verification blips / gateway timeouts must
+        // not force the customer to dismiss an alert and click Submit again.
+        var shouldSilentRetry = ST.draftRegistered && (
+          isRetryableFinalizeCode(errCode) ||
+          (attempt.data && attempt.data.retryable) ||
+          isAmbiguousFinalizeFailure(failCode, attempt.res.status, attempt.data)
+        );
+        if (shouldSilentRetry) {
+          await sleep(450);
+          attempt = await finalizeOnce(attachPreference(win.buildBookingPayload()));
+          if (isPersistedResponse(attempt.res, attempt.data)) {
+            var reconciled = await markPersisted(attempt.data);
+            reconciled.kind = 'reconciled';
+            return reconciled;
+          }
+          errCode = attempt.data && attempt.data.error;
+          if (errCode === 'booking_slot_unavailable' || errCode === 'booking_date_unavailable' || errCode === 'booking_time_unavailable') {
+            alert(attempt.data.userMessage || 'That time is unavailable. Choose another slot and submit again. No payment was collected.');
+            return { ok: false, kind: 'rejected', code: errCode };
+          }
+          failCode = errCode || ('booking_submit_failed_' + attempt.res.status);
+          if (isAmbiguousFinalizeFailure(failCode, attempt.res.status, attempt.data)) {
+            alert(ambiguousConfirmMessage());
+            return { ok: false, kind: 'ambiguous', code: failCode };
+          }
+        }
+        throw rejectFromResponse(attempt.data, attempt.res.status);
+      }
+      if (attempt.data.bookingCreated !== true && !attempt.data.idempotent) {
+        throw rejectFromResponse({ error: 'booking_not_persisted' }, attempt.res.status);
+      }
+      return await markPersisted(attempt.data);
     } catch (e) {
       if (persisted || ST.bookingPersisted) {
         showFallbackSuccess(ST.lastPersistedBooking || payload);
         return { ok: true, kind: 'ui_after_persist', id: (ST.lastPersistedBooking && ST.lastPersistedBooking.id) || payload.id };
       }
-      var code = String((e && e.message) || '');
-      if (NETWORK_RE.test(code) && ST.draftRegistered) {
+      var code = String((e && (e.code || e.message)) || '');
+      var userMessage = (e && e.userMessage) || '';
+      var ambiguous = !!(e && e.ambiguous) || isAmbiguousFinalizeFailure(code, e && e.status, null);
+      if ((ambiguous || isRetryableFinalizeCode(code) || (e && e.retryable)) && ST.draftRegistered && !persisted) {
         try {
+          await sleep(450);
           var retryRes = await postBooking(attachPreference(win.buildBookingPayload()));
           var retryData = await retryRes.json().catch(function () { return {}; });
           if (isPersistedResponse(retryRes, retryData)) {
-            persisted = true;
-            ST.bookingPersisted = true;
-            payload = applyPersistedFields(attachPreference(win.buildBookingPayload()), retryData);
-            ST.lastPersistedBooking = payload;
-            if (typeof win.saveLocalBooking === 'function') win.saveLocalBooking(payload);
-            showSuccess(payload);
-            return { ok: true, kind: 'reconciled', id: payload.id };
+            var recovered = await markPersisted(retryData);
+            recovered.kind = 'reconciled';
+            return recovered;
           }
-        } catch (e2) { /* still ambiguous */ }
-        alert('We could not confirm whether your booking request was received. Please wait a moment and check My Garage or contact us before submitting again. No payment was collected.');
-        return { ok: false, kind: 'ambiguous' };
+          if (ambiguous || isAmbiguousFinalizeFailure(
+            (retryData && retryData.error) || ('booking_submit_failed_' + retryRes.status),
+            retryRes.status,
+            retryData
+          )) {
+            alert(ambiguousConfirmMessage());
+            return { ok: false, kind: 'ambiguous', code: code };
+          }
+        } catch (e2) {
+          if (ambiguous) {
+            alert(ambiguousConfirmMessage());
+            return { ok: false, kind: 'ambiguous', code: code };
+          }
+        }
+        if (ambiguous) {
+          alert(ambiguousConfirmMessage());
+          return { ok: false, kind: 'ambiguous', code: code };
+        }
       }
       if (typeof console !== 'undefined' && console.warn) console.warn('Booking submission failed:', code);
-      alert(notSubmittedMessage(code));
+      alert(notSubmittedMessage(code, userMessage));
       return { ok: false, kind: 'rejected', code: code };
     } finally {
       ST.submitInFlight = false;
@@ -776,10 +929,13 @@
     fillReviewSubmit: fillReviewSubmit,
     selectRequestPaymentPreference: selectRequestPaymentPreference,
     syncOnlineCardPanel: syncOnlineCardPanel,
+    revealOnlineCardPanel: revealOnlineCardPanel,
     showSuccess: showSuccess,
     showFallbackSuccess: showFallbackSuccess,
     classifyError: classifyError,
     notSubmittedMessage: notSubmittedMessage,
+    isRetryableFinalizeCode: isRetryableFinalizeCode,
+    isAmbiguousFinalizeFailure: isAmbiguousFinalizeFailure,
     isPersistedResponse: isPersistedResponse,
     submit: submit,
     install: install,

@@ -504,6 +504,36 @@
     }
   }
 
+  /**
+   * Google Ads Purchase conversion — booking request successfully persisted
+   * (confirmation / Step 6). Not a Stripe charge; value is the Ads label default.
+   * Deduped once per page load so retries / success re-renders do not double-count.
+   */
+  function trackGoogleAdsBookingConversion(opts) {
+    opts = opts || {};
+    try {
+      var sendTo = global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO || 'AW-11321647982/yrODCJGL998YEO7GypYq';
+      if (!sendTo) return false;
+      if (global.__cd1GoogleAdsBookingConversionFired) return false;
+      var consent = global.Cardetail1Consent
+        ? global.Cardetail1Consent.getConsent()
+        : { analytics: false, marketing: false };
+      initGoogleAds(consent);
+      ensureGtag();
+      var value = opts.value != null ? Number(opts.value) : 1.0;
+      if (!Number.isFinite(value)) value = 1.0;
+      global.gtag('event', 'conversion', {
+        send_to: sendTo,
+        value: value,
+        currency: opts.currency || 'USD',
+      });
+      global.__cd1GoogleAdsBookingConversionFired = true;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function initAdapters() {
     var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
     var gtmId = global.CD1_GTM_CONTAINER_ID || '';
@@ -612,6 +642,7 @@
     getSessionId: getSessionId,
     getDeliveryStatus: deliveryStatus,
     getDeliverySnapshot: deliverySnapshot,
+    trackGoogleAdsBookingConversion: trackGoogleAdsBookingConversion,
     getContract: function () {
       return {
         events: Object.keys(APPROVED_EVENTS).sort(),

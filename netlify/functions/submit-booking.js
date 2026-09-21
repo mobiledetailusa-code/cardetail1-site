@@ -146,11 +146,10 @@ function withSlotScanTimeout(promise) {
   if (!slotScanTimeoutMs || slotScanTimeoutMs <= 0) return promise;
   let timer = null;
   const timeoutPromise = new Promise((_, reject) => {
-    // Keep the timer referenced so short test budgets (and cold isolates)
-    // cannot drain the event loop before the timeout rejects the race.
     timer = setTimeout(() => {
       reject(verificationUnavailable(new Error('timeout')));
     }, slotScanTimeoutMs);
+    if (typeof timer.unref === 'function') timer.unref();
   });
   return Promise.race([promise, timeoutPromise]).finally(() => {
     if (timer) clearTimeout(timer);
