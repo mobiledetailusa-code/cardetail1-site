@@ -145,7 +145,7 @@ describe('single-vehicle server prices', () => {
     it(`${c.addons.join('+')} adds $${c.extra}`, () => {
       const r = priced([car({ addons: c.addons.map((id) => ({ id })) })]);
       assert.equal(r.ok, true, r.error);
-      assert.equal(r.serviceSubtotal, 250 + c.extra);
+      assert.equal(r.serviceSubtotal, 275 + c.extra);
       assert.equal(r.vehicles[0].addonTotal, c.extra);
     });
   }
@@ -205,7 +205,7 @@ describe('duplicate IDs charge once', () => {
       }),
     ]);
     assert.equal(r.ok, true, r.error);
-    assert.equal(r.serviceSubtotal, 250 + 195 + 95);
+    assert.equal(r.serviceSubtotal, 275 + 195 + 95);
     const familyCounts = r.vehicles.map((v) => (v.addons || []).filter((a) => a.id === PARENT).length);
     assert.deepEqual(familyCounts.sort(), [0, 1]);
   });
@@ -217,7 +217,7 @@ describe('duplicate IDs charge once', () => {
       car({ vehicleId: 'v3', pkgId: 'wash', packageId: 'wash', tierKey: 'small', addons: [{ id: 'walkway_steps' }] }),
     ]);
     assert.equal(r.ok, true, r.error);
-    assert.equal(r.serviceSubtotal, 250 + 195 + 115 + 95 + 35);
+    assert.equal(r.serviceSubtotal, 275 + 195 + 125 + 95 + 35);
   });
 
   it('qty greater than 1 is ignored for the family', () => {
@@ -233,7 +233,7 @@ describe('duplicate IDs charge once', () => {
 });
 
 describe('multi-vehicle appointment-once', () => {
-  it('Vehicle A $250 + Vehicle B $195 + driveway $95 + walkway $35 + porch $45 = $620', () => {
+  it('Vehicle A $275 + Vehicle B $195 + driveway $95 + walkway $35 + porch $45 = $645', () => {
     const r = priced([
       car({
         vehicleId: 'veh_a',
@@ -249,7 +249,7 @@ describe('multi-vehicle appointment-once', () => {
       }),
     ]);
     assert.equal(r.ok, true, r.error);
-    assert.equal(r.serviceSubtotal, 620);
+    assert.equal(r.serviceSubtotal, 645);
     const familyOnB = (r.vehicles[1].addons || []).filter((a) => Seasonal.isFamilyId(a.id));
     assert.equal(familyOnB.length, 0);
     const familyOnA = (r.vehicles[0].addons || []).map((a) => a.id);
@@ -268,7 +268,7 @@ describe('multi-vehicle appointment-once', () => {
     const familyLines = quoted.quote.lineItems.filter((l) => l.kind === 'addon' && Seasonal.isFamilyId(l.addonId));
     assert.equal(familyLines.length, 2);
     assert.equal(familyLines.reduce((s, l) => s + l.amountCents, 0), 14500);
-    assert.equal(quoted.quote.serviceSubtotalCents, (250 + 195 + 145) * 100);
+    assert.equal(quoted.quote.serviceSubtotalCents, (275 + 195 + 145) * 100);
   });
 });
 
@@ -319,7 +319,7 @@ describe('eligibility', () => {
     })]);
     assert.equal(r.ok, true, r.error);
     assert.equal(r.vehicles[0].addonTotal, 95);
-    assert.equal(r.serviceSubtotal, 285 + 95);
+    assert.equal(r.serviceSubtotal, 315 + 95);
   });
 
   it('rvs and powersports can host the family', () => {

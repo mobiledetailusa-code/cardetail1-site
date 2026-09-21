@@ -72,7 +72,7 @@ test('booking category starting prices align with catalog minimums', () => {
   assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$175/);
   assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);
   assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$180/);
-  assert.match(html, /id="home-from-interior">\$200/);
+  assert.match(html, /id="home-from-interior">\$210/);
   assert.match(html, /getCategoryFromBases\(\)[\s\S]*?\.interior\)/);
 });
 

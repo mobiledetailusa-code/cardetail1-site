@@ -113,7 +113,7 @@ test('package hierarchy valid; other categories unchanged', () => {
   const index = read('index.html');
   assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);
   assert.match(index, /boats:[\s\S]*?maint:\s*\{perFt:\s*11,\s*min:\s*175\}/);
-  assert.match(index, /id="home-from-interior">\$200/);
+  assert.match(index, /id="home-from-interior">\$210/);
   assert.equal(LENGTH_PRICING.boats.packages.full.min, 390);
   assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 175);
 });

@@ -299,7 +299,7 @@ describe('PR4 vehicle and package/add-on rules', () => {
     const fullWithDuplicate = car({ packageId: 'full', addOnIds: ['claybar', 'ozone'] });
     const priced = computeVehicleSubtotal(fullWithDuplicate);
     assert.equal(priced.ok, true);
-    assert.equal(priced.subtotal, 290);
+    assert.equal(priced.subtotal, 315);
     assert.deepEqual(priced.addons.map((row) => row.id), ['ozone']);
 
     const includedOnly = applyServiceDelta(
