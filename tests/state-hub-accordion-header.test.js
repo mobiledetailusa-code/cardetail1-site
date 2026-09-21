@@ -360,6 +360,9 @@ test('no Netlify Function files changed in this UX scope', () => {
     // PR B — booking-scoped Quick Ops + payment resume
     'netlify/functions/admin-quick-ops.js',
     'netlify/functions/payment-resume.js',
+    // Technician Quick Ops — job-scoped tot_ magic link
+    'netlify/functions/tech-quick-ops.js',
+    'netlify/functions/tech-assignment.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

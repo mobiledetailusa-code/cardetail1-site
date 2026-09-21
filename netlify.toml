@@ -84,6 +84,16 @@
   status = 200
   force = true
 [[redirects]]
+  from = "/tech/q"
+  to = "/.netlify/functions/tech-quick-ops"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/tech/q/*"
+  to = "/.netlify/functions/tech-quick-ops"
+  status = 200
+  force = true
+[[redirects]]
   from = "/pay"
   to = "/.netlify/functions/payment-resume"
   status = 200
@@ -188,6 +198,18 @@
     X-Robots-Tag = "noindex"
 [[headers]]
   for = "/ops/q/*"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex"
+[[headers]]
+  for = "/tech/q"
+  [headers.values]
+    Referrer-Policy = "no-referrer"
+    Cache-Control = "no-store"
+    X-Robots-Tag = "noindex"
+[[headers]]
+  for = "/tech/q/*"
   [headers.values]
     Referrer-Policy = "no-referrer"
     Cache-Control = "no-store"

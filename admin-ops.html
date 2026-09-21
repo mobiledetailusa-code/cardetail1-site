@@ -3029,9 +3029,18 @@ async function loadTechs(fetchOpts, loadOpts) {
 
   async function onAssign(bookingId, techId) {
     try {
-      if (!techId) await api('/.netlify/functions/tech-assignment','POST',{action:'unassign',bookingId});
-      else await api('/.netlify/functions/tech-assignment','POST',{action:'assign',bookingId,techId});
-      toast(techId ? 'Assigned' : 'Unassigned');
+      if (!techId) {
+        await api('/.netlify/functions/tech-assignment','POST',{action:'unassign',bookingId});
+        toast('Unassigned');
+      } else {
+        const assigned = await api('/.netlify/functions/tech-assignment','POST',{action:'assign',bookingId,techId});
+        if (assigned && assigned.techOpsUrl) {
+          try { await navigator.clipboard.writeText(assigned.techOpsUrl); toast('Assigned — tech link copied'); }
+          catch (e) { toast('Assigned — ' + assigned.techOpsUrl); }
+        } else {
+          toast('Assigned');
+        }
+      }
       await refreshAll();
     } catch(e) { toast('Assign failed: '+e.message); }
   }

@@ -218,6 +218,9 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     // PR B — booking-scoped Quick Ops + payment resume
     'netlify/functions/admin-quick-ops.js',
     'netlify/functions/payment-resume.js',
+    // Technician Quick Ops — job-scoped tot_ magic link
+    'netlify/functions/tech-quick-ops.js',
+    'netlify/functions/tech-assignment.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);
