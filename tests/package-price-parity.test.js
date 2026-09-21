@@ -145,12 +145,12 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   const entries = catalogPriceEntries();
   // 200 prior catalog + 6 commercial trucks tier package amounts (day_cab/sleeper × 3 pkgs)
   assert.equal(entries.length, 206);
-  assert.equal(PRICING.cars.tiers.full_size_van.interior, 300);
-  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 310);
-  assert.equal(PRICING.cars.tiers.compact_van.interior, 270);
-  assert.equal(PRICING.cars.tiers.midsize_van.interior, 270);
-  assert.equal(PRICING.trucks.tiers.day_cab.interior, 375);
-  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 575);
+  assert.equal(PRICING.cars.tiers.full_size_van.interior, 270);
+  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 280);
+  assert.equal(PRICING.cars.tiers.compact_van.interior, 245);
+  assert.equal(PRICING.cars.tiers.midsize_van.interior, 245);
+  assert.equal(PRICING.trucks.tiers.day_cab.interior, 340);
+  assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 520);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
     const html = read(file);
@@ -271,12 +271,12 @@ test('static starting-price surfaces are verified against the catalog', () => {
 test('AI chat starting prices are derived from the same catalog', () => {
   const { BUSINESS_SYSTEM, CHAT_STARTING_PRICES } = require('../netlify/functions/ai-chat');
   assert.deepEqual(CHAT_STARTING_PRICES, {
-    cars: 220,
-    carMaintenance: 175,
-    carWash: 125,
-    boats: 195,
-    rvs: 270,
-    powersports: 200,
+    cars: 200,
+    carMaintenance: 160,
+    carWash: 115,
+    boats: 175,
+    rvs: 243,
+    powersports: 180,
   });
   for (const price of Object.values(CHAT_STARTING_PRICES)) {
     assert.match(BUSINESS_SYSTEM, new RegExp(`\\$${price}\\b`));
@@ -305,5 +305,5 @@ test('legacy patch scripts cannot restore stale package prices', () => {
   assert.doesNotMatch(rvLegacyEntry, /data-per-ft|data-min|Starting at \$/);
 
   const stateTheme = read('scripts/apply-state-hub-theme.mjs');
-  assert.doesNotMatch(stateTheme, /full:300|full:325, refresh/);
+  assert.doesNotMatch(stateTheme, /full:270|full:325, refresh/);
 });

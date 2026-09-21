@@ -47,19 +47,19 @@ function extractFunction(src, name) {
 }
 
 const PS_TIERS = {
-  motorcycle: { label: 'Motorcycle', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 200, restore: 260 },
-  motorcycle_large: { label: 'Large Motorcycle', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 220, restore: 290 },
-  motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance: 230, restore: 315 },
-  atv: { label: 'ATV', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 200, restore: 245 },
-  utv: { label: 'UTV / Side-by-Side', wash: 145, essential: 220, full: 320, premium: 455 },
-  utv_standard: { label: 'Side-by-Side / UTV', wash: 145, essential: 220, full: 320, premium: 455, maintenance: 220, restore: 275 },
-  utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 145, essential: 220, full: 320, premium: 455, maintenance: 230, restore: 315 },
+  motorcycle: { label: 'Motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:235 },
+  motorcycle_large: { label: 'Large Motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:200, restore:260 },
+  motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance:205, restore:285 },
+  atv: { label: 'ATV', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:220 },
+  utv: { label: 'UTV / Side-by-Side', wash:130, essential:200, full:290, premium:410 },
+  utv_standard: { label: 'Side-by-Side / UTV', wash:130, essential:200, full:290, premium:410, maintenance:200, restore:250 },
+  utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash:130, essential:200, full:290, premium:410, maintenance:205, restore:285 },
 };
 
 const MACHINES = {
-  motorcycle: { make: 'Honda', model: 'Rebel 500', year: '2023', tierKey: 'motorcycle', price: { wash: 115, full: 260, premium: 360 } },
-  atv: { make: 'Honda', model: 'FourTrax Rancher', year: '2022', tierKey: 'atv', price: { wash: 115, full: 260, premium: 360 } },
-  utv: { make: 'Honda', model: 'Pioneer 1000', year: '2024', tierKey: 'utv_standard', price: { wash: 145, full: 320, premium: 455 } },
+  motorcycle: { make: 'Honda', model: 'Rebel 500', year: '2023', tierKey: 'motorcycle', price: { wash:105, full:235, premium:325 } },
+  atv: { make: 'Honda', model: 'FourTrax Rancher', year: '2022', tierKey: 'atv', price: { wash:105, full:235, premium:325 } },
+  utv: { make: 'Honda', model: 'Pioneer 1000', year: '2024', tierKey: 'utv_standard', price: { wash:130, full:290, premium:410 } },
 };
 
 function loadDispatcher(stOverrides, fields) {
@@ -384,7 +384,7 @@ describe('Cars / RV / Boat dispatcher regression', () => {
     // Behavioral: cars must not be priced from leftover g-make specialty fields.
     const { sandbox, els } = loadDispatcher({
       cat: 'cars', pkgId: 'refresh', tierKey: 'suv3',
-      tier: { label: 'SUV 3-Row', refresh: 465 },
+      tier: { label: 'SUV 3-Row', refresh:420 },
       vehicleLabel: '',
     }, { make: 'Dutchmen', model: 'Astoria', year: '2022' });
     sandbox.tryGenericConfirm();
@@ -398,11 +398,11 @@ describe('Cars / RV / Boat dispatcher regression', () => {
     }, { make: 'Airstream', model: 'Flying Cloud', year: '2021' });
     sandbox.getLengthPrice = (cat, pkgId, ft) => {
       assert.equal(cat, 'rvs');
-      return 150 + 10 * Number(ft);
+      return 135 + 9 * Number(ft);
     };
     sandbox.tryGenericConfirm();
     assert.equal(sandbox.ST.vehicleLabel, '2021 Airstream Flying Cloud · 20 ft');
-    assert.equal(sandbox.ST.basePrice, 350);
+    assert.equal(sandbox.ST.basePrice, 315);
     assert.equal(els.next3.disabled, false);
     assert.equal(sandbox.ST.tierKey, 'travel');
   });
@@ -413,11 +413,11 @@ describe('Cars / RV / Boat dispatcher regression', () => {
     }, { make: 'Bennington', model: 'L Series', year: '2020' });
     sandbox.getBoatQuotePrice = (pkgId, ft, type) => {
       assert.equal(type, 'pontoon');
-      return Math.max(195, 12 * Number(ft));
+      return Math.max(175, 11 * Number(ft));
     };
     sandbox.tryGenericConfirm();
     assert.equal(sandbox.ST.vehicleLabel, '2020 Bennington L Series · Pontoon / Tritoon · 22 ft');
-    assert.equal(sandbox.ST.basePrice, 264);
+    assert.equal(sandbox.ST.basePrice, 242);
     assert.equal(els.next3.disabled, false);
   });
 });

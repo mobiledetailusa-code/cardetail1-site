@@ -85,12 +85,12 @@ test('full_size_van is a published numeric cars tier (server)', () => {
     assert.ok(Number.isFinite(tier[pkg]));
   }
   // Absolute catalog values after market uplift (each tier rounded independently).
-  assert.equal(tier.wash, 195);
-  assert.equal(tier.maint, 270);
-  assert.equal(tier.interior, 300);
-  assert.equal(tier.full, 340);
-  assert.equal(tier.refresh, 510);
-  assert.equal(tier.premium, 685);
+  assert.equal(tier.wash, 175);
+  assert.equal(tier.maint, 245);
+  assert.equal(tier.interior, 270);
+  assert.equal(tier.full, 305);
+  assert.equal(tier.refresh, 460);
+  assert.equal(tier.premium, 615);
 });
 
 test('DISPLAY includes full_size_van', () => {

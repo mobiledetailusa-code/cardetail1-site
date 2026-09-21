@@ -57,7 +57,7 @@ function baseDraft(overrides = {}) {
       tierKey: 'small',
       addons: [],
     }],
-    totalPrice: 275,
+    totalPrice: 250,
     travelFeeAmount: 0,
     zoneSurcharge: 0,
     setupIntentId: 'seti_test_succeeded_001',

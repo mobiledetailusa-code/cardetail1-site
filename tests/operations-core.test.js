@@ -94,7 +94,7 @@ test('operational refresh helper exists', () => {
 });
 
 test('package IDs unchanged on index', () => {
-  assert.ok(index.includes('refresh:370, premium:445'));
+  assert.ok(index.includes('refresh:335, premium:400'));
 });
 
 test('payment channels on technician completion', () => {

@@ -299,7 +299,7 @@ describe('PR4 vehicle and package/add-on rules', () => {
     const fullWithDuplicate = car({ packageId: 'full', addOnIds: ['claybar', 'ozone'] });
     const priced = computeVehicleSubtotal(fullWithDuplicate);
     assert.equal(priced.ok, true);
-    assert.equal(priced.subtotal, 315);
+    assert.equal(priced.subtotal, 290);
     assert.deepEqual(priced.addons.map((row) => row.id), ['ozone']);
 
     const includedOnly = applyServiceDelta(
@@ -324,8 +324,8 @@ describe('PR4 vehicle and package/add-on rules', () => {
     assert.equal(prismaConfigured(), true, 'PostgreSQL 16 is required for PR4 vehicle credit coverage');
     const id = `${RUN_ID}-VEH-CREDIT`;
     const seed = booking(id, {
-      approvedCents: 35000,
-      settledCents: 35000,
+      approvedCents: 32000,
+      settledCents: 32000,
       vehicles: [car({ vehicleId: 'veh_keep' }), car({ vehicleId: 'veh_remove', make: 'Honda', model: 'Civic' })],
     });
     setBookingStoreOverride(createMemoryStore({ [id]: seed }));
@@ -341,9 +341,9 @@ describe('PR4 vehicle and package/add-on rules', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 17500);
-    assert.equal(result.postgresProjection.settledCents, 35000);
-    assert.equal(result.outstandingCreditCents, 17500);
+    assert.equal(result.postgresProjection.approvedCents, 16000);
+    assert.equal(result.postgresProjection.settledCents, 32000);
+    assert.equal(result.outstandingCreditCents, 16000);
     assert.equal(result.postgresProjection.refundedCents, 0);
     assert.deepEqual(result.booking.vehicles.map((row) => row.vehicleId), ['veh_keep']);
     assert.equal(result.booking.vehicleHistory.length, 1);

@@ -81,7 +81,7 @@ function loadBookingFns() {
     PRICING: {
       cars: {
         packages: [{ id: 'maint', name: 'Maintenance', scope: 'both', feats: [] }],
-        tiers: { suv3: { label: 'SUV 3-Row', maint: 155 } },
+        tiers: { suv3: { label: 'SUV 3-Row', maint:155 } },
         addons: [],
       },
       rvs: {
@@ -96,7 +96,7 @@ function loadBookingFns() {
       },
       powersports: {
         packages: [{ id: 'wash', name: 'Wash', scope: 'ext', feats: [] }],
-        tiers: { motorcycle: { label: 'Motorcycle', wash: 115 } },
+        tiers: { motorcycle: { label: 'Motorcycle', wash:115 } },
         addons: [],
       },
     },

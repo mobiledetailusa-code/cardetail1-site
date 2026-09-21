@@ -105,22 +105,22 @@ test('client add-on catalog still lists rainx $25 and claybar $45 (not deleted)'
 // 6: package prices match the current server catalog + client source of truth.
 test('car package prices match the server catalog', () => {
   const t = PRICING.cars.tiers;
-  assert.equal(t.small.refresh, 370);
-  assert.equal(t.suv2.refresh, 415);
-  assert.equal(t.suv3.refresh, 465);
-  assert.equal(t.truck.refresh, 455);
-  assert.equal(t.small.premium, 445);
-  assert.equal(t.suv2.premium, 540);
-  assert.equal(t.suv3.premium, 620);
-  assert.equal(t.truck.premium, 605);
+  assert.equal(t.small.refresh, 335);
+  assert.equal(t.suv2.refresh, 375);
+  assert.equal(t.suv3.refresh, 420);
+  assert.equal(t.truck.refresh, 410);
+  assert.equal(t.small.premium, 400);
+  assert.equal(t.suv2.premium, 485);
+  assert.equal(t.suv3.premium, 560);
+  assert.equal(t.truck.premium, 545);
 });
 
 test('car package prices match client index.html', () => {
   const s = read('index.html');
-  assert.ok(s.includes('refresh:370, premium:445'));
-  assert.ok(s.includes('refresh:415, premium:540'));
-  assert.ok(s.includes('refresh:465, premium:620'));
-  assert.ok(s.includes('refresh:455, premium:605'));
+  assert.ok(s.includes('refresh:335, premium:400'));
+  assert.ok(s.includes('refresh:375, premium:485'));
+  assert.ok(s.includes('refresh:420, premium:560'));
+  assert.ok(s.includes('refresh:410, premium:545'));
 });
 
 // 7: historical booking display is not broken — dedup is isolated to the live
