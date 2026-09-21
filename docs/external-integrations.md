@@ -30,7 +30,13 @@ Loaded only after Analytics consent. CSP updated in `netlify.toml` for GTM/GA4/C
 | `CD1_GOOGLE_ADS_ID` | Optional override; default `AW-11321647982` |
 | `CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO` | Optional override; default `AW-11321647982/r6SRCJeL998YEO7GypYq` |
 
-Base tag + **Page view** conversion event loaded from `assets/revenue-events.js` (`initAdapters`) only after **Marketing** consent. Uses the official snippets (`gtag/js?id=AW-…`, `gtag('config', …)`, then `gtag('event', 'conversion', { send_to: … })`). Does not require Analytics consent. CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` for the tag.
+Base tag + **Page view** conversion load on every public page via `assets/revenue-events.js` (`initAdapters`), using **Consent Mode v2**:
+
+- Defaults: `ad_storage` / `ad_user_data` / `ad_personalization` / `analytics_storage` = `denied`
+- Marketing opt-in → `ad_*` = `granted`; Analytics opt-in → `analytics_storage` = `granted`
+- Tag + conversion always fire so Google Ads receives pings (cookieless when denied); full attribution cookies only after Marketing accept
+
+CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` / `googleads.g.doubleclick.net` / `pagead2.googlesyndication.com`.
 
 ## Microsoft Clarity
 
