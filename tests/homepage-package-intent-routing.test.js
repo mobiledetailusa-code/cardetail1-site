@@ -151,8 +151,13 @@ function loadSelectCategory() {
   sandbox.CD1BookingVehicleSummary = {
     clearCategoryExclusiveFields() {},
   };
+  sandbox.syncBookingProgressLabels = function () {};
+  sandbox.syncPackageStepChrome = function () {};
+  sandbox.syncVehicleStepChrome = function () {};
+  sandbox.syncBs2StickyBar = function () {};
   vm.createContext(sandbox);
   vm.runInContext(
+    extractFunction(index, 'carsVehicleFirstFlow') + '\n' +
     extractFunction(index, 'resetVehicleEntryFields') + '\n' +
     extractFunction(index, 'resolvePackageIntentForCategory') + '\n' +
     extractFunction(index, 'selectCategory') + '\n' +

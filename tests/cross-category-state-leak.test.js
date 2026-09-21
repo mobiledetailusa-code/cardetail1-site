@@ -123,8 +123,20 @@ function loadBookingFns() {
   sandbox.window = sandbox;
   sandbox.window.CD1BookingVehicleSummary = Summary;
   sandbox.window.CD1BookingProgress = sandbox.CD1BookingProgress;
+  sandbox.syncBookingProgressLabels = function () {};
+  sandbox.syncPackageStepChrome = function () {};
+  sandbox.syncVehicleStepChrome = function () {};
+  sandbox.syncBs2StickyBar = function () {};
+  sandbox.mountAddonGrid = function () {};
+  sandbox.pickPopularAddons = function () { return []; };
+  sandbox.popularIdsFor = function () { return []; };
+  sandbox.addonCardHtml = function () { return ''; };
+  sandbox.recalcAddonTotal = function () {};
+  sandbox.toggleAddon = function () {};
+  sandbox.toggleAllAddons = function () {};
   vm.createContext(sandbox);
   vm.runInContext(
+    extractFunction(index, 'carsVehicleFirstFlow') + '\n' +
     extractFunction(index, 'resetVehicleEntryFields') + '\n' +
     extractFunction(index, 'selectCategory') + '\n' +
     extractFunction(index, 'renderAddons'),
