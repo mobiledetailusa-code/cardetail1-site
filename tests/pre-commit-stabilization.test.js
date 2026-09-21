@@ -471,5 +471,5 @@ test('updateBkFromPrices does not overwrite cars category note with maint price'
   const html = read('index.html');
   const fn = html.match(/function updateBkFromPrices\(\)\{[\s\S]*?\n\}/)[0];
   assert.doesNotMatch(fn, /cars:/);
-  assert.match(html, /id="bkfrom-cars"[\s\S]*?Packages shown after ZIP check/);
+  assert.match(html, /id="bkfrom-cars"[\s\S]*?Packages after ZIP/);
 });

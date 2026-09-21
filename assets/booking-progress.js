@@ -11,7 +11,7 @@
   var CONTACT_IDS = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-notes', 'f-location', 'f-arrival-window', 'f-water', 'f-electric'];
   var CAT_LABELS = {
     cars: 'Cars & SUVs',
-    trucks: 'Trucks',
+    trucks: 'Semi Trucks',
     boats: 'Boat Detailing',
     rvs: 'RV Detailing',
     powersports: 'Powersports',

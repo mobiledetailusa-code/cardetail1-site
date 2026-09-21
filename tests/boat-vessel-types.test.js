@@ -44,7 +44,7 @@ describe('boat vessel types in booking', () => {
 
   it('Boats category copy names watercraft types instead of All vessels', () => {
     const card = index.slice(index.indexOf('id="bkcat-boats"'), index.indexOf('id="bkcat-rvs"'));
-    assert.match(card, /Pontoon · Center console · Jet Ski \/ PWC/);
+    assert.match(card, /Pontoon · Console · Jet Ski/);
     assert.doesNotMatch(card, /All vessels/);
     const ps = index.slice(index.indexOf('id="bkcat-powersports"'), index.indexOf('id="bkcat-powersports"') + 900);
     assert.match(ps, /Motorcycle · ATV · UTV/);

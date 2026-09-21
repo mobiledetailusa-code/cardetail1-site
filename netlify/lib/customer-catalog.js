@@ -11,8 +11,8 @@ const CAR_PACKAGES = [
     basePrice: 125,
     tag: 'Exterior wash only — add wax, clay bar, or engine bay if you want more',
     duration: '~45–75 min',
-    description: 'Hand wash, wheels, glass, and tire dressing. Wax, clay bar, and engine bay are add-ons.',
-    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned', 'Exterior glass cleaned', 'Door jambs wiped down', 'Tire dressing'],
+    description: 'Hand wash, wheels, windshield, and tire dressing. Wax, clay bar, and engine bay are add-ons.',
+    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned', 'Exterior windshield cleaned', 'Door jambs wiped down', 'Tire dressing'],
   },
   {
     id: 'maint',
@@ -30,7 +30,7 @@ const CAR_PACKAGES = [
     tag: 'Deep interior refresh',
     duration: '~1.5–2h',
     description: 'Deep vacuum including trunk and truck bed where applicable, fabric shampoo, leather conditioning, steam clean, door jambs, headliner, UV protectant on plastics. Odor treatment available as add-on.',
-    feats: ['Deep vacuum — seats, floors, trunk, and truck bed where applicable', 'Fabric seats & carpet shampoo', 'Leather surfaces conditioned', 'Steam clean vents & panels', 'Door jambs cleaned', 'Headliner cleaning', 'UV protectant on plastics', 'Interior glass'],
+    feats: ['Deep vacuum — seats, floors, trunk, and truck bed where applicable', 'Fabric seats & carpet shampoo', 'Leather surfaces conditioned', 'Steam clean vents & panels', 'Door jambs cleaned', 'Headliner cleaning', 'UV protectant on plastics', 'Interior windshield'],
   },
   {
     id: 'full',
@@ -48,7 +48,7 @@ const CAR_PACKAGES = [
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & wheels',
     duration: '~3.5–4h',
     description: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
-    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X glass treatment', 'Tire dressing'],
+    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing'],
   },
   {
     id: 'premium',
@@ -57,7 +57,7 @@ const CAR_PACKAGES = [
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & deep interior',
     duration: '~3.5–4h',
     description: 'Same exterior as Exterior Refresh & Protect — clay bar, chemical decontamination, single-pass correction, sealant, Rain-X, wheels and tire dressing — plus deep interior care.',
-    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X glass treatment', 'Tire dressing', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
+    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
   },
 ];
 
@@ -65,7 +65,7 @@ const ADDONS = [
   { id: 'pethair', name: 'Pet Hair Removal', price: 95, desc: 'Embedded pet hair from seats, carpets, mats' },
   { id: 'odor', name: 'Odor Treatment & Sanitize', price: 149, desc: 'Odor neutralizer + surface sanitizing' },
   { id: 'engine', name: 'Engine Bay Top Clean', price: 45, desc: 'Visible engine bay surfaces only' },
-  { id: 'rainx', name: 'Rain-X Glass Treatment', price: 25, desc: 'Water-repellent windshield treatment' },
+  { id: 'rainx', name: 'Rain-X Windshield Treatment', price: 25, desc: 'Water-repellent windshield treatment' },
   { id: 'polymer', name: 'Polymer Paint Sealant', price: 25, desc: '3–6 month paint protection' },
   { id: 'claybar', name: 'Clay Bar Treatment', price: 45, desc: 'Removes embedded contaminants' },
   { id: 'headlight', name: 'Headlight Restoration', price: 90, desc: 'Restore foggy headlights (pair)' },

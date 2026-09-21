@@ -8,10 +8,10 @@ const RV_TYPE_MULTIPLIERS = {
 };
 
 const BOAT_PACKAGES = [
-  { id: 'maint', name: 'Marine Wash', tag: 'Regular upkeep — hull, deck & glass', duration: '~1.5–2h', description: 'Hull wash, deck rinse, glass, trailer rinse when accessible.' },
-  { id: 'essential', name: 'Essential Marine', tag: 'Exterior protection + vinyl', duration: '~3–4h', description: 'Marine wash plus non-skid, vinyl conditioning, spray sealant.' },
-  { id: 'full', name: 'Full Marine Detail', tag: 'Complete boat refresh', duration: '~4–6h', description: 'Essential plus cabin/cockpit deep clean and marine wax/sealant.' },
-  { id: 'premium', name: 'Premium Marine', tag: 'Oxidation & max protection', duration: '~6–8h', description: 'Full marine plus machine wax/sealant and gloss enhancement.' },
+  { id: 'maint', name: 'Marine Wash', tag: 'Above-waterline wash for regular hull, deck, and windshield upkeep', duration: '~1.5–2h', description: 'Exterior hull wash above the waterline, deck and cockpit rinse, windshield cleaned, rub rail and hardware wiped, trailer rinse when accessible.' },
+  { id: 'essential', name: 'Essential Marine', tag: 'Wash, non-skid scrub, vinyl care, and spray marine sealant', duration: '~3–4h', description: 'Hull wash, deck and cockpit clean, non-skid scrub, windshield, vinyl seats and cushions cleaned and conditioned, cockpit detail, spray marine sealant, trailer rinse when accessible.' },
+  { id: 'full', name: 'Full Marine Detail', tag: 'Complete exterior and cabin detail with marine wax', duration: '~4–6h', description: 'Hull wash and surface detail, deck and cockpit deep clean, non-skid scrub, windshield, vinyl care, cabin deep clean when present, teak and brightwork wipe, marine wax or sealant, trailer rinse when accessible.' },
+  { id: 'premium', name: 'Premium Marine', tag: 'Oxidation improvement, hull polish, and maximum marine protection', duration: '~6–8h', description: 'Full exterior and cabin detail plus hull polish, light oxidation improvement, machine-applied marine wax or sealant, gloss enhancement, teak conditioning, and final inspection. Above-waterline only.' },
 ];
 
 const RV_PACKAGES = [

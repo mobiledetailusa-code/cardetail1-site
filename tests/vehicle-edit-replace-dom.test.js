@@ -118,12 +118,10 @@ function mountBooking() {
   const bs1 = `
     <div class="bsec on" id="bs1">
       <div class="svc-card" id="bkcat-cars">Cars &amp; SUVs</div>
-      <div class="bk-cat-specialty">
-        <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
-        <div class="svc-card" id="bkcat-boats">Boats</div>
-        <div class="svc-card" id="bkcat-rvs">RVs &amp; Trailers</div>
-        <div class="svc-card" id="bkcat-powersports">Powersports</div>
-      </div>
+      <div class="svc-card" id="bkcat-trucks">Semi Trucks</div>
+      <div class="svc-card" id="bkcat-boats">Boats</div>
+      <div class="svc-card" id="bkcat-rvs">RVs &amp; Trailers</div>
+      <div class="svc-card" id="bkcat-powersports">Powersports</div>
     </div>`;
   const bs2 = `
     <div class="bsec" id="bs2">
@@ -379,7 +377,7 @@ describe('BB-02 homepage specialty CTA is not Boats-only', () => {
     assert.match(ctaBlock, /id="home-specialty-cta"/);
     assert.match(ctaBlock, /onclick="openBooking\(null\)"/);
     assert.doesNotMatch(ctaBlock, /href="boats-detailing\.html"/);
-    assert.match(ctaBlock, /Trucks, boats, RVs &amp; powersports/);
+    assert.match(ctaBlock, /Semi trucks, boats, RVs &amp; powersports/);
   });
 
   it('clicking the CTA opens category chooser with RV, Boat, and Powersports', () => {

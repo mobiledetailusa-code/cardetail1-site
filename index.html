@@ -767,6 +767,13 @@ body.rv-overlay-lock{overflow:hidden}
 .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
 .pkg-c-name{font-size:13.5px;font-weight:700;color:var(--tx);letter-spacing:-.01em;margin:0;line-height:1.25}
 .pkg-c-badge{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;background:var(--tx,#0f172a);color:#fff;font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;opacity:.85}
+.pkg-c-scope{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:4px;font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;border:1px solid var(--bbr)}
+.pkg-c-scope--ext{color:#1d4ed8;background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.22)}
+.pkg-c-scope--int{color:#0f766e;background:rgba(15,118,110,.08);border-color:rgba(15,118,110,.22)}
+.pkg-c-scope--both{color:#6d28d9;background:rgba(109,40,217,.08);border-color:rgba(109,40,217,.2)}
+.pkg-c-section{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mu);margin:12px 0 6px;padding:0 2px}
+.pkg-grid--compact .pkg-c-section:first-child{margin-top:2px}
+.pkg-grid--rv-grouped{gap:6px}
 .pkg-c-tag{font-size:12px;color:var(--mu);line-height:1.3;margin:2px 0 0}
 .pkg-c-chips{display:block;margin-top:4px;font-size:11px;font-weight:500;color:var(--mu);line-height:1.35}
 .pkg-c-chips span{display:inline}
@@ -916,7 +923,7 @@ body.rv-overlay-lock{overflow:hidden}
 /* Hide pre-selection price hints — single price shown after vehicle + package */
 #bk-cat-grid .svc-from,.tchip-from,.pkg-price{display:none!important}
 .ah-total-est{display:none;font-size:10px;color:var(--mu);text-align:right;margin-top:2px;max-width:180px;line-height:1.35}
-#bk-cat-grid .svc-cat-note{font-size:12px;color:#475569;font-weight:500;line-height:1.45;padding:0 14px 14px}
+#bk-cat-grid .svc-cat-note{font-size:11px;color:#475569;font-weight:500;line-height:1.35;padding:4px 12px 10px}
 
 /* VEHICLE CONFIRM CARD */
 .vc{background:var(--bg3);border:1px solid var(--bbr);border-radius:var(--rs);padding:14px 16px;display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;animation:fu .25s ease}
@@ -968,18 +975,35 @@ body.rv-overlay-lock{overflow:hidden}
 /* Premium vehicle visuals — booking Step 1 category cards */
 .svc-ico img{width:100%;height:100%;object-fit:contain;display:block}
 .vc-ico img{width:96px;height:auto;display:block;max-width:100%}
-/* Step 1 category card: image-first layout */
-#bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs)}
-#bk-cat-grid .svc-ico{display:block;width:100%;height:130px;background:linear-gradient(180deg,#0c1e3a 0%,#010508 100%);margin-bottom:0;font-size:0;position:relative;overflow:hidden}
-#bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from{padding-left:14px;padding-right:14px}
-#bk-cat-grid .svc-name{padding-top:12px}
-#bk-cat-grid .svc-from{padding-bottom:14px}
-/* Photo cards: real photos with dark cinematic overlay */
+/* Step 1 category tiles — compact side-by-side blocks */
+#bk-cat-grid.bk-cat-grid--tiles,
+#bk-cat-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  align-items:stretch;
+}
+#bk-cat-grid .svc-card{padding:0;overflow:hidden;border-radius:var(--rs);min-width:0}
+#bk-cat-grid .svc-ico{display:block;width:100%;height:88px;background:transparent;margin-bottom:0;font-size:0;position:relative;overflow:hidden}
+#bk-cat-grid .svc-ico-photo{height:88px}
+#bk-cat-grid .svc-name,#bk-cat-grid .svc-desc,#bk-cat-grid .svc-from,#bk-cat-grid .svc-cat-note{padding-left:12px;padding-right:12px}
+#bk-cat-grid .svc-name{padding-top:10px;font-size:14px;font-weight:700;line-height:1.25;letter-spacing:.01em}
+#bk-cat-grid .svc-desc{font-size:11px;line-height:1.35;margin-top:2px;color:var(--mu)}
+#bk-cat-grid .svc-from,#bk-cat-grid .svc-cat-note{padding-bottom:10px;padding-top:4px;font-size:11px;font-weight:500;line-height:1.35}
+#bk-cat-grid .bk-cat-specialty{grid-column:1/-1;margin-top:0;padding-top:0;border-top:none;display:contents}
+#bk-cat-grid .bk-cat-specialty-label{display:none}
+#bk-cat-grid #bkcat-trucks{grid-column:auto}
+@media(max-width:380px){
+  #bk-cat-grid.bk-cat-grid--tiles,
+  #bk-cat-grid{grid-template-columns:1fr;gap:8px}
+  #bk-cat-grid .svc-ico,#bk-cat-grid .svc-ico-photo{height:96px}
+}
+/* Photo cards (legacy non-3d): dark cinematic plate — 3D icons stay transparent */
 .svc-ico-photo{display:block;width:100%;height:130px;position:relative;overflow:hidden;margin-bottom:0;font-size:0;flex-shrink:0}
-.svc-ico-photo{background:#020a16}
-.svc-ico-photo img{width:100%;height:100%;object-fit:contain;display:block;filter:brightness(.62) saturate(1.35) contrast(1.08);transition:filter .35s ease}
-.svc-card:hover .svc-ico-photo img{filter:brightness(.82) saturate(1.4) contrast(1.08)}
-.svc-ico-photo::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
+.svc-ico-photo:not(.svc-ico-photo--3d){background:#020a16}
+.svc-ico-photo:not(.svc-ico-photo--3d) img{width:100%;height:100%;object-fit:contain;display:block;filter:brightness(.62) saturate(1.35) contrast(1.08);transition:filter .35s ease}
+.svc-card:hover .svc-ico-photo:not(.svc-ico-photo--3d) img{filter:brightness(.82) saturate(1.4) contrast(1.08)}
+.svc-ico-photo:not(.svc-ico-photo--3d)::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 130% 90% at 58% 45%,rgba(40,100,230,.24) 0%,transparent 62%),linear-gradient(180deg,rgba(4,10,28,.5) 0%,rgba(4,10,28,.1) 55%,rgba(4,10,28,.6) 100%);z-index:1;pointer-events:none}
 .svc-ico-photo .photo-label{position:absolute;bottom:0;left:0;right:0;z-index:2;display:none}
 
 /* STRIP */
@@ -1644,10 +1668,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-addon-chip:hover{border-color:var(--bbr);color:var(--blue);background:var(--bdim)}
 .car-addon-chip b{color:var(--blue);font-weight:600}
 .car-services-cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-#bk-cat-grid .bk-cat-specialty{margin-top:8px;padding-top:16px;border-top:1px dashed var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
-#bk-cat-grid .bk-cat-specialty .svc-card{opacity:.92}
-#bk-cat-grid .bk-cat-specialty-label{grid-column:1/-1;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:4px}
-#bk-cat-grid #bkcat-trucks{grid-column:1/-1}
+#bk-cat-grid .bk-cat-specialty{margin-top:0;padding-top:0;border-top:none;display:contents}
+#bk-cat-grid .bk-cat-specialty .svc-card{opacity:1}
+#bk-cat-grid .bk-cat-specialty-label{display:none}
+/* trucks sits in the same 2-col tile grid — never full-bleed */
+#bk-cat-grid #bkcat-trucks{grid-column:auto}
 @media(max-width:760px){
   .car-pkg-grid{grid-template-columns:1fr;gap:14px}
   .car-pkg-card--popular{order:-1}
@@ -1693,10 +1718,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .cred-item b{color:var(--ink)}
 
 /* ── MODALS — light surfaces (booking / portal / login; logic unchanged) ── */
-.booking-modal-ov{background:rgba(15,23,42,.55)}
+/* Overlay atmosphere lives in booking-modal-light.css (site theme; hero too dark for steps). */
 .booking-close,.login-close{background:var(--bg0);color:var(--ink-soft)}
 .booking-close:hover,.login-close:hover{background:var(--bg2);color:var(--ink)}
-.bprog{background:var(--bg0);border-bottom:1px solid var(--line)}
 .bpn{background:var(--bg2);color:var(--ink-soft)}
 .bpt.active .bpn,.bpt.done .bpn{color:var(--white)}
 .btitle,.pkg-name,.pkg-price,.tchip-name,.suc-title,.unit-value,.login-title{color:var(--ink)}
@@ -1707,14 +1731,34 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .booking-modal .pkg-c:hover{border-color:rgba(37,99,235,.3)}
 .booking-modal .pkg-c.sel{background:#f8fafc;border-color:var(--blue);box-shadow:0 0 0 2px rgba(37,99,235,.1)}
 .booking-modal .pkg-c-name,.booking-modal .pkg-c-price,.booking-modal .pkg-c-details b{color:var(--ink)}
-.booking-modal .pkg-c-tag,.booking-modal .pkg-c-chips,.booking-modal .pkg-c-dur,.booking-modal .pkg-c-details,.booking-modal .pkg-c-note{color:var(--ink-soft,#5b6578)}
+.booking-modal .pkg-c-tag,.booking-modal .pkg-c-chips,.booking-modal .pkg-c-dur,.booking-modal .pkg-c-details,.booking-modal .pkg-c-note,.booking-modal .pkg-c-section{color:var(--ink-soft,#5b6578)}
+.booking-modal .pkg-c-scope--ext{color:#1d4ed8;background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.22)}
+.booking-modal .pkg-c-scope--int{color:#0f766e;background:rgba(15,118,110,.08);border-color:rgba(15,118,110,.22)}
+.booking-modal .pkg-c-scope--both{color:#5b21b6;background:rgba(91,33,182,.06);border-color:rgba(91,33,182,.18)}
 .booking-modal .pkg-c-radio{border-color:#c5cad6}
 .booking-modal .pkg-c.sel .pkg-c-radio{border-color:var(--blue);box-shadow:inset 0 0 0 3.5px var(--blue)}
 .booking-modal .pkg-c-badge{background:var(--ink);color:#fff}
 .booking-modal .pkg-c-expand{color:var(--blue)}
 .booking-modal .pkg-c-details{border-top-color:var(--line)}
 .booking-modal .pkg-c-chips span::after{color:#c5cad6}
-.booking-modal .pkg-c-note{background:rgba(15,23,42,.03)}
+.booking-modal .pkg-c-section {
+  color: var(--ink-soft, #475569);
+}
+.booking-modal .pkg-c-scope--ext {
+  color: #1d4ed8;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+.booking-modal .pkg-c-scope--int {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.08);
+  border-color: rgba(15, 118, 110, 0.22);
+}
+.booking-modal .pkg-c-scope--both {
+  color: #5b21b6;
+  background: rgba(91, 33, 182, 0.06);
+  border-color: rgba(91, 33, 182, 0.18);
+}
 .booking-modal .bk-veh-zip,.booking-modal .bk-veh-pill{background:var(--bg0,#f3f5f8);border-color:var(--line)}
 .booking-modal .bk-veh-zip b,.booking-modal .bk-veh-pill b{color:var(--ink)}
 .booking-modal .bk-veh-zip span,.booking-modal .bk-veh-pill span{color:var(--mu)}
@@ -1871,7 +1915,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
     <div class="specialty-service-links">
-      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
+      <a class="specialty-service-link" href="trucks-detailing.html">Semi Trucks</a>
       <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
       <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
       <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
@@ -1999,7 +2043,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
-          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, glass, and UV protectant.</p>
+          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, windshield, and UV protectant.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
@@ -2042,7 +2086,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Refresh &amp; Protect</h3>
-          <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
+          <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, windshield, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
@@ -2070,7 +2114,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="car-services-cta">
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
-      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Trucks, boats, RVs &amp; powersports</button>
+      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Semi trucks, boats, RVs &amp; powersports</button>
     </div>
   </div>
 </div>
@@ -2208,7 +2252,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper Clubman</div>
           <div class="ba-service">Rear Detail &amp; Trim Restoration</div>
-          <p class="ba-caption">The barn doors and rear glass were coated in a thick layer of dust — easy to miss until you walk around back. Same rear angle after the job: clean glass, sharp reflections, and trim that actually looks black again.</p>
+          <p class="ba-caption">The barn doors and rear windshield were coated in a thick layer of dust — easy to miss until you walk around back. Same rear angle after the job: clean windshield, sharp reflections, and trim that actually looks black again.</p>
         </div>
       </article>
 
@@ -2226,7 +2270,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Renegade Vienna (Mercedes Sprinter RV)</div>
           <div class="ba-service">RV Front Cap &amp; Windshield Detail</div>
-          <p class="ba-caption">Mud streaks ran down the entire front cap and windshield after weeks on the road. We cut through the grime on the black fiberglass and glass until the front of this coach looked like it did the day it rolled off the lot.</p>
+          <p class="ba-caption">Mud streaks ran down the entire front cap and windshield after weeks on the road. We cut through the grime on the black fiberglass and windshield until the front of this coach looked like it did the day it rolled off the lot.</p>
         </div>
       </article>
 
@@ -2741,40 +2785,36 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <span>Enter your 5-digit ZIP code to unlock services and see local pricing</span>
         </div>
         <div class="bk-travel-line" id="bk-travel-line"></div>
-        <div class="service-grid" id="bk-cat-grid" style="grid-template-columns:1fr">
+        <div class="service-grid bk-cat-grid--tiles" id="bk-cat-grid">
           <div class="svc-card locked" id="bkcat-cars" onclick="selectCategory('cars')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-cars.webp" alt="Cars, SUVs and pickups receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Cars &amp; SUVs</div>
-            <div class="svc-desc" style="font-size:12px">Sedans · SUVs · Pickups · Vans</div>
-            <div class="svc-cat-note" id="bkfrom-cars">Packages shown after ZIP check</div>
+            <div class="svc-name">Cars &amp; SUVs</div>
+            <div class="svc-desc">Sedans · SUVs · Pickups · Vans</div>
+            <div class="svc-cat-note" id="bkfrom-cars">Packages after ZIP</div>
           </div>
-          <div class="bk-cat-specialty">
-            <div class="bk-cat-specialty-label">Trucks, boats, RVs &amp; powersports</div>
           <div class="svc-card locked" id="bkcat-trucks" onclick="selectCategory('trucks')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial day cab and tractor-trailer semis receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Trucks</div>
-            <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
-            <div class="svc-cat-note" id="bkfrom-trucks">From $375 · semis only (not pickups)</div>
+            <div class="svc-name">Semi Trucks</div>
+            <div class="svc-desc">Day cab · Sleeper · Not pickups</div>
+            <div class="svc-cat-note" id="bkfrom-trucks">From $375</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Boats</div>
-            <div class="svc-desc" style="font-size:12px">Pontoon · Center console · Jet Ski / PWC</div>
-            <div class="svc-from" id="bkfrom-boats" style="font-size:12px">From $195</div>
+            <div class="svc-name">Boats</div>
+            <div class="svc-desc">Pontoon · Console · Jet Ski</div>
+            <div class="svc-cat-note" id="bkfrom-boats">From $195</div>
           </div>
           <div class="svc-card locked" id="bkcat-rvs" onclick="selectCategory('rvs')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-rvs.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
-            <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Price calculated from your vehicle details.</div>
+            <div class="svc-name">RVs &amp; Trailers</div>
+            <div class="svc-desc">Trailers · 5th Wheel · Class A/C</div>
+            <div class="svc-cat-note" id="bkfrom-rvs">Priced by length</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
-            <div class="svc-name" style="font-size:22px">Powersports</div>
-            <div class="svc-desc" style="font-size:12px">Motorcycle · ATV · UTV · Golf · Equipment</div>
-            <div class="svc-from" id="bkfrom-powersports" style="font-size:12px">From $200</div>
-          </div>
-
+            <div class="svc-name">Powersports</div>
+            <div class="svc-desc">Motorcycle · ATV · UTV · Golf</div>
+            <div class="svc-cat-note" id="bkfrom-powersports">From $200</div>
           </div>
         </div>
       </div>
@@ -2808,7 +2848,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="bsec" id="bs3">
         <div class="beye">Step 03 — Vehicle</div>
         <div class="btitle">YOUR VEHICLE</div>
-        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.</div>
+        <div class="bdesc" id="bs3-desc">Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Semi trucks need cab type first.</div>
 
         <!-- Boat vessel type (boats only) — same pattern as RV / trailer type -->
         <div id="boat-type-wrap" style="display:none;margin-bottom:14px">
@@ -2890,7 +2930,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <div class="tchip-desc">Sleeper tractor — bunk &amp; living space</div>
             </button>
           </div>
-          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are commercial semis only.</p>
+          <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Semi trucks here are commercial tractor-trailers only.</p>
         </div>
 
         <!-- Make / model / year first — size class is auto-detected from the catalog -->
@@ -3699,7 +3739,7 @@ const CAR_INTERIOR_SERVICE_ITEMS = [
   'Leather surfaces conditioned',
   'Steam clean — vents, panels, crevices',
   'Dashboard, doors & trim detail with UV protectant on plastics',
-  'Interior glass cleaned',
+  'Interior windshield cleaned',
   'Door jambs cleaned',
   'Headliner cleaning',
 ];
@@ -3709,7 +3749,7 @@ const TRUCK_INTERIOR_SERVICE_ITEMS = [
   'Leather / vinyl surfaces conditioned',
   'Steam clean — vents, panels, crevices',
   'Dash, doors & trim detail with UV protectant on plastics',
-  'Interior glass cleaned',
+  'Interior windshield cleaned',
   'Door jambs cleaned',
   'Sleeper living area cleaned when present (bunk, cabinets, appliance exteriors)',
 ];
@@ -3727,19 +3767,19 @@ let PRICING = {
     },
     packages:[
       {id:'full',     name:'Premium Full Detail', icon:'🧽', tag:'Best for a full inside/out refresh — most popular', dur:'~2.5–3h', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned','Engine Bay Light Cleaning & Wipe-Down'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned','Engine Bay Light Cleaning & Wipe-Down'],
         int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:['Machine polish','Signature Restoration','Premium long-term sealant']},
       {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
         int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:[]},
       {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
         int:[],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down','Final quality inspection'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X windshield treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down','Final quality inspection'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles — add-ons available for pet hair, odor & stains', dur:'~1.5–2h',            popular:false, scope:'int',
         ext:[],
@@ -3747,14 +3787,14 @@ let PRICING = {
         feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
       {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior windshield cleaned','Door jambs wiped down','Tire dressing'],
         int:[],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior windshield cleaned','Door jambs wiped down','Tire dressing'],
         miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
     ],
     addons:[
@@ -3766,7 +3806,7 @@ let PRICING = {
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Estimate confirmation required', price:115},
       {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
       {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment',    desc:'Water-repellent Rain-X on windshield', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
       {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
@@ -3795,14 +3835,14 @@ let PRICING = {
         feats:TRUCK_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Wax or sealant','Trailer body wash']},
       {id:'int_wash', name:'Interior + Wash', icon:'🧽', tag:'Cab interior plus tractor exterior hand wash', dur:'~3–4h', popular:true, scope:'both',
-        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'],
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down'],
         int:TRUCK_INTERIOR_SERVICE_ITEMS,
-        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
         miss:['Machine wax / sealant','Trailer body wash','Paint correction']},
       {id:'int_wash_wax', name:'Interior + Wash & Wax', icon:'✨', tag:'Cab interior, exterior wash, and wax/sealant protect', dur:'~4–5h', popular:false, scope:'both',
-        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'],
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'],
         int:TRUCK_INTERIOR_SERVICE_ITEMS,
-        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
         miss:['Full trailer wash','Multi-stage paint correction']},
     ],
     addons:[
@@ -3814,7 +3854,7 @@ let PRICING = {
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids or severe contamination. Estimate confirmation required', price:115},
       {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
       {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment',    desc:'Water-repellent Rain-X on windshield', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
       {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
@@ -3830,21 +3870,21 @@ let PRICING = {
       over30:   {label:'30+ ft',      icon:'🛳️', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:585, essential:845, full:1305, premium:1955},
     },
     packages:[
-      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Regular upkeep — hull, deck & glass',        dur:'~1.5–2h', popular:false,
-        feats:['Exterior hull wash above waterline','Deck & cockpit rinse','Glass & windshield cleaned','Trim & rails wiped','Trailer rinse & tire shine (when accessible)'],
-        miss:['Non-skid scrub','Vinyl conditioning','Marine wax','Cabin/interior']},
-      {id:'essential',name:'Essential Marine',   icon:'🧽', tag:'Exterior protection + vinyl conditioning',   dur:'~3–4h',   popular:false,
-        feats:['Marine Wash included','Non-skid surface scrubbed','Vinyl seats & cushions cleaned & conditioned','Cockpit detail','Spray marine sealant','Trailer rinse & tire shine'],
-        miss:['Marine wax','Full cabin detail','Oxidation removal']},
-      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete boat refresh — most requested',     dur:'~4–6h',   popular:true,
-        feats:['Essential Marine included','Cockpit & cabin deep clean','Hull surface detail','Marine wax/sealant applied','Teak & trim cleaning','Stainless/chrome wipe-down','Trailer rinse & tire shine'],
-        miss:['Machine oxidation removal','Gelcoat correction']},
-      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Deep gloss, oxidation & max protection',     dur:'~6–8h',   popular:false,
-        feats:['Full Marine Detail included','Oxidation assessment & light improvement','Machine-applied marine wax/sealant','Gloss enhancement','Hull polish','Teak conditioning','Final inspection'],
-        miss:[]}
+      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Above-waterline wash for regular hull, deck, and windshield upkeep', dur:'~1.5–2h', popular:false,
+        feats:['Exterior hull wash above the waterline','Deck and cockpit rinse','Windshield cleaned','Rub rail, trim, and hardware wiped','Trailer rinse and tire shine when accessible'],
+        miss:['Non-skid scrub','Vinyl conditioning','Marine wax or sealant','Cabin / interior detail']},
+      {id:'essential',name:'Essential Marine',   icon:'🧽', tag:'Wash, non-skid scrub, vinyl care, and spray marine sealant', dur:'~3–4h',   popular:false,
+        feats:['Exterior hull wash above the waterline','Deck and cockpit cleaned','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit surfaces detailed','Rub rail, trim, and hardware wiped','Spray marine sealant on exterior gel coat','Trailer rinse and tire shine when accessible'],
+        miss:['Hand or machine marine wax','Full cabin detail','Oxidation correction']},
+      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete exterior and cabin detail with marine wax — most requested', dur:'~4–6h',   popular:true,
+        feats:['Exterior hull wash above the waterline','Hull surface detail for salt film, bugs, and light water spots','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned','Stainless and chrome brightwork wiped','Marine wax or sealant applied to exterior gel coat','Trailer rinse and tire shine when accessible'],
+        miss:['Machine oxidation removal','Multi-stage gelcoat correction']},
+      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Oxidation improvement, hull polish, and maximum marine protection', dur:'~6–8h',   popular:false,
+        feats:['Exterior hull wash above the waterline','Hull surface polish for light oxidation and haze','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned and conditioned','Stainless and chrome brightwork wiped and polished where accessible','Oxidation assessment with light improvement where achievable','Machine-applied marine wax or sealant','Gloss enhancement on exterior gel coat','Trailer rinse and tire shine when accessible','Final quality inspection'],
+        miss:['Severe oxidation restoration without inspection','Below-waterline / haul-out work']}
     ],
     addons:[
-      {id:'rainx',      name:'Rain-X Glass Treatment',     desc:'Water-repellent treatment for marine windshields and glass', price:25},
+      {id:'rainx',      name:'Rain-X Windshield Treatment',     desc:'Water-repellent treatment for marine windshields', price:25},
       {id:'polymer',    name:'Polymer Hull Sealant',        desc:'Polymer sealant on hull exterior for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',  desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
       {id:'chrome',     name:'Chrome / Stainless Polish',   desc:'Polish accessible chrome, rails, cleats, and brightwork on exterior surfaces', price:85},
@@ -3868,28 +3908,40 @@ let PRICING = {
     },
     packages:[
       {id:'maint', name:'Maintenance Wash', icon:'🪣', tag:'Keep your RV clean, protected and ready for the road.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
+        int:[],
         feats:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
         miss:['Roof','Heavy black streaks','Oxidation','Severe water spots','Interior']},
       {id:'maint_light', name:'Maintenance Wash + Light Interior', icon:'🪣', tag:'Exterior maintenance plus a quick interior refresh.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
-        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and glass','Accessible trash removal'],
+        ext:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant'],
+        int:['Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and windshield','Accessible trash removal'],
+        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and windshield','Accessible trash removal'],
         miss:['Upholstery shampoo','Carpet extraction','Pet hair','Odor treatment','Refrigerator interior','Oven interior','Cabinet interiors','Bed making','Roof cleaning']},
       {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'A complete interior cleaning from the driver cabin to the living area.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'int',
+        ext:[],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Exterior','Personal belongings left in place','Heavy staining without Super Interior','Excessive pet hair','Strong odors']},
       {id:'full_basic', name:'Full RV Detail', icon:'🧽', tag:'Complete interior cleaning plus exterior wash and protection.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
+        ext:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','One-step machine polishing','Oxidation correction']},
       {id:'premium', name:'Premium Exterior Detail', icon:'🏅', tag:'One-Step Machine Polish + Premium Protection', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        int:[],
         feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
         miss:['Roof','Multi-stage restoration','Interior','Guaranteed removal of every scratch or permanent water spot']},
       {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'One-Step Exterior Polish + Complete Interior Detail', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','Multi-stage correction','Severe oxidation without inspection','Deep scratches and damaged decals without inspection']}
     ],
     addons:[
       {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',   desc:'Polymer sealant on RV exterior for added protection and gloss', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax on RV exterior with UV and weather protection', price:75},
-      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield', price:25},
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, waste, or severe contamination. Estimate confirmation required', price:115},
       {id:'sanitize',   scope:'int', name:'Sanitize',                  desc:'Sanitizing treatment after normal cleaning on steering wheel and driver controls, door handles, tables and countertops, kitchen touch points, bathroom touch points, switches and frequently handled surfaces. Not sterilization.', price:75},
       {id:'superint',   scope:'int', name:'Super Interior',            desc:'Additional upholstery or carpet shampoo pass; up to two total shampoo/extraction passes where needed; moderate pet hair removal; odor-neutralizing treatment; detailed floor-mat cleaning; additional attention to high-use interior areas; extended interior labor. Severe pet hair, smoke, sewage, mold, biological contamination or deeply embedded odors may require inspection and separate pricing.', price:135},
@@ -3945,7 +3997,7 @@ let PRICING = {
       {id:'heavymud',   name:'Heavy Mud / Off-Road Buildup', desc:'Extra cleaning for packed mud, clay, and excessive off-road buildup. Normal trail dirt is included in the package.', price:55, publicNew:true},
       {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
-      {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
+      {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior windshield', price:25},
       {id:'seatdeep',   name:'Seat Deep Clean',              desc:'Deep cleaning for seats and riding surfaces', price:45},
       {id:'storage',    name:'Storage Compartment Cleaning', desc:'Vacuum and wipe saddlebags, boxes, and accessible compartments', price:35},
       {id:'wheeldet',   name:'Wheel Detail',                 desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},
@@ -3971,7 +4023,7 @@ let PRICING = {
     },
     packages:[
       {id:'maint',    name:'Fleet Maintenance Wash',    icon:'🪣', tag:'Weekly/biweekly exterior upkeep',                                dur:'Varies by fleet size',  popular:false,
-        feats:['Exterior wash or wipe-down per vehicle type','Glass & mirror cleaning','Wheels & tires basic clean','Light interior wipe-down when applicable','Designed for recurring fleet programs'],
+        feats:['Exterior wash or wipe-down per vehicle type','Windshield & mirror cleaning','Wheels & tires basic clean','Light interior wipe-down when applicable','Designed for recurring fleet programs'],
         miss:['Deep interior','Wax/sealant','Heavy soil','Restoration']},
       {id:'essential',name:'Fleet Essential Detail',    icon:'🧽', tag:'Monthly maintenance + interior — most popular fleet plan',      dur:'Varies by fleet size',  popular:true,
         feats:['Maintenance Wash included','Interior vacuum per unit','Dashboard & cabin wipe-down','Door jambs & handles','Tire dressing','Best for monthly or biweekly fleets'],
@@ -5100,6 +5152,12 @@ function carsVehicleFirstFlow() {
   return ST.cat === 'cars';
 }
 
+/** Compact package rows + dense add-on grid (cars + specialty). Fleet stays card/quote UI. */
+function usesCompactPackageUi(cat) {
+  const c = cat || ST.cat;
+  return c === 'cars' || c === 'trucks' || c === 'boats' || c === 'rvs' || c === 'powersports';
+}
+
 function progressTabForPanel(n) {
   if (!carsVehicleFirstFlow()) return n;
   if (n === 2) return 3;
@@ -5126,7 +5184,8 @@ function syncPackageStepChrome() {
   const next2 = document.getElementById('next2');
   const bs2 = document.getElementById('bs2');
   const carsReady = carsVehicleFirstFlow() && !!ST.vehicleLabel && !!ST.tierKey;
-  if (bs2) bs2.classList.toggle('bk-pkg-dense', carsReady);
+  const compactCat = usesCompactPackageUi(ST.cat);
+  if (bs2) bs2.classList.toggle('bk-pkg-dense', compactCat && (carsReady || !carsVehicleFirstFlow()));
   if (carsReady) {
     if (eye) eye.textContent = 'Step 03 — Package';
     if (title) title.innerHTML = 'Pick Your Package';
@@ -5136,6 +5195,17 @@ function syncPackageStepChrome() {
         : 'Compare packages for your vehicle. Expand a row only when you need the full list.';
     }
     if (next2) next2.textContent = ST.pkg ? 'Continue to Info →' : 'Select a package';
+  } else if (compactCat && !carsVehicleFirstFlow()) {
+    if (eye) eye.textContent = 'Step 02 — Package';
+    if (title) title.innerHTML = 'Pick Your Package';
+    if (desc) {
+      desc.textContent = ST.cat === 'boats' || ST.cat === 'rvs'
+        ? (ST.cat === 'rvs'
+          ? 'Packages are grouped by Exterior, Interior, and combined. Exact price locks in after type and length.'
+          : 'Compare packages. Exact price locks in after length and type on the next step.')
+        : 'Compare packages. Expand a row only when you need the full list — then continue to vehicle details.';
+    }
+    if (next2) next2.textContent = 'Continue to vehicle →';
   } else {
     if (eye) eye.textContent = 'Step 02 — Package';
     if (title) title.innerHTML = 'CHOOSE YOUR<br>PACKAGE';
@@ -5144,6 +5214,7 @@ function syncPackageStepChrome() {
   }
   renderBs2VehicleSummary();
   syncCarsAddonsPlacement();
+  syncSpecialtyAddonsChrome();
   syncBs2StickyBar();
 }
 
@@ -5152,7 +5223,9 @@ function syncPackageStepChrome() {
  * Always derived from live ST — never from ST.vehicles committed snapshots.
  */
 function getActiveBookingConfig() {
-  const meta = (ST.pkgId && typeof PKG_COMPACT_META !== 'undefined' && PKG_COMPACT_META[ST.pkgId]) || null;
+  const meta = (ST.pkgId && typeof getPkgCompactMeta === 'function')
+    ? getPkgCompactMeta(ST.cat, ST.pkgId)
+    : ((ST.pkgId && typeof PKG_COMPACT_META !== 'undefined' && PKG_COMPACT_META[ST.pkgId]) || null);
   const pkgName = (meta && meta.shortName) || (ST.pkg && ST.pkg.name) || '';
   const vehicleLine = window.CD1BookingVehicleSummary
     ? CD1BookingVehicleSummary.formatAddonHeaderSummary(ST)
@@ -5300,6 +5373,15 @@ function syncCarsAddonsPlacement() {
   }
 }
 
+/** Specialty (package-first): keep add-ons on the vehicle step but use the compact grid chrome. */
+function syncSpecialtyAddonsChrome() {
+  const addons = document.getElementById('bs3-addons');
+  if (!addons) return;
+  if (carsVehicleFirstFlow()) return;
+  const compact = usesCompactPackageUi(ST.cat) && !!ST.pkg;
+  addons.classList.toggle('bk-addons-compact', compact);
+}
+
 function syncVehicleStepChrome() {
   const next3 = document.getElementById('next3');
   const addons = document.getElementById('bs3-addons');
@@ -5317,12 +5399,13 @@ function syncVehicleStepChrome() {
     if (eye) eye.textContent = 'Step 03 — Vehicle';
     if (title) title.textContent = 'YOUR VEHICLE';
     if (desc) {
-      desc.textContent = 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Trucks (semis) need cab type first.';
+      desc.textContent = 'Enter your vehicle details. Boats, RVs and travel trailers are priced by exact length. Semi trucks need cab type first.';
     }
     if (next3) next3.textContent = 'Continue to Info →';
     if (addons) addons.style.display = '';
   }
   syncCarsAddonsPlacement();
+  syncSpecialtyAddonsChrome();
 }
 
 function bkContinueFromPackage() {
@@ -5525,38 +5608,73 @@ function bindPowersportsPackageCopy(){
 }
 
 // ── STEP 2: PACKAGES ──────────────────────────────────────────────────────────
-const PKG_COMPACT_META = {
-  full: {
-    shortName: 'Premium Full Detail',
-    line: 'Complete inside/out refresh',
-    chips: ['Shampoo', 'Clay', 'Protection', 'Engine Bay'],
+const PKG_COMPACT_META_BY_CAT = {
+  cars: {
+    full: { shortName: 'Premium Full Detail', line: 'Complete inside/out refresh', chips: ['Shampoo', 'Clay', 'Protection', 'Engine Bay'] },
+    premium: { shortName: 'Signature Restoration', line: 'Correction + deep restoration', chips: ['Paint Correction', 'Sealant', 'Rain-X', 'Engine Bay'] },
+    refresh: { shortName: 'Exterior Refresh & Protect', line: 'Exterior paint enhancement', chips: ['Clay', 'Polish', 'Sealant', 'Engine Bay'] },
+    interior: { shortName: 'Interior Detail', line: 'Deep clean cabin', chips: ['Shampoo', 'Condition', 'UV'] },
+    maint: { shortName: 'Maintenance Detail', line: 'Keep-clean wash + light interior', chips: ['Wash', 'Clay', 'Quick interior'] },
+    wash: { shortName: 'Exterior Hand Wash', line: 'Basic exterior service', chips: ['Wash', 'Wheels', 'Windshield'] },
   },
-  premium: {
-    shortName: 'Signature Restoration',
-    line: 'Correction + deep restoration',
-    chips: ['Paint Correction', 'Sealant', 'Rain-X', 'Engine Bay'],
+  trucks: {
+    interior: { shortName: 'Interior Detail', line: 'Cab interior — day cab or sleeper', chips: ['Vacuum', 'Surfaces', 'Windshield'] },
+    int_wash: { shortName: 'Interior + Wash', line: 'Cab interior + tractor exterior wash', chips: ['Interior', 'Wash', 'Wheels'] },
+    int_wash_wax: { shortName: 'Interior + Wash & Wax', line: 'Cab + wash + wax/sealant', chips: ['Interior', 'Wash', 'Wax'] },
   },
-  refresh: {
-    shortName: 'Exterior Refresh & Protect',
-    line: 'Exterior paint enhancement',
-    chips: ['Clay', 'Polish', 'Sealant', 'Engine Bay'],
+  boats: {
+    maint: { shortName: 'Marine Wash', line: 'Hull, deck & windshield wash', chips: ['Hull', 'Deck', 'Windshield'] },
+    essential: { shortName: 'Essential Marine', line: 'Wash, vinyl care & spray sealant', chips: ['Non-skid', 'Vinyl', 'Sealant'] },
+    full: { shortName: 'Full Marine Detail', line: 'Exterior + cabin with marine wax', chips: ['Cabin', 'Wax', 'Brightwork'] },
+    premium: { shortName: 'Premium Marine', line: 'Polish, oxidation & max protection', chips: ['Polish', 'Wax', 'Gloss'] },
   },
-  interior: {
-    shortName: 'Interior Detail',
-    line: 'Deep clean cabin',
-    chips: ['Shampoo', 'Condition', 'UV'],
+  rvs: {
+    maint: { shortName: 'Maintenance Wash', line: 'Exterior keep-clean wash', chips: ['Exterior', 'Wash', 'Sealant'] },
+    premium: { shortName: 'Premium Exterior Detail', line: 'One-step polish + protection', chips: ['Exterior', 'Polish', 'Sealant'] },
+    interior: { shortName: 'Interior Detail', line: 'Cabin through living area', chips: ['Interior', 'Shampoo', 'Kitchen'] },
+    maint_light: { shortName: 'Wash + Light Interior', line: 'Exterior + quick interior refresh', chips: ['In + Out', 'Wash', 'Vacuum'] },
+    full_basic: { shortName: 'Full RV Detail', line: 'Complete interior + exterior wash', chips: ['In + Out', 'Wash', 'Shampoo'] },
+    full: { shortName: 'Premium Complete RV', line: 'Polish exterior + full interior', chips: ['In + Out', 'Polish', 'Interior'] },
   },
-  maint: {
-    shortName: 'Maintenance Detail',
-    line: 'Keep-clean wash + light interior',
-    chips: ['Wash', 'Clay', 'Quick interior'],
-  },
-  wash: {
-    shortName: 'Exterior Hand Wash',
-    line: 'Basic exterior service',
-    chips: ['Wash', 'Wheels', 'Glass'],
+  powersports: {
+    maintenance: { shortName: 'Maintenance Detail', line: 'Routine clean + protection', chips: ['Wash', 'Plastics', 'Wax'] },
+    restore: { shortName: 'Correction / Restoration', line: 'Polish, oxidation & finishing', chips: ['Compound', 'Polish', 'Chrome'] },
   },
 };
+/** Car-only alias for older callers — prefer getPkgCompactMeta(cat, id). */
+const PKG_COMPACT_META = PKG_COMPACT_META_BY_CAT.cars;
+
+function getPkgCompactMeta(cat, pkgId) {
+  const byCat = PKG_COMPACT_META_BY_CAT[cat] || {};
+  return byCat[pkgId] || null;
+}
+
+function compactPackagePriceLabel(cat, p, d) {
+  const fee = typeof getTravelFeeAmount === 'function' ? getTravelFeeAmount() : 0;
+  if (cat === 'cars' || cat === 'trucks') {
+    if (ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id] != null) {
+      return '$' + (applyRichPrice(d.tiers[ST.tierKey][p.id]) + fee);
+    }
+    const sampleTiers = Object.values(d.tiers)[0] || {};
+    const sample = sampleTiers[p.id] || sampleTiers.maint || sampleTiers.wash || sampleTiers.interior || sampleTiers.int_wash;
+    if (sample != null) return 'From $' + (applyRichPrice(sample) + fee);
+    return 'Select vehicle';
+  }
+  if (cat === 'boats' && LENGTH_PRICING.boats && LENGTH_PRICING.boats.packages[p.id]) {
+    const rule = LENGTH_PRICING.boats.packages[p.id];
+    return 'From $' + (applyRichPrice(rule.min) + fee);
+  }
+  if (cat === 'rvs' && LENGTH_PRICING.rvs && LENGTH_PRICING.rvs.packages[p.id]) {
+    return 'By length';
+  }
+  if (cat === 'powersports') {
+    const from = powersportsPublicFromPriceForPackage(p.id);
+    if (from !== Infinity && from > 0) return 'From $' + (applyRichPrice(from) + fee);
+    return 'By machine';
+  }
+  return p.note || 'By vehicle';
+}
+
 const ENGINE_BAY_DETAIL_NOTE = 'Surface dust, accessible components and surrounding areas cleaned and wiped. Heavy grease, oil buildup or restoration may require an additional service.';
 
 function formatPkgFeatureLabel(f){
@@ -5567,15 +5685,70 @@ function formatPkgFeatureLabel(f){
 
 function renderPkgCompactDetails(p){
   const hasEngine = [].concat(p.ext||[],p.feats||[]).some(f=>/engine bay/i.test(f||''));
-  const extList=(p.ext||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join('');
-  const intList=(p.int||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join('');
-  const featList=(!p.ext&&!p.int&&p.feats)?(p.feats||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
+  const extItems=Array.isArray(p.ext)?p.ext:[];
+  const intItems=Array.isArray(p.int)?p.int:[];
+  const hasExt=extItems.length>0;
+  const hasInt=intItems.length>0;
+  const extList=hasExt?extItems.map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
+  const intList=hasInt?intItems.map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
+  const featList=(!hasExt&&!hasInt&&p.feats)?(p.feats||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
   const note = hasEngine ? `<p class="pkg-c-note">${ENGINE_BAY_DETAIL_NOTE}</p>` : '';
-  if(extList||intList){
+  if(hasExt||hasInt){
     return `${intList?`<div><b>Interior</b><ul>${intList}</ul></div>`:''}${extList?`<div><b>Exterior</b><ul>${extList}</ul>${note}</div>`:note}`;
   }
   if(featList) return `<div><b>Includes</b><ul>${featList}</ul>${note}</div>`;
   return '';
+}
+
+
+/** Group RV/trailer packages into Exterior / Interior / Combined for the compact picker. */
+function groupPackagesForDisplay(cat, packages){
+  if(cat!=='rvs') return [{ label:'', items:packages }];
+  const exterior=[];
+  const interior=[];
+  const combined=[];
+  (packages||[]).forEach(p=>{
+    const scope=p.scope||'both';
+    if(scope==='ext') exterior.push(p);
+    else if(scope==='int') interior.push(p);
+    else combined.push(p);
+  });
+  const groups=[];
+  if(exterior.length) groups.push({ label:'Exterior', items:exterior });
+  if(interior.length) groups.push({ label:'Interior', items:interior });
+  if(combined.length) groups.push({ label:'Interior + Exterior', items:combined });
+  return groups.length ? groups : [{ label:'', items:packages||[] }];
+}
+
+function renderCompactPkgCardHtml(cat, p, d){
+  const presented = (cat==='powersports') ? presentPowersportsPackage(p, ST.tierKey) : p;
+  const meta=getPkgCompactMeta(cat, p.id)||{shortName:presented.name,line:presented.tag,chips:[]};
+  const priceLabel=compactPackagePriceLabel(cat, p, d);
+  const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
+  const details=renderPkgCompactDetails(presented);
+  const dur=(presented.dur||'').replace(/^~/,'');
+  const shortDur=dur.length>28 ? 'Varies by size' : dur;
+  const scope=presented.scope||'';
+  const scopeChip = (cat==='rvs' && scope==='ext') ? '<span class="pkg-c-scope pkg-c-scope--ext">Exterior</span>'
+    : (cat==='rvs' && scope==='int') ? '<span class="pkg-c-scope pkg-c-scope--int">Interior</span>'
+    : (cat==='rvs' && scope==='both') ? '<span class="pkg-c-scope pkg-c-scope--both">In + Out</span>'
+    : '';
+  return `<div class="pkg-c${presented.popular?' pkg-c--featured':''}${scope?` pkg-c--scope-${scope}`:''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
+    <div class="pkg-c-row">
+      <div class="pkg-c-radio" aria-hidden="true"></div>
+      <div>
+        <p class="pkg-c-name">${meta.shortName||presented.name}${presented.popular?'<span class="pkg-c-badge">Most booked</span>':''}${scopeChip}</p>
+        <p class="pkg-c-tag">${meta.line||presented.tag||''}</p>
+        ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
+      </div>
+      <div class="pkg-c-meta">
+        <span class="pkg-c-price">${priceLabel}</span>
+        <span class="pkg-c-dur">${shortDur}</span>
+      </div>
+    </div>
+    ${details?`<button type="button" class="pkg-c-expand" aria-expanded="false" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>View everything included</span><span data-expand-chev aria-hidden="true">→</span></button>
+    <div class="pkg-c-details" id="pk-details-${p.id}">${details}</div>`:''}
+  </div>`;
 }
 
 function renderPackages(cat){
@@ -5584,39 +5757,17 @@ function renderPackages(cat){
   if(!grid || !d) return;
   const categoryVisual=CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
   const packages=cat==='powersports' ? d.packages.filter(p=>!p.legacy) : d.packages;
-  const useCompact = cat==='cars';
+  const useCompact = usesCompactPackageUi(cat);
   grid.classList.toggle('pkg-grid--compact', useCompact);
+  grid.classList.toggle('pkg-grid--rv-grouped', useCompact && cat==='rvs');
 
   if(useCompact){
-    grid.innerHTML=packages.map(p=>{
-      const meta=PKG_COMPACT_META[p.id]||{shortName:p.name,line:p.tag,chips:[]};
-      let priceLabel='';
-      if(ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id]!=null){
-        const n=applyRichPrice(d.tiers[ST.tierKey][p.id])+getTravelFeeAmount();
-        priceLabel='$'+n;
-      }else{
-        const sampleTier=Object.values(d.tiers)[0];
-        const n=applyRichPrice(sampleTier[p.id]||sampleTier.maint||sampleTier.wash||sampleTier.exterior)+getTravelFeeAmount();
-        priceLabel='From $'+n;
-      }
-      const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
-      const details=renderPkgCompactDetails(p);
-      return `<div class="pkg-c${p.popular?' pkg-c--featured':''}" id="pk-${p.id}" role="radio" aria-checked="false" tabindex="0" onclick="selectPkg('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectPkg('${p.id}');}">
-        <div class="pkg-c-row">
-          <div class="pkg-c-radio" aria-hidden="true"></div>
-          <div>
-            <p class="pkg-c-name">${meta.shortName||p.name}${p.popular?'<span class="pkg-c-badge">Most booked</span>':''}</p>
-            <p class="pkg-c-tag">${meta.line||p.tag||''}</p>
-            ${chips?`<div class="pkg-c-chips">${chips}</div>`:''}
-          </div>
-          <div class="pkg-c-meta">
-            <span class="pkg-c-price">${priceLabel}</span>
-            <span class="pkg-c-dur">${(p.dur||'').replace(/^~/,'')}</span>
-          </div>
-        </div>
-        ${details?`<button type="button" class="pkg-c-expand" aria-expanded="false" onclick="togglePkgExpand('${p.id}',event)"><span data-expand-label>View everything included</span><span data-expand-chev aria-hidden="true">→</span></button>
-        <div class="pkg-c-details" id="pk-details-${p.id}">${details}</div>`:''}
-      </div>`;
+    const groups=groupPackagesForDisplay(cat, packages);
+    grid.innerHTML=groups.map(g=>{
+      const label=g.label
+        ? `<div class="pkg-c-section" role="presentation">${g.label}</div>`
+        : '';
+      return label + g.items.map(p=>renderCompactPkgCardHtml(cat, p, d)).join('');
     }).join('');
   }else{
     grid.innerHTML=packages.map(p=>{
@@ -6358,7 +6509,7 @@ function renderAddons(){
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
   let popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);
   const DRIVEWAY_ID='seasonal_driveway_cleanup';
-  const compactUi = carsVehicleFirstFlow();
+  const compactUi = usesCompactPackageUi(ST.cat);
   let additionalAddons=[];
   if(compactUi){
     additionalAddons = popularAddons.filter(a=>a.id===DRIVEWAY_ID);
@@ -7946,7 +8097,7 @@ function chatStartingPricesReply(){
   const b=getCategoryFromBases();
   return "Here are our <b>starting</b> prices (final price is confirmed on-site based on size & condition):\n\n"
     +"🚗 Cars & Pickups — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
-    +"🚛 Trucks (semis) — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
+    +"🚛 Semi trucks — from <b>$"+applyRichPrice(b.trucks)+"</b>\n"
     +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
     +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
     +"🏕️ RVs & Trailers — <b>price calculated from your exact length &amp; package</b>\n\n"
@@ -7981,7 +8132,7 @@ const ZONE_POPULAR = {
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',      desc:'Mobile car detailing at your location', from:'From $220' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $375' },
+  trucks:     { ico:'🚛', name:'Semi Trucks',      desc:'Day cab & tractor-trailer', from:'From $375' },
   boats:      { ico:'🛥️', name:'Boats',            desc:'Marine wash & detail on-site',    from:'From $195' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Cleaned where you park them',     from:'Price by exact length' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, UTVs, golf carts',       from:'From $200' },
@@ -9081,7 +9232,7 @@ body.cd1-booking-embed #cd-chat{display:none!important}
       const all=(PRICING.cars?.addons||[]);
       const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' (+$'+a.price+')');
       const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' (+$'+a.price+')');
-      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Glass Treatment (+$25)';
+      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Windshield Treatment (+$25)';
       return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 

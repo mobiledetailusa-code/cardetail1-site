@@ -107,7 +107,7 @@ describe('trucks booking checkout recalculation', () => {
 describe('trucks public surface english-only + home option', () => {
   it('homepage specialty nav and footer expose trucks outside cars', () => {
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.match(index, /href="trucks-detailing\.html">Trucks</);
+    assert.match(index, /href="trucks-detailing\.html">Semi Trucks</);
     assert.match(index, /href="trucks-detailing\.html">Trucks \/ Semis</);
     assert.match(index, /id="bkcat-trucks"/);
     assert.match(index, /svc-name[^>]*>Cars &amp; SUVs</);

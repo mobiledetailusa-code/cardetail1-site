@@ -2552,7 +2552,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper Clubman</div>
           <div class="ba-service">Rear Detail &amp; Trim Restoration</div>
-          <p class="ba-caption">The barn doors and rear glass were coated in a thick layer of dust - easy to miss until you walk around back. Same rear angle after the job: clean glass, sharp reflections, and trim that actually looks black again.</p>
+          <p class="ba-caption">The barn doors and rear windshield were coated in a thick layer of dust - easy to miss until you walk around back. Same rear angle after the job: clean windshield, sharp reflections, and trim that actually looks black again.</p>
         </div>
       </article>
 
@@ -2570,7 +2570,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Renegade Vienna (Mercedes Sprinter RV)</div>
           <div class="ba-service">RV Front Cap &amp; Windshield Detail</div>
-          <p class="ba-caption">Mud streaks ran down the entire front cap and windshield after weeks on the road. We cut through the grime on the black fiberglass and glass until the front of this coach looked like it did the day it rolled off the lot.</p>
+          <p class="ba-caption">Mud streaks ran down the entire front cap and windshield after weeks on the road. We cut through the grime on the black fiberglass and windshield until the front of this coach looked like it did the day it rolled off the lot.</p>
         </div>
       </article>
 
@@ -2770,7 +2770,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
-          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, glass, and UV protectant.</p>
+          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, windshield, and UV protectant.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
@@ -2813,7 +2813,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Refresh &amp; Protect</h3>
-          <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, glass, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
+          <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, windshield, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
@@ -4203,7 +4203,7 @@ const TRUCK_INTERIOR_SERVICE_ITEMS = [
   'Leather / vinyl surfaces conditioned',
   'Steam clean — vents, panels, crevices',
   'Dash, doors & trim detail with UV protectant on plastics',
-  'Interior glass cleaned',
+  'Interior windshield cleaned',
   'Door jambs cleaned',
   'Sleeper living area cleaned when present (bunk, cabinets, appliance exteriors)',
 ];
@@ -4221,34 +4221,34 @@ const PRICING = {
     },
     packages:[
       {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior windshield cleaned','Door jambs wiped down','Tire dressing'],
         int:[],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior glass cleaned','Door jambs wiped down','Tire dressing'],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior windshield cleaned','Door jambs wiped down','Tire dressing'],
         miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','UV protectant applied'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior glass cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles - add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
-        int:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
-        feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior glass cleaned'],
+        int:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
+        feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
       {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh - most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior glass cleaned'],
-        int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','UV protectant'],
-        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior glass cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned'],
+        int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','UV protectant'],
+        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
       {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
         int:[],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X glass treatment','Tire dressing','Final quality inspection'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X windshield treatment','Tire dressing','Final quality inspection'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
       {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing'],
-        int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior glass & vents detailed','Trunk & cargo area detail'],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior glass cleaned + Rain-X treatment','Tire dressing','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
+        int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior windshield & vents detailed','Trunk & cargo area detail'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
         miss:[]}
     ],
     addons:[
@@ -4260,7 +4260,7 @@ const PRICING = {
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, blood, vomit, waste, or severe contamination. Estimate confirmation required', price:115},
       {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
       {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment',    desc:'Water-repellent Rain-X on windshield', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
       {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
@@ -4289,14 +4289,14 @@ const PRICING = {
         feats:TRUCK_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Wax or sealant','Trailer body wash']},
       {id:'int_wash', name:'Interior + Wash', icon:'🧽', tag:'Cab interior plus tractor exterior hand wash', dur:'~3–4h', popular:true, scope:'both',
-        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'],
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down'],
         int:TRUCK_INTERIOR_SERVICE_ITEMS,
-        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
         miss:['Machine wax / sealant','Trailer body wash','Paint correction']},
       {id:'int_wash_wax', name:'Interior + Wash & Wax', icon:'✨', tag:'Cab interior, exterior wash, and wax/sealant protect', dur:'~4–5h', popular:false, scope:'both',
-        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'],
+        ext:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'],
         int:TRUCK_INTERIOR_SERVICE_ITEMS,
-        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior glass cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
+        feats:['Tractor exterior hand wash & rinse','Wheels & tires cleaned','Tire dressing','Exterior windshield cleaned','Accessible chrome wipe-down','Wax or sealant on accessible painted panels'].concat(TRUCK_INTERIOR_SERVICE_ITEMS),
         miss:['Full trailer wash','Multi-stage paint correction']},
     ],
     addons:[
@@ -4308,7 +4308,7 @@ const PRICING = {
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids or severe contamination. Estimate confirmation required', price:115},
       {id:'engine',     scope:'ext', name:'Engine Bay Top Clean',      desc:'Top-view cleaning of visible engine bay surfaces and covers. Detailing only — not mechanical service', price:45},
       {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
-      {id:'rainx',      scope:'ext', name:'Rain-X Glass Treatment',    desc:'Water-repellent Rain-X on windshield and front glass', price:25},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment',    desc:'Water-repellent Rain-X on windshield', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
       {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
@@ -4325,21 +4325,21 @@ const PRICING = {
       over30:   {label:'30+ ft',      icon:'🛳️', desc:'Sport cruiser · Cabin cruiser · Yacht', maint:585, essential:845, full:1305, premium:1955},
     },
     packages:[
-      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Regular upkeep - hull, deck & glass',        dur:'~1.5–2h', popular:false,
-        feats:['Exterior hull wash above waterline','Deck & cockpit rinse','Glass & windshield cleaned','Trim & rails wiped','Trailer rinse & tire shine (when accessible)'],
-        miss:['Non-skid scrub','Vinyl conditioning','Marine wax','Cabin/interior']},
-      {id:'essential',name:'Essential Marine',   icon:'🧽', tag:'Exterior protection + vinyl conditioning',   dur:'~3–4h',   popular:false,
-        feats:['Marine Wash included','Non-skid surface scrubbed','Vinyl seats & cushions cleaned & conditioned','Cockpit detail','Spray marine sealant','Trailer rinse & tire shine'],
-        miss:['Marine wax','Full cabin detail','Oxidation removal']},
-      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete boat refresh - most requested',     dur:'~4–6h',   popular:true,
-        feats:['Essential Marine included','Cockpit & cabin deep clean','Hull surface detail','Marine wax/sealant applied','Teak & trim cleaning','Stainless/chrome wipe-down','Trailer rinse & tire shine'],
-        miss:['Machine oxidation removal','Gelcoat correction']},
-      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Deep gloss, oxidation & max protection',     dur:'~6–8h',   popular:false,
-        feats:['Full Marine Detail included','Oxidation assessment & light improvement','Machine-applied marine wax/sealant','Gloss enhancement','Hull polish','Teak conditioning','Final inspection'],
-        miss:[]}
+      {id:'maint',    name:'Marine Wash',        icon:'🪣', tag:'Above-waterline wash for regular hull, deck, and windshield upkeep', dur:'~1.5–2h', popular:false,
+        feats:['Exterior hull wash above the waterline','Deck and cockpit rinse','Windshield cleaned','Rub rail, trim, and hardware wiped','Trailer rinse and tire shine when accessible'],
+        miss:['Non-skid scrub','Vinyl conditioning','Marine wax or sealant','Cabin / interior detail']},
+      {id:'essential',name:'Essential Marine',   icon:'🧽', tag:'Wash, non-skid scrub, vinyl care, and spray marine sealant', dur:'~3–4h',   popular:false,
+        feats:['Exterior hull wash above the waterline','Deck and cockpit cleaned','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit surfaces detailed','Rub rail, trim, and hardware wiped','Spray marine sealant on exterior gel coat','Trailer rinse and tire shine when accessible'],
+        miss:['Hand or machine marine wax','Full cabin detail','Oxidation correction']},
+      {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete exterior and cabin detail with marine wax — most requested', dur:'~4–6h',   popular:true,
+        feats:['Exterior hull wash above the waterline','Hull surface detail for salt film, bugs, and light water spots','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned','Stainless and chrome brightwork wiped','Marine wax or sealant applied to exterior gel coat','Trailer rinse and tire shine when accessible'],
+        miss:['Machine oxidation removal','Multi-stage gelcoat correction']},
+      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Oxidation improvement, hull polish, and maximum marine protection', dur:'~6–8h',   popular:false,
+        feats:['Exterior hull wash above the waterline','Hull surface polish for light oxidation and haze','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned and conditioned','Stainless and chrome brightwork wiped and polished where accessible','Oxidation assessment with light improvement where achievable','Machine-applied marine wax or sealant','Gloss enhancement on exterior gel coat','Trailer rinse and tire shine when accessible','Final quality inspection'],
+        miss:['Severe oxidation restoration without inspection','Below-waterline / haul-out work']}
     ],
     addons:[
-      {id:'rainx',      name:'Rain-X Glass Treatment',     desc:'Water-repellent treatment for marine windshields and glass', price:25},
+      {id:'rainx',      name:'Rain-X Windshield Treatment',     desc:'Water-repellent treatment for marine windshields', price:25},
       {id:'polymer',    name:'Polymer Hull Sealant',        desc:'Polymer sealant on hull exterior for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Marine Carnauba Wax',  desc:'Premium carnauba wax for marine gel coat — up to 12 months protection', price:75},
       {id:'chrome',     name:'Chrome / Stainless Polish',   desc:'Polish accessible chrome, rails, cleats, and brightwork on exterior surfaces', price:85},
@@ -4362,28 +4362,40 @@ const PRICING = {
     },
     packages:[
       {id:'maint', name:'Maintenance Wash', icon:'🪣', tag:'Keep your RV clean, protected and ready for the road.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
+        int:[],
         feats:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
         miss:['Roof','Heavy black streaks','Oxidation','Severe water spots','Interior']},
       {id:'maint_light', name:'Maintenance Wash + Light Interior', icon:'🪣', tag:'Exterior maintenance plus a quick interior refresh.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
-        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and glass','Accessible trash removal'],
+        ext:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant'],
+        int:['Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and windshield','Accessible trash removal'],
+        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and windshield','Accessible trash removal'],
         miss:['Upholstery shampoo','Carpet extraction','Pet hair','Odor treatment','Refrigerator interior','Oven interior','Cabinet interiors','Bed making','Roof cleaning']},
       {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'A complete interior cleaning from the driver cabin to the living area.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'int',
+        ext:[],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Exterior','Personal belongings left in place','Heavy staining without Super Interior','Excessive pet hair','Strong odors']},
       {id:'full_basic', name:'Full RV Detail', icon:'🧽', tag:'Complete interior cleaning plus exterior wash and protection.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
+        ext:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','One-step machine polishing','Oxidation correction']},
       {id:'premium', name:'Premium Exterior Detail', icon:'🏅', tag:'One-Step Machine Polish + Premium Protection', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        int:[],
         feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
         miss:['Roof','Multi-stage restoration','Interior','Guaranteed removal of every scratch or permanent water spot']},
       {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'One-Step Exterior Polish + Complete Interior Detail', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','Multi-stage correction','Severe oxidation without inspection','Deep scratches and damaged decals without inspection']}
     ],
     addons:[
       {id:'polymer',    scope:'ext', name:'Polymer Sealant Upgrade',   desc:'Polymer sealant on RV exterior for added protection and gloss', price:25},
       {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax on RV exterior with UV and weather protection', price:75},
-      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield and front glass', price:25},
+      {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment', desc:'Water-repellent Rain-X on RV windshield', price:25},
       {id:'biohazard',  scope:'int', name:'Biohazard Cleaning',        desc:'Bodily fluids, waste, or severe contamination. Estimate confirmation required', price:115},
       {id:'sanitize',   scope:'int', name:'Sanitize',                  desc:'Sanitizing treatment after normal cleaning on steering wheel and driver controls, door handles, tables and countertops, kitchen touch points, bathroom touch points, switches and frequently handled surfaces. Not sterilization.', price:75},
       {id:'superint',   scope:'int', name:'Super Interior',            desc:'Additional upholstery or carpet shampoo pass; up to two total shampoo/extraction passes where needed; moderate pet hair removal; odor-neutralizing treatment; detailed floor-mat cleaning; additional attention to high-use interior areas; extended interior labor. Severe pet hair, smoke, sewage, mold, biological contamination or deeply embedded odors may require inspection and separate pricing.', price:135},
@@ -4439,7 +4451,7 @@ const PRICING = {
       {id:'heavymud',   name:'Heavy Mud / Off-Road Buildup', desc:'Extra cleaning for packed mud, clay, and excessive off-road buildup. Normal trail dirt is included in the package.', price:55, publicNew:true},
       {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
-      {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
+      {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior windshield', price:25},
       {id:'seatdeep',   name:'Seat Deep Clean',              desc:'Deep cleaning for seats and riding surfaces', price:45},
       {id:'storage',    name:'Storage Compartment Cleaning', desc:'Vacuum and wipe saddlebags, boxes, and accessible compartments', price:35},
       {id:'wheeldet',   name:'Wheel Detail',                 desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},
@@ -4465,7 +4477,7 @@ const PRICING = {
     },
     packages:[
       {id:'maint',    name:'Fleet Maintenance Wash',    icon:'🪣', tag:'Weekly/biweekly exterior upkeep',                                dur:'Varies by fleet size',  popular:false,
-        feats:['Exterior wash or wipe-down per vehicle type','Glass & mirror cleaning','Wheels & tires basic clean','Light interior wipe-down when applicable','Designed for recurring fleet programs'],
+        feats:['Exterior wash or wipe-down per vehicle type','Windshield & mirror cleaning','Wheels & tires basic clean','Light interior wipe-down when applicable','Designed for recurring fleet programs'],
         miss:['Deep interior','Wax/sealant','Heavy soil','Restoration']},
       {id:'essential',name:'Fleet Essential Detail',    icon:'🧽', tag:'Monthly maintenance + interior - most popular fleet plan',      dur:'Varies by fleet size',  popular:true,
         feats:['Maintenance Wash included','Interior vacuum per unit','Dashboard & cabin wipe-down','Door jambs & handles','Tire dressing','Best for monthly or biweekly fleets'],
@@ -7781,7 +7793,7 @@ initCarPkgDetailModal();
       const all=(PRICING.cars?.addons||[]);
       const popular=all.filter(a=>popularIds.includes(a.id)).map(a=>'• '+a.name+' (+$'+a.price+')');
       const others=all.filter(a=>!popularIds.includes(a.id)).slice(0,4).map(a=>'• '+a.name+' (+$'+a.price+')');
-      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Glass Treatment (+$25)';
+      const list=[...popular,...others].join('\n')||'• Pet Hair Removal (+$95)\n• Odor Treatment (+$149)\n• Rain-X Windshield Treatment (+$25)';
       return { reply:"Popular add-ons you can pick during booking:\n\n"+list+"\n\nThey appear right after you choose your package & vehicle, and the total updates live.",
         chips:[{label:'📅 Add to my booking',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }; } },
 

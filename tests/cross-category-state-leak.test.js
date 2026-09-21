@@ -127,6 +127,7 @@ function loadBookingFns() {
   sandbox.syncPackageStepChrome = function () {};
   sandbox.syncVehicleStepChrome = function () {};
   sandbox.syncBs2StickyBar = function () {};
+  sandbox.usesCompactPackageUi = function () { return true; };
   sandbox.mountAddonGrid = function () {};
   sandbox.pickPopularAddons = function () { return []; };
   sandbox.popularIdsFor = function () { return []; };
@@ -137,6 +138,7 @@ function loadBookingFns() {
   vm.createContext(sandbox);
   vm.runInContext(
     extractFunction(index, 'carsVehicleFirstFlow') + '\n' +
+    extractFunction(index, 'usesCompactPackageUi') + '\n' +
     extractFunction(index, 'resetVehicleEntryFields') + '\n' +
     extractFunction(index, 'selectCategory') + '\n' +
     extractFunction(index, 'renderAddons'),
