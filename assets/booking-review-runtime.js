@@ -740,10 +740,29 @@
       persisted = true;
       ST.bookingPersisted = true;
       payload = applyPersistedFields(attachPreference(win.buildBookingPayload()), data);
+      // Prefer backend-approved amount; fall back to persisted booking amount only.
+      var approvedAmount = data.approvedFinalAmount != null
+        ? data.approvedFinalAmount
+        : (data.totalPrice != null
+          ? data.totalPrice
+          : (payload.approvedFinalAmount != null ? payload.approvedFinalAmount : payload.totalPrice));
+      if (approvedAmount != null && payload.approvedFinalAmount == null) {
+        payload.approvedFinalAmount = approvedAmount;
+      }
       ST.lastPersistedBooking = payload;
       if (typeof win.saveLocalBooking === 'function') win.saveLocalBooking(payload);
       if (win.Cardetail1CheckoutAnalytics && typeof win.Cardetail1CheckoutAnalytics.onBookingSubmitted === 'function') {
-        win.Cardetail1CheckoutAnalytics.onBookingSubmitted();
+        try {
+          win.Cardetail1CheckoutAnalytics.onBookingSubmitted({
+            ok: true,
+            bookingCreated: data.bookingCreated === true || !!data.idempotent,
+            idempotent: !!data.idempotent,
+            bookingId: data.id || payload.id,
+            id: data.id || payload.id,
+            approvedFinalAmount: approvedAmount,
+            currency: 'USD',
+          });
+        } catch (eAds) { /* analytics must never block success */ }
       }
       try {
         showSuccess(payload);

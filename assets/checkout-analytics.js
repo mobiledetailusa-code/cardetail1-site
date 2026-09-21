@@ -168,12 +168,36 @@
     });
   }
 
-  function onBookingSubmitted() {
-    emit('booking_submitted', { estimated_value: estimatedValue() });
-    // Google Ads conversion label AW-…/yrOD… — only after request is persisted (Step 6).
+  /**
+   * Canonical booking-success signal. Google Ads "Booking submitted" conversion
+   * fires only when evidence proves durable persist + authoritative value.
+   * evidence: { ok, bookingCreated, idempotent?, bookingId|id, approvedFinalAmount|value }
+   */
+  function onBookingSubmitted(evidence) {
+    evidence = evidence || {};
+    var bookingId = evidence.bookingId || evidence.id || evidence.transaction_id || null;
+    var approved = evidence.approvedFinalAmount != null
+      ? evidence.approvedFinalAmount
+      : (evidence.value != null ? evidence.value : null);
+    emit('booking_submitted', {
+      estimated_value: estimatedValue(),
+      booking_id: bookingId || undefined,
+      approved_final_amount: approved != null ? Number(approved) : undefined,
+    });
+    // Google Ads AW-…/yrOD… — only after finalize persist evidence (not Page view).
     try {
       if (global.Cardetail1Revenue && typeof global.Cardetail1Revenue.trackGoogleAdsBookingConversion === 'function') {
-        global.Cardetail1Revenue.trackGoogleAdsBookingConversion({ value: 1.0, currency: 'USD' });
+        global.Cardetail1Revenue.trackGoogleAdsBookingConversion({
+          ok: evidence.ok !== false,
+          bookingCreated: evidence.bookingCreated === true,
+          idempotent: !!evidence.idempotent,
+          isDraft: evidence.isDraft === true,
+          bookingId: bookingId,
+          transaction_id: bookingId,
+          approvedFinalAmount: approved,
+          value: approved,
+          currency: evidence.currency || 'USD',
+        });
       }
     } catch (eAds) { /* never block checkout */ }
   }

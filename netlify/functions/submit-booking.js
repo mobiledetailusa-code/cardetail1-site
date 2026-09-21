@@ -1021,6 +1021,13 @@ exports.handler = async (event) => {
           quoteVersion: existing.quoteVersion || 1,
           idempotent: true,
           cardOnFileStatus: booking.cardOnFileStatus || existing.cardOnFileStatus || null,
+          // Authoritative amount for Ads conversion dedupe retries (same booking id).
+          approvedFinalAmount: booking.approvedFinalAmount
+            ?? existing.approvedFinalAmount
+            ?? booking.totalPrice
+            ?? existing.totalPrice
+            ?? null,
+          totalPrice: booking.totalPrice ?? existing.totalPrice ?? null,
           customerEmail: booking.notificationDelivery?.customerEmail
             || existing.notificationDelivery?.customerEmail
             || { status: 'pending' },
