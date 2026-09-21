@@ -62,9 +62,9 @@ function twoVehicleFixture(overrides) {
     jobStatus: 'confirmed',
     zipCode: '07102',
     travelFeeAmount: 0,
-    approvedFinalAmount: 791,
+    approvedFinalAmount: 823,
     amountPaid: 0,
-    ledger: { approvedCents: 79100, settledCents: 0, creditedCents: 0, entries: [] },
+    ledger: { approvedCents: 82300, settledCents: 0, creditedCents: 0, entries: [] },
     rescheduledByClient: true,
     rescheduleRequestedDate: '2026-12-19',
     vehicles: [
@@ -81,10 +81,10 @@ function twoVehicleFixture(overrides) {
         pkgId: 'maint',
         pkgName: 'Maintenance Detail',
         packageName: 'Maintenance Detail',
-        basePrice: 185,
-        packagePrice: 185,
+        basePrice: 195,
+        packagePrice: 195,
         addonTotal: 185,
-        subtotal: 370,
+        subtotal: 380,
         addons: [
           { id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 },
           { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 90 },
@@ -104,10 +104,10 @@ function twoVehicleFixture(overrides) {
         pkgName: 'Essential Marine',
         packageName: 'Essential Marine',
         lengthFt: 22,
-        basePrice: 396,
-        packagePrice: 396,
+        basePrice: 418,
+        packagePrice: 418,
         addonTotal: 25,
-        subtotal: 421,
+        subtotal: 443,
         addons: [{ id: 'rainx', name: 'Rain-X Glass Treatment', qty: 1, price: 25 }],
         addOnIds: ['rainx'],
       },
@@ -125,7 +125,7 @@ describe('admin change-request projection', () => {
         requestType: 'vehicle_remove_request',
         status: 'pending',
         baseBookingVersion: 5,
-        proposedApprovedCents: 42100,
+        proposedApprovedCents: 44300,
         target: { vehicleId: 'veh_bronco' },
         delta: {
           operation: 'vehicle_remove',
@@ -134,10 +134,10 @@ describe('admin change-request projection', () => {
             vehicleLabel: '2025 Ford Bronco',
             packageName: 'Maintenance Detail',
             addons: [{ name: 'Pet Hair Removal' }],
-            subtotal: 370,
+            subtotal: 380,
           },
-          currentApprovedCents: 79100,
-          proposedApprovedCents: 42100,
+          currentApprovedCents: 82300,
+          proposedApprovedCents: 44300,
         },
         submittedAt: '2026-08-03T12:00:00.000Z',
       }],
@@ -146,8 +146,8 @@ describe('admin change-request projection', () => {
     assert.equal(pendingChangeRequestCount, 1);
     assert.equal(pendingChangeRequests[0].requestType, 'vehicle_remove_request');
     assert.equal(pendingChangeRequests[0].vehicleId, 'veh_bronco');
-    assert.equal(pendingChangeRequests[0].proposedApprovedCents, 42100);
-    assert.equal(pendingChangeRequests[0].requestedState.proposedTotal, 421);
+    assert.equal(pendingChangeRequests[0].proposedApprovedCents, 44300);
+    assert.equal(pendingChangeRequests[0].requestedState.proposedTotal, 443);
   });
 
   it('projectJobForAdmin surfaces pendingChangeRequests (not only legacy flags)', () => {
@@ -159,8 +159,8 @@ describe('admin change-request projection', () => {
         target: { vehicleId: 'veh_boat' },
         proposedApprovedCents: 33500,
         delta: {
-          vehicleSnapshot: { vehicleId: 'veh_boat', packageName: 'Essential Marine', subtotal: 421 },
-          currentApprovedCents: 79100,
+          vehicleSnapshot: { vehicleId: 'veh_boat', packageName: 'Essential Marine', subtotal: 443 },
+          currentApprovedCents: 82300,
         },
       }],
     }));
@@ -259,7 +259,7 @@ describe('vehicle_remove approval path (server)', () => {
     setBookingStoreOverride(null);
   });
 
-  it('submit + admin projection + approve Bronco → $487; boat path → $400', async () => {
+  it('submit + admin projection + approve Bronco → $443; boat path → $380', async () => {
     const {
       submitChangeRequestCommand,
       decideChangeRequestCommand,
@@ -275,7 +275,7 @@ describe('vehicle_remove approval path (server)', () => {
     });
     assert.equal(submitted.ok, true, submitted.error);
     assert.ok(submitted.changeRequest.requestId);
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 44300);
     assert.equal((await getBookingRecord(bookingId)).booking.vehicles.length, 2);
 
     const job = projectJobForAdmin((await getBookingRecord(bookingId)).booking);
@@ -312,7 +312,7 @@ describe('vehicle_remove approval path (server)', () => {
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 48700);
+    assert.equal(after.booking.ledger.approvedCents, 44300);
 
     store = createMemoryStore({ [bookingId]: twoVehicleFixture({ id: bookingId }) });
     setBookingStoreOverride(store);
@@ -323,14 +323,14 @@ describe('vehicle_remove approval path (server)', () => {
       target: { vehicleId: 'veh_boat' },
       delta: {},
     });
-    assert.equal(subBoat.changeRequest.proposedApprovedCents, 40000);
+    assert.equal(subBoat.changeRequest.proposedApprovedCents, 38000);
   });
 
   it('paid booking approval records credit due without auto-refund', async () => {
     store = createMemoryStore({
       [bookingId]: twoVehicleFixture({
         id: bookingId,
-        ledger: { approvedCents: 79100, settledCents: 79100, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 82300, settledCents: 82300, creditedCents: 0, entries: [] },
         paymentStatus: 'paid',
         paymentWorkflowStatus: 'payment_succeeded',
       }),
@@ -355,9 +355,9 @@ describe('vehicle_remove approval path (server)', () => {
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, decided.error);
-    assert.equal(decided.outstandingCreditCents, 30400);
-    assert.equal(decided.booking.ledger.approvedCents, 48700);
-    assert.equal(decided.booking.ledger.settledCents, 79100);
+    assert.equal(decided.outstandingCreditCents, 38000);
+    assert.equal(decided.booking.ledger.approvedCents, 44300);
+    assert.equal(decided.booking.ledger.settledCents, 82300);
     assert.equal(decided.booking.ledger.refundedCents || 0, 0);
   });
 });

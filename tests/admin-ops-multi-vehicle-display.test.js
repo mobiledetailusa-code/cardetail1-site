@@ -66,7 +66,7 @@ function twoVehicleBooking() {
         pkgName: 'Maintenance Detail',
         tierKey: 'small',
         tierLabel: 'Sedan / small car',
-        basePrice: 175,
+        basePrice: 160,
         addonTotal: 75,
         subtotal: 250,
         addons: [{ id: 'odor', name: 'Odor Elimination', qty: 1, price: 75 }],
@@ -103,7 +103,7 @@ function twoVehicleBooking() {
           pkgId: 'maint',
           pkgName: 'Maintenance Detail',
           tierKey: 'small',
-          basePrice: 175,
+          basePrice: 160,
           addonTotal: 75,
           subtotal: 250,
           addons: [{ id: 'odor', name: 'Odor Elimination', qty: 1, price: 75 }],
@@ -154,7 +154,7 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
     assert.equal(v0.addons.length, 1);
     assert.equal(v0.addons[0].name, 'Odor Elimination');
     assert.equal(v0.addons[0].qty, 1);
-    assert.equal(v0.addons[0].price, 70);
+    assert.equal(v0.addons[0].price, 75);
 
     assert.equal(v1.packageId, 'full');
     assert.equal(v1.packageName, 'Premium Full Detail');
@@ -211,8 +211,8 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
       vehicleMake: 'Mazda',
       vehicleModel: '3',
       vehicleCategory: 'cars',
-      approvedFinalAmount: 175,
-      totalPrice: 175,
+      approvedFinalAmount: 160,
+      totalPrice: 160,
       ledger: { approvedCents: 16000, settledCents: 0, creditedCents: 0, entries: [] },
       vehicles: [{
         vehicleId: 'veh_only',
@@ -223,9 +223,9 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
         category: 'cars',
         packageId: 'maint',
         pkgName: 'Maintenance Detail',
-        basePrice: 175,
+        basePrice: 160,
         addonTotal: 0,
-        subtotal: 175,
+        subtotal: 160,
         addons: [],
       }],
     });
@@ -246,8 +246,8 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
       vehicleModel: 'Focus',
       vehicleLabel: '2019 Ford Focus',
       vehicleCategory: 'cars',
-      totalPrice: 175,
-      approvedFinalAmount: 175,
+      totalPrice: 160,
+      approvedFinalAmount: 160,
       addons: [{ id: 'odor', name: 'Odor', qty: 1, price: 75 }],
     });
     assert.ok(Array.isArray(p.vehicles));
@@ -300,7 +300,7 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
       model: 'Civic',
       packageId: 'maint',
       pkgName: 'Maintenance Detail',
-      basePrice: 175,
+      basePrice: 160,
       addonTotal: 75,
       subtotal: 250,
       addons: [{ id: 'odor', name: 'Odor', qty: 2, price: 37.5 }],

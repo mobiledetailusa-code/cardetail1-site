@@ -139,13 +139,13 @@ test('ADD-ONS: historical Mold Treatment records remain display-safe', () => {
 
 test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
   const lp = LENGTH_PRICING.rvs.packages;
-  assert.equal(lp.maint.base, 150);
-  assert.equal(lp.maint.ratePerFoot, 10);
-  assert.equal(lp.maint_light.base, 245);
-  assert.equal(lp.interior.base, 245);
-  assert.equal(lp.full_basic.base, 295);
-  assert.equal(lp.premium.base, 295);
-  assert.equal(lp.full.base, 390);
+  assert.equal(lp.maint.base, 135);
+  assert.equal(lp.maint.ratePerFoot, 9);
+  assert.equal(lp.maint_light.base, 220);
+  assert.equal(lp.interior.base, 220);
+  assert.equal(lp.full_basic.base, 265);
+  assert.equal(lp.premium.base, 265);
+  assert.equal(lp.full.base, 350);
   assert.equal(Object.keys(lp).sort().join(','), FINAL_IDS.slice().sort().join(','));
 
   assert.ok(lp.maint_light.base > lp.maint.base);
@@ -153,12 +153,12 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
-  assert.equal(prices.maint, 390);
-  assert.equal(prices.maint_light, 629);
-  assert.equal(prices.interior, 653);
-  assert.equal(prices.full_basic, 871);
-  assert.equal(prices.premium, 967);
-  assert.equal(prices.full, 1254);
+  assert.equal(prices.maint, 351);
+  assert.equal(prices.maint_light, 556);
+  assert.equal(prices.interior, 580);
+  assert.equal(prices.full_basic, 793);
+  assert.equal(prices.premium, 865);
+  assert.equal(prices.full, 1118);
   assert.ok(prices.maint < prices.maint_light);
   assert.ok(prices.full > prices.premium);
 

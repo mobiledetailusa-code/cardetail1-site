@@ -688,7 +688,7 @@ describe('booking persist regression: version, stripe, incomplete repair', () =>
         addons: [],
         addonTotal: 0,
       }],
-      totalPrice: 275,
+      totalPrice: 250,
       travelFeeAmount: 0,
       zoneSurcharge: 0,
       paymentMethod: '',

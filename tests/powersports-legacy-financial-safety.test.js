@@ -33,7 +33,7 @@ describe('Powersports public vs legacy package surface', () => {
     assert.equal(PRICING.powersports.tiers.motorcycle.maintenance, 180);
     assert.equal(PRICING.powersports.tiers.motorcycle.restore, 235);
     assert.equal(PRICING.powersports.tiers.motorcycle_large.maintenance, 200);
-    assert.equal(PRICING.powersports.tiers.motorcycle_large.restore, 290);
+    assert.equal(PRICING.powersports.tiers.motorcycle_large.restore, 260);
     assert.equal(PRICING.powersports.tiers.motorcycle_trike.maintenance, 205);
     assert.equal(PRICING.powersports.tiers.motorcycle_trike.restore, 285);
     assert.equal(PRICING.powersports.tiers.atv.maintenance, 180);

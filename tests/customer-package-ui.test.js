@@ -452,7 +452,7 @@ describe('Customer package Stage 1 authority still enforced (settlement + versio
     assert.equal(result.ok, true, result.error);
     assert.equal(result.postgresProjection.approvedCents, 16000);
     assert.equal(result.postgresProjection.settledCents, 10000);
-    assert.equal(result.postgresProjection.remainingCents, 7000);
+    assert.equal(result.postgresProjection.remainingCents, 6000);
     assert.equal(result.outstandingCreditCents, 0);
   });
 
@@ -464,7 +464,7 @@ describe('Customer package Stage 1 authority still enforced (settlement + versio
     const id = nextId('ADDON');
     await seedBlob(baseBooking(id, {
       addOnIds: ['ozone'],
-      approvedCents: 19500,
+      approvedCents: 20000,
     }));
     const result = await applyPackageFinancialMutation({
       bookingId: id,

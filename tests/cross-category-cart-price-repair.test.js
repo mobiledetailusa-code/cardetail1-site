@@ -434,7 +434,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
       displayLabel: '3-Row SUV',
       tierKey: 'suv3',
       tier: box.PRICING.cars.tiers.suv3,
-      basePrice: 465,
+      basePrice: 420,
       addons: [],
       addonTotal: 0,
     });
@@ -476,9 +476,9 @@ describe('price regression matrix (representative fixtures)', () => {
 describe('Review presentation after clean single-vehicle car booking', () => {
   it('Review total matches Explorer refresh price', () => {
     const vehicles = [{
-      basePrice: 465,
+      basePrice: 420,
       addonTotal: 0,
-      subtotal: 465,
+      subtotal: 420,
       pkgId: 'refresh',
       vehicleLabel: '2023 Ford Explorer',
       cat: 'cars',
@@ -487,7 +487,7 @@ describe('Review presentation after clean single-vehicle car booking', () => {
     const totals = Review.presentationTotals({
       vehicles,
       travelFeeAmount: 0,
-      totalPrice: 465,
+      totalPrice: 420,
     });
     assert.equal(totals.estimatedTotal, 420);
   });

@@ -76,7 +76,7 @@ describe('portal money sync — conflict detection', () => {
     const next = { ...booking, ...patch };
     assert.equal(next.approvedFinalAmount, 405);
     assert.equal(next.totalPrice, 405);
-    assert.equal(next.amountDueApproved, 320);
+    assert.equal(next.amountDueApproved, 355);
     assert.equal(next.payLink, '');
     assert.equal(next.payLinkAmount, null);
     assert.equal(detectMoneyConflict(next).ok, true);
@@ -84,9 +84,9 @@ describe('portal money sync — conflict detection', () => {
 
   it('canReusePayLink only when payLinkAmount matches due', () => {
     const booking = baseBooking({ payLink: 'https://x', payLinkAmount: 310, amountDueApproved: 310 });
-    assert.equal(canReusePayLink(booking, 280), true);
+    assert.equal(canReusePayLink(booking, 310), true);
     assert.equal(canReusePayLink(booking, 405), false);
-    assert.equal(canReusePayLink({ ...booking, payLinkAmount: null }, 280), false);
+    assert.equal(canReusePayLink({ ...booking, payLinkAmount: null }, 310), false);
   });
 });
 
@@ -122,7 +122,7 @@ describe('e2e simulate: customer package change → admin approve → customer p
     }, { travelCents: 1000, basedOnBookingVersion: 1 });
     assert.equal(quoted.ok, true);
     // SUV3 Premium $560 + $10 travel
-    assert.equal(quoted.quote.approvedCents, 63000);
+    assert.equal(quoted.quote.approvedCents, 57000);
     const proposedTotal = quoted.approvedDollars;
 
     const after = simulateAdminApproveMoney(booking, proposedTotal, {
@@ -139,15 +139,15 @@ describe('e2e simulate: customer package change → admin approve → customer p
 
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.package, 'Signature Interior & Exterior Restoration');
-    assert.equal(projected.approvedFinalAmount, 630);
-    assert.equal(projected.totalPrice, 630);
-    assert.equal(projected.amountDueApproved, 630);
+    assert.equal(projected.approvedFinalAmount, 570);
+    assert.equal(projected.totalPrice, 570);
+    assert.equal(projected.amountDueApproved, 570);
     assert.equal(projected.payLink, '');
     assert.equal(projected.customerChangePending, false);
 
     const pay = canPayBalance(after);
     assert.equal(pay.ok, true);
-    assert.equal(computeDue(after), 630);
+    assert.equal(computeDue(after), 570);
     assert.equal(detectMoneyConflict(after).ok, true);
   });
 
@@ -169,8 +169,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     assert.equal(detectMoneyConflict(withPay).ok, true);
   });
 
-  it('addon request: merge + proposed total uses canonical Odor $80 (not portal $149)', () => {
-    assert.equal(canonicalAddonPrice('cars', 'odor'), 80);
+  it('addon request: merge + proposed total uses canonical Odor $90 (not portal $149)', () => {
+    assert.equal(canonicalAddonPrice('cars', 'odor'), 90);
     assert.equal(canonicalAddonPrice('cars', 'pethair'), 95);
     // Labels may still come from customer-catalog; money must not.
     const portalOdor = ADDONS.find((a) => a.id === 'odor');
@@ -203,8 +203,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
       }],
     });
     assert.equal(quoted.ok, true);
-    // SUV3 Full $280 + pet $95 + odor $80 = $495
-    assert.equal(quoted.quote.approvedCents, 49500);
+    // SUV3 Full $280 + pet $95 + odor $90 = $465
+    assert.equal(quoted.quote.approvedCents, 46500);
     const proposedTotal = quoted.approvedDollars;
     const selected = resolveAddonsByIds(['pethair', 'odor']).map((a) => ({
       ...a,
@@ -217,8 +217,8 @@ describe('e2e simulate: customer package change → admin approve → customer p
     });
     const projected = projectBookingForCustomer(after);
     assert.equal(projected.addons.length, 2);
-    assert.equal(projected.approvedFinalAmount, 495);
-    assert.equal(projected.amountDueApproved, 495);
+    assert.equal(projected.approvedFinalAmount, 465);
+    assert.equal(projected.amountDueApproved, 465);
     assert.equal(projected.payLink, '');
   });
 });
@@ -380,8 +380,8 @@ describe('regression: UI approved total vs due after admin regenerate pattern', 
     const booking = baseBooking({ approvedFinalAmount: 310, amountDueApproved: 310, payLink: '', payLinkAmount: null });
     const fixed = { ...booking, ...applyPayLinkMoney(booking, 460, 'https://checkout.stripe.com/new', 'cs') };
     // approved becomes max(old approved, due+paid) = 460
-    assert.equal(fixed.approvedFinalAmount, 415);
-    assert.equal(fixed.amountDueApproved, 415);
+    assert.equal(fixed.approvedFinalAmount, 460);
+    assert.equal(fixed.amountDueApproved, 460);
     assert.equal(detectMoneyConflict(fixed).ok, true);
     const projected = projectBookingForCustomer(fixed);
     assert.equal(projected.approvedFinalAmount, projected.amountDueApproved);

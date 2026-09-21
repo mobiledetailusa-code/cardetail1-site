@@ -167,7 +167,7 @@ test('applyServerTravelAndTotal rejects out-of-area zip', () => {
 test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
   const b = {
     zipCode: '07601',
-    totalPrice: 175,
+    totalPrice: 160,
     zoneSurcharge: 100,
     vehicles: [{
       cat: 'cars',
@@ -175,27 +175,27 @@ test('applyServerTravelAndTotal ignores inflated client travel fee', () => {
       tierKey: 'small',
       tierLabel: 'Small Car',
       vehicleLabel: '2022 Honda Civic',
-      subtotal: 175,
+      subtotal: 160,
       addons: [],
     }],
   };
   const r = applyServerTravelAndTotal(b);
   assert.equal(r.ok, true);
   assert.equal(b.travelFeeAmount, 0);
-  assert.equal(b.totalPrice, 175);
+  assert.equal(b.totalPrice, 160);
 });
 
 test('applyServerTravelAndTotal folds NYC bridge surcharge into totalPrice only', () => {
   const b = {
     zipCode: '10065',
-    totalPrice: 210, // 175 service + 35 bridge — client already matched
+    totalPrice: 195, // 160 service + 35 bridge — client already matched
     vehicles: [{
       cat: 'cars',
       pkgId: 'maint',
       tierKey: 'small',
       tierLabel: 'Small Car',
       vehicleLabel: '2022 Honda Civic',
-      subtotal: 175,
+      subtotal: 160,
       addons: [],
     }],
   };
@@ -203,7 +203,7 @@ test('applyServerTravelAndTotal folds NYC bridge surcharge into totalPrice only'
   assert.equal(r.ok, true);
   assert.equal(b.travelFeeAmount, CROSS_HUDSON_SURCHARGE);
   assert.equal(b.zoneSurcharge, CROSS_HUDSON_SURCHARGE);
-  assert.equal(b.totalPrice, 175 + CROSS_HUDSON_SURCHARGE);
+  assert.equal(b.totalPrice, 160 + CROSS_HUDSON_SURCHARGE);
 });
 
 /* ── Browser and server must quote the same number ───────────────────────── */

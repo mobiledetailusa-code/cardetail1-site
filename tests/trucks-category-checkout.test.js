@@ -51,7 +51,7 @@ describe('trucks category pricing authority', () => {
       '07601'
     );
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 575 + 125);
+    assert.equal(r.subtotal, 520 + 125);
   });
 });
 

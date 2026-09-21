@@ -59,9 +59,9 @@ function twoVehicleFixture(overrides) {
     jobStatus: 'confirmed',
     zipCode: '07102',
     travelFeeAmount: 0,
-    approvedFinalAmount: 791,
-    totalPrice: 791,
-    ledger: { approvedCents: 79100, settledCents: 0, creditedCents: 0, entries: [] },
+    approvedFinalAmount: 823,
+    totalPrice: 823,
+    ledger: { approvedCents: 82300, settledCents: 0, creditedCents: 0, entries: [] },
     vehicles: [
       {
         vehicleId: 'veh_bronco',
@@ -76,10 +76,10 @@ function twoVehicleFixture(overrides) {
         packageName: 'Maintenance Detail',
         pkgName: 'Maintenance Detail',
         tierKey: 'suv2',
-        basePrice: 185,
-        packagePrice: 185,
+        basePrice: 195,
+        packagePrice: 195,
         addonTotal: 185,
-        subtotal: 370,
+        subtotal: 380,
         addons: [
           { id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 },
           { id: 'odor', name: 'Odor Treatment & Sanitize', qty: 1, price: 90 },
@@ -99,10 +99,10 @@ function twoVehicleFixture(overrides) {
         packageName: 'Essential Marine',
         pkgName: 'Essential Marine',
         lengthFt: 22,
-        basePrice: 396,
-        packagePrice: 396,
+        basePrice: 418,
+        packagePrice: 418,
         addonTotal: 25,
-        subtotal: 421,
+        subtotal: 443,
         addons: [
           { id: 'rainx', name: 'Rain-X Glass Treatment', qty: 1, price: 25 },
         ],
@@ -120,8 +120,8 @@ describe('package details resolution', () => {
       packageId: 'maint',
       packageName: 'Maintenance Detail',
       category: 'cars',
-      basePrice: 185,
-      subtotal: 370,
+      basePrice: 195,
+      subtotal: 380,
       addons: [{ id: 'pethair', name: 'Pet Hair Removal', qty: 1, price: 95 }],
     });
     assert.equal(details.available, true);
@@ -138,8 +138,8 @@ describe('package details resolution', () => {
       packageId: 'essential',
       packageName: 'Essential Marine',
       category: 'boats',
-      basePrice: 396,
-      subtotal: 421,
+      basePrice: 418,
+      subtotal: 443,
     });
     assert.equal(details.available, true);
     assert.match(details.description || details.name, /Marine|marine|Essential/);
@@ -167,7 +167,7 @@ describe('package details resolution', () => {
         limitations: 'Snap limit',
         priceCents: 19900,
       },
-      basePrice: 185,
+      basePrice: 195,
     });
     assert.equal(details.source, 'snapshot');
     assert.equal(details.name, 'Snap Pack');
@@ -184,8 +184,8 @@ describe('package details resolution', () => {
       category: 'cars',
       packageId: 'maint',
       packageName: 'Maintenance Detail',
-      basePrice: 185,
-      subtotal: 370,
+      basePrice: 195,
+      subtotal: 380,
       addons: [{ id: 'pethair', name: 'Pet Hair Removal', price: 95, qty: 1 }],
     });
     assert.ok(projected.packageDetails);
@@ -262,7 +262,7 @@ describe('vehicle_remove_request policy + commands', () => {
     assert.equal(submitted.ok, true, submitted.error + ' ' + (submitted.message || ''));
     assert.equal(submitted.changeRequest.status, 'pending');
     assert.equal(submitted.changeRequest.target.vehicleId, 'veh_bronco');
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 44300);
 
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 2, 'authoritative booking not mutated on submit');
@@ -309,8 +309,8 @@ describe('vehicle_remove_request policy + commands', () => {
       'CD1-ONE': twoVehicleFixture({
         id: 'CD1-ONE',
         vehicles: [twoVehicleFixture().vehicles[0]],
-        approvedFinalAmount: 370,
-        totalPrice: 370,
+        approvedFinalAmount: 380,
+        totalPrice: 380,
         ledger: { approvedCents: 33500, settledCents: 0, creditedCents: 0, entries: [] },
       }),
     });
@@ -366,7 +366,7 @@ describe('vehicle_remove_request policy + commands', () => {
       target: { vehicleId: 'veh_bronco' },
       delta: {},
     });
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 48700);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 44300);
 
     const decided = await decideChangeRequestCommand({
       bookingId,
@@ -379,7 +379,7 @@ describe('vehicle_remove_request policy + commands', () => {
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 48700);
+    assert.equal(after.booking.ledger.approvedCents, 44300);
     assert.ok(after.booking.bookingVersion > submitted.booking.bookingVersion);
   });
 
@@ -396,7 +396,7 @@ describe('vehicle_remove_request policy + commands', () => {
       target: { vehicleId: 'veh_boat' },
       delta: {},
     });
-    assert.equal(submitted.changeRequest.proposedApprovedCents, 40000);
+    assert.equal(submitted.changeRequest.proposedApprovedCents, 38000);
     const decided = await decideChangeRequestCommand({
       bookingId,
       requestId: submitted.changeRequest.requestId,
@@ -408,14 +408,14 @@ describe('vehicle_remove_request policy + commands', () => {
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_bronco');
-    assert.equal(after.booking.ledger.approvedCents, 40000);
+    assert.equal(after.booking.ledger.approvedCents, 38000);
   });
 
   it('paid booking approval records an explicit credit without auto-refunding', async () => {
     store = createMemoryStore({
       [bookingId]: twoVehicleFixture({
         id: bookingId,
-        ledger: { approvedCents: 79100, settledCents: 79100, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 82300, settledCents: 82300, creditedCents: 0, entries: [] },
         paymentStatus: 'paid',
         paymentWorkflowStatus: 'payment_succeeded',
       }),
@@ -444,13 +444,13 @@ describe('vehicle_remove_request policy + commands', () => {
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, decided.error);
-    assert.equal(decided.outstandingCreditCents, 30400);
+    assert.equal(decided.outstandingCreditCents, 38000);
 
     const after = await getBookingRecord(bookingId);
     assert.equal(after.booking.vehicles.length, 1);
     assert.equal(after.booking.vehicles[0].vehicleId, 'veh_boat');
-    assert.equal(after.booking.ledger.approvedCents, 48700);
-    assert.equal(after.booking.ledger.settledCents, 79100);
+    assert.equal(after.booking.ledger.approvedCents, 44300);
+    assert.equal(after.booking.ledger.settledCents, 82300);
     assert.equal(after.booking.ledger.refundedCents || 0, 0);
     assert.equal(after.booking.vehicleHistory.length, 1);
     assert.equal(after.booking.vehicleHistory[0].vehicleId, 'veh_bronco');

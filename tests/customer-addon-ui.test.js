@@ -82,8 +82,8 @@ describe('Stage 2 post-pay additive carve-out', () => {
       status: 'Paid',
       paymentWorkflowStatus: 'payment_succeeded',
       paymentStatus: 'paid',
-      ledger: { approvedCents: 17500, settledCents: 17500, creditedCents: 0, entries: [] },
-      quote: { quoteVersion: 1, approvedCents: 17500 },
+      ledger: { approvedCents: 16000, settledCents: 16000, creditedCents: 0, entries: [] },
+      quote: { quoteVersion: 1, approvedCents: 16000 },
       service: {
         vehicles: [{
           vehicleId: 'veh_1',
@@ -105,8 +105,8 @@ describe('Stage 2 post-pay additive carve-out', () => {
       addonIds: ['ozone'],
     });
     assert.equal(carve.ok, true, carve.error);
-    assert.equal(carve.proposedApprovedCents, 21500);
-    assert.equal(carve.currentApprovedCents, 17500);
+    assert.equal(carve.proposedApprovedCents, 20000);
+    assert.equal(carve.currentApprovedCents, 16000);
   });
 
   it('rejects package/vehicle fields in post-pay carve-out', () => {
@@ -147,8 +147,8 @@ describe('Stage 2 post-pay additive carve-out', () => {
           addons: [{ id: 'ozone' }],
         }],
       },
-      ledger: { approvedCents: 21500, settledCents: 17500, creditedCents: 0 },
-      quote: { quoteVersion: 2, approvedCents: 21500 },
+      ledger: { approvedCents: 20000, settledCents: 16000, creditedCents: 0 },
+      quote: { quoteVersion: 2, approvedCents: 20000 },
     }), { addonIds: ['ozone'] });
     assert.equal(carve.ok, false);
     assert.equal(carve.error, 'duplicate_addon');
@@ -162,7 +162,7 @@ describe('PR4 paid catalog changes remain Admin-reviewed (execution)', () => {
       status: 'Paid',
       paymentWorkflowStatus: 'payment_succeeded',
       paymentStatus: 'paid',
-      ledger: { approvedCents: 17500, settledCents: 17500, creditedCents: 0 },
+      ledger: { approvedCents: 16000, settledCents: 16000, creditedCents: 0 },
     };
   }
 
@@ -188,7 +188,7 @@ describe('PR4 paid catalog changes remain Admin-reviewed (execution)', () => {
       ...paid,
       bookingVersion: 1,
       quoteVersion: 1,
-      quote: { quoteVersion: 1, approvedCents: 17500 },
+      quote: { quoteVersion: 1, approvedCents: 16000 },
       service: {
         vehicles: [{
           vehicleId: 'veh_1', category: 'cars', cat: 'cars',

@@ -221,7 +221,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('KEEP-ADDON');
     await seedBlob(baseBooking(id, {
-      approvedCents: 19500,
+      approvedCents: 20000,
       addOnIds: ['ozone'],
     }));
 
@@ -234,7 +234,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     });
     assert.equal(result.ok, true, result.error);
     // 25000 package + 4000 ozone
-    assert.equal(result.postgresProjection.approvedCents, 28500);
+    assert.equal(result.postgresProjection.approvedCents, 29000);
     const veh = result.booking.service.vehicles.find((v) => v.vehicleId === 'veh_1');
     assert.deepEqual(veh.addOnIds, ['ozone'], 'add-on selection must survive the package change');
     const kinds = result.booking.quote.lineItems.map((li) => `${li.kind}:${li.packageId || li.addonId}`);
@@ -261,7 +261,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.postgresProjection.approvedCents, 25000);
     assert.equal(result.postgresProjection.settledCents, 16000);
-    assert.equal(result.postgresProjection.remainingCents, 10000);
+    assert.equal(result.postgresProjection.remainingCents, 9000);
     const after = await store.get(id);
     assert.equal(after.bookingVersion, 2);
     assert.equal(after.vehicles[0].pkgId, 'full');
@@ -294,7 +294,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.postgresProjection.approvedCents, 16000);
     assert.equal(result.postgresProjection.settledCents, 5000);
-    assert.equal(result.postgresProjection.remainingCents, 11500);
+    assert.equal(result.postgresProjection.remainingCents, 11000);
     assert.equal(result.outstandingCreditCents, 0);
   });
 
@@ -475,10 +475,10 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
   it('14) length-priced RV package change uses per-foot catalog pricing', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('RV');
-    // Travel trailer 24 ft: maint = 150 + 10*24 = 390 → 35000;
-    // full_basic = 295 + 24*24 = 871 → 87100 (multiplier 1 for travel).
+    // Travel trailer 24 ft: maint = 135 + 9*24 = 351 → 35100;
+    // full_basic = 265 + 22*24 = 793 → 79300 (multiplier 1 for travel).
     await seedBlob(baseBooking(id, {
-      approvedCents: 35000,
+      approvedCents: 35100,
       vehicles: [{
         vehicleId: 'veh_rv', cat: 'rvs', category: 'rvs', rvType: 'travel',
         lengthFt: 24, packageId: 'maint', pkgId: 'maint', pkgName: 'Maintenance Wash',
@@ -494,7 +494,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 87100);
+    assert.equal(result.postgresProjection.approvedCents, 79300);
     assert.equal(result.packageName, 'Full RV Detail');
   });
 });
