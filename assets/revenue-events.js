@@ -540,7 +540,12 @@
     }
   }
 
-  if (typeof document !== 'undefined' && !global.__cd1ConsentListenerBound) {
+  if (
+    typeof document !== 'undefined'
+    && document
+    && typeof document.addEventListener === 'function'
+    && !global.__cd1ConsentListenerBound
+  ) {
     global.__cd1ConsentListenerBound = true;
     document.addEventListener('cd1:consent-changed', function (ev) {
       try {
