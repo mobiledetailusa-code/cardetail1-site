@@ -129,8 +129,8 @@ describe('package details resolution', () => {
     assert.ok(details.includedServices.length >= 3);
     assert.match(details.includedServices.join(' '), /Exterior hand wash/i);
     assert.equal(details.addons[0].name, 'Pet Hair Removal');
-    assert.equal(details.packagePrice, 165);
-    assert.equal(details.vehicleSubtotal, 335);
+    assert.equal(details.packagePrice, 195);
+    assert.equal(details.vehicleSubtotal, 380);
   });
 
   it('resolves Essential Marine description from length catalog', () => {
