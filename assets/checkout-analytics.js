@@ -170,6 +170,12 @@
 
   function onBookingSubmitted() {
     emit('booking_submitted', { estimated_value: estimatedValue() });
+    // Google Ads conversion label AW-…/yrOD… — only after request is persisted (Step 6).
+    try {
+      if (global.Cardetail1Revenue && typeof global.Cardetail1Revenue.trackGoogleAdsBookingConversion === 'function') {
+        global.Cardetail1Revenue.trackGoogleAdsBookingConversion({ value: 1.0, currency: 'USD' });
+      }
+    } catch (eAds) { /* never block checkout */ }
   }
 
   function onPaymentInfoSaved() {

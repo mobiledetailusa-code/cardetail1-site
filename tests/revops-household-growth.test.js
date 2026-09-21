@@ -366,6 +366,19 @@ test('Google Ads Page view conversion send_to is wired', () => {
   assert.match(src, /__cd1GoogleAdsPageViewFired/);
 });
 
+test('Google Ads booking success conversion send_to is wired', () => {
+  const rev = fs.readFileSync(path.join(root, 'assets/revenue-events.js'), 'utf8');
+  const chk = fs.readFileSync(path.join(root, 'assets/checkout-analytics.js'), 'utf8');
+  assert.match(rev, /AW-11321647982\/yrODCJGL998YEO7GypYq/);
+  assert.match(rev, /CD1_GOOGLE_ADS_PURCHASE_SEND_TO/);
+  assert.match(rev, /trackGoogleAdsBookingConversion/);
+  assert.match(rev, /__cd1GoogleAdsBookingConversionFired/);
+  assert.match(rev, /value:\s*value/);
+  assert.match(rev, /currency:\s*opts\.currency\s*\|\|\s*'USD'/);
+  assert.match(chk, /onBookingSubmitted[\s\S]*trackGoogleAdsBookingConversion/);
+  assert.doesNotMatch(chk, /booking_submitted[\s\S]*purchase/);
+});
+
 test('CSP allows Google Ads gtag domains', () => {
   const toml = fs.readFileSync(path.join(root, 'netlify.toml'), 'utf8');
   assert.match(toml, /www\.googletagmanager\.com/);
