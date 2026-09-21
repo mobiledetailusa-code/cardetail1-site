@@ -762,7 +762,14 @@
         var draftRes = await postBooking(draftPayload);
         var draftData = await draftRes.json().catch(function () { return {}; });
         if (!draftRes.ok || !draftData.ok) {
-          throw rejectFromResponse(draftData, draftRes.status);
+          var draftFail = rejectFromResponse(draftData, draftRes.status);
+          // Gateway HTML timeouts during draft must not look like a silent "not submitted"
+          // with no actionable copy — nothing was booked yet.
+          if (draftFail.ambiguous || isAmbiguousFinalizeFailure(draftFail.code, draftRes.status, draftData)) {
+            alert('Booking is temporarily unavailable (the server timed out). Please wait a moment and try again. No payment was collected.');
+            return { ok: false, kind: 'rejected', code: draftFail.code };
+          }
+          throw draftFail;
         }
         if (typeof win.captureDraftSaveResponse === 'function') win.captureDraftSaveResponse(draftData);
         payload = attachPreference(win.buildBookingPayload());

@@ -160,13 +160,21 @@ describe('reading occupancy', () => {
   });
 
   it('declines to answer when reads are disabled', async () => {
-    delete process.env.SLOT_INDEX_READS;
+    process.env.SLOT_INDEX_READS = '0';
     const store = fakeIndexStore([]);
     setSlotIndexStoreOverride(store);
     const result = await indexedSlotConflict(DATE, TIME);
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'reads_disabled');
     assert.equal(store.lists, 0, 'must not touch the store while gated off');
+  });
+
+  it('answers from the index by default when SLOT_INDEX_READS is unset', async () => {
+    delete process.env.SLOT_INDEX_READS;
+    setSlotIndexStoreOverride(fakeIndexStore([
+      slotIndexKey({ slotDate: DATE, slotTime: TIME, state: 'booked', expiresAtMs: 0, bookingId: 'CD1-DEF' }),
+    ]));
+    assert.deepEqual(await indexedSlotConflict(DATE, TIME), { ok: true, conflict: true });
   });
 
   it('declines to answer — never "free" — when the store fails', async () => {
