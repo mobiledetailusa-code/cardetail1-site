@@ -36,9 +36,9 @@ describe('Powersports commercial two-package model', () => {
 
   it('preserves historical dollar meaning for old package IDs', () => {
     const historical = {
-      motorcycle: { wash: 100, essential: 160, full: 225, premium: 315 },
-      atv: { wash: 100, essential: 160, full: 225, premium: 315 },
-      utv: { wash: 125, essential: 190, full: 280, premium: 395 },
+      motorcycle: { wash: 115, essential: 185, full: 260, premium: 360 },
+      atv: { wash: 115, essential: 185, full: 260, premium: 360 },
+      utv: { wash: 145, essential: 220, full: 320, premium: 455 },
     };
     for (const [tierKey, prices] of Object.entries(historical)) {
       for (const [pkgId, amount] of Object.entries(prices)) {
@@ -53,12 +53,12 @@ describe('Powersports commercial two-package model', () => {
 
   it('prices the approved public matrix on client and server', () => {
     const matrix = {
-      motorcycle: { maintenance: 175, restore: 225 },
-      motorcycle_large: { maintenance: 190, restore: 250 },
-      motorcycle_trike: { maintenance: 200, restore: 275 },
-      atv: { maintenance: 175, restore: 215 },
-      utv_standard: { maintenance: 190, restore: 240 },
-      utv_large: { maintenance: 200, restore: 275 },
+      motorcycle: { maintenance: 200, restore: 260 },
+      motorcycle_large: { maintenance: 220, restore: 290 },
+      motorcycle_trike: { maintenance: 230, restore: 315 },
+      atv: { maintenance: 200, restore: 245 },
+      utv_standard: { maintenance: 220, restore: 275 },
+      utv_large: { maintenance: 230, restore: 315 },
     };
     for (const [serviceClass, prices] of Object.entries(matrix)) {
       assert.equal(Catalog.priceTierForServiceClass(serviceClass), serviceClass);
@@ -79,9 +79,9 @@ describe('Powersports commercial two-package model', () => {
       addons: [{ id: 'heavymud', qty: 1 }],
     }, '07102');
     assert.equal(withMud.ok, true);
-    assert.equal(withMud.basePrice, 200);
+    assert.equal(withMud.basePrice, 230);
     assert.equal(withMud.addonTotal, 55);
-    assert.equal(withMud.subtotal, 255);
+    assert.equal(withMud.subtotal, 285);
 
     const cart = ServerPricing.computeBookingServiceSubtotal({
       zipCode: '07102',
@@ -91,7 +91,7 @@ describe('Powersports commercial two-package model', () => {
       ],
     });
     assert.equal(cart.ok, true);
-    assert.equal(cart.serviceSubtotal, 375);
+    assert.equal(cart.serviceSubtotal, 430);
   });
 
   it('books supported trikes at the approved numeric prices', () => {
@@ -111,7 +111,7 @@ describe('Powersports commercial two-package model', () => {
     assert.equal(Catalog.resolve('Bobcat', 'S70 Skid Steer').publicStatus, 'contact');
     assert.equal(Catalog.resolve('Sea-Doo', 'Spark').publicStatus, 'route_boats');
     assert.equal(Catalog.resolve('Sea-Doo', 'Switch').publicStatus, 'route_boats');
-    assert.equal(ServerPricing.PRICING.powersports.tiers.jetski.wash, 100);
+    assert.equal(ServerPricing.PRICING.powersports.tiers.jetski.wash, 115);
     assert.equal(ServerPricing.PRICING.powersports.tiers.jetski.maintenance, undefined);
   });
 

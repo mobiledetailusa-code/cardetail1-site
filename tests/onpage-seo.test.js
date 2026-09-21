@@ -139,7 +139,7 @@ test('homepage and Bergen hub link to dedicated city pages', () => {
 test('llms.txt describes Palisades Park services and prices', () => {
   const txt = read('llms.txt');
   assert.match(txt, /Palisades Park/);
-  assert.match(txt, /Interior Detail from \$190/);
+  assert.match(txt, /Interior Detail from \$220/);
   assert.match(txt, /551-373-5668/);
 });
 

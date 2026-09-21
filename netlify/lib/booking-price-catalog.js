@@ -24,14 +24,14 @@ const POWERSPORTS_LEGACY_TIER_KEYS = new Set(['motorcycle', 'atv', 'utv', 'jetsk
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', wash: 110, maint: 150, interior: 190, full: 240, refresh: 320, premium: 385 },
-      suv2: { label: 'SUV 2-Row', wash: 135, maint: 185, interior: 215, full: 260, refresh: 360, premium: 470 },
-      suv3: { label: 'SUV 3-Row', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
-      compact_van: { label: 'Compact Van', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
-      midsize_van: { label: 'Midsize Van', wash: 155, maint: 215, interior: 235, full: 270, refresh: 405, premium: 540 },
-      full_size_van: { label: 'Full-Size Cargo Van', wash: 170, maint: 235, interior: 260, full: 295, refresh: 445, premium: 595 },
-      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 180, maint: 245, interior: 270, full: 310, refresh: 465, premium: 620 },
-      truck: { label: 'Truck', wash: 155, maint: 215, interior: 235, full: 275, refresh: 395, premium: 525 },
+      small: { label: 'Small Car', wash: 125, maint: 175, interior: 220, full: 275, refresh: 370, premium: 445 },
+      suv2: { label: 'SUV 2-Row', wash: 155, maint: 215, interior: 245, full: 300, refresh: 415, premium: 540 },
+      suv3: { label: 'SUV 3-Row', wash: 180, maint: 245, interior: 270, full: 310, refresh: 465, premium: 620 },
+      compact_van: { label: 'Compact Van', wash: 180, maint: 245, interior: 270, full: 310, refresh: 465, premium: 620 },
+      midsize_van: { label: 'Midsize Van', wash: 180, maint: 245, interior: 270, full: 310, refresh: 465, premium: 620 },
+      full_size_van: { label: 'Full-Size Cargo Van', wash: 195, maint: 270, interior: 300, full: 340, refresh: 510, premium: 685 },
+      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 205, maint: 280, interior: 310, full: 355, refresh: 535, premium: 715 },
+      truck: { label: 'Truck', wash: 180, maint: 245, interior: 270, full: 315, refresh: 455, premium: 605 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
@@ -47,8 +47,8 @@ const PRICING = {
   },
   trucks: {
     tiers: {
-      day_cab: { label: 'Day Cab / Single Cab', interior: 325, int_wash: 400, int_wash_wax: 500 },
-      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 325, int_wash: 400, int_wash_wax: 500 },
+      day_cab: { label: 'Day Cab / Single Cab', interior: 375, int_wash: 460, int_wash_wax: 575 },
+      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 375, int_wash: 460, int_wash_wax: 575 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
@@ -62,10 +62,10 @@ const PRICING = {
   },
   boats: {
     tiers: {
-      under20: { label: 'Under 20 ft', maint: 225, essential: 340, full: 510, premium: 795 },
-      '20to25': { label: '20–25 ft', maint: 310, essential: 455, full: 680, premium: 1020 },
-      '26to30': { label: '26–30 ft', maint: 395, essential: 565, full: 850, premium: 1245 },
-      over30: { label: '30+ ft', maint: 510, essential: 735, full: 1135, premium: 1700 },
+      under20: { label: 'Under 20 ft', maint: 260, essential: 390, full: 585, premium: 915 },
+      '20to25': { label: '20–25 ft', maint: 355, essential: 525, full: 780, premium: 1175 },
+      '26to30': { label: '26–30 ft', maint: 455, essential: 650, full: 975, premium: 1430 },
+      over30: { label: '30+ ft', maint: 585, essential: 845, full: 1305, premium: 1955 },
     },
     addons: [
       { id: 'rainx', price: 25 }, { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 },
@@ -78,31 +78,31 @@ const PRICING = {
     tiers: {
       travel: {
         label: 'Travel Trailer',
-        maint: 270, maint_light: 395, interior: 390, full_basic: 765, premium: 965, full: 1190,
+        maint: 310, maint_light: 455, interior: 450, full_basic: 880, premium: 1110, full: 1370,
       },
       fifthwheel: {
         label: 'Fifth Wheel',
-        maint: 305, maint_light: 510, interior: 490, full_basic: 895, premium: 1135, full: 1430,
+        maint: 350, maint_light: 585, interior: 565, full_basic: 1030, premium: 1305, full: 1645,
       },
       classC: {
         label: 'Class C',
-        maint: 325, maint_light: 565, interior: 525, full_basic: 950, premium: 1305, full: 1580,
+        maint: 375, maint_light: 650, interior: 605, full_basic: 1095, premium: 1500, full: 1815,
       },
       classA: {
         label: 'Class A',
-        maint: 355, maint_light: 735, interior: 645, full_basic: 1090, premium: 1645, full: 1940,
+        maint: 410, maint_light: 845, interior: 740, full_basic: 1255, premium: 1890, full: 2230,
       },
       classBC: {
         label: 'Class B / Class C Motorhome',
-        maint: 325, maint_light: 565, interior: 525, full_basic: 950, premium: 1305, full: 1580,
+        maint: 375, maint_light: 650, interior: 605, full_basic: 1095, premium: 1500, full: 1815,
       },
       airstream: {
         label: 'Airstream',
-        maint: 290, maint_light: 425, interior: 425, full_basic: 835, premium: 1020, full: 1275,
+        maint: 335, maint_light: 490, interior: 490, full_basic: 960, premium: 1175, full: 1465,
       },
       specialty: {
         label: 'Cargo, Horse or Custom Trailer',
-        maint: 255, maint_light: 0, interior: 0, full_basic: 0, premium: 895, full: 0,
+        maint: 295, maint_light: 0, interior: 0, full_basic: 0, premium: 1030, full: 0,
       },
     },
     addons: [
@@ -119,14 +119,14 @@ const PRICING = {
     tiers: {
       // New public packages: maintenance / restore. wash/essential/full/premium
       // remain so historical bookings keep their original dollar meaning.
-      motorcycle: { label: 'Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 225 },
-      motorcycle_large: { label: 'Large Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 190, restore: 250 },
-      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 200, restore: 275 },
-      atv: { label: 'ATV', wash: 100, essential: 160, full: 225, premium: 315, maintenance: 175, restore: 215 },
-      utv: { label: 'UTV / Side-by-Side', wash: 125, essential: 190, full: 280, premium: 395 },
-      utv_standard: { label: 'Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 190, restore: 240 },
-      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 125, essential: 190, full: 280, premium: 395, maintenance: 200, restore: 275 },
-      jetski: { label: 'Jet Ski / PWC', wash: 100, essential: 160, full: 225, premium: 310 },
+      motorcycle: { label: 'Motorcycle', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 200, restore: 260 },
+      motorcycle_large: { label: 'Large Motorcycle', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 220, restore: 290 },
+      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 230, restore: 315 },
+      atv: { label: 'ATV', wash: 115, essential: 185, full: 260, premium: 360, maintenance: 200, restore: 245 },
+      utv: { label: 'UTV / Side-by-Side', wash: 145, essential: 220, full: 320, premium: 455 },
+      utv_standard: { label: 'Side-by-Side / UTV', wash: 145, essential: 220, full: 320, premium: 455, maintenance: 220, restore: 275 },
+      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 145, essential: 220, full: 320, premium: 455, maintenance: 230, restore: 315 },
+      jetski: { label: 'Jet Ski / PWC', wash: 115, essential: 185, full: 260, premium: 355 },
     },
     addons: [
       { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 }, { id: 'rainx', price: 25 },
@@ -138,9 +138,9 @@ const PRICING = {
   },
   fleet: {
     tiers: {
-      vehicle: { label: 'Cars / SUVs / Trucks Fleet', maint: 65, essential: 110, full: 180, premium: 260, custom: 0 },
-      commercial: { label: 'Vans / Trucks / Buses', maint: 100, essential: 170, full: 270, premium: 0, custom: 0 },
-      powersports: { label: 'Golf Carts / Powersports Fleet', maint: 50, essential: 80, full: 130, premium: 200, custom: 0 },
+      vehicle: { label: 'Cars / SUVs / Trucks Fleet', maint: 75, essential: 125, full: 205, premium: 300, custom: 0 },
+      commercial: { label: 'Vans / Trucks / Buses', maint: 115, essential: 195, full: 310, premium: 0, custom: 0 },
+      powersports: { label: 'Golf Carts / Powersports Fleet', maint: 55, essential: 90, full: 150, premium: 230, custom: 0 },
       marine_rv: { label: 'Boat / RV / Trailer Fleet', maint: 0, essential: 0, full: 0, premium: 0, custom: 0 },
     },
     addons: [
@@ -171,30 +171,30 @@ const LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
     packages: {
-      maint: { perFt: 10, min: 170 },
-      essential: { perFt: 18, min: 255 },
-      full: { perFt: 26, min: 380 },
-      premium: { perFt: 32, min: 595 },
+      maint: { perFt: 12, min: 195 },
+      essential: { perFt: 21, min: 295 },
+      full: { perFt: 30, min: 435 },
+      premium: { perFt: 37, min: 685 },
     },
   },
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      maint: { base: 130, ratePerFoot: 9 },
-      maint_light: { base: 215, ratePerFoot: 14 },
-      interior: { base: 215, ratePerFoot: 15 },
-      full_basic: { base: 255, ratePerFoot: 21 },
-      premium: { base: 255, ratePerFoot: 24 },
-      full: { base: 340, ratePerFoot: 31 },
+      maint: { base: 150, ratePerFoot: 10 },
+      maint_light: { base: 245, ratePerFoot: 16 },
+      interior: { base: 245, ratePerFoot: 17 },
+      full_basic: { base: 295, ratePerFoot: 24 },
+      premium: { base: 295, ratePerFoot: 28 },
+      full: { base: 390, ratePerFoot: 36 },
     },
   },
   fleet: {
     min: 10, max: 60, defaultFt: 24, estimateOver: 36,
     packages: {
-      maint: { perFt: 11, min: 170 },
-      essential: { perFt: 16, min: 280 },
-      full: { perFt: 23, min: 510 },
-      premium: { perFt: 30, min: 680 },
+      maint: { perFt: 13, min: 195 },
+      essential: { perFt: 18, min: 320 },
+      full: { perFt: 26, min: 585 },
+      premium: { perFt: 35, min: 780 },
       custom: { perFt: 0, min: 0 },
     },
   },
