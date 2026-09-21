@@ -21,8 +21,9 @@
  * a full-store hydration.
  *
  * Blobs stay authoritative. This is a derived index:
- *   - reads are gated by SLOT_INDEX_READS and fall back to the scan on any
- *     error, never to "the slot looks free";
+ *   - reads default ON (SLOT_INDEX_READS=0 forces the legacy full-store scan);
+ *     leaving the scan as the hot path exceeds the function budget and returns
+ *     an HTML 504 that checkout reports as "Booking backend returned an invalid response";
  *   - draft holds are written BEFORE the draft record, so a crash in between
  *     leaves an entry that makes the slot look busy (fail-closed) and expires
  *     on its own within DRAFT_SLOT_HOLD_MS;
@@ -39,10 +40,14 @@ const SLOT_INDEX_STORE = 'cd1-slot-index';
 const STATE_BOOKED = 'booked';
 const STATE_DRAFT = 'draft';
 
-/** Reads stay off until the index is backfilled; writes always run. */
+/** Reads default ON — the full-store scan exceeds the Netlify function budget
+ *  and returns an HTML 504 that checkout surfaces as "invalid response".
+ *  Set SLOT_INDEX_READS=0 to force the legacy Blobs scan (tests / rollback). */
 function slotIndexReadsEnabled(env = process.env) {
   const flag = String(env.SLOT_INDEX_READS || '').trim().toLowerCase();
-  return flag === '1' || flag === 'true';
+  if (flag === '0' || flag === 'false' || flag === 'off') return false;
+  if (flag === '1' || flag === 'true' || flag === 'on') return true;
+  return true;
 }
 
 let _storeOverride = null;

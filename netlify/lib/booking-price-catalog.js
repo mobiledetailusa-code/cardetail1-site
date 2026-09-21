@@ -27,14 +27,14 @@ const POWERSPORTS_LEGACY_TIER_KEYS = new Set(['motorcycle', 'atv', 'utv', 'jetsk
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', wash: 125, maint: 160, interior: 210, full: 275, refresh: 350, premium: 425 },
-      suv2: { label: 'SUV 2-Row', wash: 145, maint: 195, interior: 235, full: 295, refresh: 395, premium: 500 },
-      suv3: { label: 'SUV 3-Row', wash: 165, maint: 225, interior: 265, full: 325, refresh: 435, premium: 575 },
-      compact_van: { label: 'Compact Van', wash: 165, maint: 225, interior: 260, full: 315, refresh: 435, premium: 575 },
-      midsize_van: { label: 'Midsize Van', wash: 165, maint: 225, interior: 260, full: 315, refresh: 435, premium: 575 },
-      full_size_van: { label: 'Full-Size Cargo Van', wash: 185, maint: 255, interior: 295, full: 350, refresh: 475, premium: 625 },
-      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 195, maint: 265, interior: 310, full: 375, refresh: 495, premium: 650 },
-      truck: { label: 'Truck', wash: 165, maint: 225, interior: 260, full: 315, refresh: 425, premium: 560 },
+      small: { label: 'Small Car', wash: 125, maint: 160, interior: 200, full: 250, refresh: 335, premium: 400 },
+      suv2: { label: 'SUV 2-Row', wash: 145, maint: 195, interior: 225, full: 285, refresh: 385, premium: 495 },
+      suv3: { label: 'SUV 3-Row', wash: 165, maint: 225, interior: 255, full: 310, refresh: 430, premium: 570 },
+      compact_van: { label: 'Compact Van', wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+      midsize_van: { label: 'Midsize Van', wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+      full_size_van: { label: 'Full-Size Cargo Van', wash: 185, maint: 255, interior: 285, full: 335, refresh: 470, premium: 625 },
+      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 195, maint: 265, interior: 300, full: 350, refresh: 490, premium: 650 },
+      truck: { label: 'Truck', wash: 165, maint: 225, interior: 255, full: 300, refresh: 420, premium: 555 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
@@ -158,7 +158,7 @@ const PRICING = {
 // second billable line for work the selected package already includes.
 const PACKAGE_INCLUDED_ADDONS = Object.freeze({
   cars: Object.freeze({
-    full: Object.freeze(['claybar']),
+    full: Object.freeze(['claybar', 'rainx']),
     refresh: Object.freeze(['claybar', 'rainx']),
     premium: Object.freeze(['claybar', 'rainx']),
   }),

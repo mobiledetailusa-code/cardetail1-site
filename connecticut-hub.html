@@ -135,7 +135,7 @@
           "@type": "Service",
           "name": "Interior Detail"
         },
-        "price": "210",
+        "price": "200",
         "priceCurrency": "USD"
       },
       {
@@ -144,7 +144,7 @@
           "@type": "Service",
           "name": "Premium Full Detail"
         },
-        "price": "275",
+        "price": "250",
         "priceCurrency": "USD"
       },
       {
@@ -153,7 +153,7 @@
           "@type": "Service",
           "name": "Exterior Detail & Paint Enhancement"
         },
-        "price": "350",
+        "price": "335",
         "priceCurrency": "USD"
       }
     ]
@@ -2777,7 +2777,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="car-pkg-price-row">
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-interior">$210</span>
+              <span class="car-pkg-price-amt" id="home-from-interior">$200</span>
               <span class="car-pkg-price-note" id="home-from-interior-note">priced by vehicle type</span>
             </div>
           </div>
@@ -2799,7 +2799,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-foot">
           <div class="car-pkg-price-row">
             <div class="car-pkg-price car-pkg-price--tiered">
-              <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">From $275 · priced by vehicle type</span>
+              <span class="car-pkg-price-note car-pkg-price-note--primary" id="home-from-full-note">From $250 · priced by vehicle type</span>
             </div>
           </div>
           <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
@@ -2820,7 +2820,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="car-pkg-price-row">
             <div class="car-pkg-price">
               <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-refresh">$350</span>
+              <span class="car-pkg-price-amt" id="home-from-refresh">$335</span>
               <span class="car-pkg-price-note" id="home-from-refresh-note">priced by vehicle type</span>
             </div>
           </div>
@@ -4051,14 +4051,14 @@ const TRUCK_INTERIOR_SERVICE_ITEMS = [
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:125, maint:160, interior:210, full:275, refresh:350, premium:425},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:145, maint:195, interior:235, full:295, refresh:395, premium:500},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:165, maint:225, interior:265, full:325, refresh:435, premium:575},
-      compact_van: {label:'Compact Van',icon:'🚐',desc:'Compact cargo / passenger van',wash:165,maint:225,interior:260,full:315,refresh:435,premium:575},
-      midsize_van: {label:'Midsize Van',icon:'🚐',desc:'Midsize cargo / passenger van',wash:165,maint:225,interior:260,full:315,refresh:435,premium:575},
-      full_size_van: {label:'Full-Size Cargo Van',icon:'🚐',desc:'Full-size cargo van · Sprinter-class',wash:185,maint:255,interior:295,full:350,refresh:475,premium:625},
-      full_size_van_passenger: {label:'Full-Size Passenger Van',icon:'🚐',desc:'Full-size passenger van',wash:195,maint:265,interior:310,full:375,refresh:495,premium:650},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:165, maint:225, interior:260, full:315, refresh:425, premium:560},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:125, maint:160, interior:200, full:250, refresh:335, premium:400},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:145, maint:195, interior:225, full:285, refresh:385, premium:495},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:165, maint:225, interior:255, full:310, refresh:430, premium:570},
+      compact_van: {label:'Compact Van',icon:'🚐',desc:'Compact cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570},
+      midsize_van: {label:'Midsize Van',icon:'🚐',desc:'Midsize cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570},
+      full_size_van: {label:'Full-Size Cargo Van',icon:'🚐',desc:'Full-size cargo van · Sprinter-class',wash:185,maint:255,interior:285,full:335,refresh:470,premium:625},
+      full_size_van_passenger: {label:'Full-Size Passenger Van',icon:'🚐',desc:'Full-size passenger van',wash:195,maint:265,interior:300,full:350,refresh:490,premium:650},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:165, maint:225, interior:255, full:300, refresh:420, premium:555},
     },
     packages:[
       {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
@@ -4076,8 +4076,8 @@ const PRICING = {
         int:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh - most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned'],
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — clay bar & Rain-X included',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
@@ -6678,7 +6678,7 @@ const ZONE_POPULAR = {
 };
 
 const LOC_DISPLAY = {
-  cars:       { ico:'🚗', name:'Cars & SUVs',    desc:'Most requested in your area', from:'From $210' },
+  cars:       { ico:'🚗', name:'Cars & SUVs',    desc:'Most requested in your area', from:'From $200' },
   trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $340' },
   boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $175' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $8/ft' },

@@ -294,10 +294,10 @@ describe('submit-booking preference persistence without Stripe', () => {
         vehicleLabel: '2024 Honda Civic',
         addons: [],
         addonTotal: 0,
-        basePrice: 275,
-        subtotal: 275,
+        basePrice: 250,
+        subtotal: 250,
       }],
-      totalPrice: 275,
+      totalPrice: 250,
       travelFeeAmount: 0,
       zoneSurcharge: 0,
       paymentMethod: '',
@@ -353,6 +353,56 @@ describe('submit-booking preference persistence without Stripe', () => {
       else process.env[key] = env[key];
     }
   });
+
+  for (const pref of ['card_onsite', 'cash_onsite']) {
+    it(`persists ${pref} Small Car Full with included Rain-X at $250`, async () => {
+      const draft = await post(requestPayload({
+        isDraft: true,
+        phone: pref === 'card_onsite' ? '2015550181' : '2015550182',
+        paymentMethodPreference: pref,
+        vehicles: [{
+          vehicleId: 'vehicle-1',
+          cat: 'cars',
+          pkgId: 'full',
+          pkgName: 'Premium Detail',
+          tierKey: 'small',
+          tierLabel: 'Small Car',
+          vehicleLabel: '2024 Honda Civic',
+          addons: [{ id: 'rainx', qty: 1 }],
+          addonTotal: 0,
+          basePrice: 250,
+          subtotal: 250,
+        }],
+        totalPrice: 250,
+      }));
+      assert.equal(draft.response.statusCode, 200, draft.body.error);
+      const final = await post(requestPayload({
+        phone: pref === 'card_onsite' ? '2015550181' : '2015550182',
+        draftBookingId: draft.body.id,
+        draftSaveToken: draft.body.draftSaveToken,
+        paymentMethodPreference: pref,
+        vehicles: [{
+          vehicleId: 'vehicle-1',
+          cat: 'cars',
+          pkgId: 'full',
+          pkgName: 'Premium Detail',
+          tierKey: 'small',
+          tierLabel: 'Small Car',
+          vehicleLabel: '2024 Honda Civic',
+          addons: [{ id: 'rainx', qty: 1 }],
+          addonTotal: 0,
+          basePrice: 250,
+          subtotal: 250,
+        }],
+        totalPrice: 250,
+      }));
+      assert.equal(final.response.statusCode, 200, final.body.error);
+      assert.equal(final.body.bookingCreated, true);
+      const saved = await store.get(final.body.id);
+      assert.equal(saved.paymentMethodPreference, pref);
+      assert.equal(Number(saved.totalPrice), 250);
+    });
+  }
 
   for (const pref of ['card_onsite', 'cash_onsite']) {
     it(`persists ${pref} without Stripe, ledger, or a charge`, async () => {

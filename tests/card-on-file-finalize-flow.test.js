@@ -58,7 +58,7 @@ function baseDraft(overrides = {}) {
       addons: [],
     }],
     // Phase 1 canonical: cars/small/full @ zip 07102, no add-ons/travel
-    totalPrice: 275,
+    totalPrice: 250,
     travelFeeAmount: 0,
     zoneSurcharge: 0,
     setupIntentId: 'seti_test_succeeded_001',

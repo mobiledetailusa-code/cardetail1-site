@@ -2,12 +2,13 @@
  * One-time backfill of the cd1-slot-index store from the authoritative bookings.
  *
  * Rollout order matters:
- *   1. deploy the write path (index is maintained from then on, reads still scan)
+ *   1. deploy the write path (index is maintained from then on)
  *   2. run this backfill               → historical holds enter the index
- *   3. set SLOT_INDEX_READS=1          → checkout stops scanning the store
+ *   3. SLOT_INDEX_READS defaults ON    → checkout uses the index (set =0 to force legacy scan)
  *
- * Reading with SLOT_INDEX_READS unset is safe at every step: an unbackfilled
- * index is never consulted.
+ * Reading with an empty/unbackfilled index is fail-closed for NEW slots only when
+ * capacity is checked against index holds; run --apply once so pre-write holds
+ * are not missed. Legacy full-store scans exceed the function budget (HTML 504).
  *
  *   node scripts/backfill-slot-index.js           # dry run
  *   node scripts/backfill-slot-index.js --apply   # write index entries

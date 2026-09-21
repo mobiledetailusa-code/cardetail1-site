@@ -75,10 +75,10 @@ function requestPayload(overrides = {}) {
       addons: [],
       addonTotal: 0,
       // Phase 1 canonical: cars/small/full @ zip 07102, no add-ons/travel
-      basePrice: 275,
-      subtotal: 275,
+      basePrice: 250,
+      subtotal: 250,
     }],
-    totalPrice: 275,
+    totalPrice: 250,
     travelFeeAmount: 0,
     zoneSurcharge: 0,
     paymentMethod: '',
@@ -384,8 +384,8 @@ describe('submit-booking fail-closed duplicate guard', () => {
     assert.equal(store.finalized().length, 1);
   });
 
-  it('TEST 7 — SLOT_INDEX_READS stays off and fallback scan remains fail-closed', async () => {
-    assert.equal(process.env.SLOT_INDEX_READS, undefined);
+  it('TEST 7 — SLOT_INDEX_READS=0 forces fail-closed Blobs scan fallback', async () => {
+    process.env.SLOT_INDEX_READS = '0';
     store.list = async () => {
       throw new Error('index_off_scan_failed');
     };
@@ -393,6 +393,7 @@ describe('submit-booking fail-closed duplicate guard', () => {
     assert.equal(draft.response.statusCode, 503);
     assert.equal(draft.body.error, 'booking_verification_unavailable');
     assert.equal(store.finalized().length, 0);
+    delete process.env.SLOT_INDEX_READS;
   });
 
   it('TEST 8 — existing booking after interrupted tail blocks a new draft', async () => {

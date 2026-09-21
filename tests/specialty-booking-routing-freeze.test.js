@@ -429,14 +429,14 @@ describe('pricing + Review render for one fixture per category', () => {
       cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [],
     }, '07102');
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 275);
+    assert.equal(r.subtotal, 250);
     const totals = Review.presentationTotals({
-      vehicles: [{ basePrice: 275, addonTotal: 0, subtotal: 275 }],
+      vehicles: [{ basePrice: 250, addonTotal: 0, subtotal: 250 }],
       travelFeeAmount: 0,
-      totalPrice: 275,
+      totalPrice: 250,
     });
-    assert.equal(totals.estimatedTotal, 275);
-    assert.equal(Review.money(totals.estimatedTotal), '$275.00');
+    assert.equal(totals.estimatedTotal, 250);
+    assert.equal(Review.money(totals.estimatedTotal), '$250.00');
   });
 
   it('RV: 20 ft travel maint resolves and Review can render', () => {

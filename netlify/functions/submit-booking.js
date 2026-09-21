@@ -111,7 +111,22 @@ const {
 } = require('../lib/card-on-file');
 
 const BOOKING_VERIFICATION_UNAVAILABLE = 'booking_verification_unavailable';
-let slotScanTimeoutMs = 0;
+
+/** Default scan budget before returning JSON 503 instead of hanging into HTML 504. */
+const DEFAULT_SLOT_SCAN_TIMEOUT_MS = 8000;
+
+function resolveSlotScanTimeoutMs(env = process.env) {
+  const raw = env.SLOT_SCAN_TIMEOUT_MS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Math.round(Number(raw));
+    return Number.isFinite(n) && n >= 0 ? n : DEFAULT_SLOT_SCAN_TIMEOUT_MS;
+  }
+  // Always bound the legacy Blobs fallback — unbounded scans hit Netlify's
+  // inactivity ceiling (~30s) and return non-JSON HTML that breaks card-save.
+  return DEFAULT_SLOT_SCAN_TIMEOUT_MS;
+}
+
+let slotScanTimeoutMs = resolveSlotScanTimeoutMs();
 
 function verificationUnavailable(cause) {
   const err = new Error(BOOKING_VERIFICATION_UNAVAILABLE);
@@ -129,15 +144,17 @@ function isVerificationUnavailable(err) {
 
 function withSlotScanTimeout(promise) {
   if (!slotScanTimeoutMs || slotScanTimeoutMs <= 0) return promise;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      const timer = setTimeout(() => {
-        reject(verificationUnavailable(new Error('timeout')));
-      }, slotScanTimeoutMs);
-      if (typeof timer.unref === 'function') timer.unref();
-    }),
-  ]);
+  let timer = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    // Keep the timer referenced so short test budgets (and cold isolates)
+    // cannot drain the event loop before the timeout rejects the race.
+    timer = setTimeout(() => {
+      reject(verificationUnavailable(new Error('timeout')));
+    }, slotScanTimeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
 async function listRequestStoreBlobs(store) {
@@ -1242,6 +1259,7 @@ exports.__test = {
   setSlotScanTimeoutMs(ms) {
     slotScanTimeoutMs = Math.max(0, Math.round(Number(ms) || 0));
   },
+  resolveSlotScanTimeoutMs,
   buildDraftRecord,
   issueDraftSaveResponse,
   reconcileCardOnFileFromStripe,

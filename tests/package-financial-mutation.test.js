@@ -54,12 +54,12 @@ function createMemoryStore(seed = {}) {
 
 // Phase 1 small-car catalog cents @ zip 07102 (asserted independently of production import).
 const SMALL_MAINT_CENTS = 16000;
-const SMALL_INTERIOR_CENTS = 21000;
-const SMALL_FULL_CENTS = 27500;
+const SMALL_INTERIOR_CENTS = 20000;
+const SMALL_FULL_CENTS = 25000;
 const OZONE_CENTS = 4000;
 const SMALL_MAINT_PLUS_OZONE_CENTS = SMALL_MAINT_CENTS + OZONE_CENTS; // 20000
-const SMALL_FULL_PLUS_OZONE_CENTS = SMALL_FULL_CENTS + OZONE_CENTS; // 31500
-const MAINT_TO_FULL_DELTA_CENTS = SMALL_FULL_CENTS - SMALL_MAINT_CENTS; // 11500
+const SMALL_FULL_PLUS_OZONE_CENTS = SMALL_FULL_CENTS + OZONE_CENTS; // 29000
+const MAINT_TO_FULL_DELTA_CENTS = SMALL_FULL_CENTS - SMALL_MAINT_CENTS; // 9000
 
 function baseBooking(id, {
   approvedCents = SMALL_MAINT_CENTS,
@@ -164,7 +164,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     return store;
   }
 
-  it('1) before-pay upgrade: maint 16000/0/16000 → full 27500/0/27500', async () => {
+  it('1) before-pay upgrade: maint 16000/0/16000 → full 25000/0/25000', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const { financialProjection } = require('../netlify/lib/payment-service');
     const id = nextId('BP-UP');
@@ -182,12 +182,12 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(result.priorPackageId, 'maint');
     assert.equal(result.packageId, 'full');
     assert.equal(result.packageName, 'Premium Full Detail');
-    assert.equal(result.postgresProjection.approvedCents, 27500);
+    assert.equal(result.postgresProjection.approvedCents, 25000);
     assert.equal(result.postgresProjection.settledCents, 0);
-    assert.equal(result.postgresProjection.remainingCents, 27500);
-    assert.equal(result.financialProjection.approvedCents, 27500);
-    assert.equal(result.financialProjection.remainingCents, 27500);
-    assert.equal(financialProjection(result.booking).remainingCents, 27500);
+    assert.equal(result.postgresProjection.remainingCents, 25000);
+    assert.equal(result.financialProjection.approvedCents, 25000);
+    assert.equal(result.financialProjection.remainingCents, 25000);
+    assert.equal(financialProjection(result.booking).remainingCents, 25000);
     assert.equal(
       result.quoteVersion,
       result.priorQuoteVersion + 1,
@@ -200,11 +200,11 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(veh.pkgName, 'Premium Full Detail');
   });
 
-  it('2) before-pay downgrade: full 27500/0/27500 → maint 16000/0/16000', async () => {
+  it('2) before-pay downgrade: full 25000/0/25000 → maint 16000/0/16000', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('BP-DOWN');
     await seedBlob(baseBooking(id, {
-      approvedCents: 27500,
+      approvedCents: 25000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
       quoteVersion: 2,
@@ -241,7 +241,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    // Phase 1: Small Car full ($275) + ozone ($40) = $315
+    // Phase 1: Small Car full ($250) + ozone ($40) = $290
     assert.equal(result.postgresProjection.approvedCents, SMALL_FULL_PLUS_OZONE_CENTS);
     const veh = result.booking.service.vehicles.find((v) => v.vehicleId === 'veh_1');
     assert.deepEqual(veh.addOnIds, ['ozone'], 'add-on selection must survive the package change');
@@ -269,7 +269,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.postgresProjection.approvedCents, SMALL_FULL_CENTS);
     assert.equal(result.postgresProjection.settledCents, SMALL_MAINT_CENTS);
-    // Phase 1: full ($275) − settled maint ($160) = $115 remaining
+    // Phase 1: full ($250) − settled maint ($160) = $90 remaining
     assert.equal(result.postgresProjection.remainingCents, MAINT_TO_FULL_DELTA_CENTS);
     const after = await store.get(id);
     assert.equal(after.bookingVersion, 2);
@@ -282,7 +282,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('PARTIAL');
     const seeded = baseBooking(id, {
-      approvedCents: 27500,
+      approvedCents: 25000,
       settledCents: 5000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
@@ -458,7 +458,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 27500, 'catalog price must win');
+    assert.equal(result.postgresProjection.approvedCents, 25000, 'catalog price must win');
     assert.equal(result.packageName, 'Premium Full Detail', 'display name resolves server-side');
   });
 

@@ -31,14 +31,14 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 const APPROVED_CARS = Object.freeze({
-  small: { wash: 125, maint: 160, interior: 210, full: 275, refresh: 350, premium: 425 },
-  suv2: { wash: 145, maint: 195, interior: 235, full: 295, refresh: 395, premium: 500 },
-  suv3: { wash: 165, maint: 225, interior: 265, full: 325, refresh: 435, premium: 575 },
-  truck: { wash: 165, maint: 225, interior: 260, full: 315, refresh: 425, premium: 560 },
-  compact_van: { wash: 165, maint: 225, interior: 260, full: 315, refresh: 435, premium: 575 },
-  midsize_van: { wash: 165, maint: 225, interior: 260, full: 315, refresh: 435, premium: 575 },
-  full_size_van: { wash: 185, maint: 255, interior: 295, full: 350, refresh: 475, premium: 625 },
-  full_size_van_passenger: { wash: 195, maint: 265, interior: 310, full: 375, refresh: 495, premium: 650 },
+  small: { wash: 125, maint: 160, interior: 200, full: 250, refresh: 335, premium: 400 },
+  suv2: { wash: 145, maint: 195, interior: 225, full: 285, refresh: 385, premium: 495 },
+  suv3: { wash: 165, maint: 225, interior: 255, full: 310, refresh: 430, premium: 570 },
+  truck: { wash: 165, maint: 225, interior: 255, full: 300, refresh: 420, premium: 555 },
+  compact_van: { wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+  midsize_van: { wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+  full_size_van: { wash: 185, maint: 255, interior: 285, full: 335, refresh: 470, premium: 625 },
+  full_size_van_passenger: { wash: 195, maint: 265, interior: 300, full: 350, refresh: 490, premium: 650 },
 });
 
 const APPROVED_POWERSPORTS = Object.freeze({
@@ -118,8 +118,8 @@ describe('phase 1 RICH_ZIP retirement', () => {
     assert.equal(getRichMultiplier(FORMER_RICH_ZIP), 1.0);
     assert.equal(getRichMultiplier(NORMAL_ZIP), 1.0);
     assert.equal(getRichMultiplier(''), 1.0);
-    assert.equal(applyRichPrice(275, FORMER_RICH_ZIP), 275);
-    assert.equal(applyRichPrice(275, NORMAL_ZIP), 275);
+    assert.equal(applyRichPrice(250, FORMER_RICH_ZIP), 250);
+    assert.equal(applyRichPrice(250, NORMAL_ZIP), 250);
   });
 
   it('RICH_ZIPS export remains but no longer lists wealth ZIPs', () => {
@@ -139,7 +139,7 @@ describe('phase 1 RICH_ZIP retirement', () => {
     assert.equal(rich.basePrice, normal.basePrice);
     assert.equal(rich.addonTotal, normal.addonTotal);
     assert.equal(rich.subtotal, normal.subtotal);
-    assert.equal(rich.basePrice, 275);
+    assert.equal(rich.basePrice, 250);
     assert.equal(rich.addonTotal, 40);
   });
 
@@ -202,7 +202,7 @@ describe('phase 1 booking review and multi-vehicle authority', () => {
       ],
     });
     assert.equal(cart.ok, true);
-    assert.equal(cart.serviceSubtotal, 235 + 250);
+    assert.equal(cart.serviceSubtotal, 225 + 250);
   });
 
   it('add-on totals remain unchanged beside the new base', () => {
@@ -238,9 +238,9 @@ describe('phase 1 customer and admin package catalogs', () => {
     };
     const catalog = serializeCanonicalPackageCatalogForBooking(booking);
     const full = catalog.vehicles[0].options.find((o) => o.packageId === 'full');
-    assert.equal(full.priceCents, 27500);
+    assert.equal(full.priceCents, 25000);
     const direct = packageOptionsForVehicle(booking.service.vehicles[0], booking);
-    assert.equal(direct.options.find((o) => o.id === 'full').priceCents, 27500);
+    assert.equal(direct.options.find((o) => o.id === 'full').priceCents, 25000);
   });
 
   it('admin-style package options include every approved car package at matrix cents', () => {
@@ -291,7 +291,7 @@ describe('phase 1 unchanged categories and public From$ surfaces', () => {
 
   it('AI chat starting prices derive from the new catalog', () => {
     assert.deepEqual(CHAT_STARTING_PRICES, {
-      cars: 210,
+      cars: 200,
       carMaintenance: 160,
       carWash: 125,
       boats: 175,
@@ -319,7 +319,95 @@ describe('phase 1 unchanged categories and public From$ surfaces', () => {
       const html = read(page);
       assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?wash:125/);
       assert.match(html, /motorcycle:\s*\{label:'Motorcycle'[\s\S]*?restore:250/);
-      assert.doesNotMatch(html, /wash:115,\s*maint:160,\s*interior:200/);
+      assert.match(html, /wash:125,\s*maint:160,\s*interior:200,\s*full:250/);
+      assert.doesNotMatch(html, /wash:125,\s*maint:160,\s*interior:210,\s*full:275/);
+    }
+  });
+});
+
+describe('commercial recalibration Rain-X inclusion and travel', () => {
+  const { includedAddonIds } = require('../netlify/lib/booking-price-catalog');
+  const CROSS_HUDSON_ZIP = '10001';
+
+  it('cars.full includes claybar and rainx', () => {
+    assert.deepEqual(includedAddonIds('cars', 'full'), ['claybar', 'rainx']);
+    assert.deepEqual(includedAddonIds('cars', 'refresh'), ['claybar', 'rainx']);
+    assert.deepEqual(includedAddonIds('cars', 'premium'), ['claybar', 'rainx']);
+  });
+
+  it('1) local Small Car Full is $250', () => {
+    const quote = computeVehicleSubtotal({
+      cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [],
+    }, NORMAL_ZIP);
+    assert.equal(quote.ok, true);
+    assert.equal(quote.basePrice, 250);
+    assert.equal(quote.subtotal, 250);
+    const booking = {
+      zipCode: NORMAL_ZIP,
+      totalPrice: 250,
+      vehicles: [{ cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [] }],
+    };
+    const r = applyServerTravelAndTotal(booking);
+    assert.equal(r.ok, true);
+    assert.equal(booking.totalPrice, 250);
+    assert.equal(booking.travelFeeAmount, 0);
+  });
+
+  it('2) local Small Car Full + Rain-X remains $250 (included, not billed)', () => {
+    const quote = computeVehicleSubtotal({
+      cat: 'cars', pkgId: 'full', tierKey: 'small',
+      addons: [{ id: 'rainx', qty: 1 }],
+    }, NORMAL_ZIP);
+    assert.equal(quote.ok, true);
+    assert.equal(quote.basePrice, 250);
+    assert.equal(quote.addonTotal, 0);
+    assert.equal(quote.subtotal, 250);
+    assert.deepEqual(quote.addons.map((a) => a.id), []);
+  });
+
+  it('3) cross-Hudson Small Car Full + Rain-X is $285', () => {
+    const booking = {
+      zipCode: CROSS_HUDSON_ZIP,
+      totalPrice: 285,
+      vehicles: [{
+        cat: 'cars', pkgId: 'full', tierKey: 'small',
+        addons: [{ id: 'rainx', qty: 1 }],
+      }],
+    };
+    const r = applyServerTravelAndTotal(booking);
+    assert.equal(r.ok, true);
+    assert.equal(booking.vehicles[0].subtotal, 250);
+    assert.equal(booking.travelFeeAmount, 35);
+    assert.equal(booking.totalPrice, 285);
+  });
+
+  it('4) former RICH_ZIP does not change the Small Car Full base price', () => {
+    const rich = computeVehicleSubtotal({
+      cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [],
+    }, FORMER_RICH_ZIP);
+    const local = computeVehicleSubtotal({
+      cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [],
+    }, NORMAL_ZIP);
+    assert.equal(rich.basePrice, 250);
+    assert.equal(local.basePrice, 250);
+    assert.equal(rich.subtotal, local.subtotal);
+  });
+
+  it('5) Cash and Card share the same service subtotal for Small Car Full', () => {
+    const service = {
+      zipCode: NORMAL_ZIP,
+      vehicles: [{ cat: 'cars', pkgId: 'full', tierKey: 'small', addons: [] }],
+    };
+    for (const pref of ['cash_onsite', 'card_onsite']) {
+      const booking = {
+        ...service,
+        totalPrice: 250,
+        paymentMethodPreference: pref,
+      };
+      const r = applyServerTravelAndTotal(booking);
+      assert.equal(r.ok, true, pref);
+      assert.equal(booking.totalPrice, 250, pref);
+      assert.equal(booking.vehicles[0].subtotal, 250, pref);
     }
   });
 });

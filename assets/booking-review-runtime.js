@@ -641,6 +641,12 @@
         var draftRes = await postBooking(draftPayload);
         var draftData = await draftRes.json().catch(function () { return {}; });
         if (!draftRes.ok || !draftData.ok) {
+          // Gateway HTML 504 / empty body during draft must not look like a silent failure.
+          var draftStatus = Number(draftRes && draftRes.status) || 0;
+          if (draftStatus === 502 || draftStatus === 503 || draftStatus === 504 || draftStatus === 0) {
+            alert('Booking is temporarily unavailable (the server timed out). Please wait a moment and try again. No payment was collected.');
+            return { ok: false, kind: 'rejected', code: draftData.error || ('booking_draft_failed_' + draftStatus) };
+          }
           throw new Error(draftData.error || draftData.message || ('booking_draft_failed_' + draftRes.status));
         }
         if (typeof win.captureDraftSaveResponse === 'function') win.captureDraftSaveResponse(draftData);
