@@ -405,6 +405,54 @@ describe('submit-booking fail-closed duplicate guard', () => {
     assert.equal(draft.body.error, 'booking_slot_unavailable');
     assert.equal(store.finalized().map((b) => b.id).join(','), 'CD1-FIRST');
   });
+
+  it('TEST 9 — indexed occupancy finalize succeeds without Blobs scan hydration', async () => {
+    // Reproduces deploy-preview Cash 503 after PR #314: slot-index answers
+    // conflict=false, bookingsForLock stays null, and the old gate 503'd before
+    // persist. Index + identity duplicate lookup must be enough.
+    const { setSlotIndexStoreOverride } = require('../netlify/lib/slot-index');
+    const { setOpsStoreOverride } = require('../netlify/lib/ops-db');
+    const indexKeys = new Set();
+    const indexStore = {
+      list(opts) {
+        const prefix = (opts && opts.prefix) || '';
+        const blobs = [...indexKeys].filter((k) => k.startsWith(prefix)).map((key) => ({ key }));
+        if (opts && opts.paginate) {
+          return (async function* pages() { yield { blobs }; })();
+        }
+        return Promise.resolve({ blobs });
+      },
+      async setJSON(key) { indexKeys.add(key); return { modified: true }; },
+      async delete(key) { indexKeys.delete(key); },
+    };
+    setSlotIndexStoreOverride(indexStore);
+    // Ops duplicate path needs a working list; submit-booking occupancy must not.
+    setOpsStoreOverride({
+      get: (key) => store.get(key),
+      setJSON: (key, value) => store.setJSON(key, value),
+      list: async () => ({ blobs: [...store.data.keys()].map((key) => ({ key })) }),
+    });
+    let bookingsScanCalls = 0;
+    store.list = async () => {
+      bookingsScanCalls += 1;
+      throw new Error('bookings_scan_must_not_run');
+    };
+    try {
+      const draft = await createDraft({ phone: '2015550155', email: 'indexed@example.com' });
+      assert.equal(draft.response.statusCode, 200, draft.body.error);
+      const final = await finalizeDraft(draft.body, {
+        phone: '2015550155',
+        email: 'indexed@example.com',
+      });
+      assert.equal(final.response.statusCode, 200, final.body.error);
+      assert.equal(final.body.bookingCreated, true);
+      assert.equal(store.finalized().length, 1);
+      assert.equal(bookingsScanCalls, 0, 'indexed finalize must not hydrate cd1-bookings');
+    } finally {
+      setSlotIndexStoreOverride(null);
+      setOpsStoreOverride(null);
+    }
+  });
 });
 
 describe('adversarial: persist then new draft then verification A/B/C', () => {

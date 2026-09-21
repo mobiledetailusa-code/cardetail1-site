@@ -1149,24 +1149,56 @@ exports.handler = async (event) => {
         : { cardOnFileStatus: 'not_collected' }),
     };
 
-    // Duplicate matching uses the occupancy scan already performed. If that
-    // scan never completed, do not ask a second lookup to invent a clear slot.
-    if (!Array.isArray(scheduleFinal.slotBookings)) {
-      return scheduleRejectResponse(503, BOOKING_VERIFICATION_UNAVAILABLE, {
-        draftBookingId: rawDraftId,
-        preferredDate: b.preferredDate || null,
-        preferredTime: b.preferredTime || null,
-        phase: 'finalize',
+    // Duplicate matching reuses the occupancy scan when the legacy Blobs path
+    // ran. When the slot index answered occupancy (slotBookings stays null),
+    // use the identity mirror only — do NOT 503 merely because full-store
+    // hydration was skipped, and do NOT fall into an unbounded Blobs history
+    // scan (the 504 path PR #314 removed). Fail-closed still holds for
+    // schedule: scheduleFinal already 503'd when index+scan both failed.
+    let duplicateCheck;
+    if (Array.isArray(scheduleFinal.slotBookings)) {
+      duplicateCheck = await findDuplicateBooking({
+        phone: b.phone || existing.phone,
+        email: b.email || existing.email,
+        preferredDate: b.preferredDate,
+        preferredTime: b.preferredTime,
+        excludeId: rawDraftId,
+        bookings: scheduleFinal.slotBookings,
       });
+    } else {
+      const {
+        mirrorHistory,
+        normalizeIdentity,
+        matchDuplicateBooking,
+      } = require('../lib/booking-history');
+      const identity = normalizeIdentity({
+        phone: b.phone || existing.phone,
+        email: b.email || existing.email,
+      });
+      let mirrorRows = null;
+      try {
+        mirrorRows = await mirrorHistory(identity);
+      } catch (err) {
+        console.warn('[submit-booking] finalize mirror duplicate lookup failed', err && err.message ? err.message : err);
+      }
+      if (Array.isArray(mirrorRows)) {
+        duplicateCheck = {
+          ok: true,
+          duplicate: matchDuplicateBooking(mirrorRows, {
+            phone: b.phone || existing.phone,
+            email: b.email || existing.email,
+            preferredDate: b.preferredDate,
+            preferredTime: b.preferredTime,
+            excludeId: rawDraftId,
+          }),
+        };
+      } else {
+        // Index confirmed capacity; identity mirror unavailable. Prefer a
+        // completed booking over re-introducing the Blobs scan that times out.
+        console.warn('[submit-booking] finalize indexed path: identity mirror unavailable; continuing');
+        duplicateCheck = { ok: true, duplicate: null };
+      }
     }
-    const duplicateCheck = await findDuplicateBooking({
-      phone: b.phone || existing.phone,
-      email: b.email || existing.email,
-      preferredDate: b.preferredDate,
-      preferredTime: b.preferredTime,
-      excludeId: rawDraftId,
-      bookings: scheduleFinal.slotBookings,
-    });
     if (!duplicateCheck.ok) {
       return scheduleRejectResponse(503, BOOKING_VERIFICATION_UNAVAILABLE, {
         draftBookingId: rawDraftId,
