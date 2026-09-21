@@ -51,6 +51,7 @@ Primary conversions (validate before marking in GA4): `generate_lead`, `booking_
 
 - [ ] Legal review of consent copy and SMS/email automation
 - [ ] Set `GTM_CONTAINER_ID` or `GA4_MEASUREMENT_ID` in site config
+- [x] Google Ads base tag `AW-11321647982` (override via `CD1_GOOGLE_ADS_ID`) — loads after Marketing consent
 - [ ] Set `CD1_CLARITY_PROJECT_ID` if using Clarity
 - [ ] Configure `HOUSEHOLD_DEDUP_SECRET`, `RESUME_TOKEN_SECRET` (32+ chars) in production
 - [ ] Enable offers only after commercial approval
