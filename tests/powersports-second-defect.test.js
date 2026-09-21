@@ -47,13 +47,13 @@ function extractFunction(src, name) {
 }
 
 const PS_TIERS = {
-  motorcycle: { label: 'Motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:235 },
-  motorcycle_large: { label: 'Large Motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:200, restore:260 },
-  motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance:205, restore:285 },
-  atv: { label: 'ATV', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:220 },
+  motorcycle: { label: 'Motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:250 },
+  motorcycle_large: { label: 'Large Motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:200, restore:275 },
+  motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', maintenance:225, restore:310 },
+  atv: { label: 'ATV', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:240 },
   utv: { label: 'UTV / Side-by-Side', wash:130, essential:200, full:290, premium:410 },
-  utv_standard: { label: 'Side-by-Side / UTV', wash:130, essential:200, full:290, premium:410, maintenance:200, restore:250 },
-  utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash:130, essential:200, full:290, premium:410, maintenance:205, restore:285 },
+  utv_standard: { label: 'Side-by-Side / UTV', wash:130, essential:200, full:290, premium:410, maintenance:210, restore:275 },
+  utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash:130, essential:200, full:290, premium:410, maintenance:235, restore:325 },
 };
 
 const MACHINES = {

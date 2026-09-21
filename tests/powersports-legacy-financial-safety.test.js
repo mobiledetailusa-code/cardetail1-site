@@ -29,19 +29,19 @@ describe('Powersports public vs legacy package surface', () => {
         assert.ok(Number(tier[key]) > 0, `${classKey}.${key} must be priced`);
       }
     }
-    // Homepage / specialty public matrix (canonical after +15%)
+    // Homepage / specialty public matrix (commercial optimization phase 1)
     assert.equal(PRICING.powersports.tiers.motorcycle.maintenance, 180);
-    assert.equal(PRICING.powersports.tiers.motorcycle.restore, 235);
+    assert.equal(PRICING.powersports.tiers.motorcycle.restore, 250);
     assert.equal(PRICING.powersports.tiers.motorcycle_large.maintenance, 200);
-    assert.equal(PRICING.powersports.tiers.motorcycle_large.restore, 260);
-    assert.equal(PRICING.powersports.tiers.motorcycle_trike.maintenance, 205);
-    assert.equal(PRICING.powersports.tiers.motorcycle_trike.restore, 285);
+    assert.equal(PRICING.powersports.tiers.motorcycle_large.restore, 275);
+    assert.equal(PRICING.powersports.tiers.motorcycle_trike.maintenance, 225);
+    assert.equal(PRICING.powersports.tiers.motorcycle_trike.restore, 310);
     assert.equal(PRICING.powersports.tiers.atv.maintenance, 180);
-    assert.equal(PRICING.powersports.tiers.atv.restore, 220);
-    assert.equal(PRICING.powersports.tiers.utv_standard.maintenance, 200);
-    assert.equal(PRICING.powersports.tiers.utv_standard.restore, 250);
-    assert.equal(PRICING.powersports.tiers.utv_large.maintenance, 205);
-    assert.equal(PRICING.powersports.tiers.utv_large.restore, 285);
+    assert.equal(PRICING.powersports.tiers.atv.restore, 240);
+    assert.equal(PRICING.powersports.tiers.utv_standard.maintenance, 210);
+    assert.equal(PRICING.powersports.tiers.utv_standard.restore, 275);
+    assert.equal(PRICING.powersports.tiers.utv_large.maintenance, 235);
+    assert.equal(PRICING.powersports.tiers.utv_large.restore, 325);
   });
 
   it('catalog still retains historical wash/essential/full/premium keys', () => {

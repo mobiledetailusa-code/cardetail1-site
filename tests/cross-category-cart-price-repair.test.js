@@ -113,10 +113,10 @@ describe('catalog integrity — all public package/tier mappings numeric', () =>
     });
     assert.equal(resolved.ok, true);
     assert.equal(resolved.tierKey, 'suv3');
-    assert.equal(PRICING.cars.tiers.suv3.refresh, 420);
+    assert.equal(PRICING.cars.tiers.suv3.refresh, 435);
     const priced = computeVehicleSubtotal({ cat: 'cars', pkgId: 'refresh', tierKey: 'suv3', addons: [] }, '07666');
     assert.equal(priced.ok, true);
-    assert.equal(priced.basePrice, 420);
+    assert.equal(priced.basePrice, 435);
   });
 });
 
@@ -371,7 +371,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
     assert.equal(box.ST.vehicles[1].cat, 'rvs');
   });
 
-  it('C) Explorer + refresh resolves 465 and Continue enables', () => {
+  it('C) Explorer + refresh resolves 435 and Continue enables', () => {
     const box = loadCartFns({ cat: 'cars' });
     box.selectCategoryCartIntent('cars');
     box.ST.pkgId = 'refresh';
@@ -390,9 +390,9 @@ describe('cart intent + price resolution (function sandbox)', () => {
     box.ST.vehicleLabel = '2023 Ford Explorer';
     box.ST.classNeedsConfirm = false;
     box.setBasePrice();
-    assert.equal(box.ST.basePrice, 420);
+    assert.equal(box.ST.basePrice, 435);
     assert.equal(box.ST._priceResolveFailed, false);
-    assert.match(box.els['ah-total'].textContent, /\$420/);
+    assert.match(box.els['ah-total'].textContent, /\$435/);
     assert.equal(box.els.next3.disabled, false);
     assert.doesNotMatch(box.els['ah-total'].textContent, /Estimate/i);
   });
@@ -434,7 +434,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
       displayLabel: '3-Row SUV',
       tierKey: 'suv3',
       tier: box.PRICING.cars.tiers.suv3,
-      basePrice: 420,
+      basePrice: 435,
       addons: [],
       addonTotal: 0,
     });
@@ -442,7 +442,7 @@ describe('cart intent + price resolution (function sandbox)', () => {
     assert.equal(box.ST.vehicles.length, 1);
     assert.equal(box.ST.vehicles[0].pkgId, 'refresh');
     assert.match(box.ST.vehicles[0].vehicleLabel, /Explorer/);
-    assert.equal(box.ST.vehicles[0].basePrice, 420);
+    assert.equal(box.ST.vehicles[0].basePrice, 435);
     assert.doesNotMatch(box.ST.vehicles.map((v) => v.vehicleLabel).join(' '), /Dutchmen/);
   });
 });
@@ -476,9 +476,9 @@ describe('price regression matrix (representative fixtures)', () => {
 describe('Review presentation after clean single-vehicle car booking', () => {
   it('Review total matches Explorer refresh price', () => {
     const vehicles = [{
-      basePrice: 420,
+      basePrice: 435,
       addonTotal: 0,
-      subtotal: 420,
+      subtotal: 435,
       pkgId: 'refresh',
       vehicleLabel: '2023 Ford Explorer',
       cat: 'cars',
@@ -487,8 +487,8 @@ describe('Review presentation after clean single-vehicle car booking', () => {
     const totals = Review.presentationTotals({
       vehicles,
       travelFeeAmount: 0,
-      totalPrice: 420,
+      totalPrice: 435,
     });
-    assert.equal(totals.estimatedTotal, 420);
+    assert.equal(totals.estimatedTotal, 435);
   });
 });

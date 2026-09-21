@@ -84,13 +84,13 @@ test('full_size_van is a published numeric cars tier (server)', () => {
     assert.equal(typeof tier[pkg], 'number');
     assert.ok(Number.isFinite(tier[pkg]));
   }
-  // Absolute catalog values after market uplift (each tier rounded independently).
-  assert.equal(tier.wash, 175);
-  assert.equal(tier.maint, 245);
-  assert.equal(tier.interior, 270);
-  assert.equal(tier.full, 305);
-  assert.equal(tier.refresh, 460);
-  assert.equal(tier.premium, 615);
+  // Absolute catalog values after commercial optimization phase 1.
+  assert.equal(tier.wash, 185);
+  assert.equal(tier.maint, 255);
+  assert.equal(tier.interior, 295);
+  assert.equal(tier.full, 350);
+  assert.equal(tier.refresh, 475);
+  assert.equal(tier.premium, 625);
 });
 
 test('DISPLAY includes full_size_van', () => {
@@ -130,7 +130,7 @@ test('P0 compact/midsize vans are not SUVs and not full_size_van', () => {
     assert.notEqual(r.tierKey, 'full_size_van', `${make} ${model}`);
     assert.notEqual(r.tierKey, 'suv2', `${make} ${model}`);
     assert.notEqual(r.tierKey, 'truck', `${make} ${model}`);
-    assert.equal(interiorPrice(r.tierKey), PRICING.cars.tiers.suv3.interior);
+    assert.equal(interiorPrice(r.tierKey), PRICING.cars.tiers[tier].interior);
   }
 });
 

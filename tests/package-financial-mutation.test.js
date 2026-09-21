@@ -52,8 +52,8 @@ function createMemoryStore(seed = {}) {
   };
 }
 
-// Small car (tierKey 'small', zip 07102 — non-rich): maint 16000, interior 20000,
-// full 25000, refresh 33500, premium 40000. Add-on ozone: 4000.
+// Small car (tierKey 'small', zip 07102): maint 16000, interior 21000,
+// full 27500, refresh 35000, premium 42500. Add-on ozone: 4000.
 function baseBooking(id, {
   approvedCents = 16000,
   settledCents = 0,
@@ -157,7 +157,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     return store;
   }
 
-  it('1) before-pay upgrade: maint 16000/0/16000 → full 25000/0/25000', async () => {
+  it('1) before-pay upgrade: maint 16000/0/16000 → full 27500/0/27500', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const { financialProjection } = require('../netlify/lib/payment-service');
     const id = nextId('BP-UP');
@@ -175,12 +175,12 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(result.priorPackageId, 'maint');
     assert.equal(result.packageId, 'full');
     assert.equal(result.packageName, 'Premium Full Detail');
-    assert.equal(result.postgresProjection.approvedCents, 25000);
+    assert.equal(result.postgresProjection.approvedCents, 27500);
     assert.equal(result.postgresProjection.settledCents, 0);
-    assert.equal(result.postgresProjection.remainingCents, 25000);
-    assert.equal(result.financialProjection.approvedCents, 25000);
-    assert.equal(result.financialProjection.remainingCents, 25000);
-    assert.equal(financialProjection(result.booking).remainingCents, 25000);
+    assert.equal(result.postgresProjection.remainingCents, 27500);
+    assert.equal(result.financialProjection.approvedCents, 27500);
+    assert.equal(result.financialProjection.remainingCents, 27500);
+    assert.equal(financialProjection(result.booking).remainingCents, 27500);
     assert.equal(
       result.quoteVersion,
       result.priorQuoteVersion + 1,
@@ -193,11 +193,11 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     assert.equal(veh.pkgName, 'Premium Full Detail');
   });
 
-  it('2) before-pay downgrade: full 25000/0/25000 → maint 16000/0/16000', async () => {
+  it('2) before-pay downgrade: full 27500/0/27500 → maint 16000/0/16000', async () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('BP-DOWN');
     await seedBlob(baseBooking(id, {
-      approvedCents: 25000,
+      approvedCents: 27500,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
       quoteVersion: 2,
@@ -233,7 +233,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    // 25000 package + 4000 ozone
+    // 27500 package + 4000 ozone
     assert.equal(result.postgresProjection.approvedCents, 29000);
     const veh = result.booking.service.vehicles.find((v) => v.vehicleId === 'veh_1');
     assert.deepEqual(veh.addOnIds, ['ozone'], 'add-on selection must survive the package change');
@@ -259,7 +259,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 25000);
+    assert.equal(result.postgresProjection.approvedCents, 27500);
     assert.equal(result.postgresProjection.settledCents, 16000);
     assert.equal(result.postgresProjection.remainingCents, 9000);
     const after = await store.get(id);
@@ -273,7 +273,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
     const { applyPackageFinancialMutation } = require('../netlify/lib/package-financial-mutation');
     const id = nextId('PARTIAL');
     const seeded = baseBooking(id, {
-      approvedCents: 25000,
+      approvedCents: 27500,
       settledCents: 5000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
@@ -448,7 +448,7 @@ describe('Package Stage 1 financial mutations (pre-settlement)', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 25000, 'catalog price must win');
+    assert.equal(result.postgresProjection.approvedCents, 27500, 'catalog price must win');
     assert.equal(result.packageName, 'Premium Full Detail', 'display name resolves server-side');
   });
 

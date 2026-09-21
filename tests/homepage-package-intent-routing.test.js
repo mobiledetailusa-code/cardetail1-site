@@ -396,13 +396,13 @@ describe('9 resume does not convert non-car intent to Cars', () => {
 });
 
 describe('10 pricing / payment behavior unchanged', () => {
-  it('car, RV, boat, and powersports dollar amounts are unchanged', () => {
-    assert.equal(PRICING.cars.tiers.small.interior, 200);
-    assert.equal(PRICING.cars.tiers.small.full, 250);
-    assert.equal(PRICING.cars.tiers.small.refresh, 335);
-    assert.match(index, /interior:\s*200/);
-    assert.match(index, /full:\s*250/);
-    assert.match(index, /refresh:\s*335/);
+  it('car, RV, boat, and powersports dollar amounts follow the phase-1 catalog', () => {
+    assert.equal(PRICING.cars.tiers.small.interior, 210);
+    assert.equal(PRICING.cars.tiers.small.full, 275);
+    assert.equal(PRICING.cars.tiers.small.refresh, 350);
+    assert.match(index, /interior:\s*210/);
+    assert.match(index, /full:\s*275/);
+    assert.match(index, /refresh:\s*350/);
     assert.match(index, /maint:\s*\{perFt:\s*11,\s*min:\s*175\}/);
     const bs5 = index.slice(index.indexOf('id="bs5"'), index.indexOf('id="bs6"'));
     assert.match(bs5, /onclick="submitBooking\(\)"/);

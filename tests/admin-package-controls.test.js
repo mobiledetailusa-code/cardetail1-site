@@ -204,10 +204,10 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
     assert.equal(result.ok, true, result.error);
     assert.equal(result.noop, false);
     assert.equal(result.packageId, 'full');
-    assert.equal(result.postgresProjection.approvedCents, 25000);
+    assert.equal(result.postgresProjection.approvedCents, 27500);
     assert.equal(result.postgresProjection.settledCents, 0);
-    assert.equal(result.financialProjection.approvedCents, 25000);
-    assert.equal(result.financialProjection.remainingCents, 25000);
+    assert.equal(result.financialProjection.approvedCents, 27500);
+    assert.equal(result.financialProjection.remainingCents, 27500);
     assert.equal(result.quoteVersion, result.priorQuoteVersion + 1);
     const pgQuotes = await prisma.quote.findMany({ where: { bookingId: id }, orderBy: { quoteVersion: 'asc' } });
     assert.ok(pgQuotes.length >= 1, 'createAdjustment must create PG quote rows');
@@ -216,7 +216,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   it('2) Admin change_package unpaid downgrade uses PostgreSQL createAdjustment', async () => {
     const id = nextId('DOWN');
     await seedBlob(baseBooking(id, {
-      approvedCents: 25000,
+      approvedCents: 27500,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
       quoteVersion: 2,
@@ -317,7 +317,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       approvedFinalAmount: 0.01,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 25000, 'catalog/Postgres price must win');
+    assert.equal(result.postgresProjection.approvedCents, 27500, 'catalog/Postgres price must win');
   });
 
   it('7) full settlement allows an upgrade and exposes only the delta due', async () => {
@@ -333,7 +333,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       vehicleId: 'veh_1',
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 25000);
+    assert.equal(result.postgresProjection.approvedCents, 27500);
     assert.equal(result.postgresProjection.settledCents, 16000);
     assert.equal(result.postgresProjection.remainingCents, 9000);
     const after = await store.get(id);
@@ -346,7 +346,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
   it('8) partial settlement allows downgrade and keeps settled money immutable', async () => {
     const id = nextId('PARTIAL');
     const seeded = baseBooking(id, {
-      approvedCents: 25000,
+      approvedCents: 27500,
       settledCents: 5000,
       packageId: 'full',
       pkgName: 'Premium Full Detail',
@@ -391,7 +391,7 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
     });
     assert.equal(result.ok, true, result.error);
     const after = await store.get(id);
-    assert.equal(after.ledger.approvedCents, 25000);
+    assert.equal(after.ledger.approvedCents, 27500);
     assert.equal(after.ledger.settledCents, 100);
     assert.equal(after.bookingVersion, 2);
     assert.equal(after.vehicles[0].pkgId, 'full');

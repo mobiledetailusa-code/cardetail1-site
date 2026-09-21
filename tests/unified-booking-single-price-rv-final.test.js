@@ -101,7 +101,7 @@ test('non-RV affected prices use the repriced catalog', () => {
   assert.equal(LENGTH_PRICING.boats.packages.maint.min, 175);
   assert.equal(LENGTH_PRICING.boats.packages.maint.perFt, 11);
   assert.equal(LENGTH_PRICING.fleet.packages.maint.min, 175);
-  assert.equal(PRICING.cars.tiers.small.interior, 200);
+  assert.equal(PRICING.cars.tiers.small.interior, 210);
   const boat = getLengthPrice('boats', 'maint', 22, null);
   assert.equal(boat, Math.max(175, Math.round(11 * 22)));
   const hacked = computeVehicleSubtotal({
