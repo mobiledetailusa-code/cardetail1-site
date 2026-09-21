@@ -371,12 +371,20 @@ test('Google Ads booking success conversion send_to is wired', () => {
   const chk = fs.readFileSync(path.join(root, 'assets/checkout-analytics.js'), 'utf8');
   assert.match(rev, /AW-11321647982\/yrODCJGL998YEO7GypYq/);
   assert.match(rev, /CD1_GOOGLE_ADS_PURCHASE_SEND_TO/);
+  assert.match(rev, /CD1_GOOGLE_ADS_BOOKING_SEND_TO/);
   assert.match(rev, /trackGoogleAdsBookingConversion/);
-  assert.match(rev, /__cd1GoogleAdsBookingConversionFired/);
-  assert.match(rev, /value:\s*value/);
-  assert.match(rev, /currency:\s*opts\.currency\s*\|\|\s*'USD'/);
+  assert.match(rev, /transaction_id/);
+  assert.match(rev, /adsBookingTxSeen/);
   assert.match(chk, /onBookingSubmitted[\s\S]*trackGoogleAdsBookingConversion/);
+  assert.match(chk, /approvedFinalAmount/);
+  assert.doesNotMatch(chk, /booking_id|bookingId/);
   assert.doesNotMatch(chk, /booking_submitted[\s\S]*purchase/);
+  // Page view label must remain separate from booking conversion.
+  assert.match(rev, /AW-11321647982\/r6SRCJeL998YEO7GypYq/);
+  assert.notEqual(
+    'AW-11321647982/yrODCJGL998YEO7GypYq',
+    'AW-11321647982/r6SRCJeL998YEO7GypYq'
+  );
 });
 
 test('CSP allows Google Ads gtag domains', () => {

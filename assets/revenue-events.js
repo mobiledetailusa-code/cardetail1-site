@@ -505,32 +505,118 @@
   }
 
   /**
-   * Google Ads Purchase conversion — booking request successfully persisted
-   * (confirmation / Step 6). Not a Stripe charge; value is the Ads label default.
-   * Deduped once per page load so retries / success re-renders do not double-count.
+   * Google Ads "Booking submitted" conversion — fires only after finalize evidence
+   * that a booking was durably persisted (ok + bookingCreated + durable id +
+   * backend approvedFinalAmount). Cash and Card share this same conversion.
+   *
+   * send_to is the Google-provided booking conversion label (not Page view).
+   * transaction_id = durable booking ID so Google dedupes retries / idempotent
+   * finalize. Never awaits network; never throws into checkout.
    */
+  var ADS_BOOKING_TX_STORAGE_KEY = 'cd1_ads_booking_tx_ids';
+
+  function adsBookingTxSeen(txId) {
+    if (!txId) return true;
+    try {
+      if (!global.__cd1GoogleAdsBookingTxIds) {
+        global.__cd1GoogleAdsBookingTxIds = Object.create(null);
+        try {
+          var raw = global.sessionStorage && global.sessionStorage.getItem(ADS_BOOKING_TX_STORAGE_KEY);
+          var arr = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(arr)) {
+            arr.forEach(function (id) {
+              if (id) global.__cd1GoogleAdsBookingTxIds[String(id)] = true;
+            });
+          }
+        } catch (eLoad) { /* ignore storage */ }
+      }
+      return !!global.__cd1GoogleAdsBookingTxIds[String(txId)];
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function adsBookingTxMark(txId) {
+    if (!txId) return;
+    try {
+      if (!global.__cd1GoogleAdsBookingTxIds) global.__cd1GoogleAdsBookingTxIds = Object.create(null);
+      global.__cd1GoogleAdsBookingTxIds[String(txId)] = true;
+      try {
+        if (global.sessionStorage) {
+          var ids = Object.keys(global.__cd1GoogleAdsBookingTxIds);
+          if (ids.length > 40) ids = ids.slice(-40);
+          global.sessionStorage.setItem(ADS_BOOKING_TX_STORAGE_KEY, JSON.stringify(ids));
+        }
+      } catch (eStore) { /* ignore */ }
+    } catch (e) { /* ignore */ }
+  }
+
+  function resolveAuthoritativeBookingValue(opts) {
+    opts = opts || {};
+    // Strict: only backend approvedFinalAmount — never value/totalPrice/client cart.
+    if (opts.approvedFinalAmount == null || opts.approvedFinalAmount === '') return null;
+    var n = Number(opts.approvedFinalAmount);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  }
+
   function trackGoogleAdsBookingConversion(opts) {
     opts = opts || {};
+    var inFlightKey = null;
     try {
-      var sendTo = global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO || 'AW-11321647982/yrODCJGL998YEO7GypYq';
-      if (!sendTo) return false;
-      if (global.__cd1GoogleAdsBookingConversionFired) return false;
+      // Prefer explicit booking send_to; fall back to legacy PURCHASE env name.
+      var sendTo = global.CD1_GOOGLE_ADS_BOOKING_SEND_TO
+        || global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO
+        || 'AW-11321647982/yrODCJGL998YEO7GypYq';
+      if (!sendTo || sendTo === global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO) return false;
+
+      var txId = opts.transaction_id || opts.bookingId || opts.id || null;
+      if (!txId) return false;
+      txId = String(txId);
+
+      // Strict durable-persist evidence — missing `ok` is not success.
+      if (opts.ok !== true) return false;
+      if (opts.bookingCreated !== true) return false;
+      if (opts.isDraft === true) return false;
+
+      var value = resolveAuthoritativeBookingValue(opts);
+      if (value == null) return false;
+
+      if (adsBookingTxSeen(txId)) return false;
+
+      // Synchronous in-flight guard (double-click) without permanently marking
+      // the tx until gtag returns without throwing.
+      if (!global.__cd1GoogleAdsBookingTxInFlight) {
+        global.__cd1GoogleAdsBookingTxInFlight = Object.create(null);
+      }
+      if (global.__cd1GoogleAdsBookingTxInFlight[txId]) return false;
+      global.__cd1GoogleAdsBookingTxInFlight[txId] = true;
+      inFlightKey = txId;
+
       var consent = global.Cardetail1Consent
         ? global.Cardetail1Consent.getConsent()
         : { analytics: false, marketing: false };
       initGoogleAds(consent);
       ensureGtag();
-      var value = opts.value != null ? Number(opts.value) : 1.0;
-      if (!Number.isFinite(value)) value = 1.0;
+
       global.gtag('event', 'conversion', {
         send_to: sendTo,
         value: value,
         currency: opts.currency || 'USD',
+        transaction_id: txId,
       });
+      // Persist as emitted only after gtag accepted/queued the call.
+      adsBookingTxMark(txId);
       global.__cd1GoogleAdsBookingConversionFired = true;
       return true;
     } catch (e) {
       return false;
+    } finally {
+      try {
+        if (inFlightKey && global.__cd1GoogleAdsBookingTxInFlight) {
+          delete global.__cd1GoogleAdsBookingTxInFlight[inFlightKey];
+        }
+      } catch (eClear) { /* ignore */ }
     }
   }
 

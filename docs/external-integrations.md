@@ -28,8 +28,8 @@ Loaded only after Analytics consent. CSP updated in `netlify.toml` for GTM/GA4/C
 | Variable | Purpose |
 |----------|---------|
 | `CD1_GOOGLE_ADS_ID` | Optional override; default `AW-11321647982` |
-| `CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO` | Optional override; default `AW-11321647982/r6SRCJeL998YEO7GypYq` |
-| `CD1_GOOGLE_ADS_PURCHASE_SEND_TO` | Optional override; Purchase conversion on booking success; default `AW-11321647982/yrODCJGL998YEO7GypYq` |
+| `CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO` | Optional override; default `AW-11321647982/r6SRCJeL998YEO7GypYq` (Page view — observation only) |
+| `CD1_GOOGLE_ADS_BOOKING_SEND_TO` / `CD1_GOOGLE_ADS_PURCHASE_SEND_TO` | Optional override; **Booking submitted** conversion on durable finalize; default `AW-11321647982/yrODCJGL998YEO7GypYq` |
 
 Base tag + **Page view** conversion load on every public page via `assets/revenue-events.js` (`initAdapters`), using **Consent Mode v2**:
 
@@ -37,7 +37,11 @@ Base tag + **Page view** conversion load on every public page via `assets/revenu
 - Marketing opt-in → `ad_*` = `granted`; Analytics opt-in → `analytics_storage` = `granted`
 - Tag + conversion always fire so Google Ads receives pings (cookieless when denied); full attribution cookies only after Marketing accept
 
-**Purchase** conversion (`CD1_GOOGLE_ADS_PURCHASE_SEND_TO`) fires once via `Cardetail1CheckoutAnalytics.onBookingSubmitted` → `Cardetail1Revenue.trackGoogleAdsBookingConversion` after the booking request is successfully persisted (confirmation / Step 6). It is not tied to a Stripe charge.
+**Booking submitted** conversion (`CD1_GOOGLE_ADS_BOOKING_SEND_TO` / legacy `CD1_GOOGLE_ADS_PURCHASE_SEND_TO`) fires once via the canonical persist path:
+
+`Cardetail1BookingReview.markPersisted` → `Cardetail1CheckoutAnalytics.onBookingSubmitted(evidence)` → `Cardetail1Revenue.trackGoogleAdsBookingConversion`
+
+only when finalize evidence shows `ok`, durable booking `id`, `bookingCreated === true` (or idempotent replay of that same id), and an authoritative `approvedFinalAmount`. Payload: `send_to`, `value`, `currency: 'USD'`, `transaction_id: bookingId`. Cash and Card share this conversion. It is not tied to a Stripe charge and is never the Page view label.
 CSP allows `googletagmanager.com` / `googleadservices.com` / `google.com` / `googleads.g.doubleclick.net` / `ad.doubleclick.net` / `pagead2.googlesyndication.com`.
 
 ## Microsoft Clarity

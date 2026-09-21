@@ -1021,6 +1021,20 @@ exports.handler = async (event) => {
           quoteVersion: existing.quoteVersion || 1,
           idempotent: true,
           cardOnFileStatus: booking.cardOnFileStatus || existing.cardOnFileStatus || null,
+          // Authoritative amount from stored booking only (not client body).
+          // Prefer persisted approvedFinalAmount; else stored totalPrice on the record.
+          approvedFinalAmount: (function () {
+            const storedApproved = booking.approvedFinalAmount ?? existing.approvedFinalAmount;
+            if (storedApproved != null && Number.isFinite(Number(storedApproved))) {
+              return Number(storedApproved);
+            }
+            const storedTotal = booking.totalPrice ?? existing.totalPrice;
+            if (storedTotal != null && Number.isFinite(Number(storedTotal))) {
+              return Number(storedTotal);
+            }
+            return null;
+          })(),
+          totalPrice: booking.totalPrice ?? existing.totalPrice ?? null,
           customerEmail: booking.notificationDelivery?.customerEmail
             || existing.notificationDelivery?.customerEmail
             || { status: 'pending' },

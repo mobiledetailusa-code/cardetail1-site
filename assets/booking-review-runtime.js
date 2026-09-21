@@ -740,10 +740,40 @@
       persisted = true;
       ST.bookingPersisted = true;
       payload = applyPersistedFields(attachPreference(win.buildBookingPayload()), data);
+      // Ads conversion value: ONLY backend data.approvedFinalAmount (no client fallbacks).
+      var approvedAmount = null;
+      if (data && data.approvedFinalAmount != null && data.approvedFinalAmount !== '') {
+        var approvedNum = Number(data.approvedFinalAmount);
+        if (Number.isFinite(approvedNum) && approvedNum >= 0) approvedAmount = approvedNum;
+      }
+      if (approvedAmount != null) payload.approvedFinalAmount = approvedAmount;
       ST.lastPersistedBooking = payload;
       if (typeof win.saveLocalBooking === 'function') win.saveLocalBooking(payload);
       if (win.Cardetail1CheckoutAnalytics && typeof win.Cardetail1CheckoutAnalytics.onBookingSubmitted === 'function') {
-        win.Cardetail1CheckoutAnalytics.onBookingSubmitted();
+        try {
+          // Normalize verified idempotent persist to bookingCreated:true for the tracker.
+          var created = data.bookingCreated === true || !!data.idempotent;
+          win.Cardetail1CheckoutAnalytics.onBookingSubmitted({
+            ok: true,
+            bookingCreated: created === true,
+            idempotent: !!data.idempotent,
+            id: data.id || payload.id,
+            transaction_id: data.id || payload.id,
+            // null when backend omitted/invalid — tracker skips Ads; booking success continues.
+            approvedFinalAmount: approvedAmount,
+            currency: 'USD',
+          });
+          if (approvedAmount == null) {
+            try {
+              if (win.dataLayer) {
+                win.dataLayer.push({
+                  event: 'cd1_ads_booking_conversion_skipped',
+                  reason: 'missing_approved_final_amount',
+                });
+              }
+            } catch (eDiag) { /* ignore */ }
+          }
+        } catch (eAds) { /* analytics must never block success */ }
       }
       try {
         showSuccess(payload);

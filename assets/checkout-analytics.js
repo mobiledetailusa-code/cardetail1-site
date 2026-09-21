@@ -168,12 +168,29 @@
     });
   }
 
-  function onBookingSubmitted() {
+  /**
+   * Canonical booking-success signal. Google Ads "Booking submitted" conversion
+   * fires only when evidence proves durable persist + backend approvedFinalAmount.
+   * evidence: { ok, bookingCreated, id|transaction_id, approvedFinalAmount }
+   * First-party emit stays anonymous (no durable booking identifiers).
+   */
+  function onBookingSubmitted(evidence) {
+    evidence = evidence || {};
+    var txId = evidence.transaction_id || evidence.id || null;
+    var approved = evidence.approvedFinalAmount;
     emit('booking_submitted', { estimated_value: estimatedValue() });
-    // Google Ads conversion label AW-…/yrOD… — only after request is persisted (Step 6).
+    // Google Ads AW-…/yrOD… — only after finalize persist evidence (not Page view).
     try {
       if (global.Cardetail1Revenue && typeof global.Cardetail1Revenue.trackGoogleAdsBookingConversion === 'function') {
-        global.Cardetail1Revenue.trackGoogleAdsBookingConversion({ value: 1.0, currency: 'USD' });
+        global.Cardetail1Revenue.trackGoogleAdsBookingConversion({
+          ok: evidence.ok === true,
+          bookingCreated: evidence.bookingCreated === true,
+          isDraft: evidence.isDraft === true,
+          id: txId,
+          transaction_id: txId,
+          approvedFinalAmount: approved,
+          currency: evidence.currency || 'USD',
+        });
       }
     } catch (eAds) { /* never block checkout */ }
   }
