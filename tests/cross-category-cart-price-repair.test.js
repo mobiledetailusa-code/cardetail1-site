@@ -113,10 +113,10 @@ describe('catalog integrity — all public package/tier mappings numeric', () =>
     });
     assert.equal(resolved.ok, true);
     assert.equal(resolved.tierKey, 'suv3');
-    assert.equal(PRICING.cars.tiers.suv3.refresh, 435);
+    assert.equal(PRICING.cars.tiers.suv3.refresh, 430);
     const priced = computeVehicleSubtotal({ cat: 'cars', pkgId: 'refresh', tierKey: 'suv3', addons: [] }, '07666');
     assert.equal(priced.ok, true);
-    assert.equal(priced.basePrice, 435);
+    assert.equal(priced.basePrice, 430);
   });
 });
 
@@ -390,9 +390,9 @@ describe('cart intent + price resolution (function sandbox)', () => {
     box.ST.vehicleLabel = '2023 Ford Explorer';
     box.ST.classNeedsConfirm = false;
     box.setBasePrice();
-    assert.equal(box.ST.basePrice, 435);
+    assert.equal(box.ST.basePrice, 430);
     assert.equal(box.ST._priceResolveFailed, false);
-    assert.match(box.els['ah-total'].textContent, /\$435/);
+    assert.match(box.els['ah-total'].textContent, /\$430/);
     assert.equal(box.els.next3.disabled, false);
     assert.doesNotMatch(box.els['ah-total'].textContent, /Estimate/i);
   });

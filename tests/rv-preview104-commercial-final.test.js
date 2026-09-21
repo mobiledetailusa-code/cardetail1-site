@@ -181,7 +181,7 @@ test('specialty bridge uses openCategoryPackageBooking only', () => {
 
 test('other affected categories use the repriced catalog', () => {
   assert.equal(LENGTH_PRICING.boats.packages.maint.min, 175);
-  assert.equal(PRICING.cars.tiers.small.interior, 210);
+  assert.equal(PRICING.cars.tiers.small.interior, 200);
   assert.equal(PRICING.powersports.tiers.motorcycle.wash, 105);
 });
 

@@ -81,8 +81,8 @@ test('cargo vs passenger selectables map to distinct full-size prices', () => {
   assert.equal(pass.pricingClass, 'full_size_van_passenger');
   assert.equal(cargo.displayLabel, 'Full-Size Cargo Van');
   assert.equal(pass.displayLabel, 'Full-Size Passenger Van');
-  assert.equal(interior(cargo.pricingClass), 295);
-  assert.equal(interior(pass.pricingClass), 310);
+  assert.equal(interior(cargo.pricingClass), 285);
+  assert.equal(interior(pass.pricingClass), 300);
 });
 
 test('package-by-package van pricing proof vs minivan/suv3', () => {
@@ -94,9 +94,9 @@ test('package-by-package van pricing proof vs minivan/suv3', () => {
   const pkgs = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium'];
   for (const p of pkgs) {
     assert.equal(compact[p], midsize[p], `compact/midsize ${p}`);
-    // Compact/midsize vans share wash/maint/refresh/premium with SUV 3-Row;
-    // interior and full are priced below SUV 3-Row per commercial matrix.
-    if (p === 'interior' || p === 'full') {
+    // Compact/midsize vans share wash/maint/interior/refresh/premium with SUV 3-Row;
+    // full is priced below SUV 3-Row per final commercial matrix.
+    if (p === 'full') {
       assert.ok(compact[p] < mv[p], `compact ${p} below suv3`);
     } else {
       assert.equal(compact[p], mv[p], p);
@@ -117,7 +117,7 @@ test('minivan controls unchanged (Odyssey / Sienna)', () => {
     assert.equal(r.tierKey, 'suv3');
     assert.equal(r.body, 'minivan');
     assert.equal(r.displayLabel, 'Minivan');
-    assert.equal(interior(r.tierKey), 265);
+    assert.equal(interior(r.tierKey), 255);
   }
 });
 

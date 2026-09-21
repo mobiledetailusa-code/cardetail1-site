@@ -87,9 +87,9 @@ test('full_size_van is a published numeric cars tier (server)', () => {
   // Absolute catalog values after commercial optimization phase 1.
   assert.equal(tier.wash, 185);
   assert.equal(tier.maint, 255);
-  assert.equal(tier.interior, 295);
-  assert.equal(tier.full, 350);
-  assert.equal(tier.refresh, 475);
+  assert.equal(tier.interior, 285);
+  assert.equal(tier.full, 335);
+  assert.equal(tier.refresh, 470);
   assert.equal(tier.premium, 625);
 });
 

@@ -117,8 +117,8 @@ test('Exterior Hand Wash starts at $125 and keeps wax/clay/engine as paid add-on
   assert.equal(PRICING.cars.tiers.suv2.wash, 145);
   assert.equal(PRICING.cars.tiers.suv3.wash, 165);
   assert.equal(PRICING.cars.tiers.truck.wash, 165);
-  assert.equal(PRICING.cars.tiers.small.refresh, 350);
-  assert.equal(PRICING.cars.tiers.small.premium, 425);
+  assert.equal(PRICING.cars.tiers.small.refresh, 335);
+  assert.equal(PRICING.cars.tiers.small.premium, 400);
 
   for (const file of BOOKING_PAGES) {
     const pricing = extractAssignedObject(read(file), 'PRICING');
