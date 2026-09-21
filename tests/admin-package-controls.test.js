@@ -30,6 +30,12 @@ const FAKE_ENV = {
   CD1_POSTGRES_PAYMENT: '1',
 };
 
+// Phase 1 small-car catalog cents @ zip 07102 (asserted independently of production import).
+const SMALL_MAINT_CENTS = 16000;
+const SMALL_INTERIOR_CENTS = 21000;
+const SMALL_FULL_CENTS = 27500;
+const MAINT_TO_FULL_DELTA_CENTS = SMALL_FULL_CENTS - SMALL_MAINT_CENTS; // 11500
+
 function createMemoryStore(seed = {}) {
   const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.parse(JSON.stringify(v))]));
   const etags = new Map();
@@ -62,7 +68,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function baseBooking(id, {
-  approvedCents = 16000,
+  approvedCents = SMALL_MAINT_CENTS,
   settledCents = 0,
   packageId = 'maint',
   pkgName = 'Maintenance Detail',
@@ -258,7 +264,8 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       vehicleId: 'veh_1',
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 20000);
+    // Phase 1: Small Car interior = $210
+    assert.equal(result.postgresProjection.approvedCents, SMALL_INTERIOR_CENTS);
     assert.ok(result.postgresProjection);
     assert.ok(result.financialProjection);
     assert.equal(result.postgresProjection.approvedCents, result.financialProjection.approvedCents);
@@ -333,9 +340,10 @@ describe('Admin package controls — Postgres-authoritative routing', () => {
       vehicleId: 'veh_1',
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 27500);
-    assert.equal(result.postgresProjection.settledCents, 16000);
-    assert.equal(result.postgresProjection.remainingCents, 9000);
+    assert.equal(result.postgresProjection.approvedCents, SMALL_FULL_CENTS);
+    assert.equal(result.postgresProjection.settledCents, SMALL_MAINT_CENTS);
+    // Phase 1: full ($275) − settled maint ($160) = $115 remaining
+    assert.equal(result.postgresProjection.remainingCents, MAINT_TO_FULL_DELTA_CENTS);
     const after = await store.get(id);
     assert.equal(after.bookingVersion, 2);
     assert.equal(after.vehicles[0].pkgId, 'full');
