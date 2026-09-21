@@ -392,13 +392,13 @@ describe('9 resume does not convert non-car intent to Cars', () => {
 
 describe('10 pricing / payment behavior unchanged', () => {
   it('car, RV, boat, and powersports dollar amounts are unchanged', () => {
-    assert.equal(PRICING.cars.tiers.small.interior, 190);
-    assert.equal(PRICING.cars.tiers.small.full, 240);
-    assert.equal(PRICING.cars.tiers.small.refresh, 320);
-    assert.match(index, /interior:\s*190/);
-    assert.match(index, /full:\s*240/);
-    assert.match(index, /refresh:\s*320/);
-    assert.match(index, /maint:\s*\{perFt:\s*10,\s*min:\s*170\}/);
+    assert.equal(PRICING.cars.tiers.small.interior, 220);
+    assert.equal(PRICING.cars.tiers.small.full, 275);
+    assert.equal(PRICING.cars.tiers.small.refresh, 370);
+    assert.match(index, /interior:\s*220/);
+    assert.match(index, /full:\s*275/);
+    assert.match(index, /refresh:\s*370/);
+    assert.match(index, /maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
     const bs5 = index.slice(index.indexOf('id="bs5"'), index.indexOf('id="bs6"'));
     assert.match(bs5, /onclick="submitBooking\(\)"/);
     assert.match(bs5, /id="bk-online-card-wrap"[^>]*hidden/);

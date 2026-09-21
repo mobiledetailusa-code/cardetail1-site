@@ -111,14 +111,14 @@ test('Signature exterior copy matches Exterior Refresh & Protect exactly', () =>
   }
 });
 
-test('Exterior Hand Wash starts at $110 and keeps wax/clay/engine as paid add-ons', () => {
+test('Exterior Hand Wash starts at $125 and keeps wax/clay/engine as paid add-ons', () => {
   const { PRICING, coerceVehicleForCategory, inferPkgId } = require('../netlify/lib/booking-price-catalog');
-  assert.equal(PRICING.cars.tiers.small.wash, 110);
-  assert.equal(PRICING.cars.tiers.suv2.wash, 135);
-  assert.equal(PRICING.cars.tiers.suv3.wash, 155);
-  assert.equal(PRICING.cars.tiers.truck.wash, 155);
-  assert.equal(PRICING.cars.tiers.small.refresh, 320);
-  assert.equal(PRICING.cars.tiers.small.premium, 385);
+  assert.equal(PRICING.cars.tiers.small.wash, 125);
+  assert.equal(PRICING.cars.tiers.suv2.wash, 155);
+  assert.equal(PRICING.cars.tiers.suv3.wash, 180);
+  assert.equal(PRICING.cars.tiers.truck.wash, 180);
+  assert.equal(PRICING.cars.tiers.small.refresh, 370);
+  assert.equal(PRICING.cars.tiers.small.premium, 445);
 
   for (const file of BOOKING_PAGES) {
     const pricing = extractAssignedObject(read(file), 'PRICING');
@@ -126,7 +126,7 @@ test('Exterior Hand Wash starts at $110 and keeps wax/clay/engine as paid add-on
     assert.ok(wash, `${file} missing wash pack`);
     assert.equal(wash.name, 'Exterior Hand Wash');
     assert.equal(wash.scope, 'ext');
-    assert.equal(pricing.cars.tiers.small.wash, 110);
+    assert.equal(pricing.cars.tiers.small.wash, 125);
     const inc = pkgIncludesAddon(wash);
     assert.equal(inc.claybar, false, `${file} wash must not include clay bar`);
     assert.equal(inc.rainx, false, `${file} wash must not include Rain-X`);
@@ -147,11 +147,11 @@ test('Exterior Hand Wash starts at $110 and keeps wax/clay/engine as paid add-on
   assert.equal(coerced.packageId, 'wash');
 });
 
-test('booking catalog still sells Exterior Hand Wash from $110', () => {
+test('booking catalog still sells Exterior Hand Wash from $125', () => {
   for (const file of BOOKING_PAGES) {
     const html = read(file);
     assert.match(html, /id:'wash'[\s\S]*?name:'Exterior Hand Wash'/);
-    assert.match(html, /wash:110/);
+    assert.match(html, /wash:125/);
   }
   const modal = read('assets/car-pkg-detail-modal.js');
   assert.match(modal, /wash:\s*\{[\s\S]*title:\s*"Exterior Hand Wash"/);

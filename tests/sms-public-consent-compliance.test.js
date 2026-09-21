@@ -165,7 +165,7 @@ function requestPayload(overrides = {}) {
       addons: [],
       addonTotal: 0,
     }],
-    totalPrice: 240,
+    totalPrice: 275,
     travelFeeAmount: 0,
     zoneSurcharge: 0,
     paymentMethod: '',
