@@ -349,7 +349,7 @@ test('package prices and IDs remain unchanged in index PRICING', () => {
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
   assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
   assert.match(html, /powersports:[\s\S]*?id:'wash'/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*11,\s*min:\s*175\}/);
 });
 
 test('Stripe functions unchanged aside from routing guard injection', () => {

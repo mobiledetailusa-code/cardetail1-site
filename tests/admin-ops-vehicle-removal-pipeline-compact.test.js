@@ -157,7 +157,7 @@ describe('admin change-request projection', () => {
         requestType: 'vehicle_remove_request',
         status: 'pending',
         target: { vehicleId: 'veh_boat' },
-        proposedApprovedCents: 37000,
+        proposedApprovedCents: 33500,
         delta: {
           vehicleSnapshot: { vehicleId: 'veh_boat', packageName: 'Essential Marine', subtotal: 421 },
           currentApprovedCents: 79100,

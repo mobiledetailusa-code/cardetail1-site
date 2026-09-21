@@ -87,7 +87,7 @@ test('getCategoryFromBases public Cars minimum is Interior Detail at 220', () =>
   assert.ok(carsBlock, 'cars pricing block missing');
   const interiors = [...carsBlock[0].matchAll(/interior:(\d+)/g)].map((m) => Number(m[1]));
   assert.ok(interiors.length >= 4, 'expected interior tier prices');
-  assert.equal(Math.min(...interiors), 220);
+  assert.equal(Math.min(...interiors), 200);
 });
 
 test('chat public Cars starting price uses getCategoryFromBases not hardcoded 150', () => {
@@ -114,22 +114,22 @@ test('chat does not use maint tier as promotional Cars minimum', () => {
 
 test('booking still contains Maintenance Detail at 175 and Interior Detail at 220', () => {
   const html = read('index.html');
-  assert.match(html, /maint:175/);
-  assert.match(html, /interior:220/);
+  assert.match(html, /maint:160/);
+  assert.match(html, /interior:200/);
   assert.match(html, /id:'maint'[\s\S]*?Maintenance Detail/);
   assert.match(html, /id:'interior'[\s\S]*?Interior Detail/);
 });
 
 test('public homepage Cars price remains 220', () => {
   const html = read('index.html');
-  assert.match(html, /id="home-from-interior">\$220/);
+  assert.match(html, /id="home-from-interior">\$200/);
 });
 
 test('specialty public prices unchanged', () => {
   const html = read('index.html');
-  assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$195/);
+  assert.match(html, /id="bkfrom-boats"[\s\S]*?From \$175/);
   assert.match(html, /id="bkfrom-rvs"[\s\S]*?Price calculated from your vehicle details/);
-  assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$200/);
+  assert.match(html, /id="bkfrom-powersports"[\s\S]*?From \$180/);
   assert.ok(fs.existsSync(path.join(root, 'fleet-services.html')));
 });
 
@@ -226,8 +226,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
 
 test('cars pricing formulas remain stable while RV ladder may update', () => {
   const html = read('index.html');
-  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:175,\s*interior:220/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
-  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base: 245, ratePerFoot: 16 \}/);
-  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base: 390, ratePerFoot: 36 \}/);
+  assert.match(html, /small:\s*\{label:'Small Car'[\s\S]*?maint:160,\s*interior:200/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*11,\s*min:\s*175\}/);
+  assert.match(html, /rvs:[\s\S]*?maint_light:\s*\{ base:\s*220, ratePerFoot:\s*14 \}/);
+  assert.match(html, /rvs:[\s\S]*?full:\s*\{ base:\s*350, ratePerFoot:\s*32 \}/);
 });

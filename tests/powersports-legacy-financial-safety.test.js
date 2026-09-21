@@ -30,18 +30,18 @@ describe('Powersports public vs legacy package surface', () => {
       }
     }
     // Homepage / specialty public matrix (canonical after +15%)
-    assert.equal(PRICING.powersports.tiers.motorcycle.maintenance, 200);
-    assert.equal(PRICING.powersports.tiers.motorcycle.restore, 260);
-    assert.equal(PRICING.powersports.tiers.motorcycle_large.maintenance, 220);
+    assert.equal(PRICING.powersports.tiers.motorcycle.maintenance, 180);
+    assert.equal(PRICING.powersports.tiers.motorcycle.restore, 235);
+    assert.equal(PRICING.powersports.tiers.motorcycle_large.maintenance, 200);
     assert.equal(PRICING.powersports.tiers.motorcycle_large.restore, 290);
-    assert.equal(PRICING.powersports.tiers.motorcycle_trike.maintenance, 230);
-    assert.equal(PRICING.powersports.tiers.motorcycle_trike.restore, 315);
-    assert.equal(PRICING.powersports.tiers.atv.maintenance, 200);
-    assert.equal(PRICING.powersports.tiers.atv.restore, 245);
-    assert.equal(PRICING.powersports.tiers.utv_standard.maintenance, 220);
-    assert.equal(PRICING.powersports.tiers.utv_standard.restore, 275);
-    assert.equal(PRICING.powersports.tiers.utv_large.maintenance, 230);
-    assert.equal(PRICING.powersports.tiers.utv_large.restore, 315);
+    assert.equal(PRICING.powersports.tiers.motorcycle_trike.maintenance, 205);
+    assert.equal(PRICING.powersports.tiers.motorcycle_trike.restore, 285);
+    assert.equal(PRICING.powersports.tiers.atv.maintenance, 180);
+    assert.equal(PRICING.powersports.tiers.atv.restore, 220);
+    assert.equal(PRICING.powersports.tiers.utv_standard.maintenance, 200);
+    assert.equal(PRICING.powersports.tiers.utv_standard.restore, 250);
+    assert.equal(PRICING.powersports.tiers.utv_large.maintenance, 205);
+    assert.equal(PRICING.powersports.tiers.utv_large.restore, 285);
   });
 
   it('catalog still retains historical wash/essential/full/premium keys', () => {
@@ -51,17 +51,17 @@ describe('Powersports public vs legacy package surface', () => {
       assert.ok(Number(moto[key]) > 0, `legacy ${key} must keep a dollar meaning`);
     }
     // Uplifted historical-key amounts (must NOT be applied to stored bookings)
-    assert.equal(moto.wash, 115);
-    assert.equal(moto.essential, 185);
-    assert.equal(moto.full, 260);
-    assert.equal(moto.premium, 360);
+    assert.equal(moto.wash, 105);
+    assert.equal(moto.essential, 165);
+    assert.equal(moto.full, 235);
+    assert.equal(moto.premium, 325);
   });
 });
 
 describe('Powersports legacy booking financial authority', () => {
   function legacyWashBooking(overrides = {}) {
     // Pre-uplift stored wash booking: customer paid / owed the historical $100,
-    // not the current catalog wash $115.
+    // not the current catalog wash $105.
     const approvedCents = 10000;
     return {
       id: 'PS-LEGACY-WASH-1',
@@ -108,10 +108,10 @@ describe('Powersports legacy booking financial authority', () => {
     };
   }
 
-  it('financialProjection keeps stored $100 — does not jump to catalog wash $115', () => {
+  it('financialProjection keeps stored $100 — does not jump to catalog wash $105', () => {
     const booking = legacyWashBooking();
     const catalogWash = PRICING.powersports.tiers.motorcycle.wash;
-    assert.equal(catalogWash, 115, 'catalog wash is uplifted');
+    assert.equal(catalogWash, 105, 'catalog wash is uplifted');
     assert.notEqual(catalogWash * 100, booking.ledger.approvedCents);
 
     const proj = financialProjection(booking);
@@ -151,8 +151,8 @@ describe('Powersports legacy booking financial authority', () => {
       addons: [],
     }, '07650');
     assert.equal(live.ok, true);
-    assert.equal(live.basePrice, 115);
-    assert.equal(live.subtotal, 115);
+    assert.equal(live.basePrice, 105);
+    assert.equal(live.subtotal, 105);
   });
 
   it('new public maintenance quote uses current matrix, not legacy wash', () => {
@@ -163,7 +163,7 @@ describe('Powersports legacy booking financial authority', () => {
       addons: [],
     }, '07650');
     assert.equal(live.ok, true);
-    assert.equal(live.basePrice, 200);
-    assert.equal(live.subtotal, 200);
+    assert.equal(live.basePrice, 180);
+    assert.equal(live.subtotal, 180);
   });
 });

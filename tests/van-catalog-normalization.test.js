@@ -81,8 +81,8 @@ test('cargo vs passenger selectables map to distinct full-size prices', () => {
   assert.equal(pass.pricingClass, 'full_size_van_passenger');
   assert.equal(cargo.displayLabel, 'Full-Size Cargo Van');
   assert.equal(pass.displayLabel, 'Full-Size Passenger Van');
-  assert.equal(interior(cargo.pricingClass), 300);
-  assert.equal(interior(pass.pricingClass), 310);
+  assert.equal(interior(cargo.pricingClass), 270);
+  assert.equal(interior(pass.pricingClass), 280);
 });
 
 test('package-by-package van pricing proof vs minivan/suv3', () => {
@@ -109,7 +109,7 @@ test('minivan controls unchanged (Odyssey / Sienna)', () => {
     assert.equal(r.tierKey, 'suv3');
     assert.equal(r.body, 'minivan');
     assert.equal(r.displayLabel, 'Minivan');
-    assert.equal(interior(r.tierKey), 270);
+    assert.equal(interior(r.tierKey), 245);
   }
 });
 

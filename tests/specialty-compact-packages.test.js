@@ -97,8 +97,8 @@ test('boat/RV compact price labels stay length-based (no fake flat price)', () =
   const sandbox = {
     ST: { tierKey: '' },
     LENGTH_PRICING: {
-      boats: { packages: { full: { min: 435 } } },
-      rvs: { packages: { full_basic: { base: 295, ratePerFoot: 24 } } },
+      boats: { packages: { full: { min: 390 } } },
+      rvs: { packages: { full_basic: { base: 265, ratePerFoot: 22 } } },
     },
     applyRichPrice: (n) => n,
     getTravelFeeAmount: () => 0,
@@ -108,7 +108,7 @@ test('boat/RV compact price labels stay length-based (no fake flat price)', () =
   vm.runInContext(fn + '\nthis.compactPackagePriceLabel = compactPackagePriceLabel;', sandbox);
   assert.equal(
     sandbox.compactPackagePriceLabel('boats', { id: 'full' }, { tiers: {} }),
-    'From $435'
+    'From $390'
   );
   assert.equal(
     sandbox.compactPackagePriceLabel('rvs', { id: 'full_basic' }, { tiers: {} }),
@@ -118,9 +118,9 @@ test('boat/RV compact price labels stay length-based (no fake flat price)', () =
     sandbox.compactPackagePriceLabel(
       'trucks',
       { id: 'int_wash' },
-      { tiers: { day_cab: { int_wash: 460 } } }
+      { tiers: { day_cab: { int_wash: 415 } } }
     ),
-    'From $460'
+    'From $415'
   );
 });
 

@@ -73,7 +73,7 @@ const HOME_FAQ = [
   },
   {
     q: 'How much does mobile car detailing cost in Palisades Park?',
-    a: 'Interior Detail starts at $220 for sedans. Premium Full Detail starts at $275 for sedans, $300 for SUVs, and $310 for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $370. Enter your ZIP for the price on your vehicle size.',
+    a: 'Interior Detail starts at $200 for sedans. Premium Full Detail starts at $250 for sedans, $270 for SUVs, and $280 for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $335. Enter your ZIP for the price on your vehicle size.',
   },
   {
     q: 'Is there a travel fee for Bergen County?',
@@ -243,15 +243,15 @@ function patchIndex(html) {
 
   html = html.replace(
     /<meta name="description" content="[^"]*">/,
-    '<meta name="description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $220, full detail from $275 at your driveway. We bring water and power. Book online.">'
+    '<meta name="description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $200, full detail from $250 at your driveway. We bring water and power. Book online.">'
   );
   html = html.replace(
     /<meta property="og:description" content="[^"]*">/,
-    '<meta property="og:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $220, full detail from $275 at your driveway. Book online.">'
+    '<meta property="og:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $200, full detail from $250 at your driveway. Book online.">'
   );
   html = html.replace(
     /<meta name="twitter:description" content="[^"]*">/,
-    '<meta name="twitter:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $220, full detail from $275 at your driveway. Book online.">'
+    '<meta name="twitter:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $200, full detail from $250 at your driveway. Book online.">'
   );
 
   const ldStart = html.indexOf('<script type="application/ld+json">');
@@ -597,8 +597,8 @@ function writeLlms() {
 - [Fleet](https://cardetail1.com/fleet-services.html)
 
 ## Car packages (from prices, sedan unless noted)
-- Interior Detail from $220
-- Premium Full Detail from $275 (SUVs from $300, 3-row from $310)
+- Interior Detail from $200
+- Premium Full Detail from $250 (SUVs from $270, 3-row from $280)
 - Exterior Detail & Paint Enhancement from $370
 
 ## Facts
@@ -694,7 +694,7 @@ patchSpecialty('powersports-detailing.html', {
   offers: [
     { name: 'Wash & Shine', price: 100 },
     { name: 'Full Detail', price: 225 },
-    { name: 'Premium Detail', price: 315 },
+    { name: 'Premium Detail', price: 280 },
   ],
 });
 

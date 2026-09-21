@@ -16,17 +16,17 @@ const {
 const root = path.join(__dirname, '..');
 
 describe('trucks category pricing authority', () => {
-  it('exposes day_cab and sleeper_cab at $375 / $460 / $575', () => {
+  it('exposes day_cab and sleeper_cab at $340 / $415 / $520', () => {
     assert.ok(PRICING.trucks);
-    assert.equal(PRICING.trucks.tiers.day_cab.interior, 375);
-    assert.equal(PRICING.trucks.tiers.day_cab.int_wash, 460);
-    assert.equal(PRICING.trucks.tiers.day_cab.int_wash_wax, 575);
-    assert.equal(PRICING.trucks.tiers.sleeper_cab.interior, 375);
-    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash, 460);
-    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 575);
+    assert.equal(PRICING.trucks.tiers.day_cab.interior, 340);
+    assert.equal(PRICING.trucks.tiers.day_cab.int_wash, 415);
+    assert.equal(PRICING.trucks.tiers.day_cab.int_wash_wax, 520);
+    assert.equal(PRICING.trucks.tiers.sleeper_cab.interior, 340);
+    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash, 415);
+    assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 520);
   });
 
-  it('prices sleeper interior detail at $375 for ZIP 07601', () => {
+  it('prices sleeper interior detail at $340 for ZIP 07601', () => {
     const r = computeVehicleSubtotal(
       {
         cat: 'trucks',
@@ -37,7 +37,7 @@ describe('trucks category pricing authority', () => {
       '07601'
     );
     assert.equal(r.ok, true);
-    assert.equal(r.subtotal, 375);
+    assert.equal(r.subtotal, 340);
   });
 
   it('prices day cab int_wash_wax with superint add-on', () => {
@@ -100,7 +100,7 @@ describe('trucks booking checkout recalculation', () => {
       ],
     });
     assert.equal(result.ok, true);
-    assert.equal(result.serviceSubtotal, 460);
+    assert.equal(result.serviceSubtotal, 415);
   });
 });
 

@@ -163,8 +163,8 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
   assert.ok(prices.full > prices.premium);
 
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /maint_light:\s*\{ base: 245, ratePerFoot: 16 \}/);
-  assert.match(lengthBlock, /full:\s*\{ base: 390, ratePerFoot: 36 \}/);
+  assert.match(lengthBlock, /maint_light:\s*\{ base: 220, ratePerFoot: 14 \}/);
+  assert.match(lengthBlock, /full:\s*\{ base: 350, ratePerFoot: 32 \}/);
 });
 
 test('DISPLAY: single-price cards and booking CTAs; no funnel', () => {

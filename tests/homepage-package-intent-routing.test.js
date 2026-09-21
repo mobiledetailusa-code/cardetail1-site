@@ -403,7 +403,7 @@ describe('10 pricing / payment behavior unchanged', () => {
     assert.match(index, /interior:\s*220/);
     assert.match(index, /full:\s*275/);
     assert.match(index, /refresh:\s*370/);
-    assert.match(index, /maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
+    assert.match(index, /maint:\s*\{perFt:\s*11,\s*min:\s*175\}/);
     const bs5 = index.slice(index.indexOf('id="bs5"'), index.indexOf('id="bs6"'));
     assert.match(bs5, /onclick="submitBooking\(\)"/);
     assert.match(bs5, /id="bk-online-card-wrap"[^>]*hidden/);

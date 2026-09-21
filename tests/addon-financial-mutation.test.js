@@ -84,7 +84,7 @@ function createMemoryStore(seed = {}) {
 }
 
 function baseBooking(id, {
-  approvedCents = 17500,
+  approvedCents = 16000,
   settledCents = 0,
   paymentWorkflowStatus = null,
   addOnIds = [],
@@ -179,7 +179,7 @@ describe('Stage 1 addon financial mutations', () => {
     return store;
   }
 
-  it('1) before-pay add: 17500/0/17500 → 21500/0/21500', async () => {
+  it('1) before-pay add: 16000/0/16000 → 19500/0/19500', async () => {
     const { applyAddonFinancialMutation } = require('../netlify/lib/addon-financial-mutation');
     const { financialProjection } = require('../netlify/lib/payment-service');
     const id = nextId('BP-ADD');
@@ -194,13 +194,13 @@ describe('Stage 1 addon financial mutations', () => {
     });
     assert.equal(result.ok, true, result.error);
     assert.equal(result.noop, false);
-    assert.equal(result.postgresProjection.approvedCents, 21500);
+    assert.equal(result.postgresProjection.approvedCents, 19500);
     assert.equal(result.postgresProjection.settledCents, 0);
-    assert.equal(result.postgresProjection.remainingCents, 21500);
-    assert.equal(result.financialProjection.approvedCents, 21500);
+    assert.equal(result.postgresProjection.remainingCents, 19500);
+    assert.equal(result.financialProjection.approvedCents, 19500);
     assert.equal(result.financialProjection.settledCents, 0);
-    assert.equal(result.financialProjection.remainingCents, 21500);
-    assert.equal(financialProjection(result.booking).remainingCents, 21500);
+    assert.equal(result.financialProjection.remainingCents, 19500);
+    assert.equal(financialProjection(result.booking).remainingCents, 19500);
     assert.equal(
       result.quoteVersion,
       result.priorQuoteVersion + 1,
@@ -210,11 +210,11 @@ describe('Stage 1 addon financial mutations', () => {
     assert.equal(result.adjustment.quote.quoteVersion, result.priorQuoteVersion + 1);
   });
 
-  it('2) before-pay remove: 21500/0/21500 → 17500/0/17500', async () => {
+  it('2) before-pay remove: 19500/0/19500 → 16000/0/16000', async () => {
     const { applyAddonFinancialMutation } = require('../netlify/lib/addon-financial-mutation');
     const id = nextId('BP-RM');
     await seedBlob(baseBooking(id, {
-      approvedCents: 21500,
+      approvedCents: 19500,
       addOnIds: ['ozone'],
       quoteVersion: 2,
     }));
@@ -227,18 +227,18 @@ describe('Stage 1 addon financial mutations', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 17500);
+    assert.equal(result.postgresProjection.approvedCents, 16000);
     assert.equal(result.postgresProjection.settledCents, 0);
-    assert.equal(result.postgresProjection.remainingCents, 17500);
-    assert.equal(result.financialProjection.remainingCents, 17500);
+    assert.equal(result.postgresProjection.remainingCents, 16000);
+    assert.equal(result.financialProjection.remainingCents, 16000);
   });
 
-  it('3) after-pay add: 17500/17500/0 → 21500/17500/4000', async () => {
+  it('3) after-pay add: 16000/16000/0 → 19500/16000/4000', async () => {
     const { applyAddonFinancialMutation } = require('../netlify/lib/addon-financial-mutation');
     const id = nextId('AP-ADD');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 16000,
+      settledCents: 16000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -250,11 +250,11 @@ describe('Stage 1 addon financial mutations', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 21500);
-    assert.equal(result.postgresProjection.settledCents, 17500);
+    assert.equal(result.postgresProjection.approvedCents, 19500);
+    assert.equal(result.postgresProjection.settledCents, 16000);
     assert.equal(result.postgresProjection.remainingCents, 4000);
-    assert.equal(result.financialProjection.approvedCents, 21500);
-    assert.equal(result.financialProjection.settledCents, 17500);
+    assert.equal(result.financialProjection.approvedCents, 19500);
+    assert.equal(result.financialProjection.settledCents, 16000);
     assert.equal(result.financialProjection.remainingCents, 4000);
     assert.ok(
       result.financialProjection.paymentStatus === 'due'
@@ -264,7 +264,7 @@ describe('Stage 1 addon financial mutations', () => {
     assert.equal(result.financialProjection.invoicePaid, false);
     assert.equal(result.quoteVersion, result.priorQuoteVersion + 1);
     assert.equal(result.adjustment.quote.quoteVersion, result.priorQuoteVersion + 1);
-    assert.equal(result.adjustment.previousQuote.approvedCents, 17500);
+    assert.equal(result.adjustment.previousQuote.approvedCents, 16000);
   });
 
   it('4) next embedded PaymentIntent amount is exactly 4000', async () => {
@@ -272,8 +272,8 @@ describe('Stage 1 addon financial mutations', () => {
     const { prepareEmbeddedPayment } = require('../netlify/lib/db/operational-payment');
     const id = nextId('PI');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 16000,
+      settledCents: 16000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -300,13 +300,13 @@ describe('Stage 1 addon financial mutations', () => {
     assert.match(String(calls[0]?.body || ''), /amount=4000/);
   });
 
-  it('5) existing settlement ledger remains exactly one entry for 17500', async () => {
+  it('5) existing settlement ledger remains exactly one entry for 16000', async () => {
     const { applyAddonFinancialMutation } = require('../netlify/lib/addon-financial-mutation');
     const repo = require('../netlify/lib/db/repositories');
     const id = nextId('LEDGER');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 16000,
+      settledCents: 16000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -322,11 +322,11 @@ describe('Stage 1 addon financial mutations', () => {
     const ledger = await repo.listLedgerEntries(id);
     const settlements = ledger.filter((e) => e.kind === 'settlement');
     assert.equal(settlements.length, 1);
-    assert.equal(settlements[0].amountCents, 17500);
+    assert.equal(settlements[0].amountCents, 16000);
 
     const blobEntries = (result.booking.ledger?.entries || []).filter((e) => e.kind === 'settlement');
     assert.equal(blobEntries.length, 1);
-    assert.equal(blobEntries[0].amountCents, 17500);
+    assert.equal(blobEntries[0].amountCents, 16000);
   });
 
   it('6) duplicate add: no duplicate addon, no extra quote, no new PI, no ledger mutation', async () => {
@@ -336,7 +336,7 @@ describe('Stage 1 addon financial mutations', () => {
     const { getBookingRecord } = require('../netlify/lib/booking-repository');
     const id = nextId('DUP');
     await seedBlob(baseBooking(id, {
-      approvedCents: 21500,
+      approvedCents: 19500,
       addOnIds: ['ozone'],
       quoteVersion: 2,
     }));
@@ -376,8 +376,8 @@ describe('Stage 1 addon financial mutations', () => {
     const id = nextId('RM-DENY');
     // After a prior post-pay add-on: open delta exists (not fully historically closed).
     const seeded = baseBooking(id, {
-      approvedCents: 21500,
-      settledCents: 21500,
+      approvedCents: 19500,
+      settledCents: 19500,
       addOnIds: ['ozone'],
       paymentWorkflowStatus: 'payment_succeeded',
       quoteVersion: 2,
@@ -400,13 +400,13 @@ describe('Stage 1 addon financial mutations', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 17500);
-    assert.equal(result.postgresProjection.settledCents, 21500);
+    assert.equal(result.postgresProjection.approvedCents, 16000);
+    assert.equal(result.postgresProjection.settledCents, 19500);
     assert.equal(result.postgresProjection.remainingCents, 0);
     assert.equal(result.outstandingCreditCents, 4000);
 
     const afterRec = await getBookingRecord(id);
-    assert.equal(afterRec.booking.ledger.approvedCents, 17500);
+    assert.equal(afterRec.booking.ledger.approvedCents, 16000);
     assert.equal(afterRec.booking.ledger.settledCents, settledBefore);
     assert.equal(afterRec.booking.ledger.refundedCents || 0, 0);
     assert.equal(await prisma.quote.count({ where: { bookingId: id } }), quotesBefore + 1);
@@ -427,8 +427,8 @@ describe('Stage 1 addon financial mutations', () => {
       env: FAKE_ENV,
     });
     assert.equal(result.ok, true, result.error);
-    assert.equal(result.postgresProjection.approvedCents, 21500, 'catalog ozone=$40 must win over any client price');
-    assert.equal(result.postgresProjection.remainingCents, 21500);
+    assert.equal(result.postgresProjection.approvedCents, 19500, 'catalog ozone=$40 must win over any client price');
+    assert.equal(result.postgresProjection.remainingCents, 19500);
   });
 
   it('9) PostgreSQL and compatibility projection agree', async () => {
@@ -437,8 +437,8 @@ describe('Stage 1 addon financial mutations', () => {
     const { financialProjection } = require('../netlify/lib/payment-service');
     const id = nextId('PARITY');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 16000,
+      settledCents: 16000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -480,8 +480,8 @@ describe('Stage 1 addon financial mutations', () => {
     } = require('../netlify/lib/booking-commands');
     const id = nextId('DECIDE');
     await seedBlob(baseBooking(id, {
-      approvedCents: 17500,
-      settledCents: 17500,
+      approvedCents: 16000,
+      settledCents: 16000,
       paymentWorkflowStatus: 'payment_succeeded',
     }));
 
@@ -508,8 +508,8 @@ describe('Stage 1 addon financial mutations', () => {
       acceptRequote: true,
     });
     assert.equal(decided.ok, true, decided.error);
-    assert.equal(decided.postgresProjection.approvedCents, 21500);
-    assert.equal(decided.postgresProjection.settledCents, 17500);
+    assert.equal(decided.postgresProjection.approvedCents, 19500);
+    assert.equal(decided.postgresProjection.settledCents, 16000);
     assert.equal(decided.postgresProjection.remainingCents, 4000);
   });
 });

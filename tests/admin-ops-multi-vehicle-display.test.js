@@ -148,13 +148,13 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
     assert.equal(v0.pkgName, 'Maintenance Detail');
     assert.equal(v0.tierKey, 'small');
     assert.ok(v0.tierLabel === 'Sedan / small car' || v0.tier === 'small' || v0.tierKey === 'small');
-    assert.equal(v0.basePrice, 175);
-    assert.equal(v0.packagePrice, 175);
+    assert.equal(v0.basePrice, 160);
+    assert.equal(v0.packagePrice, 160);
     assert.equal(v0.subtotal, 250);
     assert.equal(v0.addons.length, 1);
     assert.equal(v0.addons[0].name, 'Odor Elimination');
     assert.equal(v0.addons[0].qty, 1);
-    assert.equal(v0.addons[0].price, 75);
+    assert.equal(v0.addons[0].price, 70);
 
     assert.equal(v1.packageId, 'full');
     assert.equal(v1.packageName, 'Premium Full Detail');
@@ -213,7 +213,7 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
       vehicleCategory: 'cars',
       approvedFinalAmount: 175,
       totalPrice: 175,
-      ledger: { approvedCents: 17500, settledCents: 0, creditedCents: 0, entries: [] },
+      ledger: { approvedCents: 16000, settledCents: 0, creditedCents: 0, entries: [] },
       vehicles: [{
         vehicleId: 'veh_only',
         year: '2021',
@@ -231,8 +231,8 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
     });
     assert.equal(p.vehicles.length, 1);
     assert.equal(p.vehicles[0].vehicleLabel, '2021 Mazda 3');
-    assert.equal(p.vehicles[0].subtotal, 175);
-    assert.equal(p.approvedCents, 17500);
+    assert.equal(p.vehicles[0].subtotal, 160);
+    assert.equal(p.approvedCents, 16000);
   });
 
   it('falls back to legacy primary vehicle when vehicles[] is missing', () => {
@@ -256,7 +256,7 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
     assert.equal(p.vehicles[0].vehicleLabel, '2019 Ford Focus');
     assert.equal(p.vehicles[0].packageName, 'Maintenance Detail');
     assert.equal(p.vehicleMake, 'Ford');
-    assert.equal(p.approvedFinalAmount, 175);
+    assert.equal(p.approvedFinalAmount, 160);
   });
 
   it('projects RV/boat length vehicles without requiring year/make/model', () => {
@@ -305,8 +305,8 @@ describe('projectJobForAdmin multi-vehicle projection', () => {
       subtotal: 250,
       addons: [{ id: 'odor', name: 'Odor', qty: 2, price: 37.5 }],
     });
-    assert.equal(v.basePrice, 175);
-    assert.equal(v.packagePrice, 175);
+    assert.equal(v.basePrice, 160);
+    assert.equal(v.packagePrice, 160);
     assert.equal(v.subtotal, 250);
     assert.equal(v.addons[0].qty, 2);
     assert.equal(v.addons[0].price, 37.5);

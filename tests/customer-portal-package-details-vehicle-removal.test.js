@@ -129,8 +129,8 @@ describe('package details resolution', () => {
     assert.ok(details.includedServices.length >= 3);
     assert.match(details.includedServices.join(' '), /Exterior hand wash/i);
     assert.equal(details.addons[0].name, 'Pet Hair Removal');
-    assert.equal(details.packagePrice, 185);
-    assert.equal(details.vehicleSubtotal, 370);
+    assert.equal(details.packagePrice, 165);
+    assert.equal(details.vehicleSubtotal, 335);
   });
 
   it('resolves Essential Marine description from length catalog', () => {
@@ -311,7 +311,7 @@ describe('vehicle_remove_request policy + commands', () => {
         vehicles: [twoVehicleFixture().vehicles[0]],
         approvedFinalAmount: 370,
         totalPrice: 370,
-        ledger: { approvedCents: 37000, settledCents: 0, creditedCents: 0, entries: [] },
+        ledger: { approvedCents: 33500, settledCents: 0, creditedCents: 0, entries: [] },
       }),
     });
     setBookingStoreOverride(store);

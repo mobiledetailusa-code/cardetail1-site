@@ -320,6 +320,14 @@ function syncCarMarketingSurfaces(src) {
       `Signature Restoration (from $${cp} sedan)`,
     )
     .replace(
+      /Sedans from \$[\d,]+ · SUVs from \$[\d,]+ · trucks from \$[\d,]+/g,
+      `Sedans from $${ci} · SUVs from $${ciSuv} · trucks from $${ciTruck}`,
+    )
+    .replace(
+      /Sedans from \$[\d,]+ · SUVs from \$[\d,]+ · 3-row from \$[\d,]+/g,
+      `Sedans from $${cf} · SUVs from $${cfSuv} · 3-row from $${cfSuv3}`,
+    )
+    .replace(
       /Interior Detail from \$[\d,]+/g,
       `Interior Detail from $${ci}`,
     )

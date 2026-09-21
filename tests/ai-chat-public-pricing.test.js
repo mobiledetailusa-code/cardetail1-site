@@ -33,24 +33,24 @@ test('AI chat prompt does not describe general Cars detailing as starting at $15
   assert.doesNotMatch(prompt, /Cars \$150/);
 });
 
-test('AI chat prompt describes public Cars starting price as $220 Interior Detail', () => {
+test('AI chat prompt describes public Cars starting price as $200 Interior Detail', () => {
   const prompt = BUSINESS_SYSTEM;
   const pricing = extractPricingGuidance(prompt);
-  assert.match(pricing, /\$220/);
+  assert.match(pricing, /\$200/);
   assert.match(pricing, /Interior Detail/i);
 });
 
-test('AI chat prompt treats Maintenance Detail as separate $175 tier not public Cars minimum', () => {
+test('AI chat prompt treats Maintenance Detail as separate $160 tier not public Cars minimum', () => {
   const prompt = BUSINESS_SYSTEM;
   const pricing = extractPricingGuidance(prompt);
-  assert.match(pricing, /Maintenance Detail[^$\n]*\$175|\$175[^$\n]*Maintenance Detail/i);
+  assert.match(pricing, /Maintenance Detail[^$\n]*\$160|\$160[^$\n]*Maintenance Detail/i);
   assert.match(pricing, /not as the general Cars starting price|not.*general Cars starting price/i);
 });
 
-test('booking catalog still has maint at $175 and interior at $220', () => {
+test('booking catalog still has maint at $160 and interior at $200', () => {
   const html = read('index.html');
-  assert.match(html, /maint:175/);
-  assert.match(html, /interior:220/);
+  assert.match(html, /maint:160/);
+  assert.match(html, /interior:200/);
   assert.match(html, /id:'maint'[\s\S]*?Maintenance Detail/);
   assert.match(html, /id:'interior'[\s\S]*?Interior Detail/);
 });
@@ -64,18 +64,18 @@ test('client chat and server AI prompt agree on public category starting prices'
   assert.match(index, /applyRichPrice\(b\.cars\)/);
   assert.doesNotMatch(index, /Cars & Trucks — from <b>\$150/);
 
-  assert.match(pricing, /Boats from \$195/);
-  assert.match(pricing, /\$270/);
-  assert.match(pricing, /Powersports from \$200/);
+  assert.match(pricing, /Boats from \$175/);
+  assert.match(pricing, /Cars from \$200/);
+  assert.match(pricing, /Powersports from \$180/);
   assert.match(pricing, /Fleet[^$\n]*quote-only|quote-only[^$\n]*Fleet/i);
   assert.doesNotMatch(pricing, /\$60\/unit|\$60 per unit/i);
   assert.deepEqual(CHAT_STARTING_PRICES, {
-    cars: 220,
-    carMaintenance: 175,
-    carWash: 125,
-    boats: 195,
-    rvs: 270,
-    powersports: 200,
+    cars: 200,
+    carMaintenance: 160,
+    carWash: 115,
+    boats: 175,
+    rvs: 243,
+    powersports: 180,
   });
 });
 
@@ -189,8 +189,8 @@ test('revops index changes do not alter package IDs or pricing formulas', () => 
   const html = read('index.html');
   assert.match(html, /boats:[\s\S]*?id:'maint'/);
   assert.match(html, /rvs:[\s\S]*?id:'maint_light'/);
-  assert.match(html, /interior:220/);
-  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*12,\s*min:\s*195\}/);
+  assert.match(html, /interior:200/);
+  assert.match(html, /boats:[\s\S]*?maint:\s*\{perFt:\s*11,\s*min:\s*175\}/);
 });
 
 test('ai-chat source and tests contain no credential literals', () => {

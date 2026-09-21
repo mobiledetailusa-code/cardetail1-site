@@ -35,12 +35,12 @@ const {
 
 const PKG_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 const RATES = {
-  maint: { base: 150, ratePerFoot: 10 },
-  maint_light: { base: 245, ratePerFoot: 16 },
-  interior: { base: 245, ratePerFoot: 17 },
-  full_basic: { base: 295, ratePerFoot: 24 },
-  premium: { base: 295, ratePerFoot: 28 },
-  full: { base: 390, ratePerFoot: 36 },
+  maint: { base: 135, ratePerFoot: 9 },
+  maint_light: { base: 220, ratePerFoot: 14 },
+  interior: { base: 220, ratePerFoot: 15 },
+  full_basic: { base: 265, ratePerFoot: 22 },
+  premium: { base: 265, ratePerFoot: 25 },
+  full: { base: 350, ratePerFoot: 32 },
 };
 
 function extractRvLength(html) {
@@ -121,7 +121,7 @@ test('authoritative LENGTH_PRICING.rvs rates', () => {
     assert.equal(rule.ratePerFoot, RATES[id].ratePerFoot, id);
     assert.equal(ADJUSTED_RATES[id], RATES[id].ratePerFoot, id);
   }
-  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 340);
+  assert.equal(getLengthPrice('rvs', 'maint', 19, 'travel'), 306);
 });
 
 test('client and server LENGTH_PRICING.rvs synced', () => {
@@ -133,7 +133,7 @@ test('client and server LENGTH_PRICING.rvs synced', () => {
 });
 
 test('full_basic rate is bundle-efficient vs maint+interior per-ft sum', () => {
-  assert.equal(ADJUSTED_RATES.full_basic, 24);
+  assert.equal(ADJUSTED_RATES.full_basic, 22);
   assert.ok(ADJUSTED_RATES.full_basic < ADJUSTED_RATES.maint + ADJUSTED_RATES.interior);
 });
 
@@ -180,9 +180,9 @@ test('specialty bridge uses openCategoryPackageBooking only', () => {
 });
 
 test('other affected categories use the repriced catalog', () => {
-  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 195);
-  assert.equal(PRICING.cars.tiers.small.interior, 220);
-  assert.equal(PRICING.powersports.tiers.motorcycle.wash, 115);
+  assert.equal(LENGTH_PRICING.boats.packages.maint.min, 175);
+  assert.equal(PRICING.cars.tiers.small.interior, 200);
+  assert.equal(PRICING.powersports.tiers.motorcycle.wash, 105);
 });
 
 test('SYNC: rv pricing blocks idempotent', () => {
