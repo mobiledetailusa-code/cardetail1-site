@@ -294,7 +294,7 @@ describe('PR4 vehicle and package/add-on rules', () => {
   it('package-included add-ons are visible but never billed twice', () => {
     const { includedAddonIds, computeVehicleSubtotal } = require('../netlify/lib/booking-price-catalog');
     const { applyServiceDelta } = require('../netlify/lib/canonical-quote');
-    assert.deepEqual(includedAddonIds('cars', 'full'), ['claybar']);
+    assert.deepEqual(includedAddonIds('cars', 'full'), ['claybar', 'rainx']);
 
     const fullWithDuplicate = car({ packageId: 'full', addOnIds: ['claybar', 'ozone'] });
     const priced = computeVehicleSubtotal(fullWithDuplicate);

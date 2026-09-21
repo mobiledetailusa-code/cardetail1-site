@@ -178,7 +178,7 @@ describe('Customer package catalog — booking-price-catalog source', () => {
     assert.equal(full.priceCents, 25000);
     assert.notEqual(full.priceCents, Math.round(flat.basePrice * 100));
 
-    // suv3 tier is $245 — also not the legacy flat $270 metadata value.
+    // suv3 tier full is $310 — also not the legacy flat $300 metadata value.
     const suvBooking = baseBooking('CAT-SUV3', {
       vehicles: [{
         vehicleId: 'veh_suv',
@@ -195,7 +195,7 @@ describe('Customer package catalog — booking-price-catalog source', () => {
     });
     const suvCat = serializeCanonicalPackageCatalogForBooking(suvBooking);
     const suvFull = suvCat.vehicles[0].options.find((o) => o.packageId === 'full');
-    assert.equal(suvFull.priceCents, 28000);
+    assert.equal(suvFull.priceCents, 31000);
     assert.notEqual(suvFull.priceCents, 27000);
   });
 
@@ -233,7 +233,7 @@ describe('Customer package catalog — booking-price-catalog source', () => {
     const smallFull = catalog.packageCatalogByVehicle.veh_a.options.find((o) => o.packageId === 'full');
     const truckFull = catalog.packageCatalogByVehicle.veh_b.options.find((o) => o.packageId === 'full');
     assert.equal(smallFull.priceCents, 25000);
-    assert.equal(truckFull.priceCents, 28500);
+    assert.equal(truckFull.priceCents, 30000);
     assert.notEqual(smallFull.priceCents, truckFull.priceCents);
   });
 
@@ -521,6 +521,6 @@ describe('display metadata helper', () => {
 
   it('canonical cars price table still has tier-aware full (not flat 300)', () => {
     assert.equal(PRICING.cars.tiers.small.full, 250);
-    assert.equal(PRICING.cars.tiers.suv3.full, 280);
+    assert.equal(PRICING.cars.tiers.suv3.full, 310);
   });
 });

@@ -79,7 +79,7 @@ test('updateBkFromPrices remains syntactically complete on all public pages with
   }
 });
 
-test('getCategoryFromBases public Cars minimum is Interior Detail at 220', () => {
+test('getCategoryFromBases public Cars minimum is Interior Detail at 200', () => {
   const html = read('index.html');
   assert.match(html, /function getCategoryFromBases\(\)\{[\s\S]*?\.interior\)/);
   assert.match(html, /cars:Math\.min\(\.\.\.Object\.values\(PRICING\.cars\.tiers\)\.map\(t=>t\.interior\)\)/);
@@ -120,7 +120,7 @@ test('booking still contains Maintenance Detail at 175 and Interior Detail at 22
   assert.match(html, /id:'interior'[\s\S]*?Interior Detail/);
 });
 
-test('public homepage Cars price remains 220', () => {
+test('public homepage Cars price remains 200', () => {
   const html = read('index.html');
   assert.match(html, /id="home-from-interior">\$200/);
 });

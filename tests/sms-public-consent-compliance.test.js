@@ -165,6 +165,7 @@ function requestPayload(overrides = {}) {
       addons: [],
       addonTotal: 0,
     }],
+    // Phase 1 canonical: cars/small/full @ zip 07102, no add-ons/travel
     totalPrice: 250,
     travelFeeAmount: 0,
     zoneSurcharge: 0,

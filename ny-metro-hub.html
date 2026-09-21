@@ -4129,14 +4129,14 @@ const TRUCK_INTERIOR_SERVICE_ITEMS = [
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:115, maint:160, interior:200, full:250, refresh:335, premium:400},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:140, maint:195, interior:220, full:270, refresh:375, premium:485},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:160, maint:220, interior:245, full:280, refresh:420, premium:560},
-      compact_van: {label:'Compact Van',icon:'🚐',desc:'Compact cargo / passenger van',wash:160,maint:220,interior:245,full:280,refresh:420,premium:560},
-      midsize_van: {label:'Midsize Van',icon:'🚐',desc:'Midsize cargo / passenger van',wash:160,maint:220,interior:245,full:280,refresh:420,premium:560},
-      full_size_van: {label:'Full-Size Cargo Van',icon:'🚐',desc:'Full-size cargo van · Sprinter-class',wash:175,maint:245,interior:270,full:305,refresh:460,premium:615},
-      full_size_van_passenger: {label:'Full-Size Passenger Van',icon:'🚐',desc:'Full-size passenger van',wash:185,maint:250,interior:280,full:320,refresh:480,premium:645},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:160, maint:220, interior:245, full:285, refresh:410, premium:545},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:125, maint:160, interior:200, full:250, refresh:335, premium:400},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:145, maint:195, interior:225, full:285, refresh:385, premium:495},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:165, maint:225, interior:255, full:310, refresh:430, premium:570},
+      compact_van: {label:'Compact Van',icon:'🚐',desc:'Compact cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570},
+      midsize_van: {label:'Midsize Van',icon:'🚐',desc:'Midsize cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570},
+      full_size_van: {label:'Full-Size Cargo Van',icon:'🚐',desc:'Full-size cargo van · Sprinter-class',wash:185,maint:255,interior:285,full:335,refresh:470,premium:625},
+      full_size_van_passenger: {label:'Full-Size Passenger Van',icon:'🚐',desc:'Full-size passenger van',wash:195,maint:265,interior:300,full:350,refresh:490,premium:650},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:165, maint:225, interior:255, full:300, refresh:420, premium:555},
     },
     packages:[
       {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
@@ -4154,8 +4154,8 @@ const PRICING = {
         int:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh - most popular',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned'],
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — clay bar & Rain-X included',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','UV protectant'],
         feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
@@ -4335,13 +4335,13 @@ const PRICING = {
   },
   powersports: {
     tiers: {
-      motorcycle: {label:'Motorcycle', icon:'🏍️', desc:'Street · Sport · Standard', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:235},
-      motorcycle_large: {label:'Large Motorcycle', icon:'🏍️', desc:'Cruiser · Touring · Bagger', wash:105, essential:165, full:235, premium:325, maintenance:200, restore:260},
-      motorcycle_trike: {label:'Trike / 3-Wheel Motorcycle', icon:'🏍️', desc:'Factory three-wheel motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:205, restore:285},
-      atv:        {label:'ATV',                     icon:'🏎️', desc:'All-Terrain Vehicle · Quad',                        wash:105, essential:165, full:235, premium:325, maintenance:180, restore:220},
+      motorcycle: {label:'Motorcycle', icon:'🏍️', desc:'Street · Sport · Standard', wash:105, essential:165, full:235, premium:325, maintenance:180, restore:250},
+      motorcycle_large: {label:'Large Motorcycle', icon:'🏍️', desc:'Cruiser · Touring · Bagger', wash:105, essential:165, full:235, premium:325, maintenance:200, restore:275},
+      motorcycle_trike: {label:'Trike / 3-Wheel Motorcycle', icon:'🏍️', desc:'Factory three-wheel motorcycle', wash:105, essential:165, full:235, premium:325, maintenance:225, restore:310},
+      atv:        {label:'ATV',                     icon:'🏎️', desc:'All-Terrain Vehicle · Quad',                        wash:105, essential:165, full:235, premium:325, maintenance:180, restore:240},
       utv:        {label:'UTV / Side-by-Side',      icon:'🚜', desc:'Legacy price-tier key for historical bookings',     wash:130, essential:200, full:290, premium:410},
-      utv_standard: {label:'Side-by-Side / UTV',    icon:'🚜', desc:'Standard or non-crew side-by-side',                 wash:130, essential:200, full:290, premium:410, maintenance:200, restore:250},
-      utv_large: {label:'Large / Crew Side-by-Side / UTV', icon:'🚜', desc:'Crew, MAX, 4-seat or extended',            wash:130, essential:200, full:290, premium:410, maintenance:205, restore:285},
+      utv_standard: {label:'Side-by-Side / UTV',    icon:'🚜', desc:'Standard or non-crew side-by-side',                 wash:130, essential:200, full:290, premium:410, maintenance:210, restore:275},
+      utv_large: {label:'Large / Crew Side-by-Side / UTV', icon:'🚜', desc:'Crew, MAX, 4-seat or extended',            wash:130, essential:200, full:290, premium:410, maintenance:235, restore:325},
       golfcart:   {label:'Golf Cart',               icon:'⛳', desc:'Golf cart · Neighborhood EV · Personal transport',  wash:90,  essential:145, full:210, premium:295},
       equipment:  {label:'Tractor / Equipment',     icon:'🛠️', desc:'Compact tractor · Skid steer · Bobcat · Utility',   wash:150, essential:230, full:340, premium:475},
       jetski:     {label:'Jet Ski / PWC',           icon:'🌊', desc:'PWC · Sea-Doo · Yamaha · Kawasaki',                wash:105, essential:165, full:235, premium:320},
@@ -7138,25 +7138,13 @@ function cpSubmitReview(){openPortal();}
 // ═══════════════════════════════════════════════════════
 // RICH ZIP ALGORITHM
 // ═══════════════════════════════════════════════════════
-const RICH_ZIPS = new Set([
-  // NJ - Wealthy areas (Short Hills, Millburn, Summit, Chatham, Mendham, Basking Ridge, Far Hills, Bedminster,
-  //       Alpine, Saddle River, Tenafly, Englewood Cliffs, Ridgewood, Glen Ridge, Montclair top, Hoboken top)
-  '07078','07041','07901','07928','07945','07920','07931','07921',
-  '07620','07458','07670','07632','07450','07028','07042','07030',
-  '07068','07960','07043','07410','07663','07649','07656','07677',
-  // NY - Westchester, Long Island North Shore, Hamptons, Tribeca/UES/UWS
-  '10504','10514','10532','10577','10583','10605','10706','10708',
-  '11020','11021','11030','11050','11545','11576','11577','11803',
-  '11932','11937','11959','11962','11968','11975',
-  '10007','10013','10014','10021','10022','10023','10024','10025','10028','10065','10075',
-  // CT - Greenwich, Darien, New Canaan, Westport, Weston, Wilton, Fairfield top
-  '06830','06831','06820','06840','06880','06883','06897','06824',
-]);
+const RICH_ZIPS = new Set([]); // wealth premium retired; kept for API compatibility
 
 let richMultiplier = 1.0;
 
 function getRichMultiplier(zip){
-  return RICH_ZIPS.has(zip.trim()) ? 1.05 : 1.0;
+  // Wealth-based ZIP premium retired (commercial optimization phase 1).
+  return 1.0;
 }
 
 function applyRichPrice(base){ return base ? Math.round(base * richMultiplier) : 0; }

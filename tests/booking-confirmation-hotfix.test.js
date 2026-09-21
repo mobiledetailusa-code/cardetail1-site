@@ -75,6 +75,7 @@ function baseDraft(overrides = {}) {
       tierKey: 'small',
       addons: [],
       addonTotal: 0,
+      // Phase 1 canonical: cars/small/full @ zip 07102, no add-ons/travel
       basePrice: 250,
       subtotal: 250,
     }],

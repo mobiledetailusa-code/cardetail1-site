@@ -46,7 +46,7 @@ test('Metris is midsize_van (SUV defect fixed)', () => {
   assert.equal(r.tierKey, 'midsize_van');
   assert.match(r.displayLabel, /Midsize/i);
   assert.equal(/SUV/i.test(r.displayLabel), false);
-  assert.equal(interior(r.tierKey), PRICING.cars.tiers.suv3.interior);
+  assert.equal(interior(r.tierKey), PRICING.cars.tiers.midsize_van.interior);
 });
 
 test('collision-safe model resolution', () => {
@@ -81,19 +81,27 @@ test('cargo vs passenger selectables map to distinct full-size prices', () => {
   assert.equal(pass.pricingClass, 'full_size_van_passenger');
   assert.equal(cargo.displayLabel, 'Full-Size Cargo Van');
   assert.equal(pass.displayLabel, 'Full-Size Passenger Van');
-  assert.equal(interior(cargo.pricingClass), 270);
-  assert.equal(interior(pass.pricingClass), 280);
+  assert.equal(interior(cargo.pricingClass), 285);
+  assert.equal(interior(pass.pricingClass), 300);
 });
 
 test('package-by-package van pricing proof vs minivan/suv3', () => {
   const mv = PRICING.cars.tiers.suv3;
+  const compact = PRICING.cars.tiers.compact_van;
+  const midsize = PRICING.cars.tiers.midsize_van;
   const cargo = PRICING.cars.tiers.full_size_van;
   const passenger = PRICING.cars.tiers.full_size_van_passenger;
   const pkgs = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium'];
   for (const p of pkgs) {
-    assert.equal(PRICING.cars.tiers.compact_van[p], mv[p], p);
-    assert.equal(PRICING.cars.tiers.midsize_van[p], mv[p], p);
-    assert.ok(cargo[p] >= mv[p], `cargo ${p}`);
+    assert.equal(compact[p], midsize[p], `compact/midsize ${p}`);
+    // Compact/midsize vans share wash/maint/interior/refresh/premium with SUV 3-Row;
+    // full is priced below SUV 3-Row per final commercial matrix.
+    if (p === 'full') {
+      assert.ok(compact[p] < mv[p], `compact ${p} below suv3`);
+    } else {
+      assert.equal(compact[p], mv[p], p);
+    }
+    assert.ok(cargo[p] >= compact[p], `cargo ${p}`);
     assert.ok(passenger[p] >= cargo[p], `passenger ${p}`);
     assert.equal(typeof cargo[p], 'number');
     assert.ok(Number.isFinite(passenger[p]));
@@ -109,7 +117,7 @@ test('minivan controls unchanged (Odyssey / Sienna)', () => {
     assert.equal(r.tierKey, 'suv3');
     assert.equal(r.body, 'minivan');
     assert.equal(r.displayLabel, 'Minivan');
-    assert.equal(interior(r.tierKey), 245);
+    assert.equal(interior(r.tierKey), 255);
   }
 });
 

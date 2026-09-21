@@ -217,7 +217,7 @@ describe('duplicate IDs charge once', () => {
       car({ vehicleId: 'v3', pkgId: 'wash', packageId: 'wash', tierKey: 'small', addons: [{ id: 'walkway_steps' }] }),
     ]);
     assert.equal(r.ok, true, r.error);
-    assert.equal(r.serviceSubtotal, 250 + 195 + 115 + 95 + 35);
+    assert.equal(r.serviceSubtotal, 250 + 195 + 125 + 95 + 35);
   });
 
   it('qty greater than 1 is ignored for the family', () => {
@@ -319,7 +319,7 @@ describe('eligibility', () => {
     })]);
     assert.equal(r.ok, true, r.error);
     assert.equal(r.vehicles[0].addonTotal, 95);
-    assert.equal(r.serviceSubtotal, 285 + 95);
+    assert.equal(r.serviceSubtotal, 300 + 95);
   });
 
   it('rvs and powersports can host the family', () => {

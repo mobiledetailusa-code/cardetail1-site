@@ -97,24 +97,24 @@ describe('portal ops smoke — customer + admin real ops', () => {
       jobStatus: 'confirmed',
       payLink: 'https://checkout.stripe.com/c/pay/cs_smoke',
       stripeCheckoutSessionId: 'cs_smoke',
-      ledger: { approvedCents: 27500, settledCents: 0, creditedCents: 0, entries: [] },
+      ledger: { approvedCents: 25000, settledCents: 0, creditedCents: 0, entries: [] },
       paymentAttempts: [{
         bookingId: 'CD1-SMOKE',
         providerObjectId: 'cs_smoke',
-        amountCents: 27500,
+        amountCents: 25000,
         quoteVersion: 1,
         bookingVersion: 2,
         currency: 'usd',
         status: 'open',
       }],
-      quote: { quoteVersion: 1, approvedCents: 27500 },
+      quote: { quoteVersion: 1, approvedCents: 25000 },
     };
     const { aggregate } = normalizeAggregate(raw);
     const result = reconcileCustomerBalanceSession({
       aggregate,
       session: {
         id: 'cs_smoke',
-        amount_total: 27500,
+        amount_total: 25000,
         currency: 'usd',
         payment_status: 'paid',
         metadata: {

@@ -145,10 +145,10 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   const entries = catalogPriceEntries();
   // 200 prior catalog + 6 commercial trucks tier package amounts (day_cab/sleeper × 3 pkgs)
   assert.equal(entries.length, 206);
-  assert.equal(PRICING.cars.tiers.full_size_van.interior, 270);
-  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 280);
-  assert.equal(PRICING.cars.tiers.compact_van.interior, 245);
-  assert.equal(PRICING.cars.tiers.midsize_van.interior, 245);
+  assert.equal(PRICING.cars.tiers.full_size_van.interior, 285);
+  assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 300);
+  assert.equal(PRICING.cars.tiers.compact_van.interior, 255);
+  assert.equal(PRICING.cars.tiers.midsize_van.interior, 255);
   assert.equal(PRICING.trucks.tiers.day_cab.interior, 340);
   assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 650);
   let comparisons = 0;
@@ -273,7 +273,7 @@ test('AI chat starting prices are derived from the same catalog', () => {
   assert.deepEqual(CHAT_STARTING_PRICES, {
     cars: 200,
     carMaintenance: 160,
-    carWash: 115,
+    carWash: 125,
     boats: 175,
     rvs: 243,
     powersports: 180,

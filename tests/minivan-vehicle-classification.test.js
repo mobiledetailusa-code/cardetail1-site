@@ -97,7 +97,7 @@ test('Grand Caravan → Minivan display + suv3 pricing (not SUV 2-Row)', () => {
   assert.equal(r.body, 'minivan');
   assert.equal(r.displayLabel, 'Minivan');
   assert.equal(r.rows, 3);
-  assert.equal(interiorTotal(r.tierKey), 245);
+  assert.equal(interiorTotal(r.tierKey), 255);
   assert.notEqual(interiorTotal(r.tierKey), PRICING.cars.tiers.suv2.interior);
 });
 
@@ -110,7 +110,7 @@ test('Santa Fe 2025 → 3-Row SUV + suv3 pricing (year override)', () => {
   assert.equal(old.tierKey, 'suv2');
   assert.equal(old.displayLabel, '2-Row SUV');
   assert.equal(old.rows, 2);
-  assert.equal(interiorTotal(old.tierKey), 220);
+  assert.equal(interiorTotal(old.tierKey), 225);
 
   const neu = resolve(models, 'Hyundai', 'Santa Fe', 2025);
   assert.equal(neu.ok, true);
@@ -124,7 +124,7 @@ test('Santa Fe 2025 → 3-Row SUV + suv3 pricing (year override)', () => {
     neu.source === 'catalog_year' || neu.source === 'year_override',
     `expected catalog_year|year_override, got ${neu.source}`
   );
-  assert.equal(interiorTotal(neu.tierKey), 245);
+  assert.equal(interiorTotal(neu.tierKey), 255);
 });
 
 test('minivan sample → Minivan / suv3', () => {

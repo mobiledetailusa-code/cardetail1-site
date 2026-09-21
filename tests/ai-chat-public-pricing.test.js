@@ -72,7 +72,7 @@ test('client chat and server AI prompt agree on public category starting prices'
   assert.deepEqual(CHAT_STARTING_PRICES, {
     cars: 200,
     carMaintenance: 160,
-    carWash: 115,
+    carWash: 125,
     boats: 175,
     rvs: 243,
     powersports: 180,

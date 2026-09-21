@@ -1,4 +1,7 @@
-// Server-side booking price catalog — mirrors index.html PRICING / LENGTH_PRICING / RICH_ZIPS.
+// Server-side booking price catalog — canonical package price authority.
+// Browser PRICING / LENGTH_PRICING blocks are synced FROM this file
+// (scripts/apply-package-price-change.mjs --sync-only). Wealth-based ZIP
+// multipliers are retired: getRichMultiplier always returns 1.0.
 
 const { asArray } = require('./historical-adapter');
 const PowersportsCatalog = require('../../assets/powersports-model-catalog');
@@ -24,14 +27,14 @@ const POWERSPORTS_LEGACY_TIER_KEYS = new Set(['motorcycle', 'atv', 'utv', 'jetsk
 const PRICING = {
   cars: {
     tiers: {
-      small: { label: 'Small Car', wash: 115, maint: 160, interior: 200, full: 250, refresh: 335, premium: 400 },
-      suv2: { label: 'SUV 2-Row', wash: 140, maint: 195, interior: 220, full: 270, refresh: 375, premium: 485 },
-      suv3: { label: 'SUV 3-Row', wash: 160, maint: 220, interior: 245, full: 280, refresh: 420, premium: 560 },
-      compact_van: { label: 'Compact Van', wash: 160, maint: 220, interior: 245, full: 280, refresh: 420, premium: 560 },
-      midsize_van: { label: 'Midsize Van', wash: 160, maint: 220, interior: 245, full: 280, refresh: 420, premium: 560 },
-      full_size_van: { label: 'Full-Size Cargo Van', wash: 175, maint: 245, interior: 270, full: 305, refresh: 460, premium: 615 },
-      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 185, maint: 250, interior: 280, full: 320, refresh: 480, premium: 645 },
-      truck: { label: 'Truck', wash: 160, maint: 220, interior: 245, full: 285, refresh: 410, premium: 545 },
+      small: { label: 'Small Car', wash: 125, maint: 160, interior: 200, full: 250, refresh: 335, premium: 400 },
+      suv2: { label: 'SUV 2-Row', wash: 145, maint: 195, interior: 225, full: 285, refresh: 385, premium: 495 },
+      suv3: { label: 'SUV 3-Row', wash: 165, maint: 225, interior: 255, full: 310, refresh: 430, premium: 570 },
+      compact_van: { label: 'Compact Van', wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+      midsize_van: { label: 'Midsize Van', wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+      full_size_van: { label: 'Full-Size Cargo Van', wash: 185, maint: 255, interior: 285, full: 335, refresh: 470, premium: 625 },
+      full_size_van_passenger: { label: 'Full-Size Passenger Van', wash: 195, maint: 265, interior: 300, full: 350, refresh: 490, premium: 650 },
+      truck: { label: 'Truck', wash: 165, maint: 225, interior: 255, full: 300, refresh: 420, premium: 555 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
@@ -119,13 +122,13 @@ const PRICING = {
     tiers: {
       // New public packages: maintenance / restore. wash/essential/full/premium
       // remain so historical bookings keep their original dollar meaning.
-      motorcycle: { label: 'Motorcycle', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 180, restore: 235 },
-      motorcycle_large: { label: 'Large Motorcycle', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 200, restore: 260 },
-      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 205, restore: 285 },
-      atv: { label: 'ATV', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 180, restore: 220 },
+      motorcycle: { label: 'Motorcycle', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 180, restore: 250 },
+      motorcycle_large: { label: 'Large Motorcycle', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 200, restore: 275 },
+      motorcycle_trike: { label: 'Trike / 3-Wheel Motorcycle', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 225, restore: 310 },
+      atv: { label: 'ATV', wash: 105, essential: 165, full: 235, premium: 325, maintenance: 180, restore: 240 },
       utv: { label: 'UTV / Side-by-Side', wash: 130, essential: 200, full: 290, premium: 410 },
-      utv_standard: { label: 'Side-by-Side / UTV', wash: 130, essential: 200, full: 290, premium: 410, maintenance: 200, restore: 250 },
-      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 130, essential: 200, full: 290, premium: 410, maintenance: 205, restore: 285 },
+      utv_standard: { label: 'Side-by-Side / UTV', wash: 130, essential: 200, full: 290, premium: 410, maintenance: 210, restore: 275 },
+      utv_large: { label: 'Large / Crew Side-by-Side / UTV', wash: 130, essential: 200, full: 290, premium: 410, maintenance: 235, restore: 325 },
       jetski: { label: 'Jet Ski / PWC', wash: 105, essential: 165, full: 235, premium: 320 },
     },
     addons: [
@@ -155,7 +158,7 @@ const PRICING = {
 // second billable line for work the selected package already includes.
 const PACKAGE_INCLUDED_ADDONS = Object.freeze({
   cars: Object.freeze({
-    full: Object.freeze(['claybar']),
+    full: Object.freeze(['claybar', 'rainx']),
     refresh: Object.freeze(['claybar', 'rainx']),
     premium: Object.freeze(['claybar', 'rainx']),
   }),
@@ -200,16 +203,10 @@ const LENGTH_PRICING = {
   },
 };
 
-const RICH_ZIPS = new Set([
-  '07078', '07041', '07901', '07928', '07945', '07920', '07931', '07921',
-  '07620', '07458', '07670', '07632', '07450', '07028', '07042', '07030',
-  '07068', '07960', '07043', '07410', '07663', '07649', '07656', '07677',
-  '10504', '10514', '10532', '10577', '10583', '10605', '10706', '10708',
-  '11020', '11021', '11030', '11050', '11545', '11576', '11577', '11803',
-  '11932', '11937', '11959', '11962', '11968', '11975',
-  '10007', '10013', '10014', '10021', '10022', '10023', '10024', '10025', '10028',
-  '06830', '06831', '06820', '06840', '06880', '06883', '06897', '06824',
-]);
+// Former wealth-based ZIP list. Kept exported (empty) so older mirrored pages
+// and tests that import RICH_ZIPS keep resolving, but it no longer affects
+// quote math — getRichMultiplier is hard-wired to 1.0.
+const RICH_ZIPS = new Set();
 
 const PKG_ID_ALIASES = {
   'maintenance detail': 'maint',
@@ -277,12 +274,10 @@ const PKG_ID_ALIASES = {
   'custom fleet quote': 'custom',
 };
 
-function normalizeZip(zip) {
-  return String(zip || '').replace(/\D/g, '').slice(0, 5);
-}
-
-function getRichMultiplier(zip) {
-  return RICH_ZIPS.has(normalizeZip(zip)) ? 1.05 : 1.0;
+function getRichMultiplier(_zip) {
+  // Commercial optimization phase 1: ZIP wealth no longer multiplies package price.
+  // Travel fees remain appointment-level via travel-fee.js and are unchanged.
+  return 1.0;
 }
 
 function applyRichPrice(base, zip) {

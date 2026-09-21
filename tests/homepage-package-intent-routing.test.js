@@ -396,7 +396,7 @@ describe('9 resume does not convert non-car intent to Cars', () => {
 });
 
 describe('10 pricing / payment behavior unchanged', () => {
-  it('car, RV, boat, and powersports dollar amounts are unchanged', () => {
+  it('car, RV, boat, and powersports dollar amounts follow the phase-1 catalog', () => {
     assert.equal(PRICING.cars.tiers.small.interior, 200);
     assert.equal(PRICING.cars.tiers.small.full, 250);
     assert.equal(PRICING.cars.tiers.small.refresh, 335);

@@ -53,12 +53,12 @@ describe('Powersports commercial two-package model', () => {
 
   it('prices the approved public matrix on client and server', () => {
     const matrix = {
-      motorcycle: { maintenance:180, restore:235 },
-      motorcycle_large: { maintenance:200, restore:260 },
-      motorcycle_trike: { maintenance:205, restore:285 },
-      atv: { maintenance:180, restore:220 },
-      utv_standard: { maintenance:200, restore:250 },
-      utv_large: { maintenance:205, restore:285 },
+      motorcycle: { maintenance:180, restore:250 },
+      motorcycle_large: { maintenance:200, restore:275 },
+      motorcycle_trike: { maintenance:225, restore:310 },
+      atv: { maintenance:180, restore:240 },
+      utv_standard: { maintenance:210, restore:275 },
+      utv_large: { maintenance:235, restore:325 },
     };
     for (const [serviceClass, prices] of Object.entries(matrix)) {
       assert.equal(Catalog.priceTierForServiceClass(serviceClass), serviceClass);
@@ -79,9 +79,9 @@ describe('Powersports commercial two-package model', () => {
       addons: [{ id: 'heavymud', qty: 1 }],
     }, '07102');
     assert.equal(withMud.ok, true);
-    assert.equal(withMud.basePrice, 205);
+    assert.equal(withMud.basePrice, 235);
     assert.equal(withMud.addonTotal, 55);
-    assert.equal(withMud.subtotal, 260);
+    assert.equal(withMud.subtotal, 290);
 
     const cart = ServerPricing.computeBookingServiceSubtotal({
       zipCode: '07102',
@@ -91,7 +91,7 @@ describe('Powersports commercial two-package model', () => {
       ],
     });
     assert.equal(cart.ok, true);
-    assert.equal(cart.serviceSubtotal, 385);
+    assert.equal(cart.serviceSubtotal, 415);
   });
 
   it('books supported trikes at the approved numeric prices', () => {

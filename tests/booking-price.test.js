@@ -211,7 +211,7 @@ test('tampered refresh total is rejected as price_mismatch', () => {
   assert.equal(r.error, 'price_mismatch');
 });
 
-test('rich zip applies 5% premium to car base price', () => {
+test('former rich zip no longer applies a wealth premium to car base price', () => {
   const vehicle = {
     cat: 'cars',
     pkgId: 'maint',
@@ -219,10 +219,14 @@ test('rich zip applies 5% premium to car base price', () => {
     addons: [],
   };
   const base = CAR.small.maint;
-  assert.equal(getRichMultiplier('07620'), 1.05);
-  assert.equal(applyRichPrice(base, '07620'), Math.round(base * 1.05));
-  const r = computeVehicleSubtotal(vehicle, '07620');
-  assert.equal(r.basePrice, Math.round(base * 1.05));
+  assert.equal(getRichMultiplier('07620'), 1.0);
+  assert.equal(getRichMultiplier('07102'), 1.0);
+  assert.equal(applyRichPrice(base, '07620'), base);
+  const rich = computeVehicleSubtotal(vehicle, '07620');
+  const normal = computeVehicleSubtotal(vehicle, '07102');
+  assert.equal(rich.basePrice, base);
+  assert.equal(normal.basePrice, base);
+  assert.equal(rich.basePrice, normal.basePrice);
 });
 
 test('addon quantity uses catalog price', () => {
