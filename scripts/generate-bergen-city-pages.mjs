@@ -9,7 +9,7 @@ import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
 const ORIGIN = 'https://cardetail1.com';
-const PHONE = '+1-551-373-5668';
+const PHONE = '+15513893986';
 const GBP = 'https://g.page/r/CTJwfJerrQeCEAI/review';
 
 const PACKAGES = [
@@ -81,7 +81,7 @@ const CITIES = [
       },
       {
         q: 'What are your hours in Palisades Park?',
-        a: 'Mobile appointments run Monday–Friday, 8AM–5PM, by appointment. Call or text 551-373-5668 if you need to check a specific day.',
+        a: 'Mobile appointments run Monday–Friday, 8AM–5PM, by appointment. Call or text (551) 389-3986 if you need to check a specific day.',
       },
     ],
     paragraphs: [
@@ -89,7 +89,7 @@ const CITIES = [
       'Broad Avenue and the residential blocks off it mix tight driveways, street parking, and small commercial lots. That is normal for this town, and it is why we ask for access notes when you book: where the vehicle will sit, whether we can stage next to it, and whether a HOA or landlord has vendor rules. We do not need your outdoor faucet. Same-week requests are easiest here because we are already in town.',
       'Most Palisades Park jobs we price are daily drivers — sedans, two-row SUVs, and family crossovers that pick up GWB-adjacent film, winter salt, and interior wear from kids or pets. Interior Detail is the right call when the cabin is the problem. Premium Full Detail is the package most customers book when they want inside and out in one visit. Heavy pet hair, odor, or stained carpets are add-ons at booking, not surprises on the invoice.',
       'Interior Detail in the live catalog is deep vacuum (seats, floors, trunk), fabric shampoo, leather conditioning, steam on vents and panels, dash and door trim with UV protectant, and interior glass. It does not include an exterior wash. Premium Full Detail stacks that cabin work with a hand wash, clay decontamination, spray sealant, wheels, and exterior glass — that is why it is marked most booked. Exterior Detail is clay, chemical decon, a single-pass enhancement polish, sealant, wheel and lug detail, Rain-X, and tire dressing, with no interior. Signature Restoration (from $385 sedan) is the ~3.5–4 hour inside-and-out path with single-pass correction, wheel and tire shine, plastic restoration, and the full interior list — not a ceramic-coating package.',
-      'Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ($95), odor treatment ($90), engine-bay top clean ($45), and headlight restoration ($90) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Friday, 8AM–5PM). Call 551-373-5668. Neighboring towns from this base include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead.',
+      'Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ($95), odor treatment ($90), engine-bay top clean ($45), and headlight restoration ($90) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Friday, 8AM–5PM). Call (551) 389-3986. Neighboring towns from this base include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead.',
     ],
   },
   {
@@ -127,7 +127,7 @@ const CITIES = [
       'Bridge and Route 9W commuting leaves a specific kind of mess: brake dust on wheels, film on white and silver paint, and interiors that get used hard on the NYC trip. Exterior-only work is the Exterior Detail package, not a $20 wash. If the cabin needs shampoo and steam as well, book Premium Full Detail. Pet hair and odor are listed add-ons so the quote stays honest.',
       'High-rise and garage jobs need a clear access plan. We cannot work in a stall that has no staging room or that forbids vendor equipment. Put the building name, floor or lot, and any COI request in the notes. Driveway jobs in the residential blocks toward Palisades Park and Leonia are simpler — same process as the home-base town, a few minutes on local roads.',
       'What you actually get is the homepage spec, not a lighter “Fort Lee special.” Interior Detail: vacuum, shampoo, steam, UV on plastics, interior glass (~1.5–2 hrs). Premium Full Detail: that interior plus hand wash, clay, sealant, and wheels (SUVs from $300, 3-row from $310, ~2.5–3 hrs). Exterior Detail from $370 is the paint-enhancement path (~3.5–4 hrs). Garage jobs run longer if we have to work around pillars and low clearance.',
-      'Enter ZIP 07024 to load pricing, submit the request, and wait for confirmation — no charge at request. Hours Monday–Friday 8AM–5PM. Call 551-373-5668 if the building needs a certificate of insurance before we are allowed in. Nearby pages: Palisades Park, Edgewater, Englewood, Teaneck.',
+      'Enter ZIP 07024 to load pricing, submit the request, and wait for confirmation — no charge at request. Hours Monday–Friday 8AM–5PM. Call (551) 389-3986 if the building needs a certificate of insurance before we are allowed in. Nearby pages: Palisades Park, Edgewater, Englewood, Teaneck.',
     ],
   },
   {
@@ -165,7 +165,7 @@ const CITIES = [
       'Route 4, Route 17, and mall-area traffic put film on paint and brake dust on wheels. Family SUVs and 3-row vehicles are common here; those sizes have their own “from” prices on Premium Full Detail, not a one-size sedan rate. If the interior is the problem after kids, sports gear, or pets, start with Interior Detail and add pet hair or odor only if you need them.',
       'Office-park and dealership-adjacent lots are fine when management allows a vendor to occupy a stall for a few hours. Say so in the notes. We do not do a drive-through wash; Exterior Detail is clay, decontamination, and protection sized to the vehicle. Two or more cars in one driveway should use the multi-vehicle checkout so both vehicles share one visit.',
       'Package contents do not change because you are in Paramus. Interior Detail is vacuum, shampoo, steam, and interior glass. Premium Full Detail adds the exterior wash, clay, and sealant. Exterior Detail is the machine-polish and protection package without cabin work. Add-ons (pet hair $95, odor $90, polymer sealant $25, 1-year carnauba $75) are optional lines at booking. Weather can delay exterior steps; we confirm the day after you request, Monday–Friday 8AM–5PM.',
-      'Enter ZIP 07652 or 07653 so the quote matches the house, not a neighboring town. Call 551-373-5668. Nearby dedicated pages: Ridgewood, Hackensack, Teaneck, Palisades Park. Bergen County hub covers Glen Rock, Fair Lawn, and Saddle Brook without their own landing pages yet.',
+      'Enter ZIP 07652 or 07653 so the quote matches the house, not a neighboring town. Call (551) 389-3986. Nearby dedicated pages: Ridgewood, Hackensack, Teaneck, Palisades Park. Bergen County hub covers Glen Rock, Fair Lawn, and Saddle Brook without their own landing pages yet.',
     ],
   },
   {
@@ -203,7 +203,7 @@ const CITIES = [
       'The mix here is daily drivers plus vehicles that sit in work lots. Interior Detail is the right product when the cabin is dusty, stained, or overdue for shampoo. Premium Full Detail covers inside and out in one appointment. If you manage more than one van or truck, use the fleet page for per-unit programs rather than stacking consumer packages blindly — fleet maintenance wash starts at $65 per unit on the fleet catalog, which is a different product than a $220 interior on a personal sedan.',
       'Street parking and garage-only buildings need the same honesty as Fort Lee: we have to stand next to the car with tanks and hoses. If that is not allowed, say so before we confirm the day. South Hackensack (07606) and Maywood (07607) book the same way — enter the actual ZIP so pricing and routing stay correct. County-complex and hospital-area lots often need a visit from security; put that in the notes.',
       'On the car catalog, Interior Detail includes trunk vacuum and interior glass; Premium Full Detail adds clay and a spray sealant on the paint. Exterior Detail from $370 is paint enhancement, not a rinse. Truck interior starts at $270. Add-ons for odor, mold (from $149), and biohazard are estimate-gated when the job is severe. Hours Monday–Friday 8AM–5PM. No charge when you submit ZIP 07601 on the booking form.',
-      'Call 551-373-5668. Nearby pages: Teaneck, Paramus, Palisades Park, Englewood, Ridgewood. Quotes on this page are copied from the public Google listing, not invented testimonials.',
+      'Call (551) 389-3986. Nearby pages: Teaneck, Paramus, Palisades Park, Englewood, Ridgewood. Quotes on this page are copied from the public Google listing, not invented testimonials.',
     ],
   },
   {
@@ -241,7 +241,7 @@ const CITIES = [
       'Pollen, shade-tree sap, and water spots show up on paint here more than beach salt. That is an exterior decontamination job, not a rinse. Interior work is still the Interior Detail package: vacuum, shampoo, steam, glass. Englewood Cliffs (07632) uses the same process; enter that ZIP if the car sits there so the quote is tied to the right block.',
       'Larger properties usually make staging easier than Fort Lee high-rises. If a HOA or gated driveway needs a vendor code, put it in the notes so we are not stuck at the curb. Luxury SUVs and sedans take the same packages; size and condition set the number, not a separate Englewood surcharge. Signature Restoration is the ~3.5–4 hour option when you want single-pass correction, wheel and tire shine, and plastic restoration on the paint plus a full interior.',
       'What Interior Detail includes in Englewood is identical to Palisades Park: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. Exterior Detail from $370 is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Friday 8AM–5PM. Request with ZIP 07631; no payment at submission.',
-      'Call 551-373-5668 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack. Tenafly and Alpine remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is.',
+      'Call (551) 389-3986 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack. Tenafly and Alpine remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is.',
     ],
   },
   {
@@ -279,7 +279,7 @@ const CITIES = [
       'Family vehicles are the usual request: car seats, crumbs, and pet hair in the second row. Interior Detail is built for that cabin work. The pet-hair add-on exists because a household vacuum does not lift coat from honeycomb fabric — the before/after slider on the homepage is that job. Do not skip the add-on and expect packed-in coat to disappear inside the base interior price. Baby-seat cleaning is $20 per seat if you add it.',
       'Street-parked cars are possible when we can occupy the space legally for the duration (often 1.5–4 hours by package). If the township or a HOA limits that, use a driveway. We confirm access when we confirm the day. Someone 18+ needs to authorize the visit if you will not be home. Hours Monday–Friday 8AM–5PM.',
       'Package scope matches the rest of Bergen County. Interior Detail: vacuum, shampoo, steam, interior glass, UV on plastics. Premium Full Detail adds exterior wash, clay, and sealant. Exterior Detail is the paint-enhancement package. Odor treatment ($90) and Super Interior Upgrade ($125) are opt-in when the cabin is beyond a standard shampoo. ZIP 07666 loads core NJ pricing with no separate travel fee on the standard quote.',
-      'Book on this page or the homepage with ZIP 07666. Call 551-373-5668. Nearby: Hackensack, Englewood, Palisades Park, Paramus, Fort Lee. Bergenfield and New Milford are on the county hub accordion until they have dedicated URLs — use the real ZIP so routing stays honest. We bring water and power to every Teaneck driveway job.',
+      'Book on this page or the homepage with ZIP 07666. Call (551) 389-3986. Nearby: Hackensack, Englewood, Palisades Park, Paramus, Fort Lee. Bergenfield and New Milford are on the county hub accordion until they have dedicated URLs — use the real ZIP so routing stays honest. We bring water and power to every Teaneck driveway job.',
     ],
   },
   {
@@ -317,7 +317,7 @@ const CITIES = [
       'Commuter vehicles and family SUVs pick up highway film and interior wear. Premium Full Detail is the inside-and-out appointment. If you only need the cabin, book Interior Detail. If the paint is dull from sitting under trees, Exterior Detail is the clay / polish / sealant path, not a hand wash sold as a detail. Two cars at the same house should go through multi-vehicle checkout so we route one visit.',
       'Lots here are often large enough for a van and a full-size SUV. That helps time-on-site; it does not change the catalog. Tell us about HOA gates or shared driveways in the notes. Hours remain Monday–Friday, 8AM–5PM. 07450 is in the Bergen hub ZIP map (074 prefix), not a long-distance quote.',
       'Interior Detail includes seats, carpets, trunk, steam, and interior glass. Premium Full Detail adds wash, clay, and sealant. Exterior Detail from $370 includes single-pass paint enhancement and Rain-X. Add-ons (pet hair, odor, polymer, 1-year wax) are the same dollars as Palisades Park. We do not invent a Ridgewood travel surcharge on standard core pricing — enter the ZIP so the form can show the live total.',
-      'Submit ZIP 07450 or call 551-373-5668. Nearby dedicated pages: Paramus, Hackensack, Teaneck, Palisades Park. Glen Rock and Fair Lawn stay on the New Jersey hub accordion for now; those links still work as in-county anchors until they get their own files. Request first, pay after service — same as every other Bergen page.',
+      'Submit ZIP 07450 or call (551) 389-3986. Nearby dedicated pages: Paramus, Hackensack, Teaneck, Palisades Park. Glen Rock and Fair Lawn stay on the New Jersey hub accordion for now; those links still work as in-county anchors until they get their own files. Request first, pay after service — same as every other Bergen page.',
     ],
   },
   {
@@ -355,7 +355,7 @@ const CITIES = [
       'River Road high-rises have the same constraint as Fort Lee: stall size, discharge rules, and COI requests. If the garage forbids our setup, we cannot do the job there. Townhome and house driveways off the waterfront streets are the straightforward path. Street parking only works if we can legally occupy the space for the full 1.5–4 hour window.',
       'Winter salt, garage dust, and commuter film are the usual exterior complaints. Use Exterior Detail or Premium Full Detail, not a wash. Interiors follow Interior Detail plus add-ons. Above-waterline marine jobs at marinas or storage lots use Marine Wash / Full Marine / Premium Marine and need marina rules in the notes — we do not clean underwater hulls.',
       'Car package contents are the Palisades Park catalog. Interior: vacuum, shampoo, steam, interior glass. Premium Full: interior plus wash, clay, sealant. Exterior Detail: clay, polish, sealant, Rain-X, wheels. 07020 does not add a special waterfront surcharge on standard core NJ car pricing; enter the ZIP so the form shows the live number. Hours Monday–Friday 8AM–5PM. No charge at request.',
-      'Book with ZIP 07020 or call 551-373-5668 for garage questions. Nearby: Fort Lee, Palisades Park, Englewood, Hackensack, Teaneck. Cliffside Park and Fairview remain on the county hub city list; use those ZIPs on the homepage if that is where the vehicle will sit. Public quotes lower on this page are shown as written.',
+      'Book with ZIP 07020 or call (551) 389-3986 for garage questions. Nearby: Fort Lee, Palisades Park, Englewood, Hackensack, Teaneck. Cliffside Park and Fairview remain on the county hub city list; use those ZIPs on the homepage if that is where the vehicle will sit. Public quotes lower on this page are shown as written.',
     ],
   },
 ];
@@ -564,7 +564,7 @@ ${schema(city)}
   <div class="nav-links" id="nav-links">
     <a class="nav-link" href="index.html#services">Services</a>
     <a class="nav-link" href="bergen-county-hub.html">Bergen County</a>
-    <a class="nav-link" href="tel:5513735668">Call / Text</a>
+    <a class="nav-link" href="tel:+15513893986">Call / Text</a>
     <a class="nav-cta" href="index.html?book=cars&amp;zip=${city.zip}">Book Online</a>
   </div>
   <a class="nav-book-mobile" href="index.html?book=cars&amp;zip=${city.zip}">Book</a>
@@ -598,7 +598,7 @@ ${schema(city)}
   </form>
   <div class="sp-btns">
     <a class="sp-btn sp-btn-primary" href="index.html?book=cars&amp;zip=${city.zip}">Book mobile detailing in ${esc(city.city)}</a>
-    <a class="sp-btn sp-btn-outline" href="tel:5513735668">Call 551-373-5668</a>
+    <a class="sp-btn sp-btn-outline" href="tel:+15513893986">Call (551) 389-3986</a>
   </div>
 </header>
 <section class="sp-section" aria-label="Why this town">
@@ -661,7 +661,7 @@ ${schema(city)}
   <p>ZIP ${city.zip} · Monday–Friday 8AM–5PM · Palisades Park base</p>
   <div class="sp-btns">
     <a class="sp-btn sp-btn-primary" href="index.html?book=cars&amp;zip=${city.zip}">Check price &amp; availability</a>
-    <a class="sp-btn sp-btn-outline" href="tel:5513735668">Call / Text</a>
+    <a class="sp-btn sp-btn-outline" href="tel:+15513893986">Call / Text</a>
   </div>
 </section>
 <footer class="specialty-public-footer" id="cd1-public-footer">
@@ -695,7 +695,7 @@ ${schema(city)}
       </div>
       <div class="foot-col">
         <h4>Contact</h4>
-        <a href="tel:5513735668">Call / Text</a>
+        <a href="tel:+15513893986">Call / Text</a>
         <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener noreferrer">Instagram</a>
         <span class="foot-static">Palisades Park, NJ</span>
         <span class="foot-static">Mon–Fri 8AM–5PM · By appointment</span>
@@ -707,6 +707,7 @@ ${schema(city)}
     </div>
   </div>
 </footer>
+<script src="assets/welcome-lead-balloon.js" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

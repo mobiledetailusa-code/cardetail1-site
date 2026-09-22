@@ -401,7 +401,7 @@
         return;
       }
       if (!res.ok || !data.ok) {
-        if (msg) msg.textContent = 'Could not save that email. Try again or call 551-373-5668.';
+        if (msg) msg.textContent = 'Could not save that email. Try again or call (551) 389-3986.';
         if (btn) btn.disabled = false;
         return;
       }

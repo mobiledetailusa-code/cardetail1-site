@@ -47,7 +47,7 @@ test('Step 5 uses short booking policy bullets, not collapsible long terms', () 
 test('public header and saved-card infrastructure remain available', () => {
   assert.match(index, /onclick="openBooking\(null\)"/);
   assert.match(index, /onclick="openPortal\(\)"/);
-  assert.match(index, /href="tel:5513735668"/);
+  assert.match(index, /href="tel:\+15513893986"/);
   assert.match(index, /waitForVerifiedCardSave/);
   assert.match(index, /Step 05 — Review/);
   assert.match(index, /No payment is collected when you submit this booking request/i);
