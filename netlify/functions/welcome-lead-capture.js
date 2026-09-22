@@ -89,7 +89,7 @@ async function sendCustomerOfferEmail(record) {
         '',
         'No promo code needed — the discount is applied automatically at checkout when this email is used.',
         '',
-        'Cardetail1 · Palisades Park, NJ · 551-373-5668',
+        'Cardetail1 · Palisades Park, NJ · (551) 389-3986',
       ].join('\n'),
     }),
   });

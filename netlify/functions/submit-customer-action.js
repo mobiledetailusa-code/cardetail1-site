@@ -80,7 +80,7 @@ async function autoApplySubmittedRequest(bookingId, cmd) {
           ? 'Could not price this change. For trailer → SUV, select a car package and size, then try again.'
           : decided.error === 'payment_attempt_in_progress'
             ? 'A payment attempt on this booking is still open, so the amount cannot change yet.'
-          : 'Change saved as a request but could not auto-apply. Call/text 551-373-5668.'),
+          : 'Change saved as a request but could not auto-apply. Call/text (551) 389-3986.'),
       changeRequest: cmd.changeRequest,
       booking: cmd.booking,
       attemptId: decided.attemptId,

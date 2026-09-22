@@ -372,8 +372,8 @@ async function handlePortalData(event, body) {
         ok: false,
         error: 'booking_not_ready',
         message: draftLike
-          ? 'This booking is still being finalized. Complete checkout first, or call/text 551-373-5668.'
-          : 'This booking is not available in My Garage yet. If Admin just created it, ask them to Confirm booking, or call/text 551-373-5668.',
+          ? 'This booking is still being finalized. Complete checkout first, or call/text (551) 389-3986.'
+          : 'This booking is not available in My Garage yet. If Admin just created it, ask them to Confirm booking, or call/text (551) 389-3986.',
       });
     }
     const projected = projectBookingForCustomer(auth.booking);

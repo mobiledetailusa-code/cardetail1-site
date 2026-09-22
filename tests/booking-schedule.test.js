@@ -261,7 +261,7 @@ test('all 13 pages enforce same-day availability UX', () => {
     assert.match(html, /Same-day appointments may be available/);
     assert.match(html, /bk-rush-note/);
     assert.match(html, /Call or Text Us/);
-    assert.match(html, /tel:5513735668/);
+    assert.match(html, /tel:\+15513893986/);
     assert.match(html, /dateEl\.min=bkEarliestBookable/);
     assert.doesNotMatch(html, /typically 3 days out/);
     assert.doesNotMatch(html, /f-date'\)\.min=new Date\(\)\.toISOString/);

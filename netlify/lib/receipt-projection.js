@@ -20,7 +20,7 @@ const BUSINESS = Object.freeze({
   name: 'Cardetail1',
   legalName: 'Detailing Zone L.L.C.',
   disclosure: 'Cardetail1 is a registered DBA of Detailing Zone L.L.C.',
-  phone: '551-373-5668',
+  phone: '(551) 389-3986',
   site: 'cardetail1.com',
 });
 

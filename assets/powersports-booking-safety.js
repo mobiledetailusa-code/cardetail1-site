@@ -240,7 +240,7 @@
     if (chipNote) chipNote.hidden = true;
     if (note) {
       note.textContent = (result.message || 'Contact Cardetail1 to continue.') +
-        (result.status === 'route_boats' ? ' Choose Boats under Service Type to continue.' : ' Call or text 551-373-5668.');
+        (result.status === 'route_boats' ? ' Choose Boats under Service Type to continue.' : ' Call or text (551) 389-3986.');
       note.style.display = 'block';
     }
     return false;
