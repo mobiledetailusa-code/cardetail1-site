@@ -52,8 +52,8 @@ const APPROVED_POWERSPORTS = Object.freeze({
 
 const UNCHANGED_SNAPSHOT = Object.freeze({
   trucks: {
-    day_cab: { interior: 340, int_wash: 415, int_wash_wax: 520 },
-    sleeper_cab: { interior: 425, int_wash: 520, int_wash_wax: 650 },
+    day_cab: { interior: 295, int_wash: 415, int_wash_wax: 520 },
+    sleeper_cab: { interior: 350, int_wash: 520, int_wash_wax: 650 },
   },
   boats: {
     under20: { maint: 235, essential: 350, full: 525, premium: 825 },

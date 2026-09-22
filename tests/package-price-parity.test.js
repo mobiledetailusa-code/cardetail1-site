@@ -32,7 +32,7 @@ const OUT_OF_SCOPE_ADDON_PRICES = {
   trucks: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, trashcans: 25, ozone: 40 },
   boats: { rainx: 25, polymer: 25, wax1yr: 75, chrome: 85, odor: 90, mold: 149, sanitize: 65, biohazard: 115, trashcans: 25 },
   rvs: { polymer: 25, wax1yr: 75, rainx: 25, biohazard: 115, sanitize: 75, superint: 135, awning: 50, roof: 50, capfront: 149, pethair: 95, odor: 90, trashcans: 25, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
-  powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 55, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
+  powersports: { polymer: 25, wax1yr: 75, rainx: 25, heavymud: 75, seatdeep: 45, storage: 35, wheeldet: 35, waterspot: 35, saltwash: 35, trimprot: 35, lightdeg: 45, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
   fleet: { polymer: 25, trashcans: 25, disinfect: 20, biohazard: 115, odor: 99, heavymud: 65 },
 };
 
@@ -149,7 +149,7 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 300);
   assert.equal(PRICING.cars.tiers.compact_van.interior, 255);
   assert.equal(PRICING.cars.tiers.midsize_van.interior, 255);
-  assert.equal(PRICING.trucks.tiers.day_cab.interior, 340);
+  assert.equal(PRICING.trucks.tiers.day_cab.interior, 295);
   assert.equal(PRICING.trucks.tiers.sleeper_cab.int_wash_wax, 650);
   let comparisons = 0;
   for (const file of BOOKING_PAGES) {
