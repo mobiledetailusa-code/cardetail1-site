@@ -315,11 +315,20 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .foot-portal-link{font-size:12.5px!important;color:rgba(255,255,255,.72)!important}
 .foot-portal-link:hover{color:rgba(255,255,255,.85)!important}
 .msc-portal{opacity:1;font-size:11px;font-weight:500;border-color:rgba(255,255,255,.45)!important}
-/* Mobile-only phone link in hero */
-.hero-tel-mobile{display:none}
-@media(max-width:760px){
-  .hero-tel-mobile{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:14px;font-weight:600;text-decoration:none;border:1px solid var(--bbr);border-radius:999px;padding:10px 20px;margin-top:16px;background:var(--bg1);-webkit-tap-highlight-color:transparent}
-}
+/* Hero public call / text CTA */
+.hero-quote-call{margin:14px 0 0;max-width:440px;animation:heroQuoteIn .55s ease both}
+.hero-quote-call-label{margin:0 0 4px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c5d3e3}
+.hero-quote-call-number{display:inline-block;margin:0 0 10px;font-size:clamp(26px,6vw,32px);font-weight:700;letter-spacing:.01em;line-height:1.15;color:var(--blue);text-decoration:none;-webkit-tap-highlight-color:transparent}
+.hero-quote-call-number:hover,.hero-quote-call-number:focus-visible{color:#7eb8ff}
+.hero-quote-call-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hero-quote-call-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;transition:background .2s,border-color .2s,color .2s,transform .15s;-webkit-tap-highlight-color:transparent}
+.hero-quote-call-btn--call{flex:1;min-width:120px;background:rgba(77,163,255,.16);border:1px solid rgba(77,163,255,.55);color:#e8f3ff}
+.hero-quote-call-btn--text{flex:1;min-width:120px;background:transparent;border:1px solid rgba(255,255,255,.28);color:#e8eef5}
+.hero-quote-call-btn:hover,.hero-quote-call-btn:focus-visible{transform:translateY(-1px)}
+.hero-quote-call-btn--call:hover,.hero-quote-call-btn--call:focus-visible{background:rgba(77,163,255,.28);border-color:rgba(77,163,255,.8)}
+.hero-quote-call-btn--text:hover,.hero-quote-call-btn--text:focus-visible{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.06)}
+@keyframes heroQuoteIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.hero-quote-call{animation:none}}
 .hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:40px max(20px, min(6vw, 72px)) 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);min-height:min(72vh,640px)}
 .hero-media{position:absolute;inset:0;z-index:0;pointer-events:none}
 .hero-media picture,.hero-media-img{display:block;width:100%;height:100%}
@@ -1838,7 +1847,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hero-trust-line{justify-content:flex-start;margin-top:12px;gap:7px}
   .hero-trust-chip{padding:7px 10px;font-size:12px}
   .hero-packages-link{align-self:flex-start;margin-top:14px}
-  .hero-tel-mobile{display:none!important}
+  .hero-quote-call{max-width:100%;margin-top:12px}
+  .hero-quote-call-number{font-size:clamp(28px,8vw,34px)}
+  .hero-quote-call-btn{flex:1;min-height:48px}
   #zip-section{width:100%;min-width:0;margin-top:0;max-width:100%}
   .hero-zip-wrap{padding:12px;margin-bottom:0;max-width:100%}
   .hero-zip-row{flex-direction:column;gap:8px}
@@ -1988,6 +1999,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <span class="hero-assure-lbl">Request first, pay later</span>
     </p>
 
+    <div class="hero-quote-call">
+      <p class="hero-quote-call-label">Call or text for a quote</p>
+      <a class="hero-quote-call-number" href="tel:+15513893986">(551) 389-3986</a>
+      <div class="hero-quote-call-actions">
+        <a class="hero-quote-call-btn hero-quote-call-btn--call" href="tel:+15513893986">Call now</a>
+        <a class="hero-quote-call-btn hero-quote-call-btn--text" href="sms:+15513893986">Text us</a>
+      </div>
+    </div>
+
     <ul class="hero-trust-line" aria-label="Why customers book Cardetail1">
       <li><span class="hero-trust-chip">5+ Years Experience</span></li>
       <li><span class="hero-trust-chip">Owner-Operated</span></li>
@@ -1997,8 +2017,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <p class="hero-owner-line">The person you book is the person who shows up.</p>
 
     <a class="hero-packages-link" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages</a>
-
-    <a class="hero-tel-mobile" href="tel:+15513893986">Call (551) 389-3986</a>
   </div>
 </section>
 

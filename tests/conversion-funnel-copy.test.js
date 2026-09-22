@@ -265,6 +265,17 @@ test('the hero repeats the same request-first promise as the review step', () =>
   assert.match(index, /Charged today/); // Step 5 financial summary
 });
 
+test('homepage hero highlights public Call or text for a quote CTA', () => {
+  const index = read('index.html');
+  const hero = /<section class="hero"[\s\S]*?<\/section>/.exec(index);
+  assert.ok(hero, 'homepage hero missing');
+  assert.match(hero[0], /Call or text for a quote/);
+  assert.match(hero[0], /class="hero-quote-call-number"[^>]*href="tel:\+15513893986"/);
+  assert.match(hero[0], /\(551\) 389-3986/);
+  assert.match(hero[0], /href="sms:\+15513893986"/);
+  assert.doesNotMatch(hero[0], /hero-tel-mobile/);
+});
+
 // ── E. Customer / Admin separation ───────────────────────────────────────────
 
 test('the staff credential form never paints first on a customer page', () => {
