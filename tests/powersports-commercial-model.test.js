@@ -71,7 +71,7 @@ describe('Powersports commercial two-package model', () => {
         assert.equal(result.basePrice, amount);
       }
     }
-    assert.equal(ServerPricing.PRICING.powersports.addons.find((a) => a.id === 'heavymud').price, 55);
+    assert.equal(ServerPricing.PRICING.powersports.addons.find((a) => a.id === 'heavymud').price, 75);
     const withMud = ServerPricing.computeVehicleSubtotal({
       cat: 'powersports',
       pkgId: 'maintenance',
@@ -80,8 +80,8 @@ describe('Powersports commercial two-package model', () => {
     }, '07102');
     assert.equal(withMud.ok, true);
     assert.equal(withMud.basePrice, 235);
-    assert.equal(withMud.addonTotal, 55);
-    assert.equal(withMud.subtotal, 290);
+    assert.equal(withMud.addonTotal, 75);
+    assert.equal(withMud.subtotal, 310);
 
     const cart = ServerPricing.computeBookingServiceSubtotal({
       zipCode: '07102',

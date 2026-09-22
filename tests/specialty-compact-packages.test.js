@@ -139,9 +139,11 @@ test('boat packages use complete marine descriptions (no cascade "previous packa
   assert.match(boatsBlock, /id:'full'[\s\S]*?Marine wax or sealant applied to exterior gel coat/);
   assert.match(boatsBlock, /id:'full'[\s\S]*?Cockpit and cabin deep clean when present/);
   assert.match(boatsBlock, /id:'premium'[\s\S]*?Machine-applied marine wax or sealant/);
-  assert.match(boatsBlock, /id:'premium'[\s\S]*?Oxidation assessment with light improvement where achievable/);
+  assert.match(boatsBlock, /id:'premium'[\s\S]*?Gloss enhancement and light-to-moderate oxidation correction/);
+  assert.match(boatsBlock, /id:'premium'[\s\S]*?tag:'Gloss enhancement and light-to-moderate oxidation correction'/);
   assert.match(boatsBlock, /Windshield cleaned/);
   assert.doesNotMatch(boatsBlock, /\bGlass\b/);
+  assert.doesNotMatch(boatsBlock, /Oxidation improvement, hull polish, and maximum marine protection/);
 });
 
 test('RV/trailer packages group into Exterior, Interior, and Interior + Exterior', () => {

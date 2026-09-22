@@ -50,8 +50,8 @@ const PRICING = {
   },
   trucks: {
     tiers: {
-      day_cab: { label: 'Day Cab / Single Cab', interior: 340, int_wash: 415, int_wash_wax: 520 },
-      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 425, int_wash: 520, int_wash_wax: 650 },
+      day_cab: { label: 'Day Cab / Single Cab', interior: 295, int_wash: 415, int_wash_wax: 520 },
+      sleeper_cab: { label: 'Sleep / Sleeper Cab', interior: 350, int_wash: 520, int_wash_wax: 650 },
     },
     addons: [
       { id: 'pethair', price: 95 }, { id: 'superint', price: 125 }, { id: 'odor', price: 90 },
@@ -133,7 +133,7 @@ const PRICING = {
     },
     addons: [
       { id: 'polymer', price: 25 }, { id: 'wax1yr', price: 75 }, { id: 'rainx', price: 25 },
-      { id: 'heavymud', price: 55 }, { id: 'seatdeep', price: 45 }, { id: 'storage', price: 35 },
+      { id: 'heavymud', price: 75 }, { id: 'seatdeep', price: 45 }, { id: 'storage', price: 35 },
       { id: 'wheeldet', price: 35 }, { id: 'waterspot', price: 35 }, { id: 'saltwash', price: 35 },
       { id: 'trimprot', price: 35 }, { id: 'lightdeg', price: 45 },
       ...SEASONAL_DRIVEWAY_ADDONS,

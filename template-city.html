@@ -1952,7 +1952,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-trucks.webp" alt="Commercial day cab and tractor-trailer semis receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">Trucks</div>
             <div class="svc-desc" style="font-size:12px">Semi-trucks · Day cab · Sleeper cab</div>
-            <div class="svc-cat-note" id="bkfrom-trucks">From $340 · semis only (not pickups)</div>
+            <div class="svc-cat-note" id="bkfrom-trucks">From $295 · semis only (not pickups)</div>
           </div>
           <div class="svc-card locked" id="bkcat-boats" onclick="selectCategory('boats')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-boats.webp" alt="Boats receiving mobile marine detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -2868,8 +2868,8 @@ const PRICING = {
   },
   trucks: {
     tiers: {
-      day_cab:     {label:'Day Cab / Single Cab', icon:'🚛', desc:'Highway tractor without sleeper bunk', interior:340, int_wash:415, int_wash_wax:520},
-      sleeper_cab: {label:'Sleep / Sleeper Cab',   icon:'🛏️', desc:'Sleeper tractor — bunk & living space', interior:425, int_wash:520, int_wash_wax:650},
+      day_cab:     {label:'Day Cab / Single Cab', icon:'🚛', desc:'Highway tractor without sleeper bunk', interior:295, int_wash:415, int_wash_wax:520},
+      sleeper_cab: {label:'Sleep / Sleeper Cab',   icon:'🛏️', desc:'Sleeper tractor — bunk & living space', interior:350, int_wash:520, int_wash_wax:650},
     },
     packages:[
       {id:'interior', name:'Interior Detail', icon:'💺', tag:'Cab interior for day cab or sleeper — living appliances may need Super Interior', dur:'~2–3h', popular:false, scope:'int',
@@ -2923,8 +2923,8 @@ const PRICING = {
       {id:'full',     name:'Full Marine Detail', icon:'🧼', tag:'Complete exterior and cabin detail with marine wax — most requested', dur:'~4–6h',   popular:true,
         feats:['Exterior hull wash above the waterline','Hull surface detail for salt film, bugs, and light water spots','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned','Stainless and chrome brightwork wiped','Marine wax or sealant applied to exterior gel coat','Trailer rinse and tire shine when accessible'],
         miss:['Machine oxidation removal','Multi-stage gelcoat correction']},
-      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Oxidation improvement, hull polish, and maximum marine protection', dur:'~6–8h',   popular:false,
-        feats:['Exterior hull wash above the waterline','Hull surface polish for light oxidation and haze','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned and conditioned','Stainless and chrome brightwork wiped and polished where accessible','Oxidation assessment with light improvement where achievable','Machine-applied marine wax or sealant','Gloss enhancement on exterior gel coat','Trailer rinse and tire shine when accessible','Final quality inspection'],
+      {id:'premium',  name:'Premium Marine',     icon:'🏅', tag:'Gloss enhancement and light-to-moderate oxidation correction', dur:'~6–8h',   popular:false,
+        feats:['Exterior hull wash above the waterline','Hull surface polish for light oxidation and haze','Deck and cockpit deep clean','Non-skid surfaces scrubbed','Windshield cleaned','Vinyl seats and cushions cleaned and conditioned','Cockpit and cabin deep clean when present','Rub rail, trim, and teak cleaned and conditioned','Stainless and chrome brightwork wiped and polished where accessible','Gloss enhancement and light-to-moderate oxidation correction','Machine-applied marine wax or sealant','Gloss enhancement on exterior gel coat','Trailer rinse and tire shine when accessible','Final quality inspection'],
         miss:['Severe oxidation restoration without inspection','Below-waterline / haul-out work']}
     ],
     addons:[
@@ -3037,7 +3037,7 @@ const PRICING = {
         miss:[]}
     ],
     addons:[
-      {id:'heavymud',   name:'Heavy Mud / Off-Road Buildup', desc:'Extra cleaning for packed mud, clay, and excessive off-road buildup. Normal trail dirt is included in the package.', price:55, publicNew:true},
+      {id:'heavymud',   name:'Heavy Mud Removal', desc:'Packed mud, clay or buildup requiring extended underbody, suspension or wheel-area cleaning starts at $75. Severe conditions require photo review before final confirmation.', price:75, publicNew:true},
       {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
       {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior windshield', price:25},
@@ -5437,7 +5437,7 @@ const ZONE_POPULAR = {
 
 const LOC_DISPLAY = {
   cars:       { ico:'🚗', name:'Cars & SUVs',    desc:'Most requested in your area', from:'From $200' },
-  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $340' },
+  trucks:     { ico:'🚛', name:'Trucks',           desc:'Day cab & tractor-trailer', from:'From $295' },
   boats:      { ico:'🚥️️️️', name:'Boats',            desc:'Marine detailing on-site',    from:'From $175' },
   rvs:        { ico:'🏕️', name:'RVs & Trailers',   desc:'Full-size units welcome',     from:'From $8/ft' },
   powersports:{ ico:'🏍️', name:'Powersports',      desc:'Bikes, ATVs, Jet Skis',       from:'From $180' },
