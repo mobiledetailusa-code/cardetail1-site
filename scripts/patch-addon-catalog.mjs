@@ -89,7 +89,7 @@ const POWERSPORTS_ADDONS = `    addons:[
       {id:'polymer',    name:'Polymer Sealant',              desc:'Polymer paint and plastic sealant for protection and gloss', price:25},
       {id:'wax1yr',     name:'1-Year Carnauba Wax',          desc:'Premium carnauba wax for enhanced gloss and paint protection', price:75},
       {id:'rainx',      name:'Rain-X Windshield / Visor',    desc:'Water-repellent treatment on windshields, visors, and exterior glass', price:25},
-      {id:'heavymud',   name:'Heavy Mud / Trail Buildup',    desc:'Extra cleaning for heavy mud, clay, and trail grime on exterior surfaces', price:55},
+      {id:'heavymud',   name:'Heavy Mud Removal',    desc:'Packed mud, clay or buildup requiring extended underbody, suspension or wheel-area cleaning starts at $75. Severe conditions require photo review before final confirmation.', price:75},
       {id:'seatdeep',   name:'Seat Deep Clean',              desc:'Deep cleaning for seats and riding surfaces', price:45},
       {id:'storage',    name:'Storage Compartment Cleaning', desc:'Vacuum and wipe saddlebags, boxes, and accessible compartments', price:35},
       {id:'wheeldet',   name:'Wheel Detail',                 desc:'Deep wheel and rim cleaning on accessible surfaces', price:35},

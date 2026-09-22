@@ -93,8 +93,8 @@ const ADDON_DISPLAY = {
     description: 'RV front cap exterior wash for bugs, grime, and road film.',
   },
   heavymud: {
-    name: 'Heavy Mud / Trail Buildup',
-    description: 'Extra cleaning for heavy mud, clay, and trail grime.',
+    name: 'Heavy Mud Removal',
+    description: 'Packed mud, clay or buildup requiring extended underbody, suspension or wheel-area cleaning starts at $75. Severe conditions require photo review before final confirmation.',
   },
   seatdeep: {
     name: 'Seat Deep Clean',
