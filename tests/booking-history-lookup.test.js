@@ -133,16 +133,16 @@ describe('listBookingHistoryForBooking', () => {
     assert.match(capturedQuery.sql, /FROM "BookingRecord"/);
   });
 
-  it('treats an empty mirror result as a customer with no history', async () => {
+  it('falls through to Blobs when the mirror returns no rows', async () => {
     fakePrisma = { $queryRaw: queryRawReturning([]) };
     const store = fakeStore([OTHER_CUSTOMER]);
     setOpsStoreOverride(store);
 
     const result = await listBookingHistoryForBooking({ phone: '2015550100' });
 
-    assert.equal(result.source, 'mirror');
-    assert.deepEqual(result.bookings, []);
-    assert.equal(store.calls, 0);
+    assert.equal(result.source, 'blobs');
+    assert.equal(result.complete, true);
+    assert.equal(store.calls, 1);
   });
 
   it('drops mirrored rows that are not visible submitted bookings', async () => {

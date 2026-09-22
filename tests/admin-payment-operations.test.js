@@ -84,7 +84,7 @@ test('cash payment email carries every required figure and no marketing', () => 
     'https://example.com/my-garage.html?t=tok'
   );
 
-  assert.equal(content.subject, 'Payment received for your Detailing Zone appointment');
+  assert.equal(content.subject, 'Payment received for your Cardetail1 appointment');
   assert.match(content.text, /Booking reference: CD1-ABC-123/);
   assert.match(content.text, /Amount received: \$125\.00/);
   assert.match(content.text, /Payment method: Cash/);
@@ -92,8 +92,8 @@ test('cash payment email carries every required figure and no marketing', () => 
   assert.match(content.text, /Remaining balance: \$185\.00/);
   assert.match(content.text, /Date recorded: 2026-08-04/);
   assert.match(content.text, /Receipt: https:\/\/example\.com\/receipt\.html/);
-  assert.match(content.text, /Thank you for choosing Detailing Zone\./);
-  assert.match(content.html, /Thank you for choosing Detailing Zone\./);
+  assert.match(content.text, /Cardetail1 is a registered DBA of Detailing Zone L\.L\.C\./);
+  assert.match(content.html, /Cardetail1 is a registered DBA of Detailing Zone L\.L\.C\./);
   // Transactional only.
   assert.doesNotMatch(content.text, /off\b|discount|subscribe|deal|offer/i);
 });
@@ -187,7 +187,7 @@ test('a part-paid receipt never claims to be paid', () => {
   assert.equal(result.receipt.balanceStatus, 'Balance outstanding');
   assert.equal(result.receipt.paidInFull, false);
   assert.equal(result.receipt.financialSummary.remainingBalance.cents, 18500);
-  assert.equal(result.receipt.footer, 'Thank you for choosing Detailing Zone.');
+  assert.equal(result.receipt.footer, 'Cardetail1 is a registered DBA of Detailing Zone L.L.C.');
   assert.ok(result.receipt.receiptId);
   assert.equal(result.receipt.paymentDate, '2026-08-01');
 });

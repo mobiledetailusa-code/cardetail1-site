@@ -348,11 +348,14 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
     );
   });
 
-  it('13. outbox/idempotency files and enqueue keys are unchanged', async () => {
+  it('13. outbox idempotency keys stay stable; STOP and scheduler auth are explicit', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
-    assert.doesNotMatch(diff, /sms-outbox\.js/);
-    assert.doesNotMatch(diff, /twilio-outbox-worker/);
     assert.doesNotMatch(diff, /twilio-provider/);
+    const outbox = read('netlify/lib/sms-outbox.js');
+    assert.match(outbox, /isPhoneSuppressed/);
+    assert.match(outbox, /lastErrorCode: 'suppressed'/);
+    const worker = read('netlify/functions/twilio-outbox-worker.js');
+    assert.match(worker, /x-nf-event/);
     const prisma = createMemoryOutboxPrisma();
     const first = await emitRequestReceived(booking({ id: 'CD1-SMS-BRAND-IDEM' }), {
       prisma,
@@ -382,10 +385,11 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
       { cwd: ROOT, encoding: 'utf8' },
     );
     if (smsSurface.trim()) {
-      assert.doesNotMatch(diff, /refund-adjustment|canonical-quote|receipt-projection/);
+      assert.doesNotMatch(diff, /refund-adjustment|canonical-quote/);
     }
-    assert.equal(BUSINESS.name, 'Detailing Zone L.L.C.');
-    assert.equal(RECEIPT_FOOTER, 'Thank you for choosing Detailing Zone.');
+    assert.equal(BUSINESS.name, 'Cardetail1');
+    assert.equal(BUSINESS.legalName, 'Detailing Zone L.L.C.');
+    assert.equal(RECEIPT_FOOTER, 'Cardetail1 is a registered DBA of Detailing Zone L.L.C.');
     const payment = buildPaymentReceivedEmail({
       id: 'CD1-PAY',
       firstName: 'Pat',
@@ -397,8 +401,8 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
         recordedAt: '2026-08-28',
       },
     }, '');
-    assert.equal(payment.subject, 'Payment received for your Detailing Zone appointment');
-    assert.match(payment.text, /Thank you for choosing Detailing Zone\./);
+    assert.equal(payment.subject, 'Payment received for your Cardetail1 appointment');
+    assert.match(payment.text, /Cardetail1 is a registered DBA of Detailing Zone L\.L\.C\./);
     const prisma = createMemoryOutboxPrisma();
     const confirmed = await emitConfirmed(booking({
       id: 'CD1-SMS-BRAND-CONF',

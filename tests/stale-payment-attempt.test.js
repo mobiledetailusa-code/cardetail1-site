@@ -45,6 +45,9 @@ function attempt(overrides = {}) {
     bookingId: 'CD1-STUCK',
     status: 'open',
     providerObjectId: 'pi_123',
+    amountCents: 15000,
+    currency: 'usd',
+    quoteVersion: 1,
     createdAt: OLD,
     updatedAt: OLD,
     ...overrides,
@@ -58,8 +61,10 @@ function attempt(overrides = {}) {
  */
 function prismaWith(attempts) {
   const updates = [];
+  const ledgers = [];
   return {
     updates,
+    ledgers,
     paymentAttempt: {
       findMany: (args) => {
         const not = args?.where?.quoteVersion?.not;
@@ -70,14 +75,23 @@ function prismaWith(attempts) {
       },
       update: (args) => { updates.push(args); return Promise.resolve({}); },
     },
+    ledgerEntry: {
+      findUnique: () => Promise.resolve(null),
+      create: (args) => {
+        ledgers.push(args);
+        return Promise.resolve({ id: 'le_1', ...args.data });
+      },
+    },
   };
 }
 
 /** Stripe double: one JSON response for the payment_intents retrieve. */
-function stripeReturning(status, { ok = true } = {}) {
+function stripeReturning(status, { ok = true, amount_received = 15000 } = {}) {
   return () => Promise.resolve({
     ok,
-    json: () => Promise.resolve(ok ? { id: 'pi_123', status } : { error: { message: 'no such intent' } }),
+    json: () => Promise.resolve(ok
+      ? { id: 'pi_123', status, amount: amount_received, amount_received }
+      : { error: { message: 'no such intent' } }),
   });
 }
 
@@ -96,8 +110,29 @@ describe('reconcileStalePaymentAttempts', () => {
     });
 
     assert.equal(out.closed, 1);
+    assert.equal(out.unledgered, 0);
     assert.equal(out.active, 0);
+    assert.equal(prisma.ledgers.length, 1);
+    assert.equal(prisma.ledgers[0].data.providerEventId, 'settlement_pi_123');
+    assert.equal(prisma.ledgers[0].data.actor, 'stripe_reconcile');
+    assert.equal(prisma.ledgers[0].data.kind, 'settlement');
+    assert.equal(prisma.ledgers[0].data.amountCents, 15000);
     assert.equal(prisma.updates[0].data.status, 'succeeded');
+  });
+
+  it('does not mark succeeded when Stripe amount does not match the attempt', async () => {
+    const prisma = prismaWith([attempt({ amountCents: 10500 })]);
+    fakePrisma = prisma;
+
+    const out = await reconcileStalePaymentAttempts({
+      bookingId: 'CD1-STUCK', env: ENV, fetchImpl: stripeReturning('succeeded', { amount_received: 15000 }),
+    });
+
+    assert.equal(out.closed, 0);
+    assert.equal(out.unledgered, 1);
+    assert.equal(out.active, 1);
+    assert.equal(prisma.ledgers.length, 0);
+    assert.equal(prisma.updates.length, 0);
   });
 
   it('closes an attempt the customer abandoned and Stripe canceled', async () => {
@@ -159,7 +194,7 @@ describe('reconcileStalePaymentAttempts', () => {
     fakePrisma = null;
     assert.deepEqual(
       await reconcileStalePaymentAttempts({ bookingId: 'CD1-STUCK', env: ENV }),
-      { closed: 0, active: 0, checked: 0, blocked: null }
+      { closed: 0, active: 0, checked: 0, blocked: null, unledgered: 0 }
     );
 
     fakePrisma = { paymentAttempt: { findMany: () => Promise.reject(new Error('db down')) } };
@@ -239,7 +274,15 @@ describe('supersedeOutdatedAttempts', () => {
           json: () => Promise.resolve(cancelOk ? { status: 'canceled' } : { error: { message: 'nope' } }),
         });
       }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: retrieveStatus }) });
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          id: 'pi_123',
+          status: retrieveStatus,
+          amount: 15000,
+          amount_received: retrieveStatus === 'succeeded' ? 15000 : 0,
+        }),
+      });
     };
     impl.calls = calls;
     return impl;
@@ -270,7 +313,10 @@ describe('supersedeOutdatedAttempts', () => {
     });
 
     assert.equal(out.settled, 1);
+    assert.equal(out.unledgered, 0);
     assert.equal(out.superseded, 0);
+    assert.equal(prisma.ledgers[0].data.providerEventId, 'settlement_pi_123');
+    assert.equal(prisma.ledgers[0].data.actor, 'stripe_reconcile');
     assert.ok(!fetchImpl.calls.some((c) => c.url.endsWith('/cancel')),
       'money that moved is a settlement to record, never an obligation to void');
     assert.equal(prisma.updates[0].data.status, 'succeeded');
@@ -328,7 +374,7 @@ describe('supersedeOutdatedAttempts', () => {
       bookingId: 'CD1-STUCK', currentQuoteVersion: 2, env: ENV, fetchImpl,
     });
 
-    assert.deepEqual(out, { superseded: 0, settled: 0, failed: 0 });
+    assert.deepEqual(out, { superseded: 0, settled: 0, failed: 0, unledgered: 0 });
     assert.equal(fetchImpl.calls.length, 0);
   });
 
@@ -362,7 +408,7 @@ describe('supersedeOutdatedAttempts', () => {
         await supersedeOutdatedAttempts({
           bookingId: 'CD1-STUCK', currentQuoteVersion: version, env: ENV, fetchImpl,
         }),
-        { superseded: 0, settled: 0, failed: 0 },
+        { superseded: 0, settled: 0, failed: 0, unledgered: 0 },
         `version ${JSON.stringify(version)} must be treated as unknown`
       );
       assert.equal(prisma.updates.length, 0);

@@ -30,6 +30,8 @@ function phoneHash(phone) {
 async function assertCustomerSmsConsent({ customerAccountId, toE164, booking } = {}, opts = {}) {
   const dest = normalizeUsPhoneE164(toE164);
   if (!dest) return { ok: false, reason: 'invalid_sms_recipient' };
+  const { isPhoneSuppressed } = require('./sms-suppression');
+  if (await isPhoneSuppressed(dest)) return { ok: false, reason: 'sms_suppressed' };
 
   const bookingPhone = normalizeUsPhoneE164(booking?.phone || booking?.customerPhone || '');
   const bookingConsentApplies = bookingSmsConsentGranted(booking) && !!bookingPhone && bookingPhone === dest;
@@ -290,9 +292,13 @@ async function grantBookingSmsConsent({ customerAccountId, toE164, booking } = {
 }
 
 async function revokeSmsConsentByPhone(rawPhone, opts = {}) {
-  const prisma = prismaClient(opts.prisma);
   const phone = normalizeUsPhoneE164(rawPhone);
-  if (!prisma || !phone) return { ok: false, error: 'invalid_phone' };
+  if (!phone) return { ok: false, error: 'invalid_phone' };
+  const { suppressPhone } = require('./sms-suppression');
+  const suppressed = await suppressPhone(phone);
+  if (!suppressed.ok) return { ok: false, error: suppressed.error || 'suppression_unavailable' };
+  const prisma = prismaClient(opts.prisma);
+  if (!prisma) return { ok: true, revoked: 0, suppressed: true };
   const digits = phone.replace(/^\+1/, '');
   try {
     const revoked = await prisma.$transaction(async (tx) => {
@@ -349,9 +355,10 @@ async function revokeSmsConsentByPhone(rawPhone, opts = {}) {
       }
       return changed;
     });
-    return { ok: true, revoked };
+    return { ok: true, revoked, suppressed: true };
   } catch {
-    return { ok: false, error: 'unavailable' };
+    // Suppression is already stored. Profile rows are best-effort.
+    return { ok: true, revoked: 0, suppressed: true };
   }
 }
 

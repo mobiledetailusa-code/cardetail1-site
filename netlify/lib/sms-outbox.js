@@ -217,6 +217,21 @@ async function processClaimedSms(row, opts = {}) {
   } catch {
     // Lookup failure must not block a timely send.
   }
+  const { isPhoneSuppressed } = require('./sms-suppression');
+  if (await isPhoneSuppressed(row.toE164)) {
+    const suppressed = await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: {
+        status: 'failed',
+        lastErrorCode: 'suppressed',
+        failedAt: new Date(),
+        leaseToken: null,
+        leaseExpiresAt: null,
+      },
+    });
+    safeOutboxLog('failed', suppressed, { errorCode: 'suppressed' });
+    return { ok: true, skipped: true, reason: 'suppressed', outbox: suppressed };
+  }
   const provider = opts.provider || createTwilioProvider(opts.env || process.env, opts.providerOptions);
   if (!provider.ok) return { ok: false, disabled: true, reason: provider.reason };
   try {

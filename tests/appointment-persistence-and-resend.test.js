@@ -369,7 +369,7 @@ test('6. the same verified email resolves the existing account without duplicati
   assert.ok(sessionA);
 });
 
-test('7. verified phone discovers unlinked legacy bookings but never claimed ones', async (t) => {
+test('7. a booking with no email is not discovered from the phone alone', async (t) => {
   const h = harness({
     bookings: {
       'CD1-CURRENT01': baseBooking({ id: 'CD1-CURRENT01', preferredDate: '2099-05-01' }),
@@ -392,7 +392,7 @@ test('7. verified phone discovers unlinked legacy bookings but never claimed one
   const sessionToken = sessionTokenFrom(await exchange(h, minted.token));
   const view = await portal(h, sessionToken);
   const ids = view.body.bookings.map((b) => b.id).sort();
-  assert.deepEqual(ids, ['CD1-CURRENT01', 'CD1-LEGACY002']);
+  assert.deepEqual(ids, ['CD1-CURRENT01']);
 });
 
 test('8. a booking already linked to another account cannot be reassigned', async (t) => {

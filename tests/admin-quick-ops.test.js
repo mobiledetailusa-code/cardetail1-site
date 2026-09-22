@@ -17,6 +17,7 @@ const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 const { canonicalBookingSmsConsent } = require('../netlify/lib/sms-program');
 const { TEMPLATE_KEYS, renderSmsTemplate, measureSms } = require('../netlify/lib/sms-templates');
 const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
+const { setSlotIndexStoreOverride } = require('../netlify/lib/slot-index');
 const {
   PURPOSE_ADMIN_QUICK_OPS,
   TOKEN_PREFIX,
@@ -241,6 +242,7 @@ afterEach(() => {
   resetQuickOpsStoreFactories();
   resetPaymentResumeStoreFactory();
   setBookingStoreOverride(null);
+  setSlotIndexStoreOverride(null);
 });
 
 describe('purpose isolation', () => {
@@ -549,11 +551,16 @@ describe('quick ops page + actions', () => {
         requestId: 'cr_qo_2',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-09-22', requestedTime: '8:00 AM' },
+        delta: { requestedDate: '2026-10-06', requestedTime: '8:00 AM' },
         embeddedBookingVersion: 1,
       }],
     });
     setBookingStoreOverride(createCasMemoryStore({ [approveBooking.id]: approveBooking }));
+    setSlotIndexStoreOverride({
+      list() { return Promise.resolve({ blobs: [] }); },
+      setJSON() { return Promise.resolve({ modified: true }); },
+      delete() { return Promise.resolve(); },
+    });
     const approved = await decideQuickOps(approveBooking, 'approve', {
       prisma: createMemoryOutboxPrisma(),
       env: SMS_ENV,

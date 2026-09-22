@@ -150,11 +150,14 @@ function emailHashOf(email) {
  */
 function contactMatchesSession(booking, session) {
   const bookingPhone = normalizeUsPhoneDigits(booking.phone || booking.customerPhone || '');
-  if (session.phoneDigits && bookingPhone && phonesMatch(session.phoneDigits, bookingPhone)) {
-    return true;
-  }
   const bookingEmailHash = emailHashOf(booking.email);
-  return !!(session.emailHash && bookingEmailHash && session.emailHash === bookingEmailHash);
+  const emailOk = !!(session.emailHash && bookingEmailHash && session.emailHash === bookingEmailHash);
+  const phoneOk = !!(session.phoneDigits && bookingPhone && phonesMatch(session.phoneDigits, bookingPhone));
+  // Phone without the same verified email never discovers a booking.
+  // When the session carries both factors, both must match this booking.
+  if (!emailOk) return false;
+  if (session.phoneDigits && session.emailHash) return phoneOk;
+  return true;
 }
 
 /**
@@ -175,7 +178,7 @@ async function buildCandidateBookings(session, sessionBookingIds, linkedAccountB
   const contact = await listBookingsForIdentity({
     phone: session.phoneDigits,
     emailHash: session.emailHash,
-  }).catch(() => ({ bookings: [] }));
+  }).catch(() => ({ bookings: [], complete: false }));
   for (const booking of contact.bookings || []) add(booking);
 
   const ids = [...new Set([...sessionBookingIds, ...linkedAccountBookingIds])]
@@ -185,7 +188,10 @@ async function buildCandidateBookings(session, sessionBookingIds, linkedAccountB
     for (const booking of resolved.values()) if (booking) add(booking);
   }
 
-  return [...byId.values()];
+  return {
+    bookings: [...byId.values()],
+    contactComplete: contact.complete !== false,
+  };
 }
 
 function upcomingSortKey(b) {
@@ -429,7 +435,10 @@ async function handlePortalData(event, body) {
   // session could possibly own is reachable by verified contact (phone or the
   // session's email hash) or by an id it already carries. The ownership filter
   // below is unchanged, so a narrower candidate set can never widen access.
-  const all = await buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds);
+  const candidates = await buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds);
+  const all = candidates.bookings || [];
+  // A non-empty identity mirror is a short list, not proof the history is complete.
+  if (candidates.contactComplete === false) ownershipComplete = false;
 
   // Candidate ids from Blob account link / session / phone before ownership filter.
   const contactMatchedIds = [];
@@ -611,4 +620,5 @@ exports.__test = {
   isSettledPaidHero,
   isTerminalAppointment,
   isActionableAppointment,
+  contactMatchesSession,
 };

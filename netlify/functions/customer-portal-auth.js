@@ -41,19 +41,28 @@ async function sendMagicLinkEmail(email, linkUrl) {
   return res.ok;
 }
 
+/**
+ * A booking is attached to a magic link only when its email is the address the
+ * link is sent to. Phone alone never matches. When the customer also typed a
+ * phone, that phone has to belong to the same booking. Bookings with no email
+ * fail closed.
+ */
+function bookingMatchesVerifiedContact(booking, { email, phoneDigits } = {}) {
+  const emailNorm = String(email || '').trim().toLowerCase();
+  const phone = normalizeUsPhoneDigits(phoneDigits || '');
+  const bEmail = String(booking && (booking.email || '')).trim().toLowerCase();
+  const bPhone = normalizeUsPhoneDigits((booking && (booking.phone || booking.customerPhone)) || '');
+  if (!emailNorm || !bEmail || bEmail !== emailNorm) return false;
+  if (phone && (!bPhone || !phonesMatch(phone, bPhone))) return false;
+  return true;
+}
+
 function bookingsForContact({ email, phoneDigits }) {
   const emailNorm = String(email || '').trim().toLowerCase();
-  // Scoped to this contact instead of hydrating cd1-bookings; the filter below
-  // still re-checks every record, so a wider fallback set stays correct.
+  // The mirror lookup is a superset (phone OR email). Attach only AND-safe rows.
   const { listBookingsForIdentity } = require('../lib/booking-history');
   return listBookingsForIdentity({ email: emailNorm, phone: phoneDigits }).then(({ bookings: all }) =>
-    all.filter((b) => {
-      const bPhone = normalizeUsPhoneDigits(b.phone || b.customerPhone || '');
-      const bEmail = String(b.email || '').trim().toLowerCase();
-      if (phoneDigits && bPhone && phonesMatch(phoneDigits, bPhone)) return true;
-      if (emailNorm && bEmail && bEmail === emailNorm) return true;
-      return false;
-    })
+    all.filter((b) => bookingMatchesVerifiedContact(b, { email: emailNorm, phoneDigits }))
   );
 }
 
@@ -250,3 +259,5 @@ exports.handler = async (event) => {
 
   return genericStartOk();
 };
+
+exports.bookingMatchesVerifiedContact = bookingMatchesVerifiedContact;

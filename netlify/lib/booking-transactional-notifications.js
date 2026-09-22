@@ -783,7 +783,6 @@ function buildPaymentReceivedEmail(booking, accessUrl) {
   const p = (booking && booking.__paymentEvent) || {};
   const name = [booking.firstName, booking.lastName].filter(Boolean).join(' ').trim() || 'there';
   const first = name.split(/\s+/)[0] || 'there';
-  const brand = brandName();
   const reference = String(booking.id || booking.bookingId || '');
   const methodKey = String(p.method || '').toLowerCase();
   const methodLabel = PAYMENT_METHOD_LABELS[methodKey] || 'Card';
@@ -793,9 +792,9 @@ function buildPaymentReceivedEmail(booking, accessUrl) {
   const recordedAt = String(p.recordedAt || new Date().toISOString()).slice(0, 10);
   const receiptUrl = String(p.receiptUrl || '').trim();
   const fullyPaid = Math.max(0, Math.round(Number(p.remainingCents) || 0)) === 0;
-  const thanks = 'Thank you for choosing Detailing Zone.';
+  const thanks = 'Cardetail1 is a registered DBA of Detailing Zone L.L.C.';
 
-  const subject = 'Payment received for your Detailing Zone appointment';
+  const subject = 'Payment received for your Cardetail1 appointment';
   const cta = 'View your appointment';
 
   const textLines = [
@@ -815,7 +814,7 @@ function buildPaymentReceivedEmail(booking, accessUrl) {
   }
   if (receiptUrl) textLines.push('', `Receipt: ${receiptUrl}`);
   if (accessUrl) textLines.push('', `${cta}:`, accessUrl);
-  textLines.push('', thanks, brand, siteUrl());
+  textLines.push('', thanks, customerFacingBrand(), siteUrl());
 
   const link = escapeHtml(accessUrl || '');
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
@@ -834,7 +833,7 @@ ${receiptUrl ? `<p><a href="${escapeHtml(receiptUrl)}">View your receipt</a></p>
 ${accessUrl ? `<p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
 <p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>` : ''}
 <p>${escapeHtml(thanks)}</p>
-<p>${escapeHtml(brand)}</p>
+<p>${escapeHtml(customerFacingBrand())}</p>
 </body></html>`;
 
   return { subject, text: textLines.join('\n'), html, cta };

@@ -120,7 +120,9 @@ exports.handler = async (event) => {
     });
   }
 
-  if (!booking.isDraft || booking.cardOnFileRequired !== true || booking.cardOnFileStatus !== 'pending') {
+  const retryFailed = booking.cardOnFileStatus === 'failed';
+  if (!booking.isDraft || booking.cardOnFileRequired !== true
+    || (booking.cardOnFileStatus !== 'pending' && !retryFailed)) {
     return json(409, { ok: false, error: 'booking_not_eligible_for_card_save' });
   }
   if (booking.acceptedCardOnFilePolicy !== true) {
@@ -200,7 +202,12 @@ exports.handler = async (event) => {
   // replaying an already-terminal one and leaving the customer unable to retry.
   // An idempotent retry deliberately re-keys to the prior attempt's version so
   // Stripe returns the exact SetupIntent already recorded on the draft.
-  const attemptVersion = idempotentRetry ? actualBookingVersion - 1 : actualBookingVersion;
+  // A failed SetupIntent is terminal at Stripe. Reusing its idempotency key
+  // would replay that failure, so a retry keys off the failed intent id.
+  const failedTail = String(booking.setupIntentId || '').replace(/[^A-Za-z0-9]/g, '').slice(-8);
+  const attemptVersion = retryFailed
+    ? `${actualBookingVersion}_failed_${failedTail || 'retry'}`
+    : (idempotentRetry ? actualBookingVersion - 1 : actualBookingVersion);
 
   const siRes = await fetch('https://api.stripe.com/v1/setup_intents', {
     method: 'POST',
@@ -221,7 +228,7 @@ exports.handler = async (event) => {
     return json(502, { ok: false, error: 'card_save_unavailable', fallback: true });
   }
 
-  if (idempotentRetry && booking.setupIntentId === si.id) {
+  if (!retryFailed && idempotentRetry && booking.setupIntentId === si.id) {
     return json(200, {
       ok: true,
       clientSecret: si.client_secret,
@@ -242,7 +249,7 @@ exports.handler = async (event) => {
       cardOnFileConsentGrantedAt: consentGrantedAt,
       // Keep prior payment-method / saved markers if webhook already applied.
       stripePaymentMethodId: booking.stripePaymentMethodId,
-      cardOnFileStatus: booking.cardOnFileStatus || 'pending',
+      cardOnFileStatus: retryFailed ? 'pending' : (booking.cardOnFileStatus || 'pending'),
       isDraft: true,
       updatedAt: new Date().toISOString(),
     });
