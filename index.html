@@ -315,18 +315,28 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .foot-portal-link{font-size:12.5px!important;color:rgba(255,255,255,.72)!important}
 .foot-portal-link:hover{color:rgba(255,255,255,.85)!important}
 .msc-portal{opacity:1;font-size:11px;font-weight:500;border-color:rgba(255,255,255,.45)!important}
-/* Hero public call / text CTA */
-.hero-quote-call{margin:14px 0 0;max-width:440px;animation:heroQuoteIn .55s ease both}
-.hero-quote-call-label{margin:0 0 4px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c5d3e3}
-.hero-quote-call-number{display:inline-block;margin:0 0 10px;font-size:clamp(26px,6vw,32px);font-weight:700;letter-spacing:.01em;line-height:1.15;color:var(--blue);text-decoration:none;-webkit-tap-highlight-color:transparent}
-.hero-quote-call-number:hover,.hero-quote-call-number:focus-visible{color:#7eb8ff}
+/* Hero public call / text CTA — same frosted/accent language as trust chips */
+.hero-quote-call{
+  margin:14px 0 0;
+  max-width:440px;
+  padding:14px 16px;
+  border-radius:14px;
+  border:1px solid rgba(77,163,255,.45);
+  background:rgba(77,163,255,.14);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  animation:heroQuoteIn .55s ease both;
+}
+.hero-quote-call-label{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#d7ebff}
+.hero-quote-call-number{display:inline-block;margin:0 0 12px;font-size:clamp(28px,6.5vw,34px);font-weight:700;letter-spacing:.01em;line-height:1.1;color:#e8f3ff;text-decoration:none;text-shadow:0 1px 12px rgba(77,163,255,.35);-webkit-tap-highlight-color:transparent}
+.hero-quote-call-number:hover,.hero-quote-call-number:focus-visible{color:#fff}
 .hero-quote-call-actions{display:flex;gap:8px;flex-wrap:wrap}
-.hero-quote-call-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:12px;font-size:14px;font-weight:700;text-decoration:none;transition:background .2s,border-color .2s,color .2s,transform .15s;-webkit-tap-highlight-color:transparent}
-.hero-quote-call-btn--call{flex:1;min-width:120px;background:rgba(77,163,255,.16);border:1px solid rgba(77,163,255,.55);color:#e8f3ff}
-.hero-quote-call-btn--text{flex:1;min-width:120px;background:transparent;border:1px solid rgba(255,255,255,.28);color:#e8eef5}
+.hero-quote-call-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:10px;font-size:13.5px;font-weight:700;line-height:1.25;text-decoration:none;transition:background .2s,border-color .2s,color .2s,transform .15s;-webkit-tap-highlight-color:transparent}
+.hero-quote-call-btn--call{flex:1;min-width:120px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);color:#e8eef5}
+.hero-quote-call-btn--text{flex:1;min-width:120px;background:rgba(77,163,255,.22);border:1px solid rgba(77,163,255,.55);color:#d7ebff}
 .hero-quote-call-btn:hover,.hero-quote-call-btn:focus-visible{transform:translateY(-1px)}
-.hero-quote-call-btn--call:hover,.hero-quote-call-btn--call:focus-visible{background:rgba(77,163,255,.28);border-color:rgba(77,163,255,.8)}
-.hero-quote-call-btn--text:hover,.hero-quote-call-btn--text:focus-visible{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.06)}
+.hero-quote-call-btn--call:hover,.hero-quote-call-btn--call:focus-visible{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.5);color:#fff}
+.hero-quote-call-btn--text:hover,.hero-quote-call-btn--text:focus-visible{background:rgba(77,163,255,.34);border-color:rgba(77,163,255,.8);color:#e8f3ff}
 @keyframes heroQuoteIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.hero-quote-call{animation:none}}
 .hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:40px max(20px, min(6vw, 72px)) 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);min-height:min(72vh,640px)}
@@ -1847,8 +1857,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hero-trust-line{justify-content:flex-start;margin-top:12px;gap:7px}
   .hero-trust-chip{padding:7px 10px;font-size:12px}
   .hero-packages-link{align-self:flex-start;margin-top:14px}
-  .hero-quote-call{max-width:100%;margin-top:12px}
-  .hero-quote-call-number{font-size:clamp(28px,8vw,34px)}
+  .hero-quote-call{max-width:100%;margin-top:12px;padding:14px 14px}
+  .hero-quote-call-number{font-size:clamp(30px,8.5vw,36px)}
   .hero-quote-call-btn{flex:1;min-height:48px}
   #zip-section{width:100%;min-width:0;margin-top:0;max-width:100%}
   .hero-zip-wrap{padding:12px;margin-bottom:0;max-width:100%}
