@@ -1684,7 +1684,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-proof{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 auto 8px}
 .hero-proof span{border:1px solid var(--line);background:var(--bg1);color:var(--ink-soft);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:500}
 .review-source{display:inline-flex;align-items:center;gap:7px;margin-top:8px;color:var(--mu);font-size:11px}
-/* Hero trust line — verifiable signals only (rating links to #reviews). */
+/* Hero trust line — operating signals only. */
 .hero-assure{margin:12px 0 0;font-size:13px;font-weight:500;color:var(--ink-soft);letter-spacing:.01em;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px 8px}
 .hero-assure-sep{color:var(--mu);font-weight:500}
 .hero-trust-line{list-style:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;margin:14px 0 0;padding:0}
@@ -1695,6 +1695,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-trust-link:hover,.hero-trust-link:focus-visible{border-color:rgba(77,163,255,.45);background:rgba(77,163,255,.18);color:#e8f3ff}
 .hero-trust-stars{color:#7eb3e8;letter-spacing:1px;font-size:12px}
 .hero-trust-sep{display:none}
+.hero-owner-line{margin:10px 0 0;max-width:34em;font-size:13px;font-weight:500;line-height:1.45;color:#d7e4f2}
 .hero-packages-link{display:inline-flex;margin-top:16px;font-size:14px;font-weight:600;color:var(--blue);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s,color .2s}
 .hero-packages-link:hover,.hero-packages-link:focus-visible{border-bottom-color:var(--blue)}
 #zip-section{margin:0;max-width:440px;width:100%}
@@ -1988,13 +1989,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </p>
 
     <ul class="hero-trust-line" aria-label="Why customers book Cardetail1">
-      <li>
-        <a class="hero-trust-chip hero-trust-link" href="#reviews"><span class="hero-trust-stars" aria-hidden="true">★★★★★</span> 5.0 Google</a>
-      </li>
-      <li><span class="hero-trust-chip">5+ years</span></li>
-      <li><span class="hero-trust-chip">We come to you</span></li>
+      <li><span class="hero-trust-chip">5+ Years Experience</span></li>
+      <li><span class="hero-trust-chip">Owner-Operated</span></li>
+      <li><span class="hero-trust-chip">Mobile Detailing</span></li>
       <li><span class="hero-trust-chip hero-trust-chip--accent">Same-day available</span></li>
     </ul>
+    <p class="hero-owner-line">The person you book is the person who shows up.</p>
 
     <a class="hero-packages-link" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages</a>
 
@@ -2545,14 +2545,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <!-- REVIEWS -->
 <div id="reviews" style="background:var(--bg0)">
   <div class="section">
-    <div class="sec-eye">Customer Reviews</div>
-    <div class="rv-header-rating">
-      <span class="rv-stars" aria-hidden="true">★★★★★</span>
-      <span class="rv-vh">5 out of 5 stars</span>
-    </div>
+    <div class="sec-eye">Customer Feedback</div>
     <h2 class="sec-title">Customer experiences with Cardetail1</h2>
-    <p class="rv-google-stat">5.0 on Google · 9 reviews</p>
-    <p class="rv-google-stat-note">Google review snapshot · August 2026</p>
     <p class="sec-desc">A selection of recent reviews. Open the full reviews page to read Cardetail1, Google, and Thumbtack reviews. New verified reviews are submitted after completed services.</p>
 
     <div class="rv-carousel" id="rv-carousel" aria-roledescription="carousel" aria-label="Customer reviews">

@@ -438,6 +438,7 @@ test('Thumbtack import does not add a live Thumbtack API or change Google snapsh
   assert.doesNotMatch(reviewsJs, /thumbtack\.com\/api/i);
   assert.doesNotMatch(reviewsJs, /THUMBTACK_API/);
   assert.equal(reviews.googleReviews().length, 9);
-  assert.match(index, /5\.0 on Google · 9 reviews/);
+  assert.doesNotMatch(index, /5\.0 on Google · 9 reviews/);
+  assert.doesNotMatch(index, /9 reviews/);
 });
 
