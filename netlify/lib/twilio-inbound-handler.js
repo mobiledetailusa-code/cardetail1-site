@@ -97,6 +97,9 @@ async function handleInboundSms(params = {}, opts = {}) {
   const env = opts.env || process.env;
   const type = complianceKeyword(params);
   if (type === 'STOP') {
+    const { suppressPhone } = require('./sms-suppression');
+    const suppressed = await suppressPhone(params.From);
+    if (!suppressed.ok) return { statusCode: 503, body: '' };
     const revoke = opts.revokeConsent
       || require('./sms-consent-service').revokeSmsConsentByPhone;
     const result = await revoke(params.From, opts);
@@ -104,9 +107,19 @@ async function handleInboundSms(params = {}, opts = {}) {
     return { statusCode: 200, twiml: emptyTwiml(), action: 'stop' };
   }
   // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
-  // TwiML prevents a duplicate application-generated message.
-  if (type === 'HELP' || type === 'START') {
-    return { statusCode: 200, twiml: emptyTwiml(), action: type.toLowerCase() };
+  // TwiML prevents a duplicate application-generated message. START clears the
+  // suppression flag and does not send a message or grant consent.
+  if (type === 'START') {
+    const { clearSuppression } = require('./sms-suppression');
+    await clearSuppression(params.From);
+    return { statusCode: 200, twiml: emptyTwiml(), action: 'start' };
+  }
+  if (type === 'HELP') {
+    return { statusCode: 200, twiml: emptyTwiml(), action: 'help' };
+  }
+  const { isPhoneSuppressed } = require('./sms-suppression');
+  if (await isPhoneSuppressed(params.From)) {
+    return { statusCode: 200, twiml: emptyTwiml(), action: 'suppressed' };
   }
 
   const relay = inboundSmsTwiml(params, env);

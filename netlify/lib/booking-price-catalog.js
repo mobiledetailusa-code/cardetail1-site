@@ -457,6 +457,17 @@ function computeVehicleBasePrice(vehicle, zip, booking) {
   const tiers = PRICING[cat].tiers;
   const tierKey = resolveTierKey({ ...vehicle, cat });
 
+  // Jet Ski / PWC is stored as a boat type, but it is not hull-length pricing.
+  // A missing length must not fall through to the 22 ft Marine Wash default.
+  const boatKind = String(vehicle.boatType || vehicle.tierKey || vehicle.tier || '').trim().toLowerCase();
+  if (cat === 'boats' && boatKind === 'jetski') {
+    const pkgMap = { maint: 'wash', essential: 'essential', full: 'full', premium: 'premium' };
+    const priceKey = pkgMap[pkgId];
+    const raw = priceKey ? PRICING.powersports.tiers.jetski[priceKey] : null;
+    if (!raw) return { ok: false, error: 'invalid_pricing' };
+    return { ok: true, basePrice: raw, cat, pkgId, tierKey: 'jetski' };
+  }
+
   if (cat === 'boats' || cat === 'rvs') {
     const cfg = LENGTH_PRICING[cat];
     const ft = parseLengthFt(vehicle, booking) || cfg.defaultFt;

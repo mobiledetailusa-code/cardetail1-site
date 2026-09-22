@@ -97,6 +97,13 @@
         vehicleLabel: ST.vehicleLabel || '',
         tierKey: ST.tierKey || '',
       },
+      draft: {
+        bookingId: ST.bookingId || '',
+        draftSaveToken: ST.draftSaveToken || '',
+        draftSaveTokenExp: ST.draftSaveTokenExp || 0,
+        draftRegistered: ST.draftRegistered === true,
+        draftBookingVersion: ST.draftBookingVersion == null ? null : ST.draftBookingVersion,
+      },
       fields: readContactFields(doc),
     };
   }
@@ -247,6 +254,14 @@
         global.selectCategory(cat);
       } else if (ST._packageIntent) {
         ST._prefillPkgId = ST._packageIntent;
+      }
+      var draft = snap.draft;
+      if (draft && typeof draft === 'object') {
+        if (draft.bookingId) ST.bookingId = draft.bookingId;
+        if (draft.draftSaveToken) ST.draftSaveToken = draft.draftSaveToken;
+        if (draft.draftSaveTokenExp) ST.draftSaveTokenExp = draft.draftSaveTokenExp;
+        if (draft.draftRegistered) ST.draftRegistered = true;
+        if (draft.draftBookingVersion != null) ST.draftBookingVersion = draft.draftBookingVersion;
       }
       if (st.pkgId && ST.cat && typeof global.selectPkg === 'function') {
         global.selectPkg(st.pkgId);

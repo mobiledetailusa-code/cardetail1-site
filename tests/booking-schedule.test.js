@@ -210,7 +210,8 @@ test('active card-save draft soft-holds the selected slot', () => {
   assert.equal(hasSlotConflict([activeDraft], '2026-07-30', '8:00 AM', 'CD1-DRAFT-HOLD', now), false);
   assert.equal(isActiveDraftSlotHold(expiredDraft, now), false);
   assert.equal(hasSlotConflict([expiredDraft], '2026-07-30', '8:00 AM', null, now), false);
-  assert.equal(isActiveBookingForSlotLock(bareDraft, now), false);
+  assert.equal(isActiveDraftSlotHold(bareDraft, now), true);
+  assert.equal(isActiveBookingForSlotLock(bareDraft, now), true);
 });
 
 test('all 13 booking pages use preferred arrival windows with operational slot coupling', () => {

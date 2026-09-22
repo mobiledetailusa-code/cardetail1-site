@@ -322,7 +322,7 @@ describe('P0 — portal data marks a degraded ownership read', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/customer-portal-data.js'), 'utf8');
     assert.match(src, /bookingsComplete: ownershipComplete/);
     // Both Postgres ownership sources must record their own degradation.
-    assert.equal((src.match(/ownershipComplete = false/g) || []).length, 2);
+    assert.equal((src.match(/ownershipComplete = false/g) || []).length, 3);
   });
 
   it('client merges rather than replaces when the payload is incomplete', () => {

@@ -47,9 +47,11 @@ function isIsoNextRun(value) {
   return NEXT_RUN_ISO.test(String(value || '').trim());
 }
 
-// Netlify scheduled functions put next_run on the JSON body (documented).
-// Some v1 wrappers also copy it onto the event. Do not treat headers as identity.
+// Netlify scheduled invocations send next_run AND X-NF-Event: schedule.
+// A body that only contains next_run is not a scheduler call.
 function isScheduledInvocation(event = {}) {
+  const eventName = header(event, 'x-nf-event').trim().toLowerCase();
+  if (eventName !== 'schedule') return false;
   if (isIsoNextRun(event.next_run)) return true;
   const body = decodeEventBody(event);
   return isIsoNextRun(body?.next_run);

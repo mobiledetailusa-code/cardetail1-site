@@ -17,7 +17,9 @@ const { projectBookingForCustomer } = require('./ops-schema');
 const { normalizeBookingId } = require('./booking-customer-auth');
 
 const BUSINESS = Object.freeze({
-  name: 'Detailing Zone L.L.C.',
+  name: 'Cardetail1',
+  legalName: 'Detailing Zone L.L.C.',
+  disclosure: 'Cardetail1 is a registered DBA of Detailing Zone L.L.C.',
   phone: '551-373-5668',
   site: 'cardetail1.com',
 });
@@ -29,7 +31,7 @@ const UNAVAILABLE = Object.freeze({
   final: 'The final receipt is available once the service is completed and the balance is paid in full.',
 });
 
-const RECEIPT_FOOTER = 'Thank you for choosing Detailing Zone.';
+const RECEIPT_FOOTER = 'Cardetail1 is a registered DBA of Detailing Zone L.L.C.';
 
 function asArray(v) { return Array.isArray(v) ? v : []; }
 

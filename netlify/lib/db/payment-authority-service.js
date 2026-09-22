@@ -277,6 +277,55 @@ function attemptAgeMs(attempt, nowMs) {
 }
 
 /**
+ * A succeeded PaymentIntent becomes a local `succeeded` attempt only after an
+ * idempotent settlement ledger row exists. Amount must match the attempt.
+ * A failed write leaves the attempt active.
+ */
+async function recordSucceededAttemptLedger(prisma, attempt, paymentIntent, actor) {
+  const amountCents = Math.round(Number(
+    paymentIntent && paymentIntent.amount_received != null
+      ? paymentIntent.amount_received
+      : paymentIntent && paymentIntent.amount
+  ) || 0);
+  if (!(amountCents > 0) || amountCents !== Math.round(Number(attempt.amountCents))) {
+    return { ok: false, reason: 'amount_mismatch' };
+  }
+  const providerObjectId = String(
+    attempt.providerObjectId || (paymentIntent && paymentIntent.id) || ''
+  );
+  if (!providerObjectId.startsWith('pi_')) return { ok: false, reason: 'missing_payment_intent' };
+  const providerEventId = `settlement_${providerObjectId}`;
+  try {
+    let ledger = await prisma.ledgerEntry.findUnique({ where: { providerEventId } });
+    if (!ledger) {
+      ledger = await prisma.ledgerEntry.create({
+        data: {
+          bookingId: attempt.bookingId,
+          quoteId: attempt.quoteId || null,
+          paymentAttemptId: attempt.id,
+          kind: 'settlement',
+          amountCents,
+          currency: attempt.currency || 'usd',
+          quoteVersion: Math.round(Number(attempt.quoteVersion) || 0),
+          providerObjectId,
+          providerEventId,
+          occurredAt: new Date(),
+          actor: actor || 'stripe_reconcile',
+        },
+      });
+    }
+    await prisma.paymentAttempt.update({
+      where: { id: attempt.id },
+      data: { status: 'succeeded', failureCode: null },
+    });
+    return { ok: true, ledger };
+  } catch (err) {
+    console.warn('[payment-authority] settlement ledger failed', err && err.message ? err.message : err);
+    return { ok: false, reason: 'ledger_write_failed' };
+  }
+}
+
+/**
  * Close payment attempts Stripe has already finished with.
  *
  * An attempt leaves 'creating' / 'open' / 'requires_action' only when a Stripe
@@ -303,7 +352,7 @@ async function reconcileStalePaymentAttempts({
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) {
-  const summary = { closed: 0, active: 0, checked: 0, blocked: null };
+  const summary = { closed: 0, active: 0, checked: 0, blocked: null, unledgered: 0 };
   try {
     const id = String(bookingId || '').trim();
     if (!id) return summary;
@@ -375,9 +424,32 @@ async function reconcileStalePaymentAttempts({
         continue;
       }
 
+      if (terminal === 'succeeded') {
+        const recorded = await recordSucceededAttemptLedger(
+          prisma,
+          attempt,
+          retrieved.paymentIntent,
+          'stripe_reconcile',
+        );
+        if (!recorded.ok) {
+          summary.unledgered += 1;
+          summary.active += 1;
+          summary.blocked = summary.blocked || { attempt, ageMs, stripeStatus: retrieved.status };
+          continue;
+        }
+        summary.closed += 1;
+        console.log('[payment-authority] stale attempt reconciled', {
+          attemptId: attempt.id,
+          stripeStatus: retrieved.status,
+          closedAs: terminal,
+          ageMinutes: Math.round(ageMs / 60000),
+        });
+        continue;
+      }
+
       await prisma.paymentAttempt.update({
         where: { id: attempt.id },
-        data: { status: terminal, failureCode: terminal === 'canceled' ? 'stripe_reported_canceled' : null },
+        data: { status: terminal, failureCode: 'stripe_reported_canceled' },
       });
       summary.closed += 1;
       console.log('[payment-authority] stale attempt reconciled', {
@@ -438,7 +510,7 @@ async function supersedeOutdatedAttempts({
   env = process.env,
   fetchImpl = globalThis.fetch,
 } = {}) {
-  const summary = { superseded: 0, settled: 0, failed: 0 };
+  const summary = { superseded: 0, settled: 0, failed: 0, unledgered: 0 };
   try {
     const id = String(bookingId || '').trim();
     // Number(null) and Number('') are both 0, so an absent version would read
@@ -481,11 +553,18 @@ async function supersedeOutdatedAttempts({
       });
       if (retrieved.ok && retrieved.status === 'succeeded') {
         // The customer already paid this amount. Superseding it would erase a
-        // real settlement — record it and leave the money alone.
-        await prisma.paymentAttempt.update({
-          where: { id: attempt.id },
-          data: { status: 'succeeded' },
-        });
+        // real settlement — record the ledger, then mark the attempt succeeded.
+        const recorded = await recordSucceededAttemptLedger(
+          prisma,
+          attempt,
+          retrieved.paymentIntent,
+          'stripe_reconcile',
+        );
+        if (!recorded.ok) {
+          summary.failed += 1;
+          summary.unledgered += 1;
+          continue;
+        }
         summary.settled += 1;
         continue;
       }
@@ -1625,14 +1704,26 @@ async function createAdjustment({
   //  2. retire attempts owed against a previous amount, canceling their intent
   //     at Stripe so a stale amount can never be paid.
   const reconciled = await reconcileStalePaymentAttempts({ bookingId: id });
+  let superseded = { superseded: 0, settled: 0, failed: 0, unledgered: 0 };
   if (expectedVersion != null) {
-    await supersedeOutdatedAttempts({
+    superseded = await supersedeOutdatedAttempts({
       bookingId: id,
       currentQuoteVersion: expectedVersion,
       // Changing the amount voids any unpaid obligation to the old amount,
       // including one raised against the version being replaced.
       includeCurrentVersion: true,
     });
+  }
+  // Old-version attempts are outside the in-transaction guard. A collected
+  // payment that could not be ledgered, or a retirement that failed, must
+  // stop the amount change instead of continuing with an unrecorded settlement.
+  if ((reconciled.unledgered || 0) > 0 || (superseded.failed || 0) > 0 || (superseded.unledgered || 0) > 0) {
+    return {
+      ok: false,
+      error: 'payment_settlement_unrecorded',
+      statusCode: 409,
+      message: 'A payment Stripe already collected could not be recorded on the ledger, so the amount cannot change.',
+    };
   }
 
   try {

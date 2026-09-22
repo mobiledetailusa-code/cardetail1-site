@@ -80,6 +80,7 @@ const {
 const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock } = require('../lib/booking-schedule');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
+const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
 const { findDuplicateBooking } = require('../lib/booking-history');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
@@ -420,7 +421,7 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     acceptedCardOnFilePolicyAt: cardOnFileRequired
       ? ((existing && existing.acceptedCardOnFilePolicyAt) || now)
       : null,
-    policyVersion: cardOnFileRequired ? '2026-06-card-on-file' : '2026-08-booking-request',
+    policyVersion: TERMS_POLICY_VERSION,
     setupIntentId: cardOnFileRequired && existing ? existing.setupIntentId : undefined,
     stripeCustomerId: cardOnFileRequired && existing ? existing.stripeCustomerId : undefined,
     stripePaymentMethodId: cardOnFileRequired && existing ? existing.stripePaymentMethodId : undefined,
@@ -1135,7 +1136,7 @@ exports.handler = async (event) => {
       acceptedBookingPolicyAt: finalizedAt,
       acceptedCardOnFilePolicy: cardOnFileRequired,
       acceptedCardOnFilePolicyAt: cardOnFileRequired ? existing.acceptedCardOnFilePolicyAt : null,
-      policyVersion: cardOnFileRequired ? '2026-06-card-on-file' : '2026-08-booking-request',
+      policyVersion: TERMS_POLICY_VERSION,
       transactionalSmsConsentAccepted,
       transactionalSmsConsent: canonicalBookingSmsConsent(
         transactionalSmsConsentAccepted,
@@ -1232,14 +1233,69 @@ exports.handler = async (event) => {
 
     let stored = { saved: false };
     try {
-      await store.setJSON(rawDraftId, b);
-      stored = { saved: true };
+      if (typeof store.getWithMetadata === 'function') {
+        const meta = await store.getWithMetadata(rawDraftId, { type: 'json', consistency: 'strong' }).catch(() => null);
+        const fresh = meta && meta.data;
+        if (fresh && (fresh.finalizedAt || fresh.isDraft === false)) {
+          return json(200, {
+            ok: true,
+            bookingCreated: true,
+            id: fresh.id || rawDraftId,
+            status: fresh.status || 'Pending Review',
+            bookingVersion: fresh.bookingVersion || 1,
+            quoteVersion: fresh.quoteVersion || 1,
+            idempotent: true,
+            cardOnFileStatus: fresh.cardOnFileStatus || null,
+            approvedFinalAmount: fresh.approvedFinalAmount ?? fresh.totalPrice ?? null,
+            totalPrice: fresh.totalPrice ?? null,
+          });
+        }
+        if (meta && meta.etag) {
+          const raced = await indexedSlotConflict(b.preferredDate, b.preferredTime, { excludeId: rawDraftId });
+          if (raced.ok && raced.conflict) {
+            return scheduleRejectResponse(409, 'booking_slot_unavailable', {
+              draftBookingId: rawDraftId,
+              preferredDate: b.preferredDate || null,
+              preferredTime: b.preferredTime || null,
+              phase: 'finalize',
+            });
+          }
+          const writeResult = await store.setJSON(rawDraftId, b, { onlyIfMatch: meta.etag });
+          if (writeResult && writeResult.modified === false) {
+            return scheduleRejectResponse(409, 'booking_slot_unavailable', {
+              draftBookingId: rawDraftId,
+              preferredDate: b.preferredDate || null,
+              preferredTime: b.preferredTime || null,
+              phase: 'finalize',
+            });
+          }
+          stored = { saved: true };
+        }
+      }
+      if (!stored.saved) {
+        const raced = await indexedSlotConflict(b.preferredDate, b.preferredTime, { excludeId: rawDraftId });
+        if (raced.ok && raced.conflict) {
+          return scheduleRejectResponse(409, 'booking_slot_unavailable', {
+            draftBookingId: rawDraftId,
+            preferredDate: b.preferredDate || null,
+            preferredTime: b.preferredTime || null,
+            phase: 'finalize',
+          });
+        }
+        await store.setJSON(rawDraftId, b);
+        stored = { saved: true };
+      }
     } catch (e) {
       return json(500, { ok: false, error: 'booking_store_failed' });
     }
     // Index-after for submitted holds: they never expire, so an orphan entry
     // would block a real slot forever. Drift is reported by verify-slot-index.
-    await syncSlotIndex(b, { previous: existing });
+    // A sync failure must not fail the customer: the booking is already stored.
+    try {
+      await syncSlotIndex(b, { previous: existing });
+    } catch (err) {
+      console.warn('[submit-booking] finalize slot index sync failed', err && err.message ? err.message : err);
+    }
     // Prisma dual-write AFTER Blob finalize — fail-open; never affects checkout response.
     try {
       const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');

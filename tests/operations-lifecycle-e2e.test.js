@@ -117,8 +117,10 @@ test('refund execution is webhook-authoritative, never a manual status flip', ()
 test('technician cash/card-on-site completion is routed through the ledger + CAS, never a bare status flip', () => {
   const src = read('netlify/functions/tech-complete-job.js');
   assert.match(src, /commitBooking/);
-  assert.match(src, /kind:\s*'settlement'/);
-  assert.match(src, /remainingCents\(base\.ledger\)/);
+  assert.match(src, /settleAdminOnSiteFullBalance/);
+  assert.match(src, /unsafe_card_reference/);
+  assert.match(src, /postgres_payment_disabled/);
+  assert.doesNotMatch(src, /kind:\s*'settlement'/);
 });
 
 test('admin ops UI wires customer edit and audit', () => {

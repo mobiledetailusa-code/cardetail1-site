@@ -167,7 +167,7 @@ describe('initial booking request without card collection', () => {
     assert.equal(saved.status, 'Pending Review');
     assert.equal(saved.appointmentStatus, 'pending_review');
     assert.equal(saved.jobStatus, 'pending_review');
-    assert.equal(saved.policyVersion, '2026-08-booking-request');
+    assert.equal(saved.policyVersion, '2026-09-dba-booking-request');
     assert.equal(saved.acceptedBookingPolicy, true);
     assert.equal(saved.acceptedCardOnFilePolicy, false);
     assert.equal('setupIntentId' in saved, false);

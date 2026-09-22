@@ -406,6 +406,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/ops-db.js',
     'netlify/lib/slot-index.js',
     'netlify/lib/tech-security.js',
+    'netlify/lib/customer-policy.js',
+    'netlify/lib/sms-suppression.js',
     // Booking Step 4 ZIP-biased street suggestions (no payment imports).
     'netlify/functions/address-suggest.js',
     'netlify/lib/address-suggest.js',

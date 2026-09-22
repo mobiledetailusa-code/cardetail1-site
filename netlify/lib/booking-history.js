@@ -227,13 +227,19 @@ async function listBookingsForIdentity(rawIdentity) {
   // Every caller matches on one of these anyway, so with none of them there is
   // nothing a full scan could legitimately surface.
   if (!identity.phone && !identity.email && !identity.emailHash) {
-    return { bookings: [], source: 'no_identity' };
+    return { bookings: [], source: 'no_identity', complete: true };
   }
 
   if (!fastLookupDisabled()) {
     try {
       const rows = await mirrorHistory(identity);
-      if (rows) return { bookings: rows, source: 'mirror' };
+      // An empty mirror is not exhaustive — drafts are excluded and the lookup
+      // is capped — so fall through to Blobs. A non-empty mirror is returned
+      // without a full scan, and marked incomplete so callers do not treat it
+      // as the customer's entire history.
+      if (Array.isArray(rows) && rows.length > 0) {
+        return { bookings: rows, source: 'mirror', complete: false };
+      }
     } catch (err) {
       console.warn('[booking-history] mirror_lookup_failed', err && err.message ? err.message : err);
     }
@@ -241,7 +247,7 @@ async function listBookingsForIdentity(rawIdentity) {
 
   const { listRawBookings } = require('./ops-db');
   const bookings = await listRawBookings().catch(() => []);
-  return { bookings, source: 'blobs' };
+  return { bookings, source: 'blobs', complete: true };
 }
 
 async function listBookingHistoryForBooking(booking) {

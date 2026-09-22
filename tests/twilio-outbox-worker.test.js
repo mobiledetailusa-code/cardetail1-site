@@ -48,18 +48,30 @@ test('ISO next_run matches Netlify scheduled-function timestamps', () => {
   assert.equal(isIsoNextRun(''), false);
 });
 
-test('recognizes next_run on the event and on the documented JSON body', () => {
-  assert.equal(isScheduledInvocation({ next_run: NEXT_RUN }), true);
-  assert.equal(isScheduledInvocation({ body: JSON.stringify({ next_run: NEXT_RUN }) }), true);
+test('scheduled invocation requires X-NF-Event schedule plus a valid next_run', () => {
+  assert.equal(isScheduledInvocation({ next_run: NEXT_RUN }), false);
+  assert.equal(isScheduledInvocation({ body: JSON.stringify({ next_run: NEXT_RUN }) }), false);
+  assert.equal(isScheduledInvocation({
+    headers: { 'x-nf-event': 'schedule' },
+    next_run: NEXT_RUN,
+  }), true);
+  assert.equal(isScheduledInvocation({
+    headers: { 'X-NF-Event': 'Schedule' },
+    body: JSON.stringify({ next_run: NEXT_RUN }),
+  }), true);
   assert.equal(isScheduledInvocation({
     isBase64Encoded: true,
+    headers: { 'x-nf-event': 'schedule' },
     body: Buffer.from(JSON.stringify({ next_run: NEXT_RUN }), 'utf8').toString('base64'),
   }), true);
   assert.equal(isScheduledInvocation({
     httpMethod: 'POST',
-    headers: { 'x-netlify-event': 'schedule' },
+    headers: { 'x-netlify-event': 'schedule', 'x-nf-event': 'schedule' },
   }), false);
-  assert.equal(isScheduledInvocation({ body: JSON.stringify({ next_run: 'not-a-date' }) }), false);
+  assert.equal(isScheduledInvocation({
+    headers: { 'x-nf-event': 'schedule' },
+    body: JSON.stringify({ next_run: 'not-a-date' }),
+  }), false);
 });
 
 test('forged scheduler header without next_run is unauthorized', async () => {
@@ -84,9 +96,18 @@ test('forged scheduler header without next_run is unauthorized', async () => {
   assert.equal(secretMatches('worker-secret-test-only', 'wrong-secret'), false);
 });
 
-test('body next_run is treated as a scheduled invocation, not 401', async () => {
+test('body-only next_run is not a scheduled invocation', async () => {
   const result = await handler({
     httpMethod: 'POST',
+    body: JSON.stringify({ next_run: NEXT_RUN }),
+  });
+  assert.equal(result.statusCode, 401);
+});
+
+test('Netlify schedule header plus next_run stays authorized without the worker secret', async () => {
+  const result = await handler({
+    httpMethod: 'POST',
+    headers: { 'x-nf-event': 'schedule' },
     body: JSON.stringify({ next_run: NEXT_RUN }),
   });
   assert.equal(result.statusCode, 200);

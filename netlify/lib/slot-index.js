@@ -129,8 +129,6 @@ function slotHoldForBooking(booking, nowMs = Date.now()) {
   const isDraft = booking.isDraft === true || String(booking.kind || '').toLowerCase() === 'draft';
   if (isDraft) {
     slot.state = STATE_DRAFT;
-    const cof = String(booking.cardOnFileStatus || '').toLowerCase();
-    if (cof !== 'pending' && cof !== 'saved') return slot;
     const ts = Date.parse(booking.updatedAt || booking.createdAt || '');
     if (!Number.isFinite(ts)) return slot;
     slot.expiresAtMs = ts + DRAFT_SLOT_HOLD_MS;

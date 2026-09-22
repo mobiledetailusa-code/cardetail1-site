@@ -920,8 +920,25 @@ async function decideChangeRequestCommand({
   const fieldPatches = {};
   const rt = rtDecide;
   if (rt === 'reschedule_request') {
-    fieldPatches.preferredDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
-    fieldPatches.preferredTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
+    const requestedDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
+    const requestedTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
+    const { validateBookingSchedule } = require('./operational-availability');
+    const schedule = validateBookingSchedule(requestedDate, requestedTime);
+    if (!schedule.ok) {
+      return { ok: false, error: schedule.error || 'booking_date_unavailable', statusCode: 409 };
+    }
+    const { indexedSlotConflict } = require('./slot-index');
+    const conflict = await indexedSlotConflict(schedule.preferredDate, schedule.preferredTime, {
+      excludeId: aggregate.id || aggregate.bookingId,
+    });
+    if (!conflict.ok) {
+      return { ok: false, error: 'booking_verification_unavailable', statusCode: 503 };
+    }
+    if (conflict.conflict) {
+      return { ok: false, error: 'booking_slot_unavailable', statusCode: 409 };
+    }
+    fieldPatches.preferredDate = schedule.preferredDate;
+    fieldPatches.preferredTime = schedule.preferredTime;
     fieldPatches.confirmedDate = fieldPatches.preferredDate;
     fieldPatches.confirmedTime = fieldPatches.preferredTime;
     fieldPatches.status = 'Rescheduled';

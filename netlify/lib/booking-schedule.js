@@ -12,7 +12,7 @@ const ALLOWED_SATURDAY_SLOTS = availability.ALLOWED_SATURDAY_SLOTS;
 const MIN_ADVANCE_DAYS = availability.MIN_ADVANCE_DAYS;
 const SAME_DAY_LEAD_MINUTES = availability.SAME_DAY_LEAD_MINUTES;
 const SAME_DAY_LATE_SLOT = availability.SAME_DAY_LATE_SLOT;
-/** Active card-save drafts soft-hold a slot for the draft-token TTL window. */
+/** Dated drafts soft-hold a slot for the draft-token TTL window. */
 const DRAFT_SLOT_HOLD_MS = 2 * 60 * 60 * 1000;
 
 const earliestBookableIso = availability.earliestBookableIso;
@@ -36,9 +36,9 @@ function capacityForSlot(iso, preferredTime, config, now) {
 function isActiveDraftSlotHold(booking, nowMs = Date.now()) {
   if (!booking || booking.isDraft !== true) return false;
   if (booking.archived || booking.isTest) return false;
-  const cof = String(booking.cardOnFileStatus || '').toLowerCase();
-  // Only drafts in an active card-save session hold the slot.
-  if (cof !== 'pending' && cof !== 'saved') return false;
+  if (!availability.isoDateParts(booking.preferredDate) || !normalizePreferredTime(booking.preferredTime)) {
+    return false;
+  }
   const ts = Date.parse(booking.updatedAt || booking.createdAt || '');
   if (!Number.isFinite(ts)) return false;
   return (nowMs - ts) <= DRAFT_SLOT_HOLD_MS;
@@ -48,8 +48,8 @@ function isActiveBookingForSlotLock(booking, nowMs = Date.now()) {
   if (!booking) return false;
   if (booking.archived || booking.isTest) return false;
 
-  // Soft-hold: recent drafts with an active card-save session occupy the slot so
-  // customers cannot save a card against an already-claimed time, then fail finalize.
+  // Soft-hold: a recent dated draft occupies the slot, including cash and
+  // card-at-service requests that never open a card-save session.
   if (booking.isDraft === true || String(booking.kind || '').toLowerCase() === 'draft') {
     return isActiveDraftSlotHold(booking, nowMs);
   }
