@@ -605,7 +605,8 @@ function writeLlms() {
 - Address locality: Palisades Park, NJ 07650
 - Phone: +1-551-373-5668
 - Hours: Monday–Friday 8:00–17:00, by appointment
-- Google listing: 5.0 from 9 reviews (snapshot August 2026)
+- Experience: 5+ years, owner-operated mobile detailing
+- Google reviews: https://g.page/r/CTJwfJerrQeCEAI/review
 - Booking: request online, no charge at submission
 - Coverage: Bergen County core (no travel fee on standard NJ core ZIPs); Hudson, Essex, Passaic; NY Metro, CT, PA by quote
 

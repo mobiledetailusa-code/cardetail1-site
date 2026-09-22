@@ -232,9 +232,10 @@ test('the hero trust line carries only claims that can be checked', () => {
   assert.ok(line, 'could not isolate the hero trust line');
   const html = line[0];
 
-  for (const claim of ['5.0 Google', '5+ years', 'We come to you', 'Same-day available']) {
+  for (const claim of ['5+ Years Experience', 'Owner-Operated', 'Mobile Detailing', 'Same-day available']) {
     assert.ok(html.includes(claim), `hero trust line lost "${claim}"`);
   }
+  assert.doesNotMatch(html, /5\.0 Google|9 reviews/);
 
   // Transparent highlight chips — not opaque cards.
   assert.match(html, /class="hero-trust-chip"/);
@@ -244,9 +245,8 @@ test('the hero trust line carries only claims that can be checked', () => {
   assert.doesNotMatch(html, /\d+(\.\d+)?k\+/, 'hero trust line shows a k+ style count');
   assert.doesNotMatch(html, /detailed|vehicles/i, 'hero trust line claims a vehicle tally');
 
-  // The rating must lead somewhere the visitor can verify it.
-  assert.match(html, /href="#reviews"/, 'the rating does not link to the reviews');
   assert.match(index, /id="reviews"/, 'the reviews anchor target is missing');
+  assert.match(index, /The person you book is the person who shows up\./);
 });
 
 test('homepage hero no longer leads with interior/exterior water-power subcopy', () => {

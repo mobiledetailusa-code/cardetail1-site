@@ -29,7 +29,6 @@ const section = reviewsSection(index);
 
 test('homepage loads the first-party reviews module and keeps the reviews anchor', () => {
   assert.match(index, /id="reviews"/);
-  assert.match(index, /href="#reviews"/);
   assert.match(index, /<script src="assets\/customer-reviews\.js"><\/script>/);
   assert.match(index, /function renderReviews\(\)\{[\s\S]*CD1CustomerReviews\.mount/);
   assert.match(index, /function rvViewAll\(\)\{[\s\S]*\/reviews/);
@@ -38,12 +37,12 @@ test('homepage loads the first-party reviews module and keeps the reviews anchor
 });
 
 test('homepage reviews copy is first-party plus a labeled static Google snapshot', () => {
-  assert.match(section, /Customer Reviews/);
+  assert.match(section, /Customer Feedback/);
   assert.match(section, /Customer experiences with Cardetail1/);
   assert.doesNotMatch(section, /Customer experiences with Detailing Zone/);
-  assert.match(section, /5\.0 on Google/);
-  assert.match(section, /9 reviews/);
-  assert.match(section, /Google review snapshot · August 2026/);
+  assert.doesNotMatch(section, /5\.0 on Google/);
+  assert.doesNotMatch(section, /9 reviews/);
+  assert.doesNotMatch(section, /Google review snapshot · August 2026/);
   assert.match(section, /my-garage\.html#lookup/);
   assert.match(section, /View all reviews/);
   assert.match(section, /href="\/reviews"/);

@@ -129,8 +129,9 @@ test('2. review heading uses Cardetail1', () => {
 
 test('3. Google Business review copy uses Cardetail1', () => {
   const section = reviewsSection(read('index.html'));
-  assert.match(section, /5\.0 on Google · 9 reviews/);
-  assert.match(section, /Google review snapshot · August 2026/);
+  assert.doesNotMatch(section, /5\.0 on Google · 9 reviews/);
+  assert.doesNotMatch(section, /Google review snapshot · August 2026/);
+  assert.match(section, /Customer Feedback/);
   assert.match(section, /A selection of recent reviews/);
   assert.match(section, /full reviews page/);
   assert.match(section, /href="\/reviews"/);
