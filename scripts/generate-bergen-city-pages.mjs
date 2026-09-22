@@ -707,6 +707,7 @@ ${schema(city)}
     </div>
   </div>
 </footer>
+<script src="assets/welcome-lead-balloon.js" defer></script>
 <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>
