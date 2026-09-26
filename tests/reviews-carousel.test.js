@@ -70,7 +70,7 @@ function mountReviewsPage() {
 
 test('1. static Google review renders', () => {
   const google = reviews.googleReviews();
-  assert.equal(google.length, 9);
+  assert.equal(google.length, 12);
   const claudio = google.find((r) => r.id === 'g-claudio-campos');
   assert.ok(claudio);
   assert.equal(claudio.name, 'Claudio Campos');
@@ -125,6 +125,46 @@ test('3. Google text preserved exactly', () => {
     );
   }
   assert.equal(reviews.googleReviews().find((r) => r.id === 'g-rose-alves').text, rose.text);
+});
+
+test('new Google reviews from the 2026-09-26 panel render exactly', () => {
+  const google = reviews.googleReviews();
+  const lauren = google.find((r) => r.id === 'g-lauren-murphy');
+  const michael = google.find((r) => r.id === 'g-michael-purcell');
+  const kasey = google.find((r) => r.id === 'g-kasey-wasserbeck');
+  assert.equal(lauren.name, 'Lauren Murphy');
+  assert.equal(lauren.rating, 5);
+  assert.equal(lauren.date, 'Sep 2026');
+  assert.equal(lauren.relativeDate, 'a day ago');
+  assert.equal(
+    lauren.text,
+    'My car looks incredible \u2014 it honestly feels brand new again. Everything from the exterior, seats and console to the dash and little details was spotless. He was extremely thorough, professional, and clearly takes pride in his work.',
+  );
+  assert.doesNotMatch(lauren.text, /The last/);
+  assert.equal(michael.name, 'Michael Purcell');
+  assert.equal(michael.rating, 5);
+  assert.equal(michael.text, 'He did a fantastic job cleaning an RV I have from head to toe 10 out of 10 would recommend');
+  assert.equal(kasey.name, 'Kasey Wasserbeck');
+  assert.equal(kasey.rating, 5);
+  assert.equal(kasey.text, 'Amazing detail service. Quick and spotless clean. Car looks brand new on the inside again!');
+
+  const ids = reviews.mixed().map((r) => r.id);
+  assert.ok(ids.indexOf('g-lauren-murphy') < ids.indexOf('g-michael-purcell'));
+  assert.ok(ids.indexOf('g-michael-purcell') < ids.indexOf('g-kasey-wasserbeck'));
+  assert.ok(ids.indexOf('g-kasey-wasserbeck') < ids.indexOf('g-john-daquila'));
+  assert.ok(ids.indexOf('tt-carol-g') < ids.indexOf('g-lauren-murphy'));
+
+  if (!JSDOM) return;
+  const page = mountReviewsPage();
+  const card = page.window.document.querySelector('[data-review-id="g-lauren-murphy"]');
+  assert.ok(card);
+  assert.equal(card.getAttribute('data-source'), 'google');
+  assert.match(card.textContent, /Google review/);
+  assert.equal(card.querySelector('.rv-quote').textContent, lauren.text);
+  assert.equal(
+    page.window.document.querySelector('[data-review-id="g-michael-purcell"] .rv-quote').textContent,
+    michael.text,
+  );
 });
 
 test('4. Google rating preserved exactly', () => {
@@ -369,13 +409,13 @@ test('20. Google unavailable has zero runtime impact', () => {
   assert.equal(fetchCalled, false);
   assert.ok(dom.window.document.querySelector('[data-review-id="tt-jackie-b"]'));
   assert.ok(reviews.mixed().some((r) => r.id === 'g-john-daquila'));
-  assert.equal(reviews.googleReviews().length, 9);
+  assert.equal(reviews.googleReviews().length, 12);
 });
 
 test('Google listing snapshot is Cardetail1, not a lookalike shop', () => {
   assert.equal(reviews.GOOGLE_LISTING.name, 'Cardetail1');
   assert.equal(reviews.GOOGLE_LISTING.phone, '(551) 389-3986');
-  assert.equal(reviews.GOOGLE_LISTING.reviewCount, 9);
+  assert.equal(reviews.GOOGLE_LISTING.reviewCount, 12);
   assert.equal(reviews.GOOGLE_LISTING.ratingLabel, '5.0');
   assert.match(reviews.GOOGLE_LISTING.cid, /0x8207adab977c7032/);
   assert.equal(reviews.GOOGLE_LISTING.reviewUrl, 'https://g.page/r/CTJwfJerrQeCEAI/review');
@@ -490,7 +530,7 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
 test('Thumbtack import does not add a live Thumbtack API or change Google snapshot', () => {
   assert.doesNotMatch(reviewsJs, /thumbtack\.com\/api/i);
   assert.doesNotMatch(reviewsJs, /THUMBTACK_API/);
-  assert.equal(reviews.googleReviews().length, 9);
+  assert.equal(reviews.googleReviews().length, 12);
   assert.doesNotMatch(index, /5\.0 on Google · 9 reviews/);
   assert.doesNotMatch(index, /9 reviews/);
 });

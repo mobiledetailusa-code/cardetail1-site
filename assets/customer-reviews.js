@@ -12,17 +12,18 @@
  *   Maps: https://maps.google.com/maps/place/cardetail1/data=!4m2!3m1!1s0x4f36d27550a90189:0x8207adab977c7032
  *   CID:  0x8207adab977c7032
  *   Review link already used by the site: https://g.page/r/CTJwfJerrQeCEAI/review
- *   Written reviews stored here: 9
+ *   Written reviews stored here: 12
  *   Live Maps listing on 2026-09-26: 5.0 from 12 reviews.
- *   The public place preview returned 5 featured written reviews
- *   (Gerard Baltazar, Claudio Campos, John Daquila, Scott Rosenwald,
- *   Adilsom pedro). All five were already in this snapshot. The other
- *   review bodies were not in that payload, so they are not invented here.
+ *   Three written reviews newer than the 2026-08-25 snapshot were copied
+ *   from the owner's Google knowledge-panel screenshot that day:
+ *   Lauren Murphy, Michael Purcell, and Kasey Wasserbeck.
+ *   Lauren's panel truncated the review after "The last"; only the fully
+ *   visible sentences are stored.
  *
  * ORDERING (deterministic, never shuffled):
  *   1. Published Cardetail1 reviews from public-reviews, newest createdAt first
  *   2. Static Thumbtack snapshot in listing recency as of 2026-09-26
- *   3. Static Google snapshot in listing recency as of 2026-08-25
+ *   3. Static Google snapshot in listing recency as of 2026-09-26
  *   4. Legacy curated job testimonials (not labeled Google, Thumbtack, or Verified)
  *   Dedup by id and normalized review body.
  *
@@ -49,14 +50,47 @@
     reviewUrl: GOOGLE_REVIEW_URL,
     rating: 5,
     ratingLabel: '5.0',
-    reviewCount: 9,
-    snapshotDate: '2026-08-25',
+    reviewCount: 12,
+    snapshotDate: '2026-09-26',
     cid: '0x8207adab977c7032'
   };
 
-  // Exact public Google review text as shown on the listing on 2026-08-25.
-  // Do not rewrite grammar, ratings, names, or wording.
+  // Exact public Google review text. The original nine are the 2026-08-25
+  // listing. Lauren, Michael, and Kasey were copied from the knowledge
+  // panel screenshot on 2026-09-26. Do not rewrite grammar, ratings,
+  // names, or wording. Lauren's card stops at the last fully visible
+  // sentence; the panel hid the rest behind More after "The last".
   var GOOGLE_REVIEWS = [
+    {
+      id: 'g-lauren-murphy',
+      name: 'Lauren Murphy',
+      rating: 5,
+      text: 'My car looks incredible \u2014 it honestly feels brand new again. Everything from the exterior, seats and console to the dash and little details was spotless. He was extremely thorough, professional, and clearly takes pride in his work.',
+      date: 'Sep 2026',
+      relativeDate: 'a day ago',
+      source: 'google',
+      sort: 1
+    },
+    {
+      id: 'g-michael-purcell',
+      name: 'Michael Purcell',
+      rating: 5,
+      text: 'He did a fantastic job cleaning an RV I have from head to toe 10 out of 10 would recommend',
+      date: 'Sep 2026',
+      relativeDate: 'a week ago',
+      source: 'google',
+      sort: 2
+    },
+    {
+      id: 'g-kasey-wasserbeck',
+      name: 'Kasey Wasserbeck',
+      rating: 5,
+      text: 'Amazing detail service. Quick and spotless clean. Car looks brand new on the inside again!',
+      date: 'Aug 2026',
+      relativeDate: '4 weeks ago',
+      source: 'google',
+      sort: 3
+    },
     {
       id: 'g-john-daquila',
       name: 'John Daquila',
