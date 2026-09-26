@@ -5,18 +5,23 @@
  * Marketplace cards are one-time static snapshots of the public listings.
  * If those sites are offline, these cards still render from this file.
  *
- * Listing snapshot (2026-08-25):
+ * Listing snapshot (2026-08-25), rechecked 2026-09-26:
  *   Name: Cardetail1
  *   Phone: (551) 389-3986
  *   Site: cardetail1.com
  *   Maps: https://maps.google.com/maps/place/cardetail1/data=!4m2!3m1!1s0x4f36d27550a90189:0x8207adab977c7032
  *   CID:  0x8207adab977c7032
  *   Review link already used by the site: https://g.page/r/CTJwfJerrQeCEAI/review
- *   Google rating: 5.0 from 9 written reviews
+ *   Written reviews stored here: 9
+ *   Live Maps listing on 2026-09-26: 5.0 from 12 reviews.
+ *   The public place preview returned 5 featured written reviews
+ *   (Gerard Baltazar, Claudio Campos, John Daquila, Scott Rosenwald,
+ *   Adilsom pedro). All five were already in this snapshot. The other
+ *   review bodies were not in that payload, so they are not invented here.
  *
  * ORDERING (deterministic, never shuffled):
  *   1. Published Cardetail1 reviews from public-reviews, newest createdAt first
- *   2. Static Thumbtack snapshot in listing recency as of 2026-09-17
+ *   2. Static Thumbtack snapshot in listing recency as of 2026-09-26
  *   3. Static Google snapshot in listing recency as of 2026-08-25
  *   4. Legacy curated job testimonials (not labeled Google, Thumbtack, or Verified)
  *   Dedup by id and normalized review body.
@@ -144,10 +149,40 @@
     }
   ];
 
-  // Exact public Thumbtack review text as shown in the listing screenshot
-  // provided 2026-09-17. Do not rewrite grammar, ratings, names, or wording.
-  // Photos from that listing are not imported: review cards are text-only.
+  // Exact public Thumbtack review text from the Cardetail1 listing on
+  // 2026-09-26 (schema.org review nodes plus the rendered service page).
+  // Do not rewrite grammar, ratings, names, or wording.
+  // Photos and job-detail lines are not imported: review cards are text-only.
+  // The page showed 14 reviews and schema.org reported 11. This list stores
+  // the written reviews whose full text was in that public response.
   var THUMBTACK_REVIEWS = [
+    {
+      id: 'tt-dachena-g',
+      name: 'Dachena G.',
+      rating: 5,
+      text: 'Highly recommend! He did an amazing job detailing my car. He was professional, took his time, and paid attention to every little detail. My car came out looking and feeling brand new. You can definitely tell he takes pride in his work. Great service and quality work \u2014 I\u2019ll definitely be coming back!',
+      date: 'Sep 26, 2026',
+      source: 'thumbtack',
+      sort: 1
+    },
+    {
+      id: 'tt-jackie-b',
+      name: 'Jackie B.',
+      rating: 5,
+      text: 'Great service! Magno was quick to respond, easy to communicate with and did a wonderful job on the interior of my car. It looks brand new!',
+      date: 'Sep 25, 2026',
+      source: 'thumbtack',
+      sort: 2
+    },
+    {
+      id: 'tt-jasmin-g',
+      name: 'Jasmin G.',
+      rating: 5,
+      text: 'The best service ever!! Not only were they on time with quick replies\u2014- they did the best job on our school vehicles which were embarrassingly disgusting. We were able to start this school year with a clean start (literally).  This is a humble, hard working and very detailed service. Highly recommended and we will definitely use this service in the future!! Book them NOW!!',
+      date: 'Sep 24, 2026',
+      source: 'thumbtack',
+      sort: 3
+    },
     {
       id: 'tt-cynthia-c',
       name: 'Cynthia C.',
@@ -165,6 +200,15 @@
       date: 'Aug 30, 2026',
       source: 'thumbtack',
       sort: 6
+    },
+    {
+      id: 'tt-carol-g',
+      name: 'Carol G.',
+      rating: 5,
+      text: 'Excellent job detailing my car!  Would highly recommend.',
+      date: 'Aug 21, 2026',
+      source: 'thumbtack',
+      sort: 7
     }
   ];
 
