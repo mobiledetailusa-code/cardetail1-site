@@ -29,6 +29,7 @@ const PUBLIC_PAGES = [
   'detailing-vs-car-wash.html',
   'how-often-to-detail.html',
   'mobile-detailing-what-to-expect.html',
+  'ceramic-coating.html',
 ];
 
 const canonicalFooter = read('assets/partials/specialty-public-footer.html')

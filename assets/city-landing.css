@@ -46,6 +46,7 @@
 }
 .city-copy p { margin-bottom: 16px; }
 .city-copy p:last-child { margin-bottom: 0; }
+.city-copy a { color: #4da3ff; font-weight: 600; }
 .city-nearby {
   display: flex;
   flex-wrap: wrap;
