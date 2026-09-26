@@ -137,6 +137,10 @@
   from = "/mobile-detailing-what-to-expect"
   to = "/mobile-detailing-what-to-expect.html"
   status = 200
+[[redirects]]
+  from = "/ceramic-coating"
+  to = "/ceramic-coating.html"
+  status = 200
 
 [[headers]]
   for = "/customer.html"

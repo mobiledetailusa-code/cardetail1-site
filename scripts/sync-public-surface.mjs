@@ -37,6 +37,7 @@ const PUBLIC_HTML = [
   'how-often-to-detail.html',
   'mobile-detailing-what-to-expect.html',
   'reviews.html',
+  'ceramic-coating.html',
 ];
 
 const HUB_PAGES = PUBLIC_HTML.filter((f) =>
