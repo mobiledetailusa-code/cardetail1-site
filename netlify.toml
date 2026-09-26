@@ -110,6 +110,14 @@
   to = "/prototype/:splat"
   status = 302
 [[redirects]]
+  from = "/portal-app"
+  to = "/prototype/pwa/"
+  status = 302
+[[redirects]]
+  from = "/portal-app/*"
+  to = "/prototype/pwa/:splat"
+  status = 302
+[[redirects]]
   from = "/terms-conditions"
   to = "/terms-conditions.html"
   status = 200
