@@ -42,6 +42,7 @@ const {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  rescheduleQuickOps,
 } = require('../netlify/lib/admin-quick-ops-actions');
 const { projectQuickOpsBooking } = require('../netlify/lib/admin-quick-ops-view');
 const { setPaymentResumeStoreFactory, resetPaymentResumeStoreFactory } = require('../netlify/lib/payment-resume-token');
@@ -404,6 +405,7 @@ describe('token + GET never mutates', () => {
     ].join('\n');
     assert.doesNotMatch(src, /listSubmittedBookings/);
     assert.doesNotMatch(src, /listAllBlobs/);
+    assert.doesNotMatch(src, /listBookingsForSlotLock|findNearbyOpenings/);
     assert.doesNotMatch(src, /admin-ops-jobs/);
     assert.doesNotMatch(src, /adminMarkCashReceived|adminMarkCardOnSite/);
     assert.doesNotMatch(src, /getBooking\(/);
@@ -426,6 +428,9 @@ describe('quick ops page + actions', () => {
     assert.equal(view.actions.payment, true);
     assert.equal(view.actions.cash, true);
     assert.equal(view.actions.card, true);
+    assert.equal(view.actions.reschedule, true);
+    assert.equal(view.service.dateIso, '2026-09-19');
+    assert.ok(view.service.windows.includes('10:00 AM'));
     assert.equal(view.money.methodLabel, '');
     assert.equal(view.telUrl, `tel:${VERIFIED}`);
     assert.match(view.mapUrl, /maps\.google\.com/);
@@ -446,6 +451,7 @@ describe('quick ops page + actions', () => {
     assert.equal(paid.actions.payment, false);
     assert.equal(paid.actions.cash, false);
     assert.equal(paid.actions.card, false);
+    assert.equal(paid.actions.reschedule, false);
     assert.equal(paid.money.remainingCents, 0);
     assert.equal(paid.money.methodLabel, 'Cash');
     assert.equal(paid.locked, true);
@@ -779,6 +785,80 @@ describe('quick ops page + actions', () => {
     assert.match(paidHtml.body, /Paid \/ completed — details are locked/);
     assert.doesNotMatch(paidHtml.body, /Record cash/);
     assert.doesNotMatch(paidHtml.body, /Cancel appointment/);
+    assert.doesNotMatch(paidHtml.body, /Change day \/ time/);
+  });
+
+  it('reschedules this booking only without scanning occupancy', async () => {
+    const booking = pendingBooking({
+      status: 'Confirmed',
+      appointmentStatus: 'confirmed',
+      jobStatus: 'confirmed',
+    });
+    setBookingStoreOverride(createCasMemoryStore({ [booking.id]: booking }));
+    const first = await rescheduleQuickOps(booking, {
+      date: '2026-09-21',
+      time: '10:00 AM',
+      expectedBookingVersion: 1,
+      prisma: createMemoryOutboxPrisma(),
+      env: SMS_ENV,
+    });
+    assert.equal(first.ok, true, first.error);
+    assert.equal(first.confirmedDate, '2026-09-21');
+    assert.equal(first.confirmedTime, '10:00 AM');
+    const rec = await getBookingRecord(booking.id);
+    assert.equal(rec.booking.confirmedDate, '2026-09-21');
+    assert.equal(rec.booking.preferredDate, '2026-09-21');
+    assert.equal(rec.booking.preferredTime, '10:00 AM');
+    assert.equal(rec.booking.appointmentStatus, 'confirmed');
+    assert.equal(rec.booking.bookingVersion, 2);
+
+    const same = await rescheduleQuickOps(rec.booking, {
+      date: '2026-09-21',
+      time: '10:00 AM',
+      expectedBookingVersion: 2,
+    });
+    assert.equal(same.ok, true);
+    assert.equal(same.idempotent, true);
+    assert.equal((await getBookingRecord(booking.id)).booking.bookingVersion, 2);
+
+    const sunday = await rescheduleQuickOps(rec.booking, {
+      date: '2026-09-20',
+      time: '10:00 AM',
+      expectedBookingVersion: 2,
+    });
+    assert.equal(sunday.ok, false);
+    assert.equal(sunday.error, 'date_unavailable');
+
+    const lateSaturday = await rescheduleQuickOps(rec.booking, {
+      date: '2026-09-19',
+      time: '2:00 PM',
+      expectedBookingVersion: 2,
+    });
+    assert.equal(lateSaturday.ok, false);
+    assert.equal(lateSaturday.error, 'time_unavailable');
+
+    const { session, event } = await sessionEventFor(booking.id);
+    const html = await qoHandler.handler({
+      ...event,
+      headers: { ...event.headers, accept: 'text/html' },
+    });
+    assert.match(html.body, /Change day \/ time/);
+    assert.match(html.body, /id="qo-date"/);
+    const moved = await qoHandler.handler({
+      ...event,
+      httpMethod: 'POST',
+      headers: { ...event.headers, 'x-qo-csrf': session.csrfToken },
+      body: JSON.stringify({
+        action: 'reschedule',
+        bookingVersion: 2,
+        date: '2026-09-22',
+        time: '8:00 AM',
+      }),
+    });
+    assert.equal(moved.statusCode, 200, moved.body);
+    const after = await getBookingRecord(booking.id);
+    assert.equal(after.booking.confirmedDate, '2026-09-22');
+    assert.equal(after.booking.confirmedTime, '8:00 AM');
   });
 });
 
@@ -804,7 +884,7 @@ describe('architecture freeze', () => {
       handlerSrc.indexOf('async function handlePost')
     );
     assert.match(handlerSrc, /if \(event\.httpMethod === 'GET'\) return handleGet/);
-    assert.doesNotMatch(getFn, /confirmQuickOps|cancelQuickOps|decideQuickOps|textCustomer|mintPaymentLink|enqueueSms|recordOnSitePayment/);
+    assert.doesNotMatch(getFn, /confirmQuickOps|cancelQuickOps|decideQuickOps|textCustomer|mintPaymentLink|enqueueSms|recordOnSitePayment|rescheduleQuickOps/);
   });
 
   it('cookie session is not a full Admin session', () => {

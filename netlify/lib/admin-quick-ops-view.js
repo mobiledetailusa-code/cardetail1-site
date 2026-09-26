@@ -3,6 +3,7 @@
 const { remainingCents } = require('./booking-aggregate');
 const { smsDateLabel, smsWindowLabel, smsVehicleLabel, smsServiceLabel, smsPriceLabel } = require('./sms-templates');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
+const { KNOWN_OPERATIONAL_SLOTS } = require('./operational-availability');
 
 const PENDING_REQUEST = new Set(['pending', 'requested', 'open', 'submitted', 'awaiting_review']);
 
@@ -52,6 +53,12 @@ function onSiteMethodLabel(booking) {
     return 'Card';
   }
   if (pay === 'paid') return 'Card';
+  return '';
+}
+
+function dateIso(raw) {
+  const s = String(raw || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   return '';
 }
 
@@ -124,7 +131,10 @@ function projectQuickOpsBooking(booking, shared = null) {
     service: {
       package: smsServiceLabel(booking),
       date: smsDateLabel(date),
+      dateIso: dateIso(date),
       window: smsWindowLabel(window),
+      windowRaw: window,
+      windows: [...KNOWN_OPERATIONAL_SLOTS],
       address,
       note: String(booking.notes || booking.specialInstructions || '').replace(/\s+/g, ' ').trim().slice(0, 180),
     },
@@ -164,6 +174,7 @@ function projectQuickOpsBooking(booking, shared = null) {
         payment: due,
         cash: due,
         card: due,
+        reschedule: !appointmentLocked,
       };
     })(),
     mapUrl: address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '',

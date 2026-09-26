@@ -18,6 +18,7 @@ const {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  rescheduleQuickOps,
 } = require('../lib/admin-quick-ops-actions');
 const { neutralExpiredPage, quickOpsPage } = require('../lib/quick-ops-html');
 
@@ -166,6 +167,34 @@ async function handlePost(event) {
       idempotent: !!result.idempotent,
       reload: true,
       message: result.ok ? (result.idempotent ? 'Already decided' : `Request ${action}d`) : (result.error || 'decide_failed'),
+    });
+  }
+  if (action === 'reschedule') {
+    if (!actions.reschedule) {
+      return json(409, { ok: false, error: 'locked', message: 'Paid / completed — locked' });
+    }
+    const result = await rescheduleQuickOps(booking, {
+      date: body.date,
+      time: body.time,
+      expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
+    });
+    if (!result.ok) {
+      const message = result.error === 'invalid_date' || result.error === 'date_unavailable'
+        ? 'Choose a valid day'
+        : result.error === 'invalid_time' || result.error === 'time_unavailable'
+          ? 'Choose a valid window'
+          : result.error === 'version_conflict'
+            ? 'Booking changed — reload and try again'
+            : result.error === 'locked'
+              ? 'Paid / completed — locked'
+              : 'Could not reschedule';
+      return json(result.statusCode || 409, { ok: false, error: result.error, message });
+    }
+    return json(200, {
+      ok: true,
+      idempotent: !!result.idempotent,
+      reload: true,
+      message: result.idempotent ? 'Already on that day and window' : 'Appointment moved',
     });
   }
   if (action === 'record_cash' || action === 'record_card') {
