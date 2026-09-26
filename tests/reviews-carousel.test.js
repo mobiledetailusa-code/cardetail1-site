@@ -70,15 +70,20 @@ function mountReviewsPage() {
 
 test('1. static Google review renders', () => {
   const google = reviews.googleReviews();
-  assert.equal(google.length, 9);
+  assert.equal(google.length, 12);
   const claudio = google.find((r) => r.id === 'g-claudio-campos');
   assert.ok(claudio);
   assert.equal(claudio.name, 'Claudio Campos');
   if (!JSDOM) return;
   const home = mountDom();
-  const homeCard = home.window.document.querySelector('[data-review-id="g-john-daquila"]');
+  const homeCard = home.window.document.querySelector('[data-review-id="tt-jackie-b"]');
   assert.ok(homeCard);
-  assert.match(homeCard.textContent, /John Daquila/);
+  assert.match(homeCard.textContent, /Jackie B\./);
+  assert.equal(
+    home.window.document.querySelector('[data-review-id="g-john-daquila"]'),
+    null,
+    'John is past the homepage HOME_LIMIT once newer Thumbtack cards lead the mix',
+  );
   assert.equal(
     home.window.document.querySelector('[data-review-id="g-claudio-campos"]'),
     null,
@@ -93,7 +98,7 @@ test('1. static Google review renders', () => {
 test('2. Google source label renders', () => {
   assert.equal(reviews.sourceLabel({ source: 'google' }), 'Google review');
   if (!JSDOM) return;
-  const dom = mountDom();
+  const dom = mountReviewsPage();
   const card = dom.window.document.querySelector('[data-review-id="g-john-daquila"]');
   assert.equal(card.getAttribute('data-source'), 'google');
   assert.match(card.textContent, /Google review/);
@@ -122,12 +127,52 @@ test('3. Google text preserved exactly', () => {
   assert.equal(reviews.googleReviews().find((r) => r.id === 'g-rose-alves').text, rose.text);
 });
 
+test('new Google reviews from the 2026-09-26 panel render exactly', () => {
+  const google = reviews.googleReviews();
+  const lauren = google.find((r) => r.id === 'g-lauren-murphy');
+  const michael = google.find((r) => r.id === 'g-michael-purcell');
+  const kasey = google.find((r) => r.id === 'g-kasey-wasserbeck');
+  assert.equal(lauren.name, 'Lauren Murphy');
+  assert.equal(lauren.rating, 5);
+  assert.equal(lauren.date, 'Sep 2026');
+  assert.equal(lauren.relativeDate, 'a day ago');
+  assert.equal(
+    lauren.text,
+    'My car looks incredible \u2014 it honestly feels brand new again. Everything from the exterior, seats and console to the dash and little details was spotless. He was extremely thorough, professional, and clearly takes pride in his work.',
+  );
+  assert.doesNotMatch(lauren.text, /The last/);
+  assert.equal(michael.name, 'Michael Purcell');
+  assert.equal(michael.rating, 5);
+  assert.equal(michael.text, 'He did a fantastic job cleaning an RV I have from head to toe 10 out of 10 would recommend');
+  assert.equal(kasey.name, 'Kasey Wasserbeck');
+  assert.equal(kasey.rating, 5);
+  assert.equal(kasey.text, 'Amazing detail service. Quick and spotless clean. Car looks brand new on the inside again!');
+
+  const ids = reviews.mixed().map((r) => r.id);
+  assert.ok(ids.indexOf('g-lauren-murphy') < ids.indexOf('g-michael-purcell'));
+  assert.ok(ids.indexOf('g-michael-purcell') < ids.indexOf('g-kasey-wasserbeck'));
+  assert.ok(ids.indexOf('g-kasey-wasserbeck') < ids.indexOf('g-john-daquila'));
+  assert.ok(ids.indexOf('tt-carol-g') < ids.indexOf('g-lauren-murphy'));
+
+  if (!JSDOM) return;
+  const page = mountReviewsPage();
+  const card = page.window.document.querySelector('[data-review-id="g-lauren-murphy"]');
+  assert.ok(card);
+  assert.equal(card.getAttribute('data-source'), 'google');
+  assert.match(card.textContent, /Google review/);
+  assert.equal(card.querySelector('.rv-quote').textContent, lauren.text);
+  assert.equal(
+    page.window.document.querySelector('[data-review-id="g-michael-purcell"] .rv-quote').textContent,
+    michael.text,
+  );
+});
+
 test('4. Google rating preserved exactly', () => {
   for (const review of reviews.googleReviews()) {
     assert.equal(review.rating, 5);
   }
   if (!JSDOM) return;
-  const dom = mountDom();
+  const dom = mountReviewsPage();
   const card = dom.window.document.querySelector('[data-review-id="g-john-daquila"]');
   assert.ok(card);
   assert.equal(card.getAttribute('data-rating'), '5');
@@ -280,14 +325,14 @@ test('13. View all excludes hidden and internal reviews', () => {
 });
 
 test('14. Read more preserves full review text', () => {
-  const john = reviews.googleReviews().find((r) => r.id === 'g-john-daquila');
+  const cynthia = reviews.thumbtackReviews().find((r) => r.id === 'tt-cynthia-c');
   if (!JSDOM) return;
   const dom = mountDom();
-  const card = dom.window.document.querySelector('[data-review-id="g-john-daquila"]');
+  const card = dom.window.document.querySelector('[data-review-id="tt-cynthia-c"]');
   assert.ok(card.querySelector('.rv-read-more'));
-  reviews.openReview('g-john-daquila');
+  reviews.openReview('tt-cynthia-c');
   const overlay = dom.window.document.getElementById('rv-overlay');
-  assert.equal(overlay.querySelector('.rv-quote').textContent, john.text);
+  assert.equal(overlay.querySelector('.rv-quote').textContent, cynthia.text);
   reviews.closeOverlay();
 });
 
@@ -362,14 +407,15 @@ test('20. Google unavailable has zero runtime impact', () => {
   };
   reviews.mount(dom.window.document, { fetch: false });
   assert.equal(fetchCalled, false);
-  assert.ok(dom.window.document.querySelector('[data-review-id="g-john-daquila"]'));
-  assert.equal(reviews.googleReviews().length, 9);
+  assert.ok(dom.window.document.querySelector('[data-review-id="tt-jackie-b"]'));
+  assert.ok(reviews.mixed().some((r) => r.id === 'g-john-daquila'));
+  assert.equal(reviews.googleReviews().length, 12);
 });
 
 test('Google listing snapshot is Cardetail1, not a lookalike shop', () => {
   assert.equal(reviews.GOOGLE_LISTING.name, 'Cardetail1');
   assert.equal(reviews.GOOGLE_LISTING.phone, '(551) 389-3986');
-  assert.equal(reviews.GOOGLE_LISTING.reviewCount, 9);
+  assert.equal(reviews.GOOGLE_LISTING.reviewCount, 12);
   assert.equal(reviews.GOOGLE_LISTING.ratingLabel, '5.0');
   assert.match(reviews.GOOGLE_LISTING.cid, /0x8207adab977c7032/);
   assert.equal(reviews.GOOGLE_LISTING.reviewUrl, 'https://g.page/r/CTJwfJerrQeCEAI/review');
@@ -390,13 +436,40 @@ test('legacy testimonials are not labeled Google or Verified Cardetail1', () => 
 
 test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 verified', () => {
   const thumbtack = reviews.thumbtackReviews();
-  assert.equal(thumbtack.length, 2);
+  assert.equal(thumbtack.length, 6);
   assert.equal(reviews.sourceLabel({ source: 'thumbtack' }), 'Thumbtack review');
 
+  const dachena = thumbtack.find((r) => r.id === 'tt-dachena-g');
+  const jackie = thumbtack.find((r) => r.id === 'tt-jackie-b');
+  const jasmin = thumbtack.find((r) => r.id === 'tt-jasmin-g');
   const cynthia = thumbtack.find((r) => r.id === 'tt-cynthia-c');
   const kasey = thumbtack.find((r) => r.id === 'tt-kasey-w');
+  const carol = thumbtack.find((r) => r.id === 'tt-carol-g');
+  assert.ok(dachena);
+  assert.ok(jackie);
+  assert.ok(jasmin);
   assert.ok(cynthia);
   assert.ok(kasey);
+  assert.ok(carol);
+  assert.equal(dachena.name, 'Dachena G.');
+  assert.equal(dachena.rating, 5);
+  assert.equal(dachena.date, 'Sep 26, 2026');
+  assert.equal(
+    dachena.text,
+    'Highly recommend! He did an amazing job detailing my car. He was professional, took his time, and paid attention to every little detail. My car came out looking and feeling brand new. You can definitely tell he takes pride in his work. Great service and quality work \u2014 I\u2019ll definitely be coming back!',
+  );
+  assert.equal(jackie.name, 'Jackie B.');
+  assert.equal(jackie.rating, 5);
+  assert.equal(jackie.date, 'Sep 25, 2026');
+  assert.equal(
+    jackie.text,
+    'Great service! Magno was quick to respond, easy to communicate with and did a wonderful job on the interior of my car. It looks brand new!',
+  );
+  assert.equal(jasmin.name, 'Jasmin G.');
+  assert.equal(jasmin.rating, 5);
+  assert.equal(jasmin.date, 'Sep 24, 2026');
+  assert.match(jasmin.text, /quick replies\u2014- they did the best job/);
+  assert.match(jasmin.text, /clean start \(literally\)\.  This is a humble/);
   assert.equal(cynthia.name, 'Cynthia C.');
   assert.equal(cynthia.rating, 5);
   assert.equal(cynthia.date, 'Sep 8, 2026');
@@ -406,25 +479,42 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
   assert.equal(kasey.rating, 5);
   assert.equal(kasey.date, 'Aug 30, 2026');
   assert.equal(kasey.text, 'Amazing car detail, looks brand new');
-  assert.doesNotMatch(reviews.sourceLabel(cynthia), /Verified Cardetail1/);
-  assert.doesNotMatch(reviews.sourceLabel(cynthia), /Google review/);
+  assert.equal(carol.name, 'Carol G.');
+  assert.equal(carol.rating, 5);
+  assert.equal(carol.date, 'Aug 21, 2026');
+  assert.equal(carol.text, 'Excellent job detailing my car!  Would highly recommend.');
+  assert.doesNotMatch(reviews.sourceLabel(jackie), /Verified Cardetail1/);
+  assert.doesNotMatch(reviews.sourceLabel(jackie), /Google review/);
 
+  reviews.applyPortalItems([]);
   const mixed = reviews.mixed();
+  const jackieIdx = mixed.findIndex((r) => r.id === 'tt-jackie-b');
   const cynthiaIdx = mixed.findIndex((r) => r.id === 'tt-cynthia-c');
+  const carolIdx = mixed.findIndex((r) => r.id === 'tt-carol-g');
   const johnIdx = mixed.findIndex((r) => r.id === 'g-john-daquila');
-  assert.ok(cynthiaIdx > -1 && johnIdx > -1);
-  assert.ok(cynthiaIdx < johnIdx, 'newer Thumbtack snapshot should precede Google snapshot');
+  assert.ok(jackieIdx > -1 && cynthiaIdx > -1 && carolIdx > -1 && johnIdx > -1);
+  assert.ok(jackieIdx < cynthiaIdx && cynthiaIdx < carolIdx && carolIdx < johnIdx, 'newer Thumbtack snapshot should precede Google snapshot');
+
+  const homeIds = reviews.homepage().map((r) => r.id);
+  assert.deepEqual(homeIds, [
+    'tt-dachena-g',
+    'tt-jackie-b',
+    'tt-jasmin-g',
+    'tt-cynthia-c',
+    'tt-kasey-w',
+    'tt-carol-g',
+  ]);
 
   if (!JSDOM) return;
   const home = mountDom();
-  const homeCard = home.window.document.querySelector('[data-review-id="tt-cynthia-c"]');
+  const homeCard = home.window.document.querySelector('[data-review-id="tt-jackie-b"]');
   assert.ok(homeCard);
   assert.equal(homeCard.getAttribute('data-source'), 'thumbtack');
   assert.match(homeCard.textContent, /Thumbtack review/);
   assert.doesNotMatch(homeCard.textContent, /Verified Cardetail1 customer/);
   assert.equal(
-    home.window.document.querySelector('[data-review-id="tt-cynthia-c"] .rv-quote').textContent,
-    cynthia.text,
+    home.window.document.querySelector('[data-review-id="tt-jackie-b"] .rv-quote').textContent,
+    jackie.text,
   );
 
   const page = mountReviewsPage();
@@ -432,12 +522,15 @@ test('static Thumbtack reviews render with Thumbtack labels, not Cardetail1 veri
   assert.ok(pageCard);
   assert.equal(pageCard.getAttribute('data-source'), 'thumbtack');
   assert.match(pageCard.textContent, /Thumbtack review/);
+  const jackiePage = page.window.document.querySelector('[data-review-id="tt-jackie-b"]');
+  assert.ok(jackiePage);
+  assert.equal(jackiePage.querySelector('.rv-quote').textContent, jackie.text);
 });
 
 test('Thumbtack import does not add a live Thumbtack API or change Google snapshot', () => {
   assert.doesNotMatch(reviewsJs, /thumbtack\.com\/api/i);
   assert.doesNotMatch(reviewsJs, /THUMBTACK_API/);
-  assert.equal(reviews.googleReviews().length, 9);
+  assert.equal(reviews.googleReviews().length, 12);
   assert.doesNotMatch(index, /5\.0 on Google · 9 reviews/);
   assert.doesNotMatch(index, /9 reviews/);
 });

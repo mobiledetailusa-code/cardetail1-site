@@ -285,7 +285,7 @@ test('16. review authority and imported Google review bodies were not modified',
     assert.equal(sha256(file), FROZEN_SHA256[file], `${file} must not change in this branding PR`);
   }
   const google = reviews.googleReviews();
-  assert.equal(google.length, 9);
+  assert.equal(google.length, 12);
   const john = google.find((r) => r.id === 'g-john-daquila');
   assert.ok(john);
   assert.equal(john.rating, 5);
