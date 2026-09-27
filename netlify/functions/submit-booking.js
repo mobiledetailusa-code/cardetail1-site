@@ -80,7 +80,7 @@ const {
 const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
 const { applyCeramicBooking } = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
-const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
+const { indexedSlotConflict, syncSlotIndex, reserveBookedSpan, bookedSpanReady } = require('../lib/slot-index');
 const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
 const { findDuplicateBooking } = require('../lib/booking-history');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
@@ -212,7 +212,7 @@ async function loadSlotLockBookings() {
   }));
 }
 
-async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
+async function enforceScheduleFields(b, { checkSlot = false, excludeId = null, bookedOnly = false } = {}) {
   const { getOperationalAvailability } = require('../lib/ops-config');
   const { slotsForDate, nextOpenDay } = require('../lib/booking-schedule');
   const {
@@ -232,14 +232,14 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
   // look free and let a second draft finalize.
   async function slotTaken(dateIso, slot) {
     const nowMs = Date.now();
-    const indexed = await indexedSlotConflict(dateIso, slot, { excludeId, nowMs, config });
+    const indexed = await indexedSlotConflict(dateIso, slot, { excludeId, nowMs, config, bookedOnly });
     if (indexed.ok) return indexed.conflict;
     if (!bookingsForLock) {
       bookingsForLock = await loadSlotLockBookings().catch((err) => {
         throw verificationUnavailable(err);
       });
     }
-    return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, nowMs, config);
+    return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, { nowMs, config, bookedOnly });
   }
 
   function spanFor(dateIso, startSlot) {
@@ -905,6 +905,179 @@ function mergeNotificationFields(latest, notified) {
   };
 }
 
+let bookingNotificationAttempts = 0;
+const NOTIFICATION_CLAIM_MS = 2 * 60 * 1000;
+
+function occupancyFailureBody(bookingId, error) {
+  const conflict = error === 'booking_slot_unavailable';
+  return {
+    ok: false,
+    bookingCreated: false,
+    error: conflict ? 'booking_slot_unavailable' : 'occupancy_incomplete',
+    draftBookingId: bookingId || null,
+    recoverable: !conflict,
+    retryable: !conflict,
+    userMessage: conflict
+      ? 'That time is no longer available. Choose another slot and submit again. No payment was collected.'
+      : 'The appointment was not confirmed. Submit the request again to finish reserving every required time. No payment was collected.',
+  };
+}
+
+function pendingOccupancyRecord(existing, prepared) {
+  const pending = {
+    ...existing,
+    preferredDate: prepared.preferredDate,
+    preferredTime: prepared.preferredTime,
+    preferredArrivalWindow: prepared.preferredArrivalWindow,
+    appointmentDurationMinutes: prepared.appointmentDurationMinutes,
+    appointmentSchedule: prepared.appointmentSchedule,
+    companionInterior: prepared.companionInterior,
+    serviceFamily: prepared.serviceFamily,
+    ceramicPaymentPlan: prepared.ceramicPaymentPlan,
+    vehicles: prepared.vehicles || existing.vehicles,
+    totalPrice: prepared.totalPrice,
+    isDraft: true,
+    kind: 'draft',
+    occupancyStatus: 'pending',
+    occupancyPendingAt: existing.occupancyPendingAt || new Date().toISOString(),
+  };
+  delete pending.finalizedAt;
+  delete pending.notificationsClaimedAt;
+  delete pending.draftSaveTokenRevokedAt;
+  return pending;
+}
+
+function notificationClaimIsFresh(booking, nowMs = Date.now()) {
+  const claimed = Date.parse(booking && booking.notificationsClaimedAt || '');
+  return Number.isFinite(claimed) && (nowMs - claimed) < NOTIFICATION_CLAIM_MS;
+}
+
+function shouldRepairConfirmedNotifications(booking) {
+  if (!booking || booking.isDraft || !booking.finalizedAt) return false;
+  if (!bookingCreatedNotificationsIncomplete(booking)) return false;
+  if (notificationClaimIsFresh(booking)) return false;
+  return true;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const CONFIRMATION_CLAIM_STALE_MS = 15 * 1000;
+const confirmationGates = new Map();
+
+function withConfirmationGate(bookingId, work) {
+  const previous = confirmationGates.get(bookingId) || Promise.resolve();
+  const run = previous.catch(() => {}).then(work);
+  const settled = run.then(() => {}, () => {});
+  confirmationGates.set(bookingId, settled);
+  settled.then(() => {
+    if (confirmationGates.get(bookingId) === settled) confirmationGates.delete(bookingId);
+  });
+  return run;
+}
+
+async function claimConfirmation(store, bookingId) {
+  const key = `occupancy-claim/${bookingId}`;
+  const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const payload = JSON.stringify({ at: new Date().toISOString(), nonce });
+  if (!store || typeof store.set !== 'function') return { owner: true, nonce: null, key };
+  try {
+    let result = await store.set(key, payload, { onlyIfNew: true });
+    if (result && result.modified === false) {
+      const existing = await store.get(key, { type: 'json' }).catch(() => null);
+      const age = Date.now() - Date.parse(existing && existing.at || '');
+      const current = await store.get(bookingId, { type: 'json' }).catch(() => null);
+      if (!recordIsConfirmed(current) && Number.isFinite(age) && age > CONFIRMATION_CLAIM_STALE_MS) {
+        await store.delete(key);
+        result = await store.set(key, payload, { onlyIfNew: true });
+      }
+    }
+    if (result && result.modified === false) return { owner: false, nonce, key };
+    const seen = await store.get(key, { type: 'text' }).catch(() => null);
+    if (seen && !String(seen).includes(nonce)) return { owner: false, nonce, key };
+    return { owner: true, nonce, key };
+  } catch (err) {
+    console.warn('[submit-booking] occupancy claim failed', err && err.message ? err.message : err);
+    return { owner: false, nonce, key };
+  }
+}
+
+async function waitForConfirmedBooking(store, bookingId) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const current = await store.get(bookingId, { type: 'json' }).catch(() => null);
+    if (recordIsConfirmed(current)) return current;
+    await sleep(50);
+  }
+  return store.get(bookingId, { type: 'json' }).catch(() => null);
+}
+
+async function readBookingMeta(store, bookingId) {
+  if (!store || typeof store.getWithMetadata !== 'function') return null;
+  return store.getWithMetadata(bookingId, { type: 'json' }).catch(() => null);
+}
+
+function recordIsConfirmed(booking) {
+  return !!(booking && booking.isDraft === false && booking.finalizedAt);
+}
+
+async function notifyConfirmedBooking(store, booking, event) {
+  bookingNotificationAttempts += 1;
+  try {
+    const notified = await deliverBookingCreatedNotifications(booking, event);
+    return await persistNotificationFields(store, booking.id, notified);
+  } catch (e) {
+    console.warn('[submit-booking] transactional notify failed:', e.message);
+    return booking;
+  }
+}
+
+function confirmedBookingResponse(booking, { idempotent = false, stored = null, withDelivery = null } = {}) {
+  const row = withDelivery || booking;
+  return json(200, {
+    ok: true,
+    bookingCreated: true,
+    id: booking.id,
+    status: booking.status || 'Pending Review',
+    paymentStatus: booking.paymentStatus,
+    stored,
+    idempotent,
+    email: row.notificationDelivery?.adminEmail || null,
+    customerEmail: row.notificationDelivery?.customerEmail || { status: 'pending' },
+    sms: row.notificationDelivery?.adminSms || null,
+    notificationDelivery: row.notificationDelivery || booking.notificationDelivery || null,
+    appointmentStatus: booking.appointmentStatus,
+    cardOnFileStatus: booking.cardOnFileStatus || null,
+    bookingVersion: booking.bookingVersion || 1,
+    quoteVersion: booking.quoteVersion || 1,
+    offer: booking.offer || null,
+    approvedFinalAmount: booking.approvedFinalAmount ?? booking.totalPrice ?? null,
+    totalPrice: booking.totalPrice ?? null,
+    amountPaid: booking.amountPaid != null ? booking.amountPaid : 0,
+    balanceDue: booking.balanceDue != null ? booking.balanceDue : null,
+    depositAmount: booking.depositAmount != null ? booking.depositAmount : null,
+    serviceFamily: booking.serviceFamily || null,
+    paymentSucceeded: booking.serviceFamily === 'ceramic_coating'
+      ? (booking.paymentStatus === 'paid' || booking.paymentStatus === 'partially_paid')
+      : undefined,
+    ceramicChargeAmount: booking.ceramic?.chargeAmount != null ? booking.ceramic.chargeAmount : null,
+    appointmentDurationMinutes: booking.appointmentDurationMinutes || null,
+  });
+}
+
+async function respondIfSpanConfirmed(store, booking, event, { idempotent = false } = {}) {
+  const ready = await bookedSpanReady(booking);
+  if (!ready.ok || !ready.complete) {
+    const error = ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable';
+    return json(ready.ok ? 503 : 503, occupancyFailureBody(booking.id, error));
+  }
+  let current = booking;
+  if (shouldRepairConfirmedNotifications(current)) {
+    current = await notifyConfirmedBooking(store, current, event);
+  }
+  return confirmedBookingResponse(current, { idempotent, withDelivery: current });
+}
+
 async function persistNotificationFields(store, bookingId, notified) {
   const latest = await store.get(bookingId, { type: 'json' }).catch(() => null);
   const merged = mergeNotificationFields(latest, notified);
@@ -1162,48 +1335,23 @@ exports.handler = async (event) => {
       // If the first attempt persisted then died before notify, repair now —
       // still booking-authority (signed draft token), never a portal trigger.
       if (existing.finalizedAt || existing.bookingVersion >= 1) {
-        let booking = existing;
         const tokenCheck = verifyDraftSaveToken({
           token: b.draftSaveToken,
           bookingId: rawDraftId,
           phone: existing.phone || b.phone,
         });
-        if (tokenCheck.ok && bookingCreatedNotificationsIncomplete(existing)) {
-          try {
-            const notified = await deliverBookingCreatedNotifications(existing, event);
-            booking = await persistNotificationFields(store, rawDraftId, notified);
-          } catch (e) {
-            console.warn('[submit-booking] notification repair failed:', e.message);
-          }
+        const ready = await bookedSpanReady(existing);
+        if (!ready.ok || !ready.complete) {
+          return json(503, occupancyFailureBody(
+            existing.id || rawDraftId,
+            ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'
+          ));
         }
-        return json(200, {
-          ok: true,
-          bookingCreated: true,
-          id: booking.id || existing.id,
-          status: booking.status || existing.status || 'Pending Review',
-          bookingVersion: existing.bookingVersion || 1,
-          quoteVersion: existing.quoteVersion || 1,
-          idempotent: true,
-          cardOnFileStatus: booking.cardOnFileStatus || existing.cardOnFileStatus || null,
-          // Authoritative amount from stored booking only (not client body).
-          // Prefer persisted approvedFinalAmount; else stored totalPrice on the record.
-          approvedFinalAmount: (function () {
-            const storedApproved = booking.approvedFinalAmount ?? existing.approvedFinalAmount;
-            if (storedApproved != null && Number.isFinite(Number(storedApproved))) {
-              return Number(storedApproved);
-            }
-            const storedTotal = booking.totalPrice ?? existing.totalPrice;
-            if (storedTotal != null && Number.isFinite(Number(storedTotal))) {
-              return Number(storedTotal);
-            }
-            return null;
-          })(),
-          totalPrice: booking.totalPrice ?? existing.totalPrice ?? null,
-          customerEmail: booking.notificationDelivery?.customerEmail
-            || existing.notificationDelivery?.customerEmail
-            || { status: 'pending' },
-          notificationDelivery: booking.notificationDelivery || existing.notificationDelivery,
-        });
+        let booking = existing;
+        if (tokenCheck.ok && shouldRepairConfirmedNotifications(existing)) {
+          booking = await notifyConfirmedBooking(store, existing, event);
+        }
+        return confirmedBookingResponse(booking, { idempotent: true, withDelivery: booking });
       }
       return json(409, { ok: false, error: 'Booking already finalized' });
     }
@@ -1266,7 +1414,11 @@ exports.handler = async (event) => {
     if (b.acceptedBookingPolicy !== true || (cardOnFileRequired && b.acceptedCardOnFilePolicy !== true)) {
       return json(400, { ok: false, error: 'booking_policy_required' });
     }
-    const scheduleFinal = await enforceScheduleFields(b, { checkSlot: true, excludeId: rawDraftId });
+    const scheduleFinal = await enforceScheduleFields(b, {
+      checkSlot: true,
+      excludeId: rawDraftId,
+      bookedOnly: true,
+    });
     if (!scheduleFinal.ok) {
       const status = scheduleStatus(scheduleFinal.error);
       return scheduleRejectResponse(status, scheduleFinal.error, {
@@ -1405,123 +1557,110 @@ exports.handler = async (event) => {
       });
     }
 
-    let stored = { saved: false };
+    const pending = pendingOccupancyRecord(existing, b);
     try {
-      if (typeof store.getWithMetadata === 'function') {
-        const meta = await store.getWithMetadata(rawDraftId, { type: 'json', consistency: 'strong' }).catch(() => null);
+      const meta = await readBookingMeta(store, rawDraftId);
+      const fresh = meta && meta.data;
+      if (recordIsConfirmed(fresh)) {
+        return respondIfSpanConfirmed(store, fresh, event, { idempotent: true });
+      }
+      if (meta && meta.etag) {
+        const writeResult = await store.setJSON(rawDraftId, pending, { onlyIfMatch: meta.etag });
+        if (writeResult && writeResult.modified === false) {
+          const raced = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
+          if (recordIsConfirmed(raced)) {
+            return respondIfSpanConfirmed(store, raced, event, { idempotent: true });
+          }
+        }
+      } else {
+        await store.setJSON(rawDraftId, pending);
+      }
+    } catch (e) {
+      return json(500, { ok: false, bookingCreated: false, error: 'booking_store_failed' });
+    }
+
+    const indexed = await reserveBookedSpan(b);
+    if (!indexed || indexed.ok === false) {
+      const error = (indexed && indexed.error) || 'occupancy_incomplete';
+      const status = error === 'booking_slot_unavailable' ? 409 : 503;
+      console.warn('[submit-booking] finalize occupancy incomplete', {
+        draftBookingId: rawDraftId,
+        error,
+      });
+      return json(status, occupancyFailureBody(rawDraftId, error));
+    }
+
+    return withConfirmationGate(rawDraftId, async () => {
+      const claim = await claimConfirmation(store, rawDraftId);
+      if (!claim.owner) {
+        const current = await waitForConfirmedBooking(store, rawDraftId);
+        if (recordIsConfirmed(current)) {
+          return respondIfSpanConfirmed(store, current, event, { idempotent: true });
+        }
+        return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
+      }
+
+      b.occupancyStatus = 'complete';
+      b.notificationsClaimedAt = new Date().toISOString();
+      let stored = { saved: false };
+      try {
+        const meta = await readBookingMeta(store, rawDraftId);
         const fresh = meta && meta.data;
-        if (fresh && (fresh.finalizedAt || fresh.isDraft === false)) {
-          return json(200, {
-            ok: true,
-            bookingCreated: true,
-            id: fresh.id || rawDraftId,
-            status: fresh.status || 'Pending Review',
-            bookingVersion: fresh.bookingVersion || 1,
-            quoteVersion: fresh.quoteVersion || 1,
-            idempotent: true,
-            cardOnFileStatus: fresh.cardOnFileStatus || null,
-            approvedFinalAmount: fresh.approvedFinalAmount ?? fresh.totalPrice ?? null,
-            totalPrice: fresh.totalPrice ?? null,
-          });
+        if (recordIsConfirmed(fresh)) {
+          return respondIfSpanConfirmed(store, fresh, event, { idempotent: true });
         }
         if (meta && meta.etag) {
-          const raced = await indexedSlotConflict(b.preferredDate, b.preferredTime, { excludeId: rawDraftId });
-          if (raced.ok && raced.conflict) {
-            return scheduleRejectResponse(409, 'booking_slot_unavailable', {
-              draftBookingId: rawDraftId,
-              preferredDate: b.preferredDate || null,
-              preferredTime: b.preferredTime || null,
-              phase: 'finalize',
-            });
-          }
           const writeResult = await store.setJSON(rawDraftId, b, { onlyIfMatch: meta.etag });
           if (writeResult && writeResult.modified === false) {
-            return scheduleRejectResponse(409, 'booking_slot_unavailable', {
-              draftBookingId: rawDraftId,
-              preferredDate: b.preferredDate || null,
-              preferredTime: b.preferredTime || null,
-              phase: 'finalize',
-            });
+            const raced = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
+            if (recordIsConfirmed(raced)) {
+              return respondIfSpanConfirmed(store, raced, event, { idempotent: true });
+            }
+            return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
           }
           stored = { saved: true };
         }
-      }
-      if (!stored.saved) {
-        const raced = await indexedSlotConflict(b.preferredDate, b.preferredTime, { excludeId: rawDraftId });
-        if (raced.ok && raced.conflict) {
-          return scheduleRejectResponse(409, 'booking_slot_unavailable', {
-            draftBookingId: rawDraftId,
-            preferredDate: b.preferredDate || null,
-            preferredTime: b.preferredTime || null,
-            phase: 'finalize',
-          });
+        if (!stored.saved) {
+          await store.setJSON(rawDraftId, b);
+          stored = { saved: true };
         }
-        await store.setJSON(rawDraftId, b);
-        stored = { saved: true };
+      } catch (e) {
+        return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
       }
-    } catch (e) {
-      return json(500, { ok: false, error: 'booking_store_failed' });
-    }
-    // Index-after for submitted holds: they never expire, so an orphan entry
-    // would block a real slot forever. Drift is reported by verify-slot-index.
-    // A sync failure must not fail the customer: the booking is already stored.
-    try {
-      await syncSlotIndex(b, { previous: existing });
-    } catch (err) {
-      console.warn('[submit-booking] finalize slot index sync failed', err && err.message ? err.message : err);
-    }
-    // Prisma dual-write AFTER Blob finalize — fail-open; never affects checkout response.
-    try {
-      const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
-      scheduleBookingMirror(b);
-    } catch { /* ignore */ }
 
-    // Booking-authority notify: AFTER persist, fail-open. Never a portal trigger.
-    let withDelivery = b;
-    try {
-      withDelivery = await deliverBookingCreatedNotifications(b, event);
-    } catch (e) {
-      console.warn('[submit-booking] transactional notify failed:', e.message);
-    }
+      if (claim.nonce) {
+        const seen = await store.get(claim.key, { type: 'text' }).catch(() => null);
+        if (seen && !String(seen).includes(claim.nonce)) {
+          const current = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
+          if (recordIsConfirmed(current)) {
+            return respondIfSpanConfirmed(store, current, event, { idempotent: true });
+          }
+          return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
+        }
+      }
 
-    try {
-      withDelivery = await persistNotificationFields(store, rawDraftId, withDelivery);
-    } catch (e) {
-      console.warn('[submit-booking] notification delivery persist failed:', e.message);
-    }
+      const ready = await bookedSpanReady(b);
+      if (!ready.ok || !ready.complete) {
+        return json(503, occupancyFailureBody(
+          rawDraftId,
+          ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'
+        ));
+      }
 
-    console.log('[submit-booking] finalize ok', {
-      draftBookingId: b.id,
-      setupIntentIdPrefix: siIdPrefix(b.setupIntentId),
-      cardOnFileStatus: b.cardOnFileStatus || null,
-      responseCode: 200,
-      bookingVersion: b.bookingVersion || 1,
-    });
-    return json(200, {
-      ok: true,
-      bookingCreated: true,
-      id: b.id,
-      status: b.status,
-      paymentStatus: b.paymentStatus,
-      stored,
-      email: withDelivery.notificationDelivery?.adminEmail || delivery.adminEmail,
-      customerEmail: withDelivery.notificationDelivery?.customerEmail || { status: 'pending' },
-      sms: withDelivery.notificationDelivery?.adminSms || delivery.adminSms,
-      notificationDelivery: withDelivery.notificationDelivery || delivery,
-      appointmentStatus: b.appointmentStatus,
-      cardOnFileStatus: b.cardOnFileStatus,
-      bookingVersion: b.bookingVersion || 1,
-      offer: b.offer || null,
-      approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
-      amountPaid: b.amountPaid != null ? b.amountPaid : 0,
-      balanceDue: b.balanceDue != null ? b.balanceDue : null,
-      depositAmount: b.depositAmount != null ? b.depositAmount : null,
-      serviceFamily: b.serviceFamily || null,
-      paymentSucceeded: b.serviceFamily === 'ceramic_coating'
-        ? (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid')
-        : undefined,
-      ceramicChargeAmount: b.ceramic?.chargeAmount != null ? b.ceramic.chargeAmount : null,
-      appointmentDurationMinutes: b.appointmentDurationMinutes || null,
+      try {
+        const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
+        scheduleBookingMirror(b);
+      } catch { /* ignore */ }
+
+      const withDelivery = await notifyConfirmedBooking(store, b, event);
+      console.log('[submit-booking] finalize ok', {
+        draftBookingId: b.id,
+        setupIntentIdPrefix: siIdPrefix(b.setupIntentId),
+        cardOnFileStatus: b.cardOnFileStatus || null,
+        responseCode: 200,
+        bookingVersion: b.bookingVersion || 1,
+      });
+      return confirmedBookingResponse(withDelivery, { stored, withDelivery });
     });
   }
 
@@ -1549,4 +1688,6 @@ exports.__test = {
   reconcileCardOnFileFromStripe,
   deliverBookingCreatedNotifications,
   bookingCreatedNotificationsIncomplete,
+  notificationAttempts() { return bookingNotificationAttempts; },
+  resetNotificationAttempts() { bookingNotificationAttempts = 0; },
 };

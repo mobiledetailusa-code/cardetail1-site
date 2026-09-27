@@ -72,7 +72,16 @@ function forwardingStore(real, hooks = {}) {
       if (hooks.beforeSet) await hooks.beforeSet(key, value);
       return real.setJSON(key, value, opts);
     },
+    async set(key, value, opts) {
+      if (hooks.beforeSet) await hooks.beforeSet(key, value);
+      return real.set(key, value, opts);
+    },
   };
+}
+
+async function bookingRecordKeys(store) {
+  const keys = await collectKeys(store);
+  return keys.filter((key) => !String(key).startsWith('occupancy-claim/'));
 }
 
 async function collectKeys(store, prefix) {
@@ -222,7 +231,7 @@ test('isolated blobs keep a confirmed 12-hour span and a retry does not duplicat
   assert.equal(again.status, 200, JSON.stringify(again.body));
   assert.equal(again.body.idempotent, true);
   assert.equal(again.body.id, fin.body.id);
-  assert.equal((await collectKeys(bookings)).length, 1);
+  assert.equal((await bookingRecordKeys(bookings)).length, 1);
   assert.equal((await collectKeys(slots)).length, 6);
 
   const conflict = await post(ceramicBody({
@@ -233,10 +242,10 @@ test('isolated blobs keep a confirmed 12-hour span and a retry does not duplicat
   assert.equal(conflict.status, 409);
   assert.equal(conflict.body.bookingCreated, false);
   assert.equal(conflict.body.error, 'booking_slot_unavailable');
-  assert.equal((await collectKeys(bookings)).length, 1);
+  assert.equal((await bookingRecordKeys(bookings)).length, 1);
 });
 
-test('a failed booking write can be retried once, and a partial index write still reports success', async () => {
+test('a failed booking write stays unconfirmed and retry finalizes once', async () => {
   const payload = ceramicBody({ phone: '2015550144' });
   let failBookingWrite = false;
   const realBookings = bookings;
@@ -267,43 +276,244 @@ test('a failed booking write can be retried once, and a partial index write stil
   assert.equal(retried.status, 200, JSON.stringify(retried.body));
   assert.equal(retried.body.bookingCreated, true);
   assert.equal(retried.body.id, draft.body.id);
-  assert.equal((await collectKeys(realBookings)).length, 1);
+  assert.equal((await bookingRecordKeys(realBookings)).length, 1);
   assert.equal((await collectKeys(slots)).filter((key) => key.includes('/booked/')).length, 6);
 });
 
-test('index partial failure leaves the finalized record and a retry does not restore the slots', async () => {
-  const payload = ceramicBody({ phone: '2015550145' });
-  const draft = await post(payload, '203.0.113.80');
-  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+const SPAN_STARTS = ['2026-10-05', '2026-10-07', '2026-10-13', '2026-10-15', '2026-10-19', '2026-10-21'];
 
-  let armed = false;
-  let sets = 0;
-  const realSlots = slots;
-  const faultySlots = forwardingStore(realSlots, {
-    beforeSet() {
-      if (!armed) return;
-      sets += 1;
-      if (sets === 3) throw new Error('injected partial index write');
+function nextWeekday(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const cursor = new Date(y, m - 1, d + 1);
+  return [
+    cursor.getFullYear(),
+    String(cursor.getMonth() + 1).padStart(2, '0'),
+    String(cursor.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+test('each of the six index writes can fail without confirming, and retry finishes the same booking', async () => {
+  for (let failAt = 1; failAt <= 6; failAt += 1) {
+    const start = SPAN_STARTS[failAt - 1];
+    const continuation = nextWeekday(start);
+    const phone = `20155502${String(failAt).padStart(2, '0')}`;
+    const payload = ceramicBody({
+      phone,
+      preferredDate: start,
+      email: `probe-${failAt}@example.com`,
+    });
+    const draft = await post(payload, `203.0.113.${80 + failAt}`);
+    assert.equal(draft.status, 200, JSON.stringify(draft.body));
+    const foreignKey = `${continuation}/12:00 PM/booked/0/CD1-OTHER-${failAt}`;
+    await slots.setJSON(foreignKey, 1);
+
+    let armed = false;
+    let sets = 0;
+    const realSlots = slots;
+    setSlotIndexStoreOverride(forwardingStore(realSlots, {
+      beforeSet(key) {
+        if (String(key).startsWith('span-claim/')) return;
+        if (!armed) return;
+        sets += 1;
+        if (sets === failAt) throw new Error(`injected index write ${failAt}`);
+      },
+    }));
+    armed = true;
+    submitBooking.__test.resetNotificationAttempts();
+
+    const failed = await post(finalizeBody(payload, draft.body), `203.0.113.${90 + failAt}`);
+    assert.notEqual(failed.body.bookingCreated, true, `write ${failAt}`);
+    assert.equal(failed.body.ok, false, JSON.stringify(failed.body));
+    assert.equal(failed.body.error, 'occupancy_incomplete');
+    assert.equal(failed.body.recoverable, true);
+    assert.equal(failed.body.draftBookingId, draft.body.id);
+    assert.equal(submitBooking.__test.notificationAttempts(), 0, `write ${failAt} notified`);
+    const pending = await bookings.get(draft.body.id, { type: 'json' });
+    assert.equal(pending.isDraft, true, `write ${failAt}`);
+    assert.equal(pending.occupancyStatus, 'pending');
+    assert.equal(pending.finalizedAt, undefined);
+    const afterFail = (await collectKeys(realSlots)).map((key) => decodeURIComponent(key));
+    assert.equal(afterFail.some((key) => key.includes('/booked/') && key.endsWith('/' + draft.body.id)), false, afterFail.join('\n'));
+    assert.equal(afterFail.filter((key) => key.includes('/draft/') && key.endsWith('/' + draft.body.id)).length, 6, afterFail.join('\n'));
+    assert.ok(afterFail.includes(foreignKey), afterFail.join('\n'));
+
+    setSlotIndexStoreOverride(realSlots);
+    const retried = await post(finalizeBody(payload, draft.body), `203.0.113.${100 + failAt}`);
+    assert.equal(retried.status, 200, JSON.stringify(retried.body));
+    assert.equal(retried.body.bookingCreated, true);
+    assert.equal(retried.body.id, draft.body.id);
+    assert.equal(submitBooking.__test.notificationAttempts(), 1, `write ${failAt} retry`);
+    const saved = await bookings.get(draft.body.id, { type: 'json' });
+    assert.equal(saved.isDraft, false);
+    assert.ok(saved.finalizedAt);
+    assert.equal(saved.occupancyStatus, 'complete');
+    const booked = (await collectKeys(realSlots)).map((key) => decodeURIComponent(key));
+    const mine = booked.filter((key) => key.endsWith('/' + saved.id));
+    assert.equal(mine.length, 6, booked.join('\n'));
+    assert.ok(mine.every((key) => key.includes('/booked/')));
+    assert.ok(booked.includes(foreignKey), booked.join('\n'));
+
+    const again = await post(finalizeBody(payload, draft.body), `203.0.113.${110 + failAt}`);
+    assert.equal(again.body.idempotent, true);
+    assert.equal(again.body.id, saved.id);
+    assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  }
+});
+
+test('a crash after the pending record is stored does not confirm, and retry occupies the same id', async () => {
+  const payload = ceramicBody({ phone: '2015550301', preferredDate: '2026-10-13' });
+  const draft = await post(payload, '203.0.113.130');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  let pendingSeen = false;
+  const realBookings = bookings;
+  bookings = forwardingStore(realBookings, {
+    async beforeSet(_key, value) {
+      if (value && value.occupancyStatus === 'pending') pendingSeen = true;
+      if (pendingSeen && value && value.isDraft === false) {
+        throw new Error('interrupted before confirmation');
+      }
     },
   });
-  setSlotIndexStoreOverride(faultySlots);
-  armed = true;
+  submitBooking.__test.setBlobsStoreOverride(async () => bookings);
+  const realSlots = slots;
+  setSlotIndexStoreOverride(forwardingStore(realSlots, {
+    beforeSet() { throw new Error('interrupted before occupancy'); },
+  }));
+  submitBooking.__test.resetNotificationAttempts();
 
-  const fin = await post(finalizeBody(payload, draft.body), '203.0.113.81');
-  assert.equal(fin.status, 200, JSON.stringify(fin.body));
-  assert.equal(fin.body.bookingCreated, true);
-  const saved = await bookings.get(fin.body.id, { type: 'json' });
-  assert.equal(saved.isDraft, false);
-  assert.ok(saved.finalizedAt);
-  const leftover = await collectKeys(realSlots);
-  assert.equal(leftover.length, 0, leftover.join('\n'));
+  const failed = await post(finalizeBody(payload, draft.body), '203.0.113.131');
+  assert.equal(failed.body.bookingCreated, false);
+  assert.notEqual(failed.body.bookingCreated, true);
+  assert.equal(submitBooking.__test.notificationAttempts(), 0);
+  const pending = await realBookings.get(draft.body.id, { type: 'json' });
+  assert.equal(pendingSeen, true);
+  assert.equal(pending.occupancyStatus, 'pending');
+  assert.equal(pending.isDraft, true);
+  assert.equal(pending.finalizedAt, undefined);
+  const keys = (await collectKeys(realSlots)).map((key) => decodeURIComponent(key));
+  assert.equal(keys.filter((key) => key.includes('/booked/') && key.endsWith('/' + draft.body.id)).length, 0);
 
+  bookings = realBookings;
+  submitBooking.__test.setBlobsStoreOverride(async () => bookings);
   setSlotIndexStoreOverride(realSlots);
-  const again = await post(finalizeBody(payload, draft.body), '203.0.113.82');
-  assert.equal(again.status, 200, JSON.stringify(again.body));
-  assert.equal(again.body.idempotent, true);
-  assert.equal(again.body.id, fin.body.id);
-  assert.equal((await collectKeys(bookings)).length, 1);
-  const afterRetry = await collectKeys(realSlots);
-  assert.equal(afterRetry.length, 0, afterRetry.join('\n'));
+  const retried = await post(finalizeBody(payload, draft.body), '203.0.113.132');
+  assert.equal(retried.status, 200, JSON.stringify(retried.body));
+  assert.equal(retried.body.bookingCreated, true);
+  assert.equal(retried.body.id, draft.body.id);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  const saved = await realBookings.get(draft.body.id, { type: 'json' });
+  assert.equal(saved.isDraft, false);
+  assert.equal((await collectKeys(realSlots)).filter((key) => decodeURIComponent(key).endsWith('/' + saved.id) && key.includes('/booked/')).length, 6);
+});
+
+test('two concurrent requests for the same period confirm only one booking', async () => {
+  const payload = ceramicBody({ phone: '2015550302' });
+  const draft = await post(payload, '203.0.113.140');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  submitBooking.__test.resetNotificationAttempts();
+  const body = finalizeBody(payload, draft.body);
+  const [first, second] = await Promise.all([
+    post(body, '203.0.113.141'),
+    post(body, '203.0.113.142'),
+  ]);
+  const created = [first, second].filter((res) => res.body.bookingCreated === true);
+  assert.ok(created.length >= 1, JSON.stringify([first.body, second.body]));
+  assert.ok(created.every((res) => res.body.id === draft.body.id && res.status === 200));
+  const fresh = created.filter((res) => res.body.idempotent !== true);
+  assert.equal(fresh.length, 1, JSON.stringify([first.body, second.body]));
+  assert.equal((await bookingRecordKeys(bookings)).length, 1);
+  const saved = await bookings.get(draft.body.id, { type: 'json' });
+  assert.equal(saved.isDraft, false);
+  const mine = (await collectKeys(slots)).filter((key) => decodeURIComponent(key).endsWith('/' + draft.body.id));
+  assert.equal(mine.length, 6, mine.join('\n'));
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+
+  const rival = await post(ceramicBody({
+    phone: '2015550303',
+    email: 'rival@example.com',
+  }), '203.0.113.143');
+  assert.equal(rival.status, 409);
+  assert.equal(rival.body.bookingCreated, false);
+  assert.equal((await bookingRecordKeys(bookings)).length, 1);
+});
+
+test('two concurrent customers for the same period confirm only one booking', async () => {
+  const date = '2026-10-27';
+  const firstBody = ceramicBody({
+    phone: '2015550310',
+    email: 'span-a@example.com',
+    preferredDate: date,
+  });
+  const secondBody = ceramicBody({
+    phone: '2015550311',
+    email: 'span-b@example.com',
+    preferredDate: date,
+  });
+  const [draftA, draftB] = await Promise.all([
+    post(firstBody, '203.0.113.160'),
+    post(secondBody, '203.0.113.161'),
+  ]);
+  const drafts = [draftA, draftB].filter((res) => res.status === 200 && res.body.id);
+  assert.ok(drafts.length >= 1, JSON.stringify([draftA.body, draftB.body]));
+  submitBooking.__test.resetNotificationAttempts();
+
+  const finalized = await Promise.all(drafts.map((draft, index) => {
+    const source = draft.body.id === draftA.body.id ? firstBody : secondBody;
+    return post(finalizeBody(source, draft.body), `203.0.113.${170 + index}`);
+  }));
+  let winners = finalized.filter((res) => res.body.bookingCreated === true);
+  assert.ok(winners.length <= 1, JSON.stringify(finalized.map((res) => res.body)));
+
+  if (!winners.length) {
+    const retry = await post(finalizeBody(firstBody, drafts[0].body), '203.0.113.172');
+    assert.equal(retry.status, 200, JSON.stringify(retry.body));
+    assert.equal(retry.body.bookingCreated, true);
+    winners = [retry];
+  }
+
+  const winnerId = winners[0].body.id;
+  const saved = await bookings.get(winnerId, { type: 'json' });
+  assert.equal(saved.isDraft, false);
+  assert.equal(saved.occupancyStatus, 'complete');
+  const records = await bookingRecordKeys(bookings);
+  const confirmedRecords = [];
+  for (const key of records) {
+    const row = await bookings.get(key, { type: 'json' });
+    if (row && row.isDraft === false && row.finalizedAt) confirmedRecords.push(row.id);
+  }
+  assert.deepEqual(confirmedRecords, [winnerId]);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  const booked = (await collectKeys(slots)).map((key) => decodeURIComponent(key));
+  const winnerSlots = booked.filter((key) => key.includes('/booked/') && key.endsWith('/' + winnerId));
+  assert.equal(winnerSlots.length, 6, booked.join('\n'));
+  const otherConfirmed = booked.filter((key) => key.includes('/booked/') && !key.endsWith('/' + winnerId) && !key.includes('/CD1-OTHER'));
+  assert.equal(otherConfirmed.length, 0, booked.join('\n'));
+
+  const loser = drafts.find((draft) => draft.body.id !== winnerId);
+  if (loser) {
+    const source = loser.body.id === draftA.body.id ? firstBody : secondBody;
+    const rejected = await post(finalizeBody(source, loser.body), '203.0.113.173');
+    assert.equal(rejected.body.bookingCreated, false);
+    assert.notEqual(rejected.status, 200);
+  }
+});
+
+test('a foreign hold on a required slot is kept and blocks confirmation', async () => {
+  const payload = ceramicBody({ phone: '2015550304', preferredDate: '2026-10-14' });
+  const draft = await post(payload, '203.0.113.150');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  const foreignKey = '2026-10-15/8:00 AM/booked/0/CD1-OTHER-HOLD';
+  await slots.setJSON(foreignKey, 1);
+  submitBooking.__test.resetNotificationAttempts();
+  const failed = await post(finalizeBody(payload, draft.body), '203.0.113.151');
+  assert.equal(failed.status, 409);
+  assert.equal(failed.body.bookingCreated, false);
+  assert.equal(failed.body.error, 'booking_slot_unavailable');
+  assert.equal(submitBooking.__test.notificationAttempts(), 0);
+  const saved = await bookings.get(draft.body.id, { type: 'json' });
+  assert.equal(saved.isDraft, true);
+  assert.equal(saved.finalizedAt, undefined);
+  const keys = (await collectKeys(slots)).map((key) => decodeURIComponent(key));
+  assert.ok(keys.includes(foreignKey), keys.join('\n'));
+  assert.equal(keys.some((key) => key.includes('/booked/') && key.endsWith('/' + draft.body.id)), false);
 });

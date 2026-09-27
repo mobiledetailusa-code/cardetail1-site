@@ -186,7 +186,7 @@ async function listSlotEntries(store, prefix) {
  * Active holds on one slot. Throws on any store failure so callers fall back to
  * the authoritative scan instead of reading a short list as "empty".
  */
-async function readSlotHolds(slotDate, slotTime, { excludeId = null, nowMs = Date.now() } = {}) {
+async function readSlotHolds(slotDate, slotTime, { excludeId = null, nowMs = Date.now(), bookedOnly = false } = {}) {
   const parts = isoDateParts(slotDate);
   const time = normalizePreferredTime(slotTime);
   if (!parts || !time) return [];
@@ -197,6 +197,7 @@ async function readSlotHolds(slotDate, slotTime, { excludeId = null, nowMs = Dat
   return entries.filter((e) => {
     if (e.slotTime !== time) return false;
     if (!entryIsActive(e, nowMs)) return false;
+    if (bookedOnly && e.state !== STATE_BOOKED) return false;
     if (excludeId && String(e.bookingId) === String(excludeId)) return false;
     return true;
   });
@@ -212,13 +213,14 @@ async function indexedSlotConflict(slotDate, slotTime, {
   excludeId = null,
   nowMs = Date.now(),
   config = null,
+  bookedOnly = false,
 } = {}) {
   if (!slotIndexReadsEnabled()) return { ok: false, reason: 'reads_disabled' };
   const parts = isoDateParts(slotDate);
   const time = normalizePreferredTime(slotTime);
   if (!parts || !time) return { ok: true, conflict: false };
   try {
-    const holds = await readSlotHolds(parts.iso, time, { excludeId, nowMs });
+    const holds = await readSlotHolds(parts.iso, time, { excludeId, nowMs, bookedOnly });
     const capacity = capacityForSlot(parts.iso, time, config, new Date(nowMs));
     return { ok: true, conflict: holds.length >= capacity };
   } catch (err) {
@@ -338,6 +340,190 @@ async function syncSlotIndex(booking, { previous = null } = {}) {
   }
 }
 
+function spanWritesFor(booking) {
+  const next = slotHoldForBooking({ ...booking, isDraft: false, kind: 'booking' });
+  const scheduled = scheduleHoldDays(booking);
+  const writes = scheduled.length
+    ? scheduled.flatMap((day) => day.slots.map((slotTime) => ({ slotDate: day.date, slotTime })))
+    : holdSlotTimes(booking, next).map((slotTime) => ({ slotDate: next.slotDate, slotTime }));
+  return { next, writes: writes.filter((slot) => slot.slotDate && slot.slotTime) };
+}
+
+/**
+ * Every required slot has a non-expiring booked key for this booking.
+ * ok:false means the index could not be read. complete:false means the read
+ * succeeded and at least one required slot is missing.
+ */
+async function bookedSpanReady(booking, nowMs = Date.now()) {
+  const bookingId = String(booking?.id || booking?.bookingId || '').trim();
+  if (!bookingId) return { ok: false, reason: 'missing_booking_id', complete: false };
+  const { writes } = spanWritesFor(booking);
+  if (!writes.length) return { ok: false, reason: 'missing_span', complete: false };
+  try {
+    for (const slot of writes) {
+      const holds = await readSlotHolds(slot.slotDate, slot.slotTime, { nowMs });
+      const mine = holds.some((hold) => (
+        String(hold.bookingId) === bookingId && hold.state === STATE_BOOKED
+      ));
+      if (!mine) return { ok: true, complete: false, wroteCount: writes.length };
+    }
+    return { ok: true, complete: true, wroteCount: writes.length };
+  } catch (err) {
+    return { ok: false, reason: 'read_failed', complete: false, message: err && err.message };
+  }
+}
+
+async function foreignHoldBlocks(slot, bookingId, nowMs) {
+  const holds = await readSlotHolds(slot.slotDate, slot.slotTime, {
+    excludeId: bookingId,
+    nowMs,
+    bookedOnly: true,
+  });
+  const capacity = capacityForSlot(slot.slotDate, slot.slotTime, null, new Date(nowMs));
+  return holds.length >= capacity;
+}
+
+const SPAN_CLAIM_STALE_MS = 15 * 1000;
+const spanGates = new Map();
+
+function withSpanGate(writes, work) {
+  const keys = [...new Set(writes.map((slot) => `${slot.slotDate}|${slot.slotTime}`))].sort();
+  const previous = Promise.all(keys.map((key) => spanGates.get(key) || Promise.resolve()));
+  let release;
+  const gate = new Promise((done) => { release = done; });
+  const tail = previous.then(() => gate, () => gate);
+  for (const key of keys) spanGates.set(key, tail);
+  return previous.then(async () => {
+    try {
+      return await work();
+    } finally {
+      release();
+      for (const key of keys) {
+        if (spanGates.get(key) === tail) spanGates.delete(key);
+      }
+    }
+  });
+}
+
+async function claimSpan(store, writes, bookingId) {
+  if (!store || typeof store.set !== 'function') return { ok: true, owned: [] };
+  const nonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const owned = [];
+  for (const slot of writes) {
+    const key = `span-claim/${slot.slotDate}/${encodeURIComponent(slot.slotTime)}`;
+    const payload = JSON.stringify({ bookingId, nonce, at: new Date().toISOString() });
+    let result = await store.set(key, payload, { onlyIfNew: true });
+    if (result && result.modified === false) {
+      const existing = await store.get(key, { type: 'json' }).catch(() => null);
+      const age = Date.now() - Date.parse(existing && existing.at || '');
+      const same = existing && String(existing.bookingId) === String(bookingId);
+      if (!same && !(Number.isFinite(age) && age > SPAN_CLAIM_STALE_MS)) {
+        await deleteKeys(store, owned);
+        return { ok: false, owned: [] };
+      }
+      if (!same) await store.delete(key);
+      result = await store.set(key, payload, { onlyIfNew: true });
+      if (result && result.modified === false) {
+        await deleteKeys(store, owned);
+        return { ok: false, owned: [] };
+      }
+    }
+    const seen = await store.get(key, { type: 'text' }).catch(() => null);
+    if (seen && !String(seen).includes(nonce)) {
+      await deleteKeys(store, owned);
+      return { ok: false, owned: [] };
+    }
+    owned.push(key);
+  }
+  return { ok: true, owned };
+}
+
+async function deleteKeys(store, keys) {
+  for (const key of keys) {
+    await store.delete(key);
+  }
+}
+
+async function deleteDraftHoldsOnly(store, bookingId, writes) {
+  const dates = new Set(writes.map((slot) => slot.slotDate));
+  for (const date of dates) {
+    const entries = await listSlotEntries(store, `${date}/`);
+    for (const entry of entries) {
+      if (String(entry.bookingId) !== String(bookingId)) continue;
+      if (entry.state !== STATE_DRAFT) continue;
+      await store.delete(entry.key);
+    }
+  }
+}
+
+/**
+ * Write every booked slot for a finalize without dropping draft holds first.
+ * A partial write deletes only the booked keys from this attempt. Draft holds
+ * and every other booking's keys stay. Callers must not confirm the customer
+ * unless ok is true.
+ */
+async function reserveBookedSpan(booking, nowMs = Date.now()) {
+  const bookingId = String(booking?.id || booking?.bookingId || '').trim();
+  if (!bookingId) return { ok: false, error: 'missing_booking_id' };
+  const { next, writes } = spanWritesFor(booking);
+  if (!next.active || !writes.length) return { ok: false, error: 'missing_span' };
+
+  return withSpanGate(writes, async () => {
+    let claim = { ok: true, owned: [] };
+    try {
+      const store = await slotIndexStore();
+      for (const slot of writes) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+          return { ok: false, error: 'booking_slot_unavailable' };
+        }
+      }
+
+      claim = await claimSpan(store, writes, bookingId);
+      if (!claim.ok) return { ok: false, error: 'booking_slot_unavailable' };
+
+      const written = [];
+      try {
+        for (const slot of writes) {
+          const key = slotIndexKey({
+            ...next,
+            slotDate: slot.slotDate,
+            slotTime: slot.slotTime,
+            bookingId,
+          });
+          await store.setJSON(key, 1);
+          written.push(key);
+        }
+      } catch (writeErr) {
+        try { await deleteKeys(store, written); } catch { /* drafts and other bookings stay */ }
+        const message = writeErr && writeErr.message ? writeErr.message : String(writeErr);
+        console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message, rolledBack: true });
+        return { ok: false, error: 'partial_reservation_rejected', message };
+      }
+
+      for (const slot of writes) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+          try { await deleteKeys(store, written); } catch { /* keep other bookings */ }
+          return { ok: false, error: 'booking_slot_unavailable' };
+        }
+      }
+
+      await deleteDraftHoldsOnly(store, bookingId, writes);
+      return { ok: true, wroteCount: writes.length };
+    } catch (err) {
+      const message = err && err.message ? err.message : String(err);
+      console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message });
+      return { ok: false, error: message };
+    } finally {
+      if (claim.owned && claim.owned.length) {
+        try {
+          const store = await slotIndexStore();
+          await deleteKeys(store, claim.owned);
+        } catch { /* booked keys remain the occupancy lock */ }
+      }
+    }
+  });
+}
+
 /** Fire-and-forget sync for paths that must not be blocked by the index. */
 function scheduleSlotIndexSync(booking, opts) {
   Promise.resolve().then(() => syncSlotIndex(booking, opts)).catch(() => {});
@@ -358,5 +544,7 @@ module.exports = {
   indexedSlotConflict,
   indexedOccupancyForDates,
   syncSlotIndex,
+  reserveBookedSpan,
+  bookedSpanReady,
   scheduleSlotIndexSync,
 };

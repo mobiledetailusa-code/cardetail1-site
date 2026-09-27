@@ -227,7 +227,7 @@ function bookingCoversSlot(booking, iso, time, config) {
   return span.slots.includes(time);
 }
 
-function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now(), config) {
+function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now(), config, bookedOnly = false) {
   const time = normalizePreferredTime(preferredTime);
   const parts = availability.isoDateParts(preferredDate);
   if (!parts || !time) return 0;
@@ -235,6 +235,7 @@ function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, n
   let count = 0;
   for (const b of bookings || []) {
     if (!isActiveBookingForSlotLock(b, nowMs)) continue;
+    if (bookedOnly && (b.isDraft === true || String(b.kind || '').toLowerCase() === 'draft')) continue;
     if (excludeId && String(b.id) === String(excludeId)) continue;
     if (bookingCoversSlot(b, parts.iso, time, config)) count += 1;
   }
@@ -248,16 +249,18 @@ function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, n
 function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now(), config) {
   let cfg = config;
   let ts = nowMs;
+  let bookedOnly = false;
   if (nowMs && typeof nowMs === 'object' && !(nowMs instanceof Date) && !Array.isArray(nowMs)) {
-    // hasSlotConflict(bookings, date, time, excludeId, { nowMs, config })
+    // hasSlotConflict(bookings, date, time, excludeId, { nowMs, config, bookedOnly })
     cfg = nowMs.config;
     ts = nowMs.nowMs != null ? nowMs.nowMs : Date.now();
+    bookedOnly = nowMs.bookedOnly === true;
   }
   const time = normalizePreferredTime(preferredTime);
   const parts = availability.isoDateParts(preferredDate);
   if (!parts || !time) return false;
   const capacity = capacityForSlot(parts.iso, time, cfg, new Date(ts));
-  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts, cfg);
+  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts, cfg, bookedOnly);
   return used >= capacity;
 }
 
