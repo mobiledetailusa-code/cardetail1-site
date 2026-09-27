@@ -107,6 +107,7 @@ const CAR_PKG_DETAILS = {
       "Engine bay detail",
       "Accessible undercarriage cleaning",
     ],
+    paintConditionNote: "Paint condition is checked before application. Any additional correction is quoted separately and requires your approval.",
   },
   ceramic_3yr: {
     title: "Professional Ceramic Protection — Up to 3 Years",
@@ -135,6 +136,7 @@ const CAR_PKG_DETAILS = {
       "Engine bay detail",
       "Accessible undercarriage cleaning",
     ],
+    paintConditionNote: "Paint condition is checked before application. Any additional correction is quoted separately and requires your approval.",
   },
   refresh: {
     title: "Exterior Refresh & Protect",
@@ -167,7 +169,7 @@ function buildCarPkgDetailSectionsHtml(d) {
   if (!d) return "";
   let html = "";
   if (d.includes && d.includes.length) {
-    html += `<div class="car-pkg-detail-section"><h4>Includes</h4><ul class="car-pkg-detail-list car-pkg-detail-list--inc">${d.includes.map((i) => `<li>${i}</li>`).join("")}</ul></div>`;
+    html += `<div class="car-pkg-detail-section"><h4>Includes</h4><ul class="car-pkg-detail-list car-pkg-detail-list--inc">${d.includes.map((i) => `<li>${i}</li>`).join("")}</ul>${d.paintConditionNote ? `<p class="car-pkg-detail-note">${d.paintConditionNote}</p>` : ""}</div>`;
   }
   if (d.bestFor) {
     if (Array.isArray(d.bestFor)) {

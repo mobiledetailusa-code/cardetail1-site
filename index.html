@@ -5829,6 +5829,7 @@ function compactPackagePriceLabel(cat, p, d) {
 }
 
 const ENGINE_BAY_DETAIL_NOTE = 'Surface dust, accessible components and surrounding areas cleaned and wiped. Heavy grease, oil buildup or restoration may require an additional service.';
+const CERAMIC_PAINT_CONDITION_NOTE = 'Paint condition is checked before application. Any additional correction is quoted separately and requires your approval.';
 
 function formatPkgFeatureLabel(f){
   if(!f) return '';
@@ -5845,7 +5846,9 @@ function renderPkgCompactDetails(p){
   const extList=hasExt?extItems.map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
   const intList=hasInt?intItems.map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
   const featList=(!hasExt&&!hasInt&&p.feats)?(p.feats||[]).map(f=>`<li>${formatPkgFeatureLabel(f)}</li>`).join(''):'';
-  const note = hasEngine ? `<p class="pkg-c-note">${ENGINE_BAY_DETAIL_NOTE}</p>` : '';
+  const paintNote = (p && (p.id === 'ceramic_1yr' || p.id === 'ceramic_3yr'))
+    ? `<p class="pkg-c-note">${CERAMIC_PAINT_CONDITION_NOTE}</p>` : '';
+  const note = (hasEngine ? `<p class="pkg-c-note">${ENGINE_BAY_DETAIL_NOTE}</p>` : '') + paintNote;
   if(hasExt||hasInt){
     return `${intList?`<div><b>Interior</b><ul>${intList}</ul></div>`:''}${extList?`<div><b>Exterior</b><ul>${extList}</ul>${note}</div>`:note}`;
   }

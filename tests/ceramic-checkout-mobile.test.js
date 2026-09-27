@@ -563,6 +563,20 @@ describe('MDX ceramic checkout rerenders from the production catalog', () => {
     assert.equal(ctx.document.getElementById('ceramic-sticky-continue').disabled, true);
   });
 
+  it('removes eligibility questions and still shows water and payment choices', () => {
+    const ctx = createPage();
+    const panel = ctx.document.getElementById('ceramic-panel');
+    const html = panel.innerHTML;
+    assert.equal(html.includes('Ceramic Coating eligibility'), false);
+    assert.equal(html.includes('repainted'), false);
+    assert.equal(html.includes('type="checkbox"'), false);
+    assert.match(html, /name="ceramic-water"/);
+    assert.match(html, /name="ceramic-plan"/);
+    assert.match(html, /prepay_full/);
+    assert.match(html, /value="deposit"/);
+    assert.equal(typeof ctx.CD1CeramicBooking.readAnswers, 'undefined');
+  });
+
   it('hides Continue on the submit step and does not press the offer button', () => {
     const ctx = createPage();
     ctx.CD1CeramicBooking.renderCeramicCheckout();

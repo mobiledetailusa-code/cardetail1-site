@@ -2,7 +2,7 @@
 
 /**
  * Ceramic Coating — server authority for packages, size-banded prices,
- * add-ons, eligibility, and appointment duration.
+ * add-ons, stored eligibility answers, and appointment duration.
  *
  * Prices are never read from the browser. Vehicle size uses the existing
  * cars tier keys (small, suv2, suv3, truck, van tiers). This module does
@@ -281,34 +281,6 @@ const ELIGIBILITY_FIELDS = Object.freeze([
   'coveredCureArea',
   'remainDry12h',
 ]);
-
-const BLOCKS = Object.freeze({
-  repainted60: Object.freeze({
-    error: 'ceramic_blocked_repaint',
-    route: 'paint_restoration',
-    message: 'A vehicle repainted within the last 60 days cannot be booked for instant Ceramic Coating. Fresh paint needs Paint Restoration review instead. No ceramic quote was created.',
-  }),
-  clearCoatFailing: Object.freeze({
-    error: 'ceramic_blocked_clearcoat',
-    route: 'paint_restoration',
-    message: 'Peeling, oxidized, or failing clear coat is not eligible for instant Ceramic Coating. Book Paint Restoration. Ceramic coating does not repair damaged paint, and no ceramic quote was created.',
-  }),
-  severeContamination: Object.freeze({
-    error: 'ceramic_blocked_contamination',
-    route: 'paint_restoration',
-    message: 'Cement, extensive overspray, severe sap, or extreme contamination is not eligible for instant Ceramic Coating. Book Paint Restoration. No ceramic quote was created.',
-  }),
-  matteWrapPpf: Object.freeze({
-    error: 'ceramic_blocked_finish',
-    route: 'compatible_finish',
-    message: 'Matte paint, vinyl wrap, or paint-protection film cannot use the gloss paint-coating package. Choose a compatible service instead. The paint ceramic package was not applied.',
-  }),
-  remainDry12h: Object.freeze({
-    error: 'ceramic_blocked_cure',
-    route: null,
-    message: 'Ceramic Coating needs the vehicle to stay dry for at least 12 hours after application. Checkout stays closed until that cure window is available.',
-  }),
-});
 
 function isCeramicPackage(packageId) {
   return Object.prototype.hasOwnProperty.call(PACKAGES, String(packageId || '').trim());
@@ -765,40 +737,45 @@ function yesNo(value) {
   return '';
 }
 
-function evaluateEligibility(raw, { requireComplete = false } = {}) {
+function normalizeEligibilityAnswers(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const answers = {};
+  let any = false;
   for (const field of ELIGIBILITY_FIELDS) {
-    answers[field] = yesNo(raw && raw[field]);
+    const value = yesNo(raw[field]);
+    if (!value) continue;
+    answers[field] = value;
+    any = true;
   }
-  const missing = ELIGIBILITY_FIELDS.filter((field) => !answers[field]);
-  if (missing.length && requireComplete) {
-    return {
-      ok: false,
-      error: 'ceramic_eligibility_required',
-      missing,
-      message: 'Answer the Ceramic Coating eligibility questions before checkout.',
-    };
+  return any ? answers : null;
+}
+
+/**
+ * Keep yes/no answers already collected. Missing or historically blocking
+ * answers do not close checkout and do not mark the vehicle approved.
+ */
+function evaluateEligibility(raw) {
+  return {
+    ok: true,
+    answers: normalizeEligibilityAnswers(raw),
+    warnings: [],
+  };
+}
+
+function retainStoredCeramicEligibility(booking, existing) {
+  if (!booking || !booking.ceramic) return booking;
+  const incoming = normalizeEligibilityAnswers(
+    booking.ceramicEligibility || booking.ceramic.eligibility
+  );
+  const stored = normalizeEligibilityAnswers(existing && existing.ceramic && existing.ceramic.eligibility);
+  booking.ceramic.eligibility = incoming || stored || null;
+  if (!incoming && stored && Array.isArray(existing.ceramic.warnings)) {
+    booking.ceramic.warnings = existing.ceramic.warnings.slice();
   }
-  if (!missing.length || Object.values(answers).some(Boolean)) {
-    for (const field of ['repainted60', 'clearCoatFailing', 'severeContamination', 'matteWrapPpf']) {
-      if (answers[field] === 'yes') {
-        return {
-          ok: false,
-          ...BLOCKS[field],
-          packageId: field === 'matteWrapPpf' ? null : PAINT_RESTORATION_PACKAGE_ID,
-          answers,
-        };
-      }
-    }
-    if (answers.remainDry12h === 'no') {
-      return { ok: false, ...BLOCKS.remainDry12h, answers };
-    }
-  }
-  const warnings = [];
-  if (answers.coveredCureArea === 'no') {
-    warnings.push('No covered, dry curing area was confirmed. Scheduling is weather-dependent and can move if the finish cannot stay dry.');
-  }
-  return { ok: true, answers, warnings };
+  delete booking.ceramic.technicalApproval;
+  delete booking.ceramic.technicallyApproved;
+  delete booking.vehicleTechnicallyApproved;
+  return booking;
 }
 
 function depositsEnabled(env = process.env) {
@@ -941,8 +918,12 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
     };
   }
 
-  const eligibility = evaluateEligibility(booking.ceramicEligibility, { requireComplete: finalize });
-  if (!eligibility.ok) return eligibility;
+  const incomingEligibility = normalizeEligibilityAnswers(booking.ceramicEligibility);
+  const storedEligibility = normalizeEligibilityAnswers(booking.ceramic && booking.ceramic.eligibility);
+  const eligibilityAnswers = incomingEligibility || storedEligibility || null;
+  const eligibilityWarnings = (!incomingEligibility && storedEligibility && Array.isArray(booking.ceramic?.warnings))
+    ? booking.ceramic.warnings.slice()
+    : [];
 
   let durationMinutes = 0;
   const stampedVehicles = [];
@@ -1045,8 +1026,8 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
     inclusions: INCLUSIONS.slice(),
     exclusions: EXCLUSIONS.slice(),
     curingInstructions: internal.cureRequirements.slice(),
-    eligibility: eligibility.answers || null,
-    warnings: eligibility.warnings || [],
+    eligibility: eligibilityAnswers,
+    warnings: eligibilityWarnings,
     appointmentDurationMinutes: durationMinutes,
     paymentPlan: plan || null,
     depositAmount,
@@ -1298,6 +1279,8 @@ module.exports = {
   durationForVehicle,
   completeServiceLine,
   evaluateEligibility,
+  normalizeEligibilityAnswers,
+  retainStoredCeramicEligibility,
   depositsEnabled,
   normalizePaymentPlan,
   depositDollarsForPackage,

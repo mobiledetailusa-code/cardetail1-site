@@ -71,7 +71,6 @@ function ceramicBody(extra = {}) {
     preferredArrivalWindow: 'anytime',
     scheduleFlexibility: 'exact',
     ceramicPaymentPlan: 'prepay_full',
-    ceramicEligibility: eligible,
     vehicleCategory: 'cars',
     vehicle: 'Large SUV',
     package: 'Professional Ceramic Protection — Up to 3 Years',
@@ -386,6 +385,13 @@ test('ceramic cash, deposit, and prepay finalize with unpaid balances and no dup
     assert.equal(admin.ceramic.paymentPlan, row.extra.ceramicPaymentPlan);
     assert.equal(admin.service.durationMinutes, row.duration);
     assert.equal(admin.status, 'pending_review');
+    assert.equal(saved.ceramic.eligibility, null);
+    assert.equal(saved.ceramic.technicalApproval, undefined);
+    assert.equal(saved.vehicleTechnicallyApproved, undefined);
+    assert.ok(saved.ceramic.serviceLineItems.every((line) => line.completionStatus === 'pending'));
+    assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'ceramic_correction'), false);
+    const occupied = indexKeys().map(parseSlotIndexKey).filter((entry) => entry && entry.bookingId === saved.id && entry.state === 'booked');
+    assert.equal(occupied.length, Math.ceil(row.duration / 120));
   }
 });
 
@@ -442,14 +448,78 @@ test('a late 12-hour window reports duration instead of a taken slot', async () 
   assert.equal(bookings.records().length, 0);
 });
 
-test('a ceramic cure block returns the server message and does not persist', async () => {
-  const blocked = await post(ceramicBody({
+test('old eligibility answers do not block ceramic checkout and stay on the booking', async () => {
+  const payload = ceramicBody({
     phone: '2015550195',
-    ceramicEligibility: { ...eligible, remainDry12h: 'no' },
-  }), '203.0.113.52');
-  assert.equal(blocked.status, 400);
-  assert.equal(blocked.body.error, 'ceramic_blocked_cure');
-  assert.match(blocked.body.userMessage, /12 hours/);
-  assert.equal(blocked.body.bookingCreated, false);
-  assert.equal(bookings.records().length, 0);
+    email: 'elig-old@example.com',
+    ceramicEligibility: { ...eligible, repainted60: 'yes', remainDry12h: 'no' },
+  });
+  const draft = await post(payload, '203.0.113.52');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  const fin = await finalize(payload, draft.body);
+  assert.equal(fin.status, 200, JSON.stringify(fin.body));
+  assert.equal(fin.body.bookingCreated, true);
+  const saved = bookings.records().find((row) => row.id === fin.body.id);
+  assert.equal(saved.ceramic.eligibility.repainted60, 'yes');
+  assert.equal(saved.ceramic.eligibility.remainDry12h, 'no');
+  assert.equal(saved.approvedFinalAmount, 1530);
+  assert.equal(saved.depositAmount, 0);
+  assert.equal(saved.paymentStatus, 'unpaid');
+  assert.equal(saved.ceramic.technicalApproval, undefined);
+  const replayBody = { ...payload };
+  delete replayBody.ceramicEligibility;
+  const again = await finalize(replayBody, draft.body);
+  assert.equal(again.body.idempotent, true);
+  const kept = bookings.records().find((row) => row.id === fin.body.id);
+  assert.equal(kept.ceramic.eligibility.repainted60, 'yes');
+  assert.equal(kept.ceramic.eligibility.remainDry12h, 'no');
+  assert.equal(bookings.records().length, 1);
+});
+
+test('a later finalize keeps eligibility answers already stored on the draft', async () => {
+  const payload = ceramicBody({
+    phone: '2015550196',
+    email: 'elig-keep@example.com',
+    ceramicPaymentPlan: 'deposit',
+    vehicles: [{
+      cat: 'cars',
+      pkgId: 'ceramic_3yr',
+      tierKey: 'suv3',
+      vehicleLabel: 'Large SUV',
+      basePrice: 1275,
+      subtotal: 1625,
+      companionInterior: true,
+      companionInteriorPrice: 255,
+      addons: [{ id: 'pethair', name: 'Pet Hair Removal', price: 95, qty: 1 }],
+      addonTotal: 95,
+    }],
+    totalPrice: 1625,
+  });
+  const draft = await post(payload, '203.0.113.53');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  const stored = bookings.records().find((row) => row.id === draft.body.id);
+  stored.ceramic = {
+    eligibility: { ...eligible, remainDry12h: 'no', severeContamination: 'yes' },
+    warnings: ['stored before the form was removed'],
+  };
+  await bookings.setJSON(stored.id, stored);
+  const fin = await finalize(payload, draft.body);
+  assert.equal(fin.status, 200, JSON.stringify(fin.body));
+  assert.equal(fin.body.bookingCreated, true);
+  const saved = bookings.records().find((row) => row.id === fin.body.id);
+  assert.equal(saved.ceramic.eligibility.remainDry12h, 'no');
+  assert.equal(saved.ceramic.eligibility.severeContamination, 'yes');
+  assert.deepEqual(saved.ceramic.warnings, ['stored before the form was removed']);
+  assert.equal(saved.approvedFinalAmount, 1625);
+  assert.equal(saved.depositAmount, 406.25);
+  assert.equal(saved.amountPaid, 0);
+  assert.equal(saved.paymentStatus, 'unpaid');
+  assert.equal(saved.appointmentDurationMinutes, 765);
+  assert.equal(saved.ceramic.technicalApproval, undefined);
+  assert.equal(saved.vehicleTechnicallyApproved, undefined);
+  assert.ok(saved.ceramic.serviceLineItems.every((line) => line.completionStatus === 'pending'));
+  assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'ceramic_correction'), false);
+  const again = await finalize(payload, draft.body);
+  assert.equal(again.body.idempotent, true);
+  assert.equal(bookings.records().length, 1);
 });

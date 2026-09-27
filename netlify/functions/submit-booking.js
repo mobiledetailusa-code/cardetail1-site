@@ -79,7 +79,7 @@ const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
-const { applyCeramicBooking } = require('../lib/ceramic-coating');
+const { applyCeramicBooking, retainStoredCeramicEligibility } = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex, reserveBookedSpan, bookedSpanReady } = require('../lib/slot-index');
 const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
@@ -1488,6 +1488,7 @@ exports.handler = async (event) => {
     }
     const finalizedAt = new Date().toISOString();
     const transactionalSmsConsentAccepted = b.transactionalSmsConsentAccepted === true;
+    retainStoredCeramicEligibility(b, existing);
 
     // Preserve fields the webhook may have already set on the draft.
     b = {

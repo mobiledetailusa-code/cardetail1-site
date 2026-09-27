@@ -18,6 +18,7 @@ const {
   depositCentsForApproved,
   durationForVehicle,
   evaluateEligibility,
+  retainStoredCeramicEligibility,
   PUBLIC_PACKAGE_NAMES,
   resolveCompanionInterior,
   resolveAddonPrice,
@@ -233,28 +234,86 @@ describe('ceramic add-ons', () => {
 });
 
 describe('ceramic eligibility', () => {
-  it('blocks fresh paint, failing clear coat, and severe contamination toward paint restoration', () => {
-    for (const field of ['repainted60', 'clearCoatFailing', 'severeContamination']) {
-      const result = evaluateEligibility(eligible({ [field]: 'yes' }), { requireComplete: true });
-      assert.equal(result.ok, false);
-      assert.equal(result.route, 'paint_restoration');
-      assert.equal(result.packageId, 'premium');
-    }
+  const NOTE = 'Paint condition is checked before application. Any additional correction is quoted separately and requires your approval.';
+
+  it('keeps historical answers without blocking checkout or approving the vehicle', () => {
+    const stored = evaluateEligibility(eligible({
+      repainted60: 'yes',
+      matteWrapPpf: 'yes',
+      coveredCureArea: 'no',
+      remainDry12h: 'no',
+    }));
+    assert.equal(stored.ok, true);
+    assert.equal(stored.answers.repainted60, 'yes');
+    assert.equal(stored.answers.remainDry12h, 'no');
+    assert.equal(stored.warnings.length, 0);
+    assert.equal(stored.route, undefined);
+    assert.equal(evaluateEligibility(null).answers, null);
+    assert.equal(evaluateEligibility({}).ok, true);
+
+    const booking = pricedBooking('ceramic_1yr', 'small', [], {}, {
+      ceramicEligibility: eligible({ repainted60: 'yes', remainDry12h: 'no' }),
+    });
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    assert.equal(booking.approvedFinalAmount, 650);
+    assert.equal(booking.depositAmount, 0);
+    assert.equal(booking.ceramic.eligibility.repainted60, 'yes');
+    assert.equal(booking.ceramic.eligibility.remainDry12h, 'no');
+    assert.equal(booking.ceramic.technicalApproval, undefined);
+    assert.equal(booking.vehicleTechnicallyApproved, undefined);
+    assert.ok(booking.ceramic.serviceLineItems.every((line) => line.completionStatus === 'pending'));
+    assert.equal(booking.ceramic.serviceLineItems.some((line) => line.serviceId === 'ceramic_correction'), false);
+    assert.equal(customerCeramicSummary(booking).eligibility.repainted60, 'yes');
   });
 
-  it('routes matte, wrap, or PPF away from the paint package', () => {
-    const result = evaluateEligibility(eligible({ matteWrapPpf: 'yes' }), { requireComplete: true });
-    assert.equal(result.ok, false);
-    assert.equal(result.route, 'compatible_finish');
-    assert.equal(result.packageId, null);
+  it('books ceramic without eligibility answers and keeps answers already stored', () => {
+    const booking = pricedBooking('ceramic_1yr', 'small', [], {}, {
+      ceramicPaymentPlan: 'deposit',
+    });
+    delete booking.ceramicEligibility;
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    assert.equal(booking.ceramic.eligibility, null);
+    assert.equal(booking.approvedFinalAmount, 650);
+    assert.equal(booking.depositAmount, 162.5);
+    assert.equal(booking.ceramic.technicalApproval, undefined);
+
+    const again = applyCeramicBooking({
+      ...booking,
+      ceramicEligibility: null,
+      ceramic: {
+        ...booking.ceramic,
+        eligibility: eligible({ remainDry12h: 'no' }),
+        warnings: ['kept from the original booking'],
+      },
+    }, { finalize: true });
+    assert.equal(again.ok, true, again.error);
+    assert.equal(again.booking.ceramic.eligibility.remainDry12h, 'no');
+    assert.deepEqual(again.booking.ceramic.warnings, ['kept from the original booking']);
+    assert.equal(again.booking.approvedFinalAmount, 650);
+
+    const replaced = { ceramic: { eligibility: null } };
+    retainStoredCeramicEligibility(replaced, {
+      ceramic: { eligibility: eligible(), warnings: ['stored'] },
+    });
+    assert.equal(replaced.ceramic.eligibility.coveredCureArea, 'yes');
+    assert.deepEqual(replaced.ceramic.warnings, ['stored']);
   });
 
-  it('warns when no covered curing space is available and blocks a dry-cure refusal', () => {
-    const warning = evaluateEligibility(eligible({ coveredCureArea: 'no' }), { requireComplete: true });
-    assert.equal(warning.ok, true);
-    assert.equal(warning.warnings.length, 1);
-    const blocked = evaluateEligibility(eligible({ remainDry12h: 'no' }), { requireComplete: true });
-    assert.equal(blocked.error, 'ceramic_blocked_cure');
+  it('places the paint-condition note with ceramic package content and removes the question form', () => {
+    const home = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const modal = fs.readFileSync(path.join(__dirname, '..', 'assets/car-pkg-detail-modal.js'), 'utf8');
+    const ui = fs.readFileSync(path.join(__dirname, '..', 'assets/ceramic-booking.js'), 'utf8');
+    assert.match(home, new RegExp(NOTE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(modal, new RegExp(NOTE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.equal(ui.includes('Ceramic Coating eligibility'), false);
+    assert.equal(ui.includes('Has the vehicle been repainted'), false);
+    assert.equal(ui.includes('payload.ceramicEligibility ='), false);
+    assert.match(ui, /name="ceramic-plan"/);
+    assert.match(ui, /name="ceramic-water"/);
+    assert.match(home, /Technical exterior wash/);
+    assert.match(modal, /Ceramic coating on painted exterior surfaces/);
   });
 });
 

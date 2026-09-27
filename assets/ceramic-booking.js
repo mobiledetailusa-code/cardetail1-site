@@ -68,6 +68,7 @@
   var unresolvedIds = [];
   var catalogBlocked = false;
   var EXTENDED_APPOINTMENT_MESSAGE = 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.';
+  var PAINT_CONDITION_NOTE = 'Paint condition is checked before application. Any additional correction is quoted separately and requires your approval.';
   var ADDON_MINUTES = {
     rainx: 15,
     ceramic_windshield: 30,
@@ -291,26 +292,6 @@
     return (Number(global.ST.basePrice) || 0) + (Number(global.ST.addonTotal) || 0) + fee + companionDollars();
   }
 
-  function questions() {
-    return [
-      ['repainted60', 'Has the vehicle been repainted within the last 60 days?'],
-      ['clearCoatFailing', 'Is the clear coat peeling, oxidized, or failing?'],
-      ['severeContamination', 'Is there cement, extensive overspray, severe sap, or extreme contamination?'],
-      ['matteWrapPpf', 'Does the vehicle have matte paint, vinyl wrap, or paint-protection film?'],
-      ['coveredCureArea', 'Will a covered, dry curing area be available?'],
-      ['remainDry12h', 'Can the vehicle remain dry for at least 12 hours?']
-    ];
-  }
-
-  function readAnswers() {
-    var out = {};
-    questions().forEach(function (row) {
-      var el = document.querySelector('input[name="ceramic-' + row[0] + '"]:checked');
-      out[row[0]] = el ? el.value : '';
-    });
-    return out;
-  }
-
   function readWaterSupply() {
     var el = document.querySelector('input[name="ceramic-water"]:checked');
     return el ? el.value : '';
@@ -329,15 +310,6 @@
     panel.hidden = true;
     panel.className = 'fg full';
     panel.innerHTML = [
-      '<div class="fl">Ceramic Coating eligibility</div>',
-      '<p class="bk-addr-hint">Normal cleaning of wheels, glass, or trim is not ceramic coating on those surfaces. Coating protects the existing finish and does not repair damaged paint.</p>',
-      questions().map(function (row) {
-        return '<fieldset class="ceramic-q"><legend>' + row[1] + '</legend>'
-          + '<label><input type="radio" name="ceramic-' + row[0] + '" value="yes"> Yes</label> '
-          + '<label><input type="radio" name="ceramic-' + row[0] + '" value="no"> No</label></fieldset>';
-      }).join(''),
-      '<div id="ceramic-warning" class="bk-addr-hint" hidden></div>',
-      '<div id="ceramic-block" class="bk-addr-hint" hidden></div>',
       '<fieldset class="ceramic-q" id="ceramic-water-q"><legend>Undercarriage water</legend>',
       '<label><input type="radio" name="ceramic-water" value="customer"> I will provide a usable exterior water connection</label> ',
       '<label><input type="radio" name="ceramic-water" value="mobile"> Add Mobile Water Supply (+$50)</label></fieldset>',
@@ -350,18 +322,19 @@
     panel.addEventListener('change', syncPanel);
   }
 
-  function eligibilityBlockMessage(answers) {
-    answers = answers || {};
-    if (answers.repainted60 === 'yes' || answers.clearCoatFailing === 'yes' || answers.severeContamination === 'yes') {
-      return 'This vehicle is not eligible for instant Ceramic Coating. Book Paint Restoration instead. No ceramic quote will be created.';
-    }
-    if (answers.matteWrapPpf === 'yes') {
-      return 'Matte paint, vinyl wrap, or PPF needs a compatible service. The gloss paint-coating package will not be used.';
-    }
-    if (answers.remainDry12h === 'no') {
-      return 'Ceramic Coating needs the vehicle to stay dry for at least 12 hours.';
-    }
-    return '';
+  function ensurePaintConditionNotes() {
+    ['ceramic_1yr', 'ceramic_3yr'].forEach(function (id) {
+      var card = document.getElementById('pk-' + id);
+      if (!card) return;
+      var host = card.querySelector('.pkg-c-details') || card.querySelector('.pkg-feats');
+      if (!host) return;
+      if ((host.textContent || '').indexOf(PAINT_CONDITION_NOTE) !== -1) return;
+      var note = document.createElement('p');
+      note.className = 'pkg-c-note';
+      note.setAttribute('data-paint-condition-note', '1');
+      note.textContent = PAINT_CONDITION_NOTE;
+      host.appendChild(note);
+    });
   }
 
   function activeBookingStepId() {
@@ -380,24 +353,9 @@
       syncChargePresentation();
       return;
     }
-    var answers = readAnswers();
-    var block = document.getElementById('ceramic-block');
-    var warn = document.getElementById('ceramic-warning');
-    var message = eligibilityBlockMessage(answers);
-    if (reviewBtn) reviewBtn.disabled = !!message;
+    ensurePaintConditionNotes();
     var stickyBtn = document.getElementById('ceramic-sticky-continue');
-    if (stickyBtn) stickyBtn.disabled = !!(message || catalogBlocked);
-    if (block) {
-      block.hidden = !message;
-      block.textContent = message;
-    }
-    if (warn) {
-      var weather = answers.coveredCureArea === 'no';
-      warn.hidden = !weather;
-      warn.textContent = weather
-        ? 'No covered curing space was confirmed. Scheduling is weather-dependent.'
-        : '';
-    }
+    if (stickyBtn) stickyBtn.disabled = !!catalogBlocked;
     var note = document.getElementById('ceramic-pay-note');
     var plan = readPlan();
     var due = displayedServiceTotal();
@@ -544,7 +502,7 @@
     if (!payload || !global.ST || !isCeramicPackage(global.ST.pkgId)) return payload;
     payload.serviceFamily = 'ceramic_coating';
     payload.ceramicPaymentPlan = readPlan();
-    payload.ceramicEligibility = readAnswers();
+    delete payload.ceramicEligibility;
     payload.ceramicWaterSupply = readWaterSupply();
     sanitizeCeramicAddons();
     if (Array.isArray(payload.vehicles)) {
@@ -1101,10 +1059,7 @@
       durEl.textContent = mins ? ('· Approx. ' + formatHours(mins)) : '';
     }
     var stickyBtn = document.getElementById('ceramic-sticky-continue');
-    if (stickyBtn) {
-      var hard = isCeramicPackage(global.ST.pkgId) && !!eligibilityBlockMessage(readAnswers());
-      stickyBtn.disabled = !!(hard || catalogBlocked);
-    }
+    if (stickyBtn) stickyBtn.disabled = !!catalogBlocked;
   }
 
   function renderCompanion() {
@@ -1276,15 +1231,7 @@
       wrappedGo._ceramicSticky = true;
       global.bkGoTo = wrappedGo;
     }
-    var origPay = global.goToPayment;
-    if (typeof origPay === 'function' && !origPay._ceramicWrapped) {
-      var wrappedPay = function () {
-        if (global.ST && isCeramicPackage(global.ST.pkgId) && eligibilityBlockMessage(readAnswers())) return;
-        return origPay.apply(this, arguments);
-      };
-      wrappedPay._ceramicWrapped = true;
-      global.goToPayment = wrappedPay;
-    }
+    wrap('renderPackages', function () { ensurePaintConditionNotes(); });
     var overlay = document.querySelector('.booking-modal-ov');
     if (overlay && typeof global.MutationObserver === 'function') {
       new MutationObserver(function () { renderSticky(); }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
@@ -1293,6 +1240,7 @@
       var field = document.getElementById(id);
       if (field) field.addEventListener('change', function () { renderCeramicCheckout(); });
     });
+    ensurePaintConditionNotes();
     syncPanel();
   }
 
@@ -1301,7 +1249,6 @@
     bandFor: bandFor,
     displayPrice: displayPrice,
     addonVisible: addonVisible,
-    readAnswers: readAnswers,
     readPlan: readPlan,
     readWaterSupply: readWaterSupply,
     renderCeramicCheckout: renderCeramicCheckout,
