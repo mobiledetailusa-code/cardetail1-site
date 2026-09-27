@@ -831,7 +831,7 @@
     var shell = document.querySelector('.booking-modal');
     var open = !!(modal && modal.classList.contains('open') && global.ST && global.ST.pkgId);
     bar.classList.toggle('is-on', open);
-    bar.hidden = !open;
+    bar.hidden = false;
     if (shell) shell.classList.toggle('cd1-sticky-pad', open);
     if (!open) return;
     var total = displayedServiceTotal();

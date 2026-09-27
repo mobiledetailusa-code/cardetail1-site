@@ -249,8 +249,14 @@ test('how-it-works cards use photo backgrounds instead of emoji icons', () => {
   assert.match(css, /how-card--photo/);
   assert.match(css, /how\/how-arrive\.webp/);
 
+  const home = read('index.html');
+  assert.match(home, /Choose your service/);
+  assert.match(home, /Select your vehicle and time/);
+  assert.match(home, /Confirm and pay/);
+  assert.match(home, /how-grid--compact/);
+  assert.doesNotMatch(home, /how-card--book/);
+
   const fourStep = [
-    'index.html',
     'bergen-county-hub.html',
     'hudson-county-hub.html',
     'essex-county-hub.html',

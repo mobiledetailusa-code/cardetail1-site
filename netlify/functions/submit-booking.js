@@ -1056,7 +1056,8 @@ exports.handler = async (event) => {
     // (fail-closed) and expires on its own; a record with no entry would let a
     // second customer save a card against the same time.
     const indexed = await syncSlotIndex(draft, { previous: existing });
-    if (indexed && indexed.ok === false) {
+    const multiDay = !!(draft.appointmentSchedule && draft.appointmentSchedule.multiDay);
+    if (multiDay && indexed && indexed.ok === false) {
       return json(409, {
         ok: false,
         bookingCreated: false,
