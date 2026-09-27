@@ -242,6 +242,28 @@ const FLAT_GLOBAL_ADDONS = Object.freeze({
 /** Existing $45 engine-bay top clean. Kept; not redefined. */
 const LEGACY_ENGINE_ADDON_ID = 'engine';
 
+/** Companion service id. Price and inclusions stay in the canonical catalogs. */
+const INTERIOR_SERVICE_ID = 'interior';
+const INTERIOR_SERVICE_ALIAS = 'interior_detail';
+const INTERIOR_SERVICE_NAME = 'Complete Interior Detail';
+const SEQUENCING_NOTE = 'Complete Interior Detail before final panel prep and coating application to reduce dust, contact, and contamination risk.';
+
+const INTERIOR_ONLY_ADDON_IDS = Object.freeze([
+  'pethair',
+  'odor',
+  'superint',
+  'mold',
+  'sanitize',
+  'biohazard',
+  'floormats',
+  'babyseat',
+  'stroller',
+]);
+const EXTERIOR_PROTECTION_ADDON_IDS = Object.freeze(['wax1yr', 'polymer', 'rainx', 'claybar']);
+const GENERAL_ADDON_IDS = Object.freeze(['engine', 'engine_bay', 'undercarriage', 'heavymud']);
+const WATER_ADDON_ID = 'mobile_water';
+const SINGLE_SELECT_INTERIOR_IDS = Object.freeze(['pethair', 'odor']);
+
 const GLOBAL_PACKAGE_IDS = Object.freeze([
   'wash', 'refresh', 'full', 'premium', 'ceramic_1yr', 'ceramic_3yr',
 ]);
@@ -426,10 +448,140 @@ function selectedIds(addons) {
   return (Array.isArray(addons) ? addons : []).map((a) => String(a && a.id || '').trim()).filter(Boolean);
 }
 
+function interiorAddonSet() {
+  return new Set(INTERIOR_ONLY_ADDON_IDS);
+}
+
+function exteriorProtectionSet() {
+  return new Set(EXTERIOR_PROTECTION_ADDON_IDS);
+}
+
+function generalAddonSet() {
+  return new Set([...GENERAL_ADDON_IDS, WATER_ADDON_ID, LEGACY_ENGINE_ADDON_ID]);
+}
+
+function companionInteriorSelected(vehicle) {
+  if (!vehicle || typeof vehicle !== 'object') return false;
+  if (vehicle.companionInterior === true || vehicle.companionInterior === 'true' || vehicle.companionInterior === 1) {
+    return true;
+  }
+  const bags = [vehicle.companionServices, vehicle.serviceIds];
+  for (const bag of bags) {
+    if (!Array.isArray(bag)) continue;
+    if (bag.some((entry) => {
+      const id = typeof entry === 'string'
+        ? entry
+        : (entry && (entry.serviceId || entry.canonicalServiceId || entry.id));
+      return id === INTERIOR_SERVICE_ID || id === INTERIOR_SERVICE_ALIAS;
+    })) return true;
+  }
+  return false;
+}
+
+function catalogPricing() {
+  return require('./booking-price-catalog');
+}
+
+function interiorScheduleMinutes() {
+  const catalog = catalogPricing();
+  return {
+    service: Number(catalog.PACKAGE_SERVICE_MINUTES?.cars?.interior) || 0,
+    addons: catalog.INTERIOR_ADDON_MINUTES || {},
+  };
+}
+
+function interiorLineInclusions() {
+  const catalog = require('./canonical-package-catalog');
+  return Array.isArray(catalog.INTERIOR_SERVICE_INCLUSIONS)
+    ? catalog.INTERIOR_SERVICE_INCLUSIONS.slice()
+    : [];
+}
+
+function centsFromDollars(value) {
+  return Math.round((Number(value) || 0) * 100);
+}
+
+/**
+ * Interior Detail price from the cars tier catalog. Ceramic packages do not
+ * store a copy of this amount.
+ */
+function resolveCompanionInterior(vehicle) {
+  const pkgId = String(vehicle?.pkgId || vehicle?.packageId || '').trim();
+  if (!isCeramicPackage(pkgId)) return { ok: true, selected: false, price: 0 };
+  if (!companionInteriorSelected(vehicle)) return { ok: true, selected: false, price: 0 };
+  const tierKey = String(vehicle?.tierKey || vehicle?.tier || '').trim();
+  const tier = catalogPricing().PRICING?.cars?.tiers?.[tierKey];
+  const price = tier ? Number(tier.interior) : 0;
+  if (!(price > 0)) {
+    return {
+      ok: false,
+      error: 'invalid_pricing',
+      message: 'Complete Interior Detail is not priced for this vehicle class.',
+    };
+  }
+  return {
+    ok: true,
+    selected: true,
+    price,
+    serviceId: INTERIOR_SERVICE_ID,
+    canonicalServiceId: INTERIOR_SERVICE_ID,
+    name: INTERIOR_SERVICE_NAME,
+  };
+}
+
+function addonUnits(addon) {
+  return Math.max(1, Math.round(Number(addon?.qty) || 1));
+}
+
 function validateAddonSet(vehicle) {
-  const ids = selectedIds(vehicle?.addons);
+  const addons = Array.isArray(vehicle?.addons) ? vehicle.addons : [];
+  const ids = selectedIds(addons);
   const pkgId = String(vehicle?.pkgId || vehicle?.packageId || '').trim();
   const ceramic = isCeramicPackage(pkgId);
+  const companion = companionInteriorSelected(vehicle);
+  if (ceramic) {
+    if (ids.includes(INTERIOR_SERVICE_ID) || ids.includes(INTERIOR_SERVICE_ALIAS)) {
+      return {
+        ok: false,
+        error: 'duplicated_interior',
+        message: 'Complete Interior Detail is a companion service, not a second add-on.',
+      };
+    }
+    const interiorIds = interiorAddonSet();
+    const protectionIds = exteriorProtectionSet();
+    const generalIds = generalAddonSet();
+    for (const id of ids) {
+      if (protectionIds.has(id)) {
+        return { ok: false, error: 'incompatible_addon', addonId: id };
+      }
+      if (interiorIds.has(id)) {
+        if (!companion) {
+          return {
+            ok: false,
+            error: 'interior_addon_requires_service',
+            addonId: id,
+            message: 'Interior add-ons require Complete Interior Detail on the same vehicle.',
+          };
+        }
+        continue;
+      }
+      if (isCeramicAddonId(id) || generalIds.has(id)) continue;
+      if (isKnownCeramicCatalogAddon(id)) continue;
+      return { ok: false, error: 'incompatible_addon', addonId: id };
+    }
+    for (const id of SINGLE_SELECT_INTERIOR_IDS) {
+      const matches = addons.filter((addon) => addon && addon.id === id);
+      const units = matches.reduce((sum, addon) => sum + addonUnits(addon), 0);
+      if (matches.length > 1 || units > 1) {
+        return {
+          ok: false,
+          error: 'duplicated_interior_addon',
+          addonId: id,
+          message: 'Pet hair removal and odor treatment can be selected once.',
+        };
+      }
+    }
+  }
   if (ids.includes('ceramic_windshield') && ids.includes('ceramic_glass_all')) {
     return {
       ok: false,
@@ -475,12 +627,97 @@ function durationForVehicle(vehicle) {
   const pkg = packageDef(vehicle?.pkgId || vehicle?.packageId);
   if (!pkg) return { ok: true, minutes: 0 };
   const band = bandForTier(vehicle?.tierKey || vehicle?.tier);
-  let minutes = pkg.baseMinutes;
-  for (const id of selectedIds(vehicle?.addons)) {
+  const schedule = interiorScheduleMinutes();
+  const companion = companionInteriorSelected(vehicle);
+  let ceramicMinutes = pkg.baseMinutes;
+  let interiorMinutes = companion ? schedule.service : 0;
+  for (const addon of (Array.isArray(vehicle?.addons) ? vehicle.addons : [])) {
+    const id = String(addon && addon.id || '').trim();
+    if (!id) continue;
+    const units = addonUnits(addon);
     const priced = priceAndMinutesForAddon(id, band);
-    if (priced) minutes += priced.minutes;
+    if (priced) {
+      ceramicMinutes += priced.minutes * units;
+      continue;
+    }
+    if (companion && schedule.addons[id]) interiorMinutes += schedule.addons[id] * units;
   }
-  return { ok: true, minutes };
+  return {
+    ok: true,
+    minutes: ceramicMinutes + interiorMinutes,
+    ceramicMinutes,
+    interiorMinutes,
+    companionInterior: companion,
+  };
+}
+
+function priorCompletion(vehicle, serviceId) {
+  const lines = Array.isArray(vehicle?.serviceLineItems) ? vehicle.serviceLineItems : [];
+  const found = lines.find((line) => line && (line.serviceId === serviceId || line.canonicalServiceId === serviceId));
+  if (found && found.completionStatus === 'completed') {
+    return { completionStatus: 'completed', completedAt: found.completedAt || null };
+  }
+  return { completionStatus: 'pending', completedAt: null };
+}
+
+function addonMoney(addons, allowed) {
+  let cents = 0;
+  const ids = [];
+  for (const addon of addons) {
+    const id = String(addon && addon.id || '').trim();
+    if (!id || !allowed.has(id)) continue;
+    if (!ids.includes(id)) ids.push(id);
+    cents += centsFromDollars((Number(addon.price) || 0) * addonUnits(addon));
+  }
+  return { cents, ids };
+}
+
+function buildVehicleServiceLines(vehicle, pkg, priced) {
+  const addons = Array.isArray(vehicle.addons) ? vehicle.addons : [];
+  const duration = durationForVehicle(vehicle);
+  const ceramicAddonIds = new Set([
+    ...Object.keys(CERAMIC_ADDONS),
+    ...Object.keys(SIZE_ADDONS).filter((id) => SIZE_ADDONS[id].ceramicOnly),
+    ...GENERAL_ADDON_IDS,
+    LEGACY_ENGINE_ADDON_ID,
+  ]);
+  const ceramicAddons = addonMoney(addons, ceramicAddonIds);
+  const interiorAddons = addonMoney(addons, interiorAddonSet());
+  const companion = resolveCompanionInterior(vehicle);
+  const ceramicCompletion = priorCompletion(vehicle, pkg.id);
+  const lines = [{
+    serviceId: pkg.id,
+    canonicalServiceId: pkg.id,
+    name: pkg.name,
+    price: priced.amount,
+    priceCents: centsFromDollars(priced.amount),
+    durationMinutes: duration.ceramicMinutes,
+    inclusions: INCLUSIONS.slice(),
+    addonIds: ceramicAddons.ids,
+    compatibleAddons: [...ceramicAddonIds, WATER_ADDON_ID],
+    financialAllocationCents: centsFromDollars(priced.amount) + ceramicAddons.cents,
+    completionStatus: ceramicCompletion.completionStatus,
+    completedAt: ceramicCompletion.completedAt,
+  }];
+  if (companion.selected) {
+    const interiorCompletion = priorCompletion(vehicle, INTERIOR_SERVICE_ID);
+    lines.push({
+      serviceId: INTERIOR_SERVICE_ID,
+      canonicalServiceId: INTERIOR_SERVICE_ID,
+      alias: INTERIOR_SERVICE_ALIAS,
+      name: INTERIOR_SERVICE_NAME,
+      price: companion.price,
+      priceCents: centsFromDollars(companion.price),
+      durationMinutes: duration.interiorMinutes,
+      inclusions: interiorLineInclusions(),
+      addonIds: interiorAddons.ids,
+      compatibleAddons: INTERIOR_ONLY_ADDON_IDS.slice(),
+      financialAllocationCents: centsFromDollars(companion.price) + interiorAddons.cents,
+      completionStatus: interiorCompletion.completionStatus,
+      completedAt: interiorCompletion.completedAt,
+    });
+  }
+  return lines;
 }
 
 function yesNo(value) {
@@ -540,6 +777,17 @@ function normalizePaymentPlan(value) {
 function depositDollarsForPackage(packageId) {
   const pkg = packageDef(packageId);
   return pkg ? pkg.depositDollars : 0;
+}
+
+/**
+ * Deposit is the greater of 25% of the approved total and the package minimum.
+ * Rounded to whole cents. The minimums are $150 (1-year) and $250 (3-year).
+ */
+function depositCentsForApproved(packageId, approvedDollars) {
+  const approvedCents = Math.max(0, centsFromDollars(approvedDollars));
+  const percent = Math.round(approvedCents * 25 / 100);
+  const minimum = centsFromDollars(depositDollarsForPackage(packageId));
+  return Math.max(percent, minimum);
 }
 
 function coatingById(productId) {
@@ -669,8 +917,13 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
     const duration = durationForVehicle(vehicle);
     durationMinutes += duration.minutes;
     const pkg = packageDef(pkgId);
+    const companion = resolveCompanionInterior(vehicle);
+    if (!companion.ok) return companion;
     vehicle.pkgName = pkg.name;
     vehicle.packageName = pkg.name;
+    vehicle.companionInterior = companion.selected;
+    vehicle.companionInteriorPrice = companion.selected ? companion.price : 0;
+    vehicle.serviceLineItems = buildVehicleServiceLines(vehicle, pkg, priced);
     delete vehicle.product;
     stampedVehicles.push({
       packageId: pkgId,
@@ -681,6 +934,9 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
       sizeBand: priced.band,
       sizeLabel: priced.bandLabel,
       basePrice: priced.amount,
+      companionInterior: companion.selected,
+      companionInteriorPrice: vehicle.companionInteriorPrice,
+      serviceLineItems: vehicle.serviceLineItems,
     });
   }
 
@@ -706,7 +962,7 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
   const serviceDollars = vehicles.reduce((sum, v) => sum + (Number(v.subtotal) || 0), 0);
   const travel = Math.round((Number(booking.travelFeeAmount) || 0) * 100) / 100;
   const approved = Math.round((serviceDollars + travel) * 100) / 100;
-  const depositAmount = plan === 'deposit' ? primary.depositDollars : 0;
+  const depositAmount = plan === 'deposit' ? depositCentsForApproved(primary.id, approved) / 100 : 0;
   if (plan === 'deposit' && !(depositAmount > 0 && depositAmount < approved)) {
     return { ok: false, error: 'ceramic_deposit_invalid' };
   }
@@ -722,6 +978,10 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
   booking.packageName = primary.name;
   booking.serviceLabel = primary.name;
   if (typeof booking.service !== 'object' || booking.service == null) booking.service = primary.name;
+  const serviceLineItems = vehicles.flatMap((vehicle) => vehicle.serviceLineItems || []);
+  const companionInterior = serviceLineItems.some((line) => line.serviceId === INTERIOR_SERVICE_ID);
+  booking.companionInterior = companionInterior;
+  booking.opsSequencingNote = companionInterior ? SEQUENCING_NOTE : null;
   booking.appointmentDurationMinutes = durationMinutes;
   booking.depositAmount = depositAmount;
   booking.ceramicPaymentPlan = plan || null;
@@ -755,6 +1015,9 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
     chargeAmount,
     depositsEnabled: depositsEnabled(env),
     paintRestorationPackageId: PAINT_RESTORATION_PACKAGE_ID,
+    companionInterior,
+    serviceLineItems,
+    sequencingNote: companionInterior ? SEQUENCING_NOTE : null,
     internal,
   };
   return { ok: true, ceramic: true, booking };
@@ -850,6 +1113,68 @@ function assignInternalCoating(booking, input = {}, actor = null) {
   return { ok: true, booking };
 }
 
+function isStaffActor(actor) {
+  const role = String(actor?.role || actor?.actorRole || '').trim().toLowerCase();
+  const id = String(actor?.id || actor?.actorId || actor?.email || '').trim();
+  return !!id && (role === 'admin' || role === 'ops' || role === 'quick_ops');
+}
+
+/**
+ * Mark one service line complete. Does not change payment status or amounts.
+ */
+function completeServiceLine(booking, serviceId, actor = null) {
+  if (!booking || booking.serviceFamily !== 'ceramic_coating') {
+    return { ok: false, error: 'ceramic_booking_required' };
+  }
+  if (!isStaffActor(actor)) {
+    return { ok: false, error: 'service_line_complete_unauthorized' };
+  }
+  const wanted = String(serviceId || '').trim();
+  const canonical = wanted === INTERIOR_SERVICE_ALIAS ? INTERIOR_SERVICE_ID : wanted;
+  if (!canonical) return { ok: false, error: 'service_line_required' };
+  const paymentStatus = booking.paymentStatus;
+  const amountPaid = booking.amountPaid;
+  const balanceDue = booking.balanceDue;
+  const approvedFinalAmount = booking.approvedFinalAmount;
+  let found = false;
+  const now = new Date().toISOString();
+  const visit = (line) => {
+    if (!line) return;
+    const id = line.serviceId || line.canonicalServiceId;
+    if (id !== canonical && line.alias !== wanted) return;
+    line.completionStatus = 'completed';
+    line.completedAt = line.completedAt || now;
+    found = true;
+  };
+  for (const vehicle of booking.vehicles || []) {
+    for (const line of vehicle.serviceLineItems || []) visit(line);
+  }
+  for (const line of booking.ceramic?.serviceLineItems || []) visit(line);
+  if (!found) return { ok: false, error: 'service_line_not_found' };
+  booking.paymentStatus = paymentStatus;
+  booking.amountPaid = amountPaid;
+  booking.balanceDue = balanceDue;
+  booking.approvedFinalAmount = approvedFinalAmount;
+  return { ok: true, booking, serviceId: canonical };
+}
+
+function publicServiceLine(line) {
+  if (!line) return null;
+  return {
+    serviceId: line.serviceId,
+    canonicalServiceId: line.canonicalServiceId,
+    name: line.name,
+    price: line.price,
+    priceCents: line.priceCents,
+    durationMinutes: line.durationMinutes,
+    inclusions: line.inclusions || [],
+    addonIds: line.addonIds || [],
+    compatibleAddons: line.compatibleAddons || [],
+    financialAllocationCents: line.financialAllocationCents,
+    completionStatus: line.completionStatus || 'pending',
+  };
+}
+
 function customerCeramicSummary(booking) {
   if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) return null;
   const c = booking.ceramic;
@@ -882,6 +1207,10 @@ function customerCeramicSummary(booking) {
     amountPaid: booking.amountPaid != null ? Number(booking.amountPaid) : null,
     balanceDue: booking.balanceDue != null ? Number(booking.balanceDue) : null,
     paymentStatus: booking.paymentStatus || null,
+    companionInterior: !!c.companionInterior,
+    serviceLineItems: (Array.isArray(c.serviceLineItems) ? c.serviceLineItems : [])
+      .map(publicServiceLine)
+      .filter(Boolean),
   };
 }
 
@@ -903,6 +1232,12 @@ module.exports = {
   ELIGIBILITY_FIELDS,
   PAINT_RESTORATION_PACKAGE_ID,
   LEGACY_ENGINE_ADDON_ID,
+  INTERIOR_SERVICE_ID,
+  INTERIOR_SERVICE_ALIAS,
+  INTERIOR_SERVICE_NAME,
+  INTERIOR_ONLY_ADDON_IDS,
+  EXTERIOR_PROTECTION_ADDON_IDS,
+  SEQUENCING_NOTE,
   isCeramicPackage,
   packageDef,
   bandForTier,
@@ -914,11 +1249,15 @@ module.exports = {
   isKnownCeramicCatalogAddon,
   resolveAddonPrice,
   validateAddonSet,
+  companionInteriorSelected,
+  resolveCompanionInterior,
   durationForVehicle,
+  completeServiceLine,
   evaluateEligibility,
   depositsEnabled,
   normalizePaymentPlan,
   depositDollarsForPackage,
+  depositCentsForApproved,
   expectedDurabilityLabel,
   applyCeramicBooking,
   assignInternalCoating,

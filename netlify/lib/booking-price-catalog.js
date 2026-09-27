@@ -171,6 +171,25 @@ function includedAddonIds(category, packageId) {
   return [...(PACKAGE_INCLUDED_ADDONS[cat]?.[pkg] || [])];
 }
 
+/**
+ * Scheduling minutes only. Interior prices stay on PRICING.cars.tiers[tier].interior.
+ */
+const PACKAGE_SERVICE_MINUTES = Object.freeze({
+  cars: Object.freeze({ interior: 120 }),
+});
+
+const INTERIOR_ADDON_MINUTES = Object.freeze({
+  pethair: 45,
+  odor: 30,
+  superint: 60,
+  sanitize: 20,
+  mold: 45,
+  biohazard: 60,
+  floormats: 15,
+  babyseat: 20,
+  stroller: 20,
+});
+
 const LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
@@ -563,14 +582,20 @@ function vehiclesFromBooking(booking) {
 function computeVehicleSubtotal(vehicle, zip, booking) {
   const base = computeVehicleBasePrice(vehicle, zip, booking);
   if (!base.ok) return base;
-  const addons = computeAddonTotal({ ...vehicle, cat: base.cat, pkgId: base.pkgId, tierKey: base.tierKey }, booking);
+  const pricedVehicle = { ...vehicle, cat: base.cat, pkgId: base.pkgId, tierKey: base.tierKey };
+  const addons = computeAddonTotal(pricedVehicle, booking);
   if (!addons.ok) return addons;
-  const subtotal = base.basePrice + addons.total;
+  const companion = CeramicCoating.resolveCompanionInterior({ ...pricedVehicle, addons: addons.addons });
+  if (!companion.ok) return companion;
+  const companionPrice = companion.selected ? companion.price : 0;
+  const subtotal = base.basePrice + addons.total + companionPrice;
   return {
     ok: true,
     subtotal,
     basePrice: base.basePrice,
     addonTotal: addons.total,
+    companionInterior: !!companion.selected,
+    companionInteriorPrice: companionPrice,
     addons: addons.addons,
     cat: base.cat,
     pkgId: base.pkgId,
@@ -600,6 +625,8 @@ function computeBookingServiceSubtotal(booking) {
       tierKey: r.tierKey,
       basePrice: r.basePrice,
       addonTotal: r.addonTotal,
+      companionInterior: r.companionInterior,
+      companionInteriorPrice: r.companionInteriorPrice || 0,
       addons: r.addons,
       subtotal: r.subtotal,
     });
@@ -730,6 +757,8 @@ module.exports = {
   PRICING,
   POWERSPORTS_PUBLIC_TIER_KEYS,
   PACKAGE_INCLUDED_ADDONS,
+  PACKAGE_SERVICE_MINUTES,
+  INTERIOR_ADDON_MINUTES,
   SEASONAL_DRIVEWAY_ADDONS,
   includedAddonIds,
   LENGTH_PRICING,

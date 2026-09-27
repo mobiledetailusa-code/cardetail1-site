@@ -205,8 +205,10 @@ function serviceDescription(booking) {
 function ceramicNotice(booking) {
   if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) return null;
   const c = booking.ceramic;
+  const lines = (Array.isArray(c.serviceLineItems) ? c.serviceLineItems : [])
+    .map((line) => `${line.name}: $${Number(line.price || 0).toFixed(2)}`);
   const money = [
-    `Package: ${c.packageName || 'Ceramic Coating'}`,
+    ...(lines.length ? lines : [`Package: ${c.packageName || 'Ceramic Coating'}`]),
     (c.expectedDurability || c.durationMonths)
       ? `Expected durability: ${c.expectedDurability || `up to ${c.durationMonths} months`}`
       : '',

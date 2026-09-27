@@ -2168,7 +2168,14 @@
       (b.paymentStatus ? '<div><dt>Payment status</dt><dd>' + esc(b.paymentStatus) + '</dd></div>' : '') +
       '</dl>' +
       (b.ceramic && (b.serviceFamily === 'ceramic_coating' || b.ceramic.serviceFamily === 'ceramic_coating')
-        ? '<div class="ceramic-summary"><p><strong>' + esc(b.ceramic.packageName || 'Ceramic Coating') + '</strong>'
+        ? '<div class="ceramic-summary">'
+          + ((b.ceramic.serviceLineItems || []).length
+            ? '<ul>' + b.ceramic.serviceLineItems.map(function (line) {
+              return '<li><strong>' + esc(line.name || '') + '</strong> · $' + Number(line.price || 0).toFixed(2)
+                + (line.completionStatus ? ' · ' + esc(line.completionStatus) : '') + '</li>';
+            }).join('') + '</ul>'
+            : '')
+          + '<p><strong>' + esc(b.ceramic.packageName || 'Ceramic Coating') + '</strong>'
           + (b.ceramic.expectedDurability
             ? ' · ' + esc(b.ceramic.expectedDurability)
             : (b.ceramic.durationMonths ? ' · up to ' + esc(String(b.ceramic.durationMonths)) + ' months' : ''))

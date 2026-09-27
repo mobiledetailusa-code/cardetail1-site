@@ -13,10 +13,14 @@ const {
   applyCeramicBooking,
   assignInternalCoating,
   basePriceFor,
+  completeServiceLine,
   customerCeramicSummary,
+  depositCentsForApproved,
   durationForVehicle,
   evaluateEligibility,
   PUBLIC_PACKAGE_NAMES,
+  resolveCompanionInterior,
+  validateAddonSet,
 } = require('../netlify/lib/ceramic-coating');
 const {
   appendSettlement,
@@ -24,10 +28,11 @@ const {
   ceramicIntentSpec,
   chargeDueNow,
   collectBalanceOnce,
+  conversionEvidence,
   projectPayment,
   stripePaymentIntentForm,
 } = require('../netlify/lib/ceramic-payment');
-const { hasSlotConflict, spannedSlotTimes } = require('../netlify/lib/booking-schedule');
+const { hasSlotConflict, planCombinedAppointment, spannedSlotTimes } = require('../netlify/lib/booking-schedule');
 const { buildPaymentCompatibilityPatch } = require('../netlify/lib/db/operational-payment');
 const { packageOptionsForVehicle } = require('../netlify/lib/package-financial-mutation');
 const { projectQuickOpsBooking } = require('../netlify/lib/admin-quick-ops-view');
@@ -304,22 +309,22 @@ describe('ceramic payment state', () => {
 
   it('records a deposit as partially paid and collects the exact balance once', () => {
     const booking = prepared('deposit');
-    assert.equal(booking.depositAmount, 150);
-    assert.equal(chargeDueNow(booking).chargeCents, 15000);
+    assert.equal(booking.depositAmount, 162.5);
+    assert.equal(chargeDueNow(booking).chargeCents, 16250);
     const deposit = applyStripePaymentIntent(booking, {
       id: 'pi_dep',
       status: 'succeeded',
-      amount_received: 15000,
+      amount_received: 16250,
       metadata: { purpose: 'ceramic_checkout', bookingId: booking.id },
     });
     assert.equal(deposit.projection.paymentStatus, 'partially_paid');
-    assert.equal(booking.amountPaid, 150);
-    assert.equal(booking.balanceDue, 500);
+    assert.equal(booking.amountPaid, 162.5);
+    assert.equal(booking.balanceDue, 487.5);
     assert.equal(booking.approvedFinalAmount, 650);
 
     const again = appendSettlement(booking, {
       providerEventId: 'settlement_pi_dep_2',
-      amountCents: 15000,
+      amountCents: 16250,
       purpose: 'ceramic_checkout',
     });
     assert.equal(again.ok, false);
@@ -359,16 +364,16 @@ describe('ceramic payment state', () => {
     const booking = prepared('deposit', 'ceramic_3yr');
     const spec = ceramicIntentSpec(booking, { quoteVersion: 1, phase: 'checkout' });
     assert.equal(spec.ok, true);
-    assert.equal(spec.amountCents, 25000);
+    assert.equal(spec.amountCents, 26250);
     assert.equal(spec.purpose, 'ceramic_checkout');
     assert.equal(spec.offSession, false);
     assert.equal(spec.confirm, false);
     const form = stripePaymentIntentForm(spec);
-    assert.equal(form.get('amount'), '25000');
+    assert.equal(form.get('amount'), '26250');
     assert.equal(form.get('metadata[purpose]'), 'ceramic_checkout');
     assert.equal(form.has('off_session'), false);
     assert.equal(form.has('confirm'), false);
-    assert.match(spec.idempotencyKey, /^pi_ceramic_checkout_CD1-CER-1_1_25000_1$/);
+    assert.match(spec.idempotencyKey, /^pi_ceramic_checkout_CD1-CER-1_1_26250_1$/);
   });
 
   it('does not open a PaymentIntent for a non-ceramic booking', async () => {
@@ -462,7 +467,7 @@ describe('ceramic portals, receipts, and messages', () => {
     applyStripePaymentIntent(booking, {
       id: 'pi_portal',
       status: 'succeeded',
-      amount_received: 15000,
+      amount_received: 20000,
       metadata: { purpose: 'ceramic_checkout', bookingId: booking.id },
     });
     return booking;
@@ -480,8 +485,8 @@ describe('ceramic portals, receipts, and messages', () => {
     assert.equal(ops.service.durationMinutes, 500);
     const customer = projectBookingForCustomer(booking);
     assert.equal(customer.serviceFamily, 'ceramic_coating');
-    assert.equal(customer.depositAmount, 150);
-    assert.equal(customer.balanceDue, 650);
+    assert.equal(customer.depositAmount, 200);
+    assert.equal(customer.balanceDue, 600);
     assert.equal(customer.paymentStatus, 'partially_paid');
     assert.equal(customer.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
     assert.equal(customer.ceramic.expectedDurability, 'up to 1 year');
@@ -492,8 +497,8 @@ describe('ceramic portals, receipts, and messages', () => {
     const receipt = buildReceiptProjection(booking, 'payment');
     assert.equal(receipt.ok, true, receipt.error);
     assert.equal(receipt.receipt.financialSummary.approvedTotal.display, '$800.00');
-    assert.equal(receipt.receipt.financialSummary.amountPaid.display, '$150.00');
-    assert.equal(receipt.receipt.financialSummary.remainingBalance.display, '$650.00');
+    assert.equal(receipt.receipt.financialSummary.amountPaid.display, '$200.00');
+    assert.equal(receipt.receipt.financialSummary.remainingBalance.display, '$600.00');
     assert.equal(receipt.receipt.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
     assert.equal(receipt.receipt.ceramic.coatingManufacturer, undefined);
     assert.doesNotMatch(JSON.stringify(receipt.receipt.ceramic), /GYEON|CanCoat|Mohs/);
@@ -507,14 +512,14 @@ describe('ceramic portals, receipts, and messages', () => {
     assert.match(email.text, /Expected durability: up to 1 year/);
     assert.doesNotMatch(email.text, /GYEON|CanCoat|Mohs/);
     assert.match(email.text, /Approved total: \$800\.00/);
-    assert.match(email.text, /Amount paid: \$150\.00/);
-    assert.match(email.text, /Remaining balance: \$650\.00/);
+    assert.match(email.text, /Amount paid: \$200\.00/);
+    assert.match(email.text, /Remaining balance: \$600\.00/);
     assert.match(email.text, /Do not wash for 7 days/);
     assert.match(email.html, /does not repair damaged paint/);
     const sms = buildSmsBody('booking.request_received', booking, 'https://cardetail1.com/my-garage.html');
     assert.match(sms, /Professional Ceramic Protection — Up to 1 Year/);
     assert.doesNotMatch(sms, /GYEON|CanCoat|Mohs/);
-    assert.match(sms, /Balance due \$650\.00/);
+    assert.match(sms, /Balance due \$600\.00/);
     assert.match(sms, /does not repair paint/);
   });
 
@@ -653,5 +658,164 @@ describe('ceramic public names and internal coating assignment', () => {
       cureRequirements: [],
     }, { role: 'admin', id: 'admin-1' });
     assert.equal(missingCure.error, 'ceramic_cure_required');
+  });
+});
+
+describe('ceramic plus interior companion', () => {
+  it('books ceramic without interior and keeps interior prices out of the ceramic catalog', () => {
+    const booking = pricedBooking('ceramic_1yr', 'small');
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    assert.equal(booking.companionInterior, false);
+    assert.equal(booking.vehicles[0].serviceLineItems.length, 1);
+    assert.equal(booking.vehicles[0].serviceLineItems[0].serviceId, 'ceramic_1yr');
+    assert.equal(booking.approvedFinalAmount, 650);
+    assert.equal(resolveCompanionInterior(vehicle('ceramic_1yr', 'small')).selected, false);
+    const source = fs.readFileSync(path.join(__dirname, '../netlify/lib/ceramic-coating.js'), 'utf8');
+    assert.doesNotMatch(source, /interior:\s*200/);
+    assert.equal(booking.ceramic.inclusions.some((line) => /vacuum/i.test(line)), false);
+  });
+
+  it('adds Complete Interior Detail to the same vehicle at the canonical price', () => {
+    const before = PRICING.cars.tiers.suv3.interior;
+    PRICING.cars.tiers.suv3.interior = 255;
+    const quoted = computeVehicleSubtotal(vehicle('ceramic_1yr', 'suv3', [], { companionInterior: true }), ZIP);
+    assert.equal(quoted.companionInteriorPrice, PRICING.cars.tiers.suv3.interior);
+    assert.equal(quoted.subtotal, 825 + 255);
+    PRICING.cars.tiers.suv3.interior = 261;
+    const changed = computeVehicleSubtotal(vehicle('ceramic_1yr', 'suv3', [], { companionInterior: true }), ZIP);
+    assert.equal(changed.companionInteriorPrice, 261);
+    assert.equal(changed.subtotal, 825 + 261);
+    PRICING.cars.tiers.suv3.interior = before;
+    const booking = pricedBooking('ceramic_1yr', 'small', [], { companionInterior: true });
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    const lines = booking.vehicles[0].serviceLineItems;
+    assert.deepEqual(lines.map((line) => line.serviceId), ['ceramic_1yr', 'interior']);
+    assert.equal(lines[1].name, 'Complete Interior Detail');
+    assert.equal(lines[1].canonicalServiceId, 'interior');
+    assert.equal(lines[1].price, 200);
+    assert.equal(lines[1].alias, 'interior_detail');
+    assert.equal(booking.approvedFinalAmount, 850);
+    assert.equal(lines[0].financialAllocationCents + lines[1].financialAllocationCents, 85000);
+    assert.match(booking.opsSequencingNote, /before final panel prep/);
+    assert.equal(customerCeramicSummary(booking).sequencingNote, undefined);
+  });
+
+  it('shows interior add-ons only after interior is selected and keeps engine bay separate', () => {
+    const early = computeVehicleSubtotal(vehicle('ceramic_1yr', 'small', [{ id: 'pethair' }]), ZIP);
+    assert.equal(early.ok, false);
+    assert.equal(early.error, 'interior_addon_requires_service');
+    const wax = validateAddonSet(vehicle('ceramic_1yr', 'small', [{ id: 'wax1yr' }], { companionInterior: true }));
+    assert.equal(wax.error, 'incompatible_addon');
+    const dup = validateAddonSet(vehicle('ceramic_1yr', 'small', [{ id: 'interior' }], { companionInterior: true }));
+    assert.equal(dup.error, 'duplicated_interior');
+    const twice = validateAddonSet(vehicle('ceramic_1yr', 'small', [{ id: 'odor', qty: 2 }], { companionInterior: true }));
+    assert.equal(twice.error, 'duplicated_interior_addon');
+    const booking = pricedBooking('ceramic_1yr', 'small', [
+      { id: 'pethair' },
+      { id: 'engine_bay' },
+    ], { companionInterior: true });
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    const lines = booking.vehicles[0].serviceLineItems;
+    assert.deepEqual(lines[1].addonIds, ['pethair']);
+    assert.deepEqual(lines[0].addonIds, ['engine_bay']);
+    assert.equal(lines[1].addonIds.includes('engine_bay'), false);
+    assert.equal(lines[1].price, PRICING.cars.tiers.small.interior);
+    assert.equal(booking.approvedFinalAmount, 650 + 200 + 95 + 125);
+  });
+
+  it('sums ceramic, interior, and add-on duration and rejects a late or over-capacity start', () => {
+    const minutes = durationForVehicle(vehicle('ceramic_1yr', 'small', [{ id: 'pethair' }, { id: 'engine_bay' }], { companionInterior: true }));
+    assert.equal(minutes.minutes, 480 + 120 + 45 + 45);
+    assert.equal(minutes.ceramicMinutes + minutes.interiorMinutes, minutes.minutes);
+    const late = planCombinedAppointment(WEEKDAY, '10:00 AM', minutes.minutes);
+    assert.equal(late.ok, false);
+    assert.equal(late.error, 'ceramic_duration_exceeds_day');
+    assert.match(late.message, /extended appointment/);
+    assert.equal(late.nextValidStart.time, '8:00 AM');
+    const planned = planCombinedAppointment(WEEKDAY, '8:00 AM', 600);
+    assert.equal(planned.ok, true);
+    assert.equal(planned.multiDay, true);
+    assert.equal(planned.days[0].slots.length + planned.days[1].slots.length, 5);
+    assert.equal(planned.days[1].date, '2026-10-06');
+    const saturday = planCombinedAppointment(SATURDAY, '8:00 AM', 600);
+    assert.equal(saturday.days[1].date, '2026-10-05');
+    const booking = pricedBooking('ceramic_1yr', 'small', [], { companionInterior: true }, {
+      preferredDate: WEEKDAY,
+      preferredTime: '8:00 AM',
+    });
+    applyCeramicBooking(booking, { finalize: true });
+    booking.appointmentSchedule = planned;
+    assert.equal(hasSlotConflict([booking], WEEKDAY, '2:00 PM'), true);
+    assert.equal(hasSlotConflict([booking], '2026-10-06', '8:00 AM'), true);
+    assert.equal(hasSlotConflict([booking], '2026-10-06', '10:00 AM'), false);
+    const occupied = {
+      id: 'other',
+      preferredDate: '2026-10-06',
+      preferredTime: '8:00 AM',
+      isDraft: false,
+    };
+    assert.equal(hasSlotConflict([occupied], '2026-10-06', '8:00 AM'), true);
+  });
+
+  it('charges the combined total in full and uses 25 percent with the package minimum for deposits', () => {
+    assert.equal(depositCentsForApproved('ceramic_1yr', 825), 20625);
+    assert.equal(depositCentsForApproved('ceramic_1yr', 1075), 26875);
+    assert.equal(depositCentsForApproved('ceramic_3yr', 1275), 31875);
+    assert.equal(depositCentsForApproved('ceramic_1yr', 400), 15000);
+    const full = pricedBooking('ceramic_1yr', 'small', [], { companionInterior: true }, { ceramicPaymentPlan: 'prepay_full' });
+    applyCeramicBooking(full, { finalize: true });
+    assert.equal(chargeDueNow(full).chargeCents, 85000);
+    const deposit = pricedBooking('ceramic_1yr', 'suv3', [], { companionInterior: true }, { ceramicPaymentPlan: 'deposit' });
+    applyCeramicBooking(deposit, { finalize: true });
+    assert.equal(deposit.approvedFinalAmount, 825 + 255);
+    assert.equal(deposit.depositAmount, 270);
+    assert.equal(chargeDueNow(deposit).chargeCents, 27000);
+    assert.equal(deposit.approvedFinalAmount, deposit.depositAmount + (deposit.approvedFinalAmount - deposit.depositAmount));
+  });
+
+  it('keeps the same service lines and totals on the receipt, admin, and My Garage', () => {
+    const booking = pricedBooking('ceramic_1yr', 'small', [{ id: 'pethair' }], { companionInterior: true }, {
+      ceramicPaymentPlan: 'prepay_full',
+      firstName: 'Ava',
+      lastName: 'Stone',
+      phone: '2015550100',
+      email: 'ava@example.com',
+    });
+    applyCeramicBooking(booking, { finalize: true });
+    applyStripePaymentIntent(booking, {
+      id: 'pi_combo',
+      status: 'succeeded',
+      amount_received: 94500,
+      metadata: { purpose: 'ceramic_checkout', bookingId: booking.id },
+    });
+    const ids = (rows) => (rows || []).map((line) => line.serviceId).join(',');
+    const ops = projectQuickOpsBooking(booking);
+    const customer = projectBookingForCustomer(booking);
+    const receipt = buildReceiptProjection(booking, 'payment');
+    assert.equal(receipt.ok, true, receipt.error);
+    assert.equal(ids(ops.ceramic.serviceLineItems), 'ceramic_1yr,interior');
+    assert.equal(ids(customer.ceramic.serviceLineItems), ids(ops.ceramic.serviceLineItems));
+    assert.equal(ids(receipt.receipt.ceramic.serviceLineItems), ids(customer.ceramic.serviceLineItems));
+    assert.equal(customer.vehicles[0].serviceLineItems[1].name, 'Complete Interior Detail');
+    assert.equal(customer.approvedFinalAmount, 945);
+    assert.equal(ops.money.approvedLabel, '$945');
+    assert.equal(receipt.receipt.financialSummary.approvedTotal.display, '$945.00');
+    assert.equal(receipt.receipt.financialSummary.amountPaid.display, '$945.00');
+    assert.equal(receipt.receipt.financialSummary.remainingBalance.display, '$0.00');
+    const evidence = conversionEvidence(booking);
+    assert.equal(evidence.paymentSucceeded, true);
+    assert.equal(evidence.approvedFinalAmount, 945);
+    const unpaid = pricedBooking('ceramic_1yr', 'small', [], { companionInterior: true });
+    applyCeramicBooking(unpaid, { finalize: true });
+    assert.equal(unpaid.paymentStatus, 'unpaid');
+    const done = completeServiceLine(unpaid, 'interior', { role: 'admin', id: 'admin-1' });
+    assert.equal(done.ok, true);
+    assert.equal(unpaid.paymentStatus, 'unpaid');
+    assert.equal(unpaid.amountPaid, 0);
+    assert.equal(unpaid.vehicles[0].serviceLineItems.find((line) => line.serviceId === 'interior').completionStatus, 'completed');
+    assert.equal(unpaid.vehicles[0].serviceLineItems.find((line) => line.serviceId === 'ceramic_1yr').completionStatus, 'pending');
   });
 });

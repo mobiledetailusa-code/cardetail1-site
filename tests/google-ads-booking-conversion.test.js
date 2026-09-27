@@ -421,6 +421,28 @@ describe('Ceramic coating Google Ads conversion', () => {
     assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-CER-PAID').length, 1);
   });
 
+  it('fires the combined approvedFinalAmount once for ceramic plus interior', () => {
+    const { ctx, conversions } = harness;
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-CER-INT',
+      approvedFinalAmount: 1075,
+      amountPaid: 268.75,
+      serviceFamily: 'ceramic_coating',
+      paymentSucceeded: true,
+    })), true);
+    const booking = conversions.filter((c) => c.transaction_id === 'CD1-CER-INT');
+    assert.equal(booking.length, 1);
+    assert.equal(booking[0].value, 1075);
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-CER-INT',
+      approvedFinalAmount: 1075,
+      amountPaid: 1075,
+      serviceFamily: 'ceramic_coating',
+      paymentSucceeded: true,
+    })), false);
+    assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-CER-INT').length, 1);
+  });
+
   it('leaves non-ceramic cash conversion unchanged', () => {
     const { ctx, conversions } = harness;
     assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({

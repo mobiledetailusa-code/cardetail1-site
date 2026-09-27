@@ -381,6 +381,20 @@ function buildReceiptProjection(booking, requestedType, opts = {}) {
           paymentPlan: booking.ceramic.paymentPlan || null,
           depositAmount: booking.depositAmount != null ? Number(booking.depositAmount) : null,
           paymentStatus: booking.paymentStatus || null,
+          companionInterior: !!booking.ceramic.companionInterior,
+          serviceLineItems: (Array.isArray(booking.ceramic.serviceLineItems) ? booking.ceramic.serviceLineItems : [])
+            .map((line) => ({
+              serviceId: line.serviceId,
+              canonicalServiceId: line.canonicalServiceId,
+              name: line.name,
+              price: line.price,
+              priceCents: line.priceCents,
+              durationMinutes: line.durationMinutes,
+              inclusions: line.inclusions || [],
+              addonIds: line.addonIds || [],
+              financialAllocationCents: line.financialAllocationCents,
+              completionStatus: line.completionStatus || 'pending',
+            })),
           ...(booking.ceramic.internal?.discloseOnReceipt === true
             ? {
               coatingManufacturer: booking.ceramic.internal.coatingManufacturer || '',

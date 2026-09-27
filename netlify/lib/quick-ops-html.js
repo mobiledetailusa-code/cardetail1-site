@@ -81,6 +81,11 @@ function ceramicStaffCard(view) {
   return `<section class="card">
   <h2>Assigned coating</h2>
   <p class="sub">${escapeHtml(internal.staffDisclosure || '')}</p>
+  ${(ceramic.serviceLineItems || []).map((line) => field(line.name || line.serviceId, `${line.completionStatus || 'pending'} · $${Number(line.price || 0).toFixed(2)}`)).join('')}
+  ${ceramic.sequencingNote ? `<p class="note">${escapeHtml(ceramic.sequencingNote)}</p>` : ''}
+  ${(ceramic.serviceLineItems || []).filter((line) => line.completionStatus !== 'completed').map((line) => (
+    `<button type="button" class="secondary" data-action="complete_service_line" data-service-id="${escapeHtml(line.serviceId || '')}">Mark ${escapeHtml(line.name || 'service')} complete</button>`
+  )).join('')}
   ${field('Public package', ceramic.packageName)}
   ${field('Manufacturer', internal.coatingManufacturer)}
   ${field('Product', internal.coatingProduct)}
@@ -178,7 +183,7 @@ ${ceramicStaffCard(view)}
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'x-qo-csrf': csrf },
-        body: JSON.stringify({ action: action, bookingVersion: bookingVersion })
+        body: JSON.stringify({ action: action, bookingVersion: bookingVersion, serviceId: btn.getAttribute('data-service-id') || '' })
       });
       var data = await res.json().catch(function(){ return {}; });
       if (action === 'copy_pay' && data.payUrl) {

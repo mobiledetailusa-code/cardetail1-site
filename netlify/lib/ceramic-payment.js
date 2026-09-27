@@ -4,8 +4,9 @@
  * Ceramic checkout money.
  *
  * approvedFinalAmount, amountPaid, and balanceDue are derived from the
- * booking ledger. depositAmount is the package deposit policy (what a
- * deposit plan charges now), not a second copy of amount paid.
+ * booking ledger. depositAmount is the greater of 25% of the approved total
+ * and the package minimum, calculated on the server. It is not a second copy
+ * of amount paid. The remaining balance is never charged automatically.
  *
  * Invariant: approvedFinalAmount = amountPaid + balanceDue
  * (dollar amounts rounded to cents).
@@ -19,7 +20,7 @@
  * exact remaining balance, once.
  */
 
-const { depositDollarsForPackage, depositsEnabled, packageDef } = require('./ceramic-coating');
+const { depositCentsForApproved, depositsEnabled, packageDef } = require('./ceramic-coating');
 
 function dollarsToCents(value) {
   return Math.round((Number(value) || 0) * 100);
@@ -147,7 +148,7 @@ function chargeDueNow(booking, env = process.env) {
   }
   if (plan === 'deposit') {
     if (!depositsEnabled(env)) return { ok: false, error: 'ceramic_deposit_disabled' };
-    const expected = dollarsToCents(depositDollarsForPackage(pkgId));
+    const expected = depositCentsForApproved(pkgId, projection.approvedFinalAmount);
     if (!(expected > 0) || expected !== dollarsToCents(booking.depositAmount)) {
       return { ok: false, error: 'ceramic_deposit_invalid' };
     }

@@ -1779,6 +1779,43 @@ async function handleAdminAction(body, testOpts = {}) {
     });
   }
 
+  if (action === 'complete_service_line') {
+    const { completeServiceLine } = require('../lib/ceramic-coating');
+    const completed = completeServiceLine(booking, body.serviceId, { role: 'admin', id: 'admin' });
+    if (!completed.ok) {
+      return jsonCors(400, { ok: false, error: completed.error, message: completed.message || null });
+    }
+    const paymentStatus = booking.paymentStatus;
+    const patched = {
+      ...completed.booking,
+      paymentStatus,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'complete_service_line',
+        by: 'admin',
+        serviceId: completed.serviceId,
+      }),
+    };
+    const persisted = await persistMutation(
+      store,
+      bookingId,
+      patched,
+      booking,
+      'complete_service_line',
+      'complete_service_line'
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bookingVersion: persisted.bookingVersion,
+      paymentStatus: persisted.booking.paymentStatus,
+      serviceId: completed.serviceId,
+    });
+  }
+
   if (action === 'assign_internal_coating') {
     const { assignInternalCoating } = require('../lib/ceramic-coating');
     const assigned = assignInternalCoating(booking, {

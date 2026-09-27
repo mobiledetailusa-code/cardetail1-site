@@ -141,6 +141,9 @@ function projectQuickOpsBooking(booking, shared = null) {
         paymentPlan: booking.ceramic.paymentPlan || booking.ceramicPaymentPlan || null,
         depositAmount: booking.depositAmount != null ? Number(booking.depositAmount) : null,
         paymentStatus: booking.paymentStatus || null,
+        companionInterior: !!booking.ceramic.companionInterior,
+        sequencingNote: booking.ceramic.sequencingNote || booking.opsSequencingNote || null,
+        serviceLineItems: Array.isArray(booking.ceramic.serviceLineItems) ? booking.ceramic.serviceLineItems : [],
         internal: booking.ceramic.internal || null,
       }
       : null,

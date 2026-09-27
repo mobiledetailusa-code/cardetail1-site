@@ -15,6 +15,20 @@ const {
 const { ensureVehicleIds } = require('./booking-aggregate');
 const { LENGTH_PRICING } = require('./booking-price-catalog');
 
+/**
+ * Complete Interior Detail inclusions. Prices stay in booking-price-catalog.
+ * Ceramic packages do not copy this list.
+ */
+const INTERIOR_SERVICE_INCLUSIONS = Object.freeze([
+  'Vacuuming',
+  'Shampoo and extraction where appropriate',
+  'Steam cleaning',
+  'Surface cleaning',
+  'UV protection',
+  'Door jambs',
+  'Cargo area',
+]);
+
 /** Display-only descriptions (no prices). */
 const PACKAGE_DESCRIPTIONS = {
   cars: {
@@ -130,6 +144,7 @@ function serializeCanonicalPackageCatalogForBooking(booking) {
 }
 
 module.exports = {
+  INTERIOR_SERVICE_INCLUSIONS,
   PACKAGE_DESCRIPTIONS,
   packageDescription,
   rawVehiclesForPackageCatalog,

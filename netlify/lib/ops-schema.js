@@ -151,6 +151,18 @@ function projectVehicleForCustomer(v) {
     subtotal,
     pkgIcon: v.pkgIcon || '🚗',
     addons,
+    serviceLineItems: (Array.isArray(v.serviceLineItems) ? v.serviceLineItems : []).map((line) => ({
+      serviceId: line.serviceId || line.canonicalServiceId || '',
+      canonicalServiceId: line.canonicalServiceId || line.serviceId || '',
+      name: line.name || '',
+      price: Number(line.price) || 0,
+      priceCents: Number(line.priceCents) || 0,
+      durationMinutes: Number(line.durationMinutes) || 0,
+      inclusions: Array.isArray(line.inclusions) ? line.inclusions.slice() : [],
+      addonIds: Array.isArray(line.addonIds) ? line.addonIds.slice() : [],
+      financialAllocationCents: Number(line.financialAllocationCents) || 0,
+      completionStatus: line.completionStatus || 'pending',
+    })),
   };
   // Preserve optional snapshot for detail resolution without inventing catalog data.
   if (v.packageSnapshot && typeof v.packageSnapshot === 'object') {

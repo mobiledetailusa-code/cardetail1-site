@@ -18,6 +18,7 @@ const {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  completeServiceLineQuickOps,
 } = require('../lib/admin-quick-ops-actions');
 const { neutralExpiredPage, quickOpsPage } = require('../lib/quick-ops-html');
 
@@ -223,6 +224,22 @@ async function handlePost(event) {
       message: result.queued || result.idempotent
         ? 'Payment link texted'
         : (result.reason === 'booking_sms_consent_required' ? 'Customer SMS consent required' : (result.reason || result.error || 'not sent')),
+    });
+  }
+  if (action === 'complete_service_line') {
+    const result = await completeServiceLineQuickOps(booking, body.serviceId);
+    if (!result.ok) {
+      return json(result.statusCode || 400, {
+        ok: false,
+        error: result.error || 'service_line_failed',
+        message: result.error === 'service_line_not_found' ? 'Service line was not found' : 'Could not update the service line',
+      });
+    }
+    return json(200, {
+      ok: true,
+      reload: true,
+      paymentStatus: result.booking && result.booking.paymentStatus,
+      message: 'Service line marked complete',
     });
   }
   if (action === 'text') {

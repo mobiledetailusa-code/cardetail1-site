@@ -77,7 +77,7 @@ const {
 const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
-const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes } = require('../lib/booking-schedule');
+const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
 const { applyCeramicBooking } = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
@@ -242,19 +242,34 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, nowMs, config);
   }
 
-  async function spanTaken(dateIso, startSlot) {
-    const span = spannedSlotTimes(dateIso, startSlot, b.appointmentDurationMinutes, config);
-    if (!span.ok) return true;
-    for (const slot of span.slots) {
-      if (await slotTaken(dateIso, slot)) return true;
+  function spanFor(dateIso, startSlot) {
+    if (bookingHasInteriorCompanion(b)) {
+      return planCombinedAppointment(dateIso, startSlot, b.appointmentDurationMinutes, config);
     }
-    return false;
+    return spannedSlotTimes(dateIso, startSlot, b.appointmentDurationMinutes, config);
+  }
+
+  function spanDays(span, dateIso) {
+    if (span && Array.isArray(span.days) && span.days.length) return span.days;
+    return [{ date: dateIso, slots: (span && span.slots) || [] }];
+  }
+
+  async function spanTaken(dateIso, startSlot) {
+    const span = spanFor(dateIso, startSlot);
+    if (!span.ok) return { taken: true, span };
+    for (const day of spanDays(span, dateIso)) {
+      for (const slot of day.slots || []) {
+        if (await slotTaken(day.date, slot)) return { taken: true, span };
+      }
+    }
+    return { taken: false, span };
   }
 
   async function pickFreeEligibleSlot(dateIso, eligible) {
     if (!checkSlot) return eligible[0] || null;
     for (const slot of eligible) {
-      if (!(await spanTaken(dateIso, slot))) return slot;
+      const held = await spanTaken(dateIso, slot);
+      if (!held.taken && held.span && held.span.ok) return slot;
     }
     return null;
   }
@@ -315,9 +330,26 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     if (!b.alternateArrivalWindow) b.alternateArrivalWindow = null;
   }
 
-  if (checkSlot && await spanTaken(v.preferredDate, v.preferredTime)) {
-    const span = spannedSlotTimes(v.preferredDate, v.preferredTime, b.appointmentDurationMinutes, config);
-    if (!span.ok) return { ok: false, error: span.error };
+  const held = await spanTaken(v.preferredDate, v.preferredTime);
+  if (!held.span || !held.span.ok) {
+    return {
+      ok: false,
+      error: (held.span && held.span.error) || 'ceramic_duration_exceeds_day',
+      userMessage: held.span && held.span.message,
+      nextValidStart: held.span && held.span.nextValidStart,
+    };
+  }
+  if (held.span.multiDay || held.span.extendedAppointment) {
+    b.appointmentSchedule = {
+      multiDay: !!held.span.multiDay,
+      extendedAppointment: !!held.span.extendedAppointment,
+      days: held.span.days || [],
+      message: held.span.message || null,
+    };
+  } else if (b.appointmentSchedule) {
+    b.appointmentSchedule = null;
+  }
+  if (checkSlot && held.taken) {
     return { ok: false, error: 'booking_slot_unavailable' };
   }
   return {
@@ -358,7 +390,7 @@ function scheduleRejectResponse(status, error, meta = {}) {
               : error === 'booking_alternate_date_unavailable'
                 ? 'That alternate date is unavailable. Choose another day or window.'
                 : error === 'ceramic_duration_exceeds_day'
-        ? 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.'
+        ? (meta.userMessage || 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.')
         : 'Please choose an available date and time.';
   console.log('[submit-booking] schedule rejected', {
     error,
@@ -374,6 +406,7 @@ function scheduleRejectResponse(status, error, meta = {}) {
     bookingCreated: false,
     error,
     userMessage,
+    nextValidStart: meta.nextValidStart || null,
   });
 }
 
@@ -967,6 +1000,8 @@ exports.handler = async (event) => {
         preferredDate: b.preferredDate || null,
         preferredTime: b.preferredTime || null,
         phase: 'draft',
+        userMessage: scheduleDraft.userMessage,
+        nextValidStart: scheduleDraft.nextValidStart,
       });
     }
 
@@ -1137,6 +1172,8 @@ exports.handler = async (event) => {
         preferredDate: b.preferredDate || null,
         preferredTime: b.preferredTime || null,
         phase: 'finalize',
+        userMessage: scheduleFinal.userMessage,
+        nextValidStart: scheduleFinal.nextValidStart,
       });
     }
     const finalizedAt = new Date().toISOString();
