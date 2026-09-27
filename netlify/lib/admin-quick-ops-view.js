@@ -127,7 +127,22 @@ function projectQuickOpsBooking(booking, shared = null) {
       window: smsWindowLabel(window),
       address,
       note: String(booking.notes || booking.specialInstructions || '').replace(/\s+/g, ' ').trim().slice(0, 180),
+      family: booking.serviceFamily || '',
+      durationMinutes: booking.appointmentDurationMinutes || null,
     },
+    ceramic: booking.serviceFamily === 'ceramic_coating' && booking.ceramic
+      ? {
+        packageName: booking.ceramic.packageName || '',
+        product: booking.ceramic.product || '',
+        durationMonths: booking.ceramic.durationMonths || null,
+        sizeLabel: booking.ceramic.packages?.[0]?.sizeLabel || '',
+        eligibility: booking.ceramic.eligibility || null,
+        curingInstructions: booking.ceramic.curingInstructions || [],
+        paymentPlan: booking.ceramic.paymentPlan || booking.ceramicPaymentPlan || null,
+        depositAmount: booking.depositAmount != null ? Number(booking.depositAmount) : null,
+        paymentStatus: booking.paymentStatus || null,
+      }
+      : null,
     money: {
       approvedLabel: dollarsFromCents(money.approvedCents) || smsPriceLabel(booking),
       paidLabel: dollarsFromCents(money.settledCents),

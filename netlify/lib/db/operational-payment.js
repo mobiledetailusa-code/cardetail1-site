@@ -71,6 +71,11 @@ function buildPaymentCompatibilityPatch(base, projection) {
       ? (['paid_cash', 'paid_card_on_site'].includes(String(base.paymentStatus || '').toLowerCase())
         ? base.paymentStatus
         : 'paid')
+      : (base.serviceFamily === 'ceramic_coating'
+          && projection.paymentStatus === 'due'
+          && projection.settledCents > 0
+          && projection.remainingCents > 0)
+        ? 'partially_paid'
       : projection.paymentStatus === 'processing'
         ? 'processing'
         : projection.paymentStatus === 'refunded'

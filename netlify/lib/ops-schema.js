@@ -309,6 +309,12 @@ function projectBookingForCustomer(b) {
     reviewLeft: !!src.reviewLeft,
     offer: src.offer || src.welcomeOffer || null,
     requestSummaries: material.requestSummaries || [],
+    paymentStatus: src.paymentStatus || '',
+    depositAmount: src.depositAmount != null ? Number(src.depositAmount) : null,
+    balanceDue: src.balanceDue != null ? Number(src.balanceDue) : (amountDueApproved > 0 ? amountDueApproved : 0),
+    serviceFamily: src.serviceFamily || '',
+    appointmentDurationMinutes: src.appointmentDurationMinutes || null,
+    ceramic: src.ceramic || null,
   };
 }
 

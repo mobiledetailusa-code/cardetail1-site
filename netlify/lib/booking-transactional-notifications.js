@@ -202,6 +202,28 @@ function serviceDescription(booking) {
  *
  * Returns null for single-vehicle bookings, which keep their existing copy.
  */
+function ceramicNotice(booking) {
+  if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) return null;
+  const c = booking.ceramic;
+  const money = [
+    `Package: ${c.packageName || 'Ceramic Coating'}`,
+    c.product ? `Product: ${c.product}` : '',
+    c.durationMonths ? `Coating term: ${c.durationMonths} months` : '',
+    booking.appointmentDurationMinutes ? `Appointment duration: ${booking.appointmentDurationMinutes} minutes` : '',
+    booking.approvedFinalAmount != null ? `Approved total: $${Number(booking.approvedFinalAmount).toFixed(2)}` : '',
+    booking.amountPaid != null ? `Amount paid: $${Number(booking.amountPaid).toFixed(2)}` : '',
+    booking.depositAmount != null && booking.ceramicPaymentPlan === 'deposit'
+      ? `Deposit: $${Number(booking.depositAmount).toFixed(2)}`
+      : '',
+    booking.balanceDue != null ? `Remaining balance: $${Number(booking.balanceDue).toFixed(2)}` : '',
+    booking.paymentStatus ? `Payment status: ${booking.paymentStatus}` : '',
+  ].filter(Boolean);
+  const curing = (c.curingInstructions || []).map((line) => `- ${line}`);
+  const text = ['Ceramic Coating', ...money, '', 'Curing:', ...curing];
+  const html = `<p><strong>Ceramic Coating</strong></p><ul>${money.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul><p><strong>Curing</strong></p><ul>${(c.curingInstructions || []).map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`;
+  return { text, html };
+}
+
 function serviceItemization(booking) {
   const { items } = lineItems.projectBooking(booking);
   if (items.length <= 1) return null;
@@ -437,6 +459,8 @@ function buildEmailContent(eventType, booking, accessUrl) {
       '',
       `Preferred date: ${booking.preferredDate || '—'}`,
       '',
+      ...(ceramicNotice(booking) ? ceramicNotice(booking).text : []),
+      '',
       `${cta}:`,
       accessUrl,
       '',
@@ -450,6 +474,7 @@ function buildEmailContent(eventType, booking, accessUrl) {
 <p>We received your booking request. It is currently under review.</p>
 <p><strong>This is not yet a confirmed appointment.</strong></p>
 ${itemization ? itemization.html : ''}
+${ceramicNotice(booking) ? ceramicNotice(booking).html : ''}
 <ul>
 ${itemization ? '' : `<li>Service: ${service}</li>
 <li>Vehicle: ${vehicle}</li>
@@ -479,6 +504,7 @@ ${itemization ? '' : `<li>Service: ${service}</li>
       ]),
     ];
     if (total) textLines.push(`Approved total: ${total}`);
+    if (ceramicNotice(booking)) textLines.push('', ...ceramicNotice(booking).text);
     textLines.push('', `${cta}:`, accessUrl, '', brandName(), siteUrl());
     const text = textLines.join('\n');
     const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:560px;margin:0 auto;padding:20px">
@@ -492,6 +518,7 @@ ${itemization ? '' : `<li>Vehicle: ${vehicle}</li>
 `}${total ? `<li>Approved total: ${escapeHtml(total)}</li>` : ''}
 </ul>
 ${itemization ? itemization.html : ''}
+${ceramicNotice(booking) ? ceramicNotice(booking).html : ''}
 <p><a href="${link}" style="display:inline-block;background:#0b3d2e;color:#fff;text-decoration:none;padding:12px 18px;border-radius:6px">${escapeHtml(cta)}</a></p>
 <p style="font-size:13px;color:#555">If the button does not work, open:<br>${link}</p>
 <p>${brand}</p>
@@ -846,7 +873,15 @@ function buildSmsBody(eventType, booking, accessUrl) {
     || eventType === 'booking.cancelled'
   ) ? 'booking.cancelled' : eventType;
   const rendered = renderSmsTemplate(key, bookingTemplateData(key, booking, accessUrl));
-  return rendered.ok ? rendered.body : '';
+  if (!rendered.ok) return '';
+  const ceramic = ceramicNotice(booking);
+  if (!ceramic) return rendered.body;
+  const extra = [
+    booking.ceramic?.packageName,
+    booking.balanceDue != null ? `Balance due $${Number(booking.balanceDue).toFixed(2)}` : '',
+    'Keep dry 12h. No wash for 7 days. Coating does not repair paint.',
+  ].filter(Boolean).join(' ');
+  return `${rendered.body} ${extra}`.trim();
 }
 
 async function sendResendEmail({ to, subject, text, html }) {

@@ -190,6 +190,9 @@
           transaction_id: txId,
           approvedFinalAmount: approved,
           currency: evidence.currency || 'USD',
+          serviceFamily: evidence.serviceFamily || null,
+          paymentSucceeded: evidence.paymentSucceeded === true,
+          amountPaid: evidence.amountPaid != null ? evidence.amountPaid : null,
         });
       }
     } catch (eAds) { /* never block checkout */ }

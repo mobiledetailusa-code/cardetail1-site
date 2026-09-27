@@ -28,7 +28,7 @@ const BOOKING_PAGES = [
 ];
 
 const OUT_OF_SCOPE_ADDON_PRICES = {
-  cars: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, babyseat: 20, stroller: 20, trashcans: 25, ozone: 40, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
+  cars: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, babyseat: 20, stroller: 20, trashcans: 25, ozone: 40, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125, ceramic_windshield: 100, ceramic_glass_all: 175, ceramic_wheels: 175, ceramic_trim: 125, ceramic_lights: 75, ceramic_correction: 250, ceramic_waterspot: 125, ceramic_contamination: 100, undercarriage: 125, engine_bay: 125, mobile_water: 50, heavymud: 75 },
   trucks: { pethair: 95, superint: 125, odor: 90, mold: 149, sanitize: 65, biohazard: 115, engine: 45, floormats: 20, rainx: 25, polymer: 25, wax1yr: 75, claybar: 45, headlight: 90, trashcans: 25, ozone: 40 },
   boats: { rainx: 25, polymer: 25, wax1yr: 75, chrome: 85, odor: 90, mold: 149, sanitize: 65, biohazard: 115, trashcans: 25 },
   rvs: { polymer: 25, wax1yr: 75, rainx: 25, biohazard: 115, sanitize: 75, superint: 135, awning: 50, roof: 50, capfront: 149, pethair: 95, odor: 90, trashcans: 25, seasonal_driveway_cleanup: 95, walkway_steps: 35, porch_entry: 45, small_patio: 50, heavy_wet_leaf: 50, bag_place_property: 35, pressure_surface_wash: 125 },
@@ -135,7 +135,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 206 authoritative package values (2,678 comparisons)', () => {
+test('13 booking pages match all 220 authoritative package values (2,860 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -143,8 +143,9 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
   assert.deepEqual(discovered, BOOKING_PAGES.slice().sort());
 
   const entries = catalogPriceEntries();
-  // 200 prior catalog + 6 commercial trucks tier package amounts (day_cab/sleeper × 3 pkgs)
-  assert.equal(entries.length, 206);
+  // 206 prior catalog values + 14 Ceramic Coating tier prices
+  // (7 passenger tiers × 1-year and 3-year). Cargo vans are intentionally omitted.
+  assert.equal(entries.length, 220);
   assert.equal(PRICING.cars.tiers.full_size_van.interior, 285);
   assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 300);
   assert.equal(PRICING.cars.tiers.compact_van.interior, 255);
@@ -164,7 +165,7 @@ test('13 booking pages match all 206 authoritative package values (2,678 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 2678);
+  assert.equal(comparisons, 2860);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {

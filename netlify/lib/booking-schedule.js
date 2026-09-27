@@ -66,7 +66,58 @@ function isActiveBookingForSlotLock(booking, nowMs = Date.now()) {
   return true;
 }
 
-function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now()) {
+/**
+ * How many 2-hour grid slots a stored duration occupies.
+ * Missing or short durations stay on the historical single-slot hold so
+ * existing services do not change capacity.
+ */
+function occupancySpanCount(durationMinutes) {
+  const minutes = Number(durationMinutes);
+  if (!Number.isFinite(minutes) || minutes <= 120) return 1;
+  return Math.ceil(minutes / 120);
+}
+
+/**
+ * Consecutive slots a booking holds, starting at preferredTime.
+ * A duration longer than the remaining day is an all-day hold only when it
+ * starts on the first slot. That keeps a 10-hour ceramic job from being
+ * stacked on a shorter grid without opening a second slot model.
+ */
+function spannedSlotTimes(dateIso, startTime, durationMinutes, config) {
+  const slots = slotsForDate(dateIso, config);
+  const time = normalizePreferredTime(startTime);
+  if (!time) return { ok: false, error: 'booking_time_unavailable', slots: [] };
+  if (!slots.length || !slots.includes(time)) {
+    return { ok: false, error: 'booking_time_unavailable', slots: [] };
+  }
+  const minutes = Number(durationMinutes);
+  if (!Number.isFinite(minutes) || minutes <= 120) {
+    return { ok: true, slots: [time] };
+  }
+  const needed = occupancySpanCount(minutes);
+  const idx = slots.indexOf(time);
+  const available = slots.length - idx;
+  if (needed <= available) {
+    return { ok: true, slots: slots.slice(idx, idx + needed) };
+  }
+  if (idx === 0) {
+    return { ok: true, slots: slots.slice(), exceedsGrid: true };
+  }
+  return { ok: false, error: 'ceramic_duration_exceeds_day', slots: [] };
+}
+
+function bookingCoversSlot(booking, iso, time, config) {
+  const parts = availability.isoDateParts(booking && booking.preferredDate);
+  if (!parts || parts.iso !== iso) return false;
+  const span = spannedSlotTimes(iso, booking.preferredTime, booking.appointmentDurationMinutes, config);
+  if (!span.ok) {
+    const start = normalizePreferredTime(booking.preferredTime);
+    return start === time;
+  }
+  return span.slots.includes(time);
+}
+
+function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now(), config) {
   const time = normalizePreferredTime(preferredTime);
   const parts = availability.isoDateParts(preferredDate);
   if (!parts || !time) return 0;
@@ -75,10 +126,7 @@ function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, n
   for (const b of bookings || []) {
     if (!isActiveBookingForSlotLock(b, nowMs)) continue;
     if (excludeId && String(b.id) === String(excludeId)) continue;
-    const bParts = availability.isoDateParts(b.preferredDate);
-    const bTime = normalizePreferredTime(b.preferredTime);
-    if (!bParts || !bTime) continue;
-    if (bParts.iso === parts.iso && bTime === time) count += 1;
+    if (bookingCoversSlot(b, parts.iso, time, config)) count += 1;
   }
   return count;
 }
@@ -99,19 +147,22 @@ function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowM
   const parts = availability.isoDateParts(preferredDate);
   if (!parts || !time) return false;
   const capacity = capacityForSlot(parts.iso, time, cfg, new Date(ts));
-  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts);
+  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts, cfg);
   return used >= capacity;
 }
 
-function buildOccupancyMap(bookings, nowMs = Date.now()) {
+function buildOccupancyMap(bookings, nowMs = Date.now(), config) {
   const map = {};
   for (const b of bookings || []) {
     if (!isActiveBookingForSlotLock(b, nowMs)) continue;
     const parts = availability.isoDateParts(b.preferredDate);
-    const time = normalizePreferredTime(b.preferredTime);
-    if (!parts || !time) continue;
-    const key = `${parts.iso}|${time}`;
-    map[key] = (map[key] || 0) + 1;
+    if (!parts) continue;
+    const span = spannedSlotTimes(parts.iso, b.preferredTime, b.appointmentDurationMinutes, config);
+    const times = span.ok ? span.slots : [normalizePreferredTime(b.preferredTime)].filter(Boolean);
+    for (const time of times) {
+      const key = `${parts.iso}|${time}`;
+      map[key] = (map[key] || 0) + 1;
+    }
   }
   return map;
 }
@@ -133,6 +184,9 @@ module.exports = {
   isActiveBookingForSlotLock,
   hasSlotConflict,
   countSlotOccupancy,
+  occupancySpanCount,
+  spannedSlotTimes,
+  bookingCoversSlot,
   capacityForSlot,
   buildOccupancyMap,
 };

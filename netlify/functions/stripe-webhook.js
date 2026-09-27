@@ -154,6 +154,11 @@ function classifyPaymentIntentRoute(evt, paymentIntent) {
       ? { route: 'customer_balance', purpose }
       : { route: 'unsupported_customer_balance_event', purpose };
   }
+  if (purpose === 'ceramic_checkout' || purpose === 'ceramic_balance') {
+    return CUSTOMER_BALANCE_PAYMENT_INTENT_EVENTS.has(type)
+      ? { route: 'ceramic_payment', purpose }
+      : { route: 'unsupported_customer_balance_event', purpose };
+  }
   if (purpose === 'authoritative_balance') {
     return LEGACY_OPERATIONAL_PAYMENT_INTENT_EVENTS.has(type)
       ? { route: 'legacy_operational', purpose }
@@ -177,7 +182,7 @@ async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
     : {};
   const purpose = String(meta.purpose || '').trim();
   const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
-  if (purpose !== 'customer_balance') {
+  if (purpose !== 'customer_balance' && purpose !== 'ceramic_checkout' && purpose !== 'ceramic_balance') {
     return { handled: false, skipped: true, reason: 'non_balance_purpose' };
   }
 
@@ -284,6 +289,32 @@ async function reconcilePostgresRefund(evt, refund) {
     };
   } catch {
     return { handled: false, error: 'refund_reconcile_failed', retryable: true, bookingId };
+  }
+}
+
+async function settleCeramicBlobPayment(evt, paymentIntent) {
+  const { applyStripePaymentIntent } = require('../lib/ceramic-payment');
+  const meta = paymentIntent && paymentIntent.metadata ? paymentIntent.metadata : {};
+  const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
+  if (!bookingId) return { handled: false, error: 'missing_booking_id' };
+  try {
+    const store = await blobsStore('cd1-bookings');
+    const booking = await store.get(bookingId, { type: 'json' });
+    if (!booking) return { handled: false, error: 'booking_not_found' };
+    const applied = applyStripePaymentIntent(booking, paymentIntent, { stripeEventId: evt && evt.id });
+    if (!applied.ok) return { handled: false, error: applied.error };
+    if (applied.settled) {
+      booking.updatedAt = new Date().toISOString();
+      await store.setJSON(bookingId, booking);
+    }
+    return {
+      handled: true,
+      settled: !!applied.settled,
+      duplicate: !!applied.duplicate,
+      paymentStatus: booking.paymentStatus || null,
+    };
+  } catch (err) {
+    return { handled: false, error: err && err.message ? err.message : 'ceramic_settle_failed' };
   }
 }
 
@@ -507,6 +538,52 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         body: JSON.stringify({ received: true, ignored: true, reason: paymentRoute.route }),
+      };
+    }
+    if (paymentRoute.route === 'ceramic_payment') {
+      const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+      if (postgresPaymentEnabled()) {
+        const postgres = await reconcilePostgresPaymentIntent(evt, pi);
+        if (!postgres.handled) {
+          return {
+            statusCode: 500,
+            body: JSON.stringify({
+              received: false,
+              retryable: true,
+              error: postgres.error || 'processing_failed',
+            }),
+          };
+        }
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            received: true,
+            type: evt.type,
+            route: paymentRoute.route,
+            duplicate: !!postgres.result?.duplicate,
+          }),
+        };
+      }
+      const blobSettled = await settleCeramicBlobPayment(evt, pi);
+      if (!blobSettled.handled) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({
+            received: false,
+            retryable: true,
+            error: blobSettled.error || 'ceramic_settle_failed',
+          }),
+        };
+      }
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          received: true,
+          type: evt.type,
+          route: paymentRoute.route,
+          duplicate: !!blobSettled.duplicate,
+          settled: !!blobSettled.settled,
+        }),
       };
     }
     if (paymentRoute.route === 'customer_balance') {

@@ -582,6 +582,10 @@
       var value = resolveAuthoritativeBookingValue(opts);
       if (value == null) return false;
 
+      // Ceramic conversion waits for a confirmed capture. The value is the
+      // approved total, never the deposit or amountPaid.
+      if (opts.serviceFamily === 'ceramic_coating' && opts.paymentSucceeded !== true) return false;
+
       if (adsBookingTxSeen(txId)) return false;
 
       // Synchronous in-flight guard (double-click) without permanently marking

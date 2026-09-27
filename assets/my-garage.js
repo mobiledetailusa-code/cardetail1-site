@@ -2162,7 +2162,23 @@
       ) + '</dd></div>' +
       '<div><dt>Paid amount</dt><dd>' + fmtCents(settledCentsFromPayment(pay)) + '</dd></div>' +
       '<div><dt>Remaining balance</dt><dd>' + fmtCents(remainingCentsFromPayment(pay)) + '</dd></div>' +
+      (b.depositAmount != null && b.ceramicPaymentPlan === 'deposit'
+        ? '<div><dt>Deposit</dt><dd>' + fmtMoney(b.depositAmount) + '</dd></div>'
+        : '') +
+      (b.paymentStatus ? '<div><dt>Payment status</dt><dd>' + esc(b.paymentStatus) + '</dd></div>' : '') +
       '</dl>' +
+      (b.ceramic && (b.serviceFamily === 'ceramic_coating' || b.ceramic.serviceFamily === 'ceramic_coating')
+        ? '<div class="ceramic-summary"><p><strong>' + esc(b.ceramic.packageName || 'Ceramic Coating') + '</strong>'
+          + (b.ceramic.durationMonths ? ' · ' + esc(String(b.ceramic.durationMonths)) + ' months' : '')
+          + (b.ceramic.packages && b.ceramic.packages[0] && b.ceramic.packages[0].sizeLabel
+            ? ' · ' + esc(b.ceramic.packages[0].sizeLabel) : '')
+          + '</p><p>' + esc(b.ceramic.product || '') + '</p>'
+          + (b.appointmentDurationMinutes ? '<p>Appointment: ' + esc(String(b.appointmentDurationMinutes)) + ' minutes</p>' : '')
+          + ((b.ceramic.curingInstructions || []).length
+            ? '<ul>' + b.ceramic.curingInstructions.map(function (line) { return '<li>' + esc(line) + '</li>'; }).join('') + '</ul>'
+            : '')
+          + '</div>'
+        : '') +
       // Portal Lite: the appointment header states the balance but carries no
       // payment button — the single primary CTA lives in Payment & Receipts
       // (or the mobile sticky bar), so the customer never sees two.
@@ -2897,12 +2913,15 @@
     var phone = state.verifyPhone || normalizePhoneInput(state.booking.phone);
     showToast('Preparing secure payment…');
 
-    // Prefer in-page Payment Element (Postgres authority) when available.
-    var intent = await post('customer-balance-payment-intent', {
+    // Ceramic uses its own on-session intent so a deposit is not replaced by
+    // the full remaining balance. Other services keep the existing endpoint.
+    var ceramicPay = state.booking && state.booking.serviceFamily === 'ceramic_coating';
+    var intent = await post(ceramicPay ? 'ceramic-checkout-intent' : 'customer-balance-payment-intent', {
       bookingId: state.booking.id,
       phone: phone,
-      expectedQuoteVersion: pay.quoteVersion,
+      expectedQuoteVersion: pay.quoteVersion || state.booking.quoteVersion,
       expectedBookingVersion: state.booking.bookingVersion,
+      phase: ceramicPay && state.booking.paymentStatus === 'partially_paid' ? 'balance' : 'checkout',
     });
 
     if (intent.data && intent.data.error === 'already_paid') {
@@ -4281,10 +4300,33 @@
       onUpdated: function () {
         var pay = state.payment || {};
         var settled = pay.state === 'paid' || !(pay.canPay || Number(pay.amountDueApproved || 0) > 0);
-        if (paymentConfirmationPending && settled) {
+        var ceramicBooking = state.booking && state.booking.serviceFamily === 'ceramic_coating'
+          ? state.booking
+          : null;
+        var ceramicCaptured = !!(ceramicBooking && (
+          ceramicBooking.paymentStatus === 'paid' || ceramicBooking.paymentStatus === 'partially_paid'
+        ));
+        if (paymentConfirmationPending && (settled || ceramicCaptured)) {
           paymentConfirmationPending = false;
           pinCurrentAppointment();
           showToast('Payment confirmed — thank you!');
+          if (ceramicCaptured && global.Cardetail1Revenue
+            && typeof global.Cardetail1Revenue.trackGoogleAdsBookingConversion === 'function') {
+            try {
+              global.Cardetail1Revenue.trackGoogleAdsBookingConversion({
+                ok: true,
+                bookingCreated: true,
+                isDraft: false,
+                id: ceramicBooking.id,
+                transaction_id: ceramicBooking.id,
+                approvedFinalAmount: ceramicBooking.approvedFinalAmount,
+                amountPaid: ceramicBooking.amountPaid,
+                serviceFamily: 'ceramic_coating',
+                paymentSucceeded: true,
+                currency: 'USD',
+              });
+            } catch (eAds) { /* analytics must not block payment confirmation */ }
+          }
         }
       },
       onStateChange: portalSyncState,

@@ -77,7 +77,8 @@ const {
 const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
-const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock } = require('../lib/booking-schedule');
+const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes } = require('../lib/booking-schedule');
+const { applyCeramicBooking } = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
 const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
@@ -241,10 +242,19 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, nowMs, config);
   }
 
+  async function spanTaken(dateIso, startSlot) {
+    const span = spannedSlotTimes(dateIso, startSlot, b.appointmentDurationMinutes, config);
+    if (!span.ok) return true;
+    for (const slot of span.slots) {
+      if (await slotTaken(dateIso, slot)) return true;
+    }
+    return false;
+  }
+
   async function pickFreeEligibleSlot(dateIso, eligible) {
     if (!checkSlot) return eligible[0] || null;
     for (const slot of eligible) {
-      if (!(await slotTaken(dateIso, slot))) return slot;
+      if (!(await spanTaken(dateIso, slot))) return slot;
     }
     return null;
   }
@@ -305,7 +315,9 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     if (!b.alternateArrivalWindow) b.alternateArrivalWindow = null;
   }
 
-  if (checkSlot && await slotTaken(v.preferredDate, v.preferredTime)) {
+  if (checkSlot && await spanTaken(v.preferredDate, v.preferredTime)) {
+    const span = spannedSlotTimes(v.preferredDate, v.preferredTime, b.appointmentDurationMinutes, config);
+    if (!span.ok) return { ok: false, error: span.error };
     return { ok: false, error: 'booking_slot_unavailable' };
   }
   return {
@@ -345,7 +357,9 @@ function scheduleRejectResponse(status, error, meta = {}) {
               ? 'Please complete your alternate date and arrival window, or uncheck the alternate date option.'
               : error === 'booking_alternate_date_unavailable'
                 ? 'That alternate date is unavailable. Choose another day or window.'
-                : 'Please choose an available date and time.';
+                : error === 'ceramic_duration_exceeds_day'
+        ? 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.'
+        : 'Please choose an available date and time.';
   console.log('[submit-booking] schedule rejected', {
     error,
     responseCode: status,
@@ -866,6 +880,18 @@ exports.handler = async (event) => {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }
 
+  const ceramicApplied = applyCeramicBooking(b, { finalize: !isDraftRequest });
+  if (!ceramicApplied.ok) {
+    return json(400, {
+      ok: false,
+      error: ceramicApplied.error,
+      message: ceramicApplied.message || null,
+      route: ceramicApplied.route || null,
+      packageId: ceramicApplied.packageId || null,
+      depositsEnabled: ceramicApplied.depositsEnabled === false ? false : undefined,
+    });
+  }
+
   const welcomeSource = String(b.welcomeOfferSource || b.offerSource || '').trim() || null;
   delete b.welcomeOfferSource;
   delete b.offerSource;
@@ -1152,6 +1178,15 @@ exports.handler = async (event) => {
       // pending_review (not not_started) so Admin + Customer share the same submitted lifecycle
       jobStatus:            'pending_review',
       portalReleasedAt:     finalizedAt,
+      ...(b.serviceFamily === 'ceramic_coating'
+        ? {
+          paymentStatus: b.amountPaid > 0
+            ? (b.balanceDue > 0 ? 'partially_paid' : 'paid')
+            : 'unpaid',
+          paymentWorkflowStatus: 'awaiting_customer_payment',
+          serviceFamily: 'ceramic_coating',
+        }
+        : {}),
       ...(cardOnFileRequired
         ? {
           // Set only by stripe-webhook (setup_intent.succeeded).
@@ -1339,6 +1374,15 @@ exports.handler = async (event) => {
       bookingVersion: b.bookingVersion || 1,
       offer: b.offer || null,
       approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
+      amountPaid: b.amountPaid != null ? b.amountPaid : 0,
+      balanceDue: b.balanceDue != null ? b.balanceDue : null,
+      depositAmount: b.depositAmount != null ? b.depositAmount : null,
+      serviceFamily: b.serviceFamily || null,
+      paymentSucceeded: b.serviceFamily === 'ceramic_coating'
+        ? (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid')
+        : undefined,
+      ceramicChargeAmount: b.ceramic?.chargeAmount != null ? b.ceramic.chargeAmount : null,
+      appointmentDurationMinutes: b.appointmentDurationMinutes || null,
     });
   }
 

@@ -762,6 +762,9 @@
             // null when backend omitted/invalid — tracker skips Ads; booking success continues.
             approvedFinalAmount: approvedAmount,
             currency: 'USD',
+            serviceFamily: data.serviceFamily || null,
+            paymentSucceeded: data.paymentSucceeded === true,
+            amountPaid: data.amountPaid != null ? data.amountPaid : null,
           });
           if (approvedAmount == null) {
             try {
