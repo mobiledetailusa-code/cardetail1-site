@@ -1997,7 +1997,20 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .luxury-surface #how.cd1-tone-raised,
 .luxury-surface #faq.cd1-tone-raised{background:linear-gradient(180deg,var(--cd1-surface-base) 0,var(--cd1-surface-raised) 40px,var(--cd1-surface-raised) 100%)!important}
 .luxury-surface #reviews.cd1-tone-base{background:var(--cd1-surface-base)!important}
-.luxury-surface .home-service-areas.cd1-tone-base{padding-left:0;padding-right:0}
+.luxury-surface .results-section{
+  background:linear-gradient(180deg,var(--cd1-surface-raised) 0,var(--cd1-surface-base) 40px,var(--cd1-surface-base) 100%)!important;
+  padding-top:var(--section-pad-desktop);
+  padding-bottom:var(--section-pad-desktop);
+  border:none!important;
+}
+.luxury-surface .home-service-areas{
+  background:linear-gradient(180deg,var(--cd1-surface-raised) 0,var(--cd1-surface-base) 40px,var(--cd1-surface-base) 100%)!important;
+  padding-top:var(--section-pad-desktop);
+  padding-bottom:var(--section-pad-desktop);
+  padding-left:0;
+  padding-right:0;
+  border:none!important;
+}
 .luxury-surface #services>.section,
 .luxury-surface .cd1-tone-base>.section,
 .luxury-surface .cd1-tone-raised>.section,
@@ -2014,7 +2027,9 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .luxury-surface .cd1-tone-raised,
   .luxury-surface .cd1-tone-media{padding-top:var(--section-pad-mobile);padding-bottom:var(--section-pad-mobile)}
   .luxury-surface .cd1-sameday{padding-left:16px;padding-right:16px}
-  .luxury-surface .home-service-areas.cd1-tone-base{padding-left:0;padding-right:0}
+  .luxury-surface .results-section,
+  .luxury-surface .home-service-areas{padding-top:var(--section-pad-mobile);padding-bottom:var(--section-pad-mobile)}
+  .luxury-surface .home-service-areas{padding-left:0;padding-right:0}
   .luxury-surface #services>.section,
   .luxury-surface .cd1-tone-base>.section,
   .luxury-surface .cd1-tone-raised>.section,
@@ -2681,7 +2696,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- REAL RESULTS -->
-<div class="results-section cd1-tone-base">
+<div class="results-section">
   <div class="results-inner">
     <div id="rw-block" class="rw-block" aria-hidden="true">
       <div class="sec-eye">Recent work</div>
@@ -2785,7 +2800,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </section>
 
 <!-- SERVICE AREAS -->
-<section class="home-service-areas cd1-tone-base" aria-labelledby="home-service-areas-title">
+<section class="home-service-areas" aria-labelledby="home-service-areas-title">
   <div class="section">
     <div class="cd1-head">
     <div class="sec-eye">SERVICE AREAS</div>
