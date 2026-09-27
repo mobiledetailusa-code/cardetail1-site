@@ -185,13 +185,20 @@
     return filterSameDaySlots(p.iso, slots);
   }
 
-  async function nearby(fromDate, limit) {
+  function appendDemand(params, demand) {
+    const minutes = demand && Number(demand.durationMinutes);
+    if (minutes > 0) params.set('durationMinutes', String(Math.round(minutes)));
+    if (demand && demand.companionInterior) params.set('companionInterior', '1');
+  }
+
+  async function nearby(fromDate, limit, demand) {
     try {
       const params = new URLSearchParams({
         action: 'nearby',
         fromDate: String(fromDate || ''),
         limit: String(limit || 6),
       });
+      appendDemand(params, demand);
       const res = await fetch('/.netlify/functions/booking-availability?' + params.toString(), {
         method: 'GET',
         headers: { Accept: 'application/json' },
@@ -205,6 +212,27 @@
     }
   }
 
+  async function selection(date, windowVal, demand) {
+    try {
+      const params = new URLSearchParams({
+        action: 'selection',
+        preferredDate: String(date || ''),
+        preferredArrivalWindow: String(windowVal || ''),
+      });
+      appendDemand(params, demand);
+      const res = await fetch('/.netlify/functions/booking-availability?' + params.toString(), {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        credentials: 'omit',
+        cache: 'no-store',
+      });
+      if (!res.ok) return { ok: false };
+      return await res.json();
+    } catch (_) {
+      return { ok: false };
+    }
+  }
+
   root.BkAvailability = {
     load,
     applySnapshot,
@@ -214,6 +242,7 @@
     slotsForDate,
     filterSameDaySlots,
     nearby,
+    selection,
     WEEKDAY,
     SAT,
     LABEL,

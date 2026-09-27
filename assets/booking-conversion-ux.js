@@ -56,6 +56,8 @@
   };
 
   const COMPAT_MSG = 'That arrival window isn’t available on the new date. Please choose another.';
+  const DURATION_MSG = 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.';
+  const SLOT_TAKEN_MSG = 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.';
   const CLOSED_MSG = 'No arrival windows are available on this date. Please choose another date.';
   const ADVANCE_UNAVAILABLE_MSG = 'That date isn’t available. Please choose today or a later open day. Need help? Call or text us.';
   const ALT_ADVANCE_MSG = 'Alternate date must be today or a later open day.';
@@ -161,6 +163,44 @@
     return iso && slotsFn ? (slotsFn(iso) || []) : [];
   }
 
+  function scheduleDemand() {
+    let durationMinutes = 0;
+    try {
+      if (window.CD1CeramicBooking && typeof window.CD1CeramicBooking.appointmentMinutes === 'function') {
+        durationMinutes = Number(window.CD1CeramicBooking.appointmentMinutes()) || 0;
+      }
+    } catch (_) { /* catalog not on this page */ }
+    return {
+      durationMinutes,
+      companionInterior: !!(durationMinutes > 0 && window.ST && window.ST.companionInterior),
+    };
+  }
+
+  function slotFitsDuration(iso, slot, allowed, demand) {
+    const minutes = Number(demand && demand.durationMinutes) || 0;
+    if (!(minutes > 120)) return true;
+    const slots = allowed || [];
+    const idx = slots.indexOf(slot);
+    if (idx < 0) return false;
+    const needed = Math.ceil(minutes / 120);
+    if (needed <= slots.length - idx) return true;
+    return idx === 0;
+  }
+
+  function fittingSlotsForWindow(windowVal, allowed, iso, demand) {
+    return eligibleSlotsForWindow(windowVal, allowed).filter((slot) => (
+      slotFitsDuration(iso, slot, allowed, demand)
+    ));
+  }
+
+  function messageForScheduleError(error, userMessage) {
+    if (userMessage) return userMessage;
+    if (error === 'ceramic_duration_exceeds_day') return DURATION_MSG;
+    if (error === 'booking_slot_unavailable') return SLOT_TAKEN_MSG;
+    if (error === 'booking_date_unavailable') return ADVANCE_UNAVAILABLE_MSG;
+    return 'Please choose an available date and time.';
+  }
+
   /**
    * Shared arrival-preference controller for primary + alternate.
    * Mode radios + optional specific select write to a hidden canonical field.
@@ -242,7 +282,7 @@
           opt.hidden = true;
           return;
         }
-        const ok = !closed && eligibleSlotsForWindow(opt.value, allowed).length > 0;
+        const ok = !closed && fittingSlotsForWindow(opt.value, allowed, iso, scheduleDemand()).length > 0;
         opt.disabled = !ok;
         opt.hidden = !ok;
         if (ok && opt.value === prevSpecific) keep = prevSpecific;
@@ -283,7 +323,7 @@
       }
 
       if (mode() === 'anytime') {
-        const anytimeOk = eligibleSlotsForWindow('anytime', allowed).length > 0;
+        const anytimeOk = fittingSlotsForWindow('anytime', allowed, iso, scheduleDemand()).length > 0;
         setHidden(anytimeOk ? 'anytime' : '', !!options.emit);
         setMsg(compatMsg, false);
       }
@@ -341,7 +381,7 @@
       specificRadio.checked = true;
       refreshSelectOptions({ emit: false });
       const allowed = slotsForIso(dateEl?.value || '');
-      if (eligibleSlotsForWindow(windowVal, allowed).length) {
+      if (fittingSlotsForWindow(windowVal, allowed, dateEl?.value || '', scheduleDemand()).length) {
         selectEl.value = windowVal;
         setHidden(windowVal, options.emit !== false);
         setMsg(compatMsg, false);
@@ -416,7 +456,7 @@
   let primaryArrival = null;
   let altArrival = null;
 
-  function syncOperationalSlot() {
+  function syncOperationalSlot(opts) {
     const dateEl = document.getElementById('f-date');
     const timeEl = document.getElementById('f-time');
     const winEl = document.getElementById('f-arrival-window');
@@ -434,20 +474,85 @@
       maybeShowLateSlotNotice(iso, '');
       return;
     }
+    const allowed = slotsForIso(iso);
+    const demand = scheduleDemand();
+    const fitting = (r.eligible || []).filter((slot) => slotFitsDuration(iso, slot, allowed, demand));
+    const preferred = opts && opts.preferredTime;
+    if (!preferred && lastSelection && lastSelection.available === false && lastSelection.date === iso && lastSelection.window === win) {
+      timeEl.value = '';
+      maybeShowLateSlotNotice(iso, '');
+      return;
+    }
+    const choice = preferred && fitting.includes(preferred) ? preferred : fitting[0];
+    if (!choice) {
+      timeEl.value = '';
+      maybeShowLateSlotNotice(iso, '');
+      return;
+    }
     if (timeEl.tagName === 'SELECT') {
-      let opt = [...timeEl.options].find((o) => o.value === r.preferredTime);
+      let opt = [...timeEl.options].find((o) => o.value === choice);
       if (!opt) {
         opt = document.createElement('option');
-        opt.value = r.preferredTime;
-        opt.textContent = r.preferredTime;
+        opt.value = choice;
+        opt.textContent = choice;
         opt.dataset.slot = '1';
         timeEl.appendChild(opt);
       }
-      timeEl.value = r.preferredTime;
+      timeEl.value = choice;
     } else {
-      timeEl.value = r.preferredTime;
+      timeEl.value = choice;
     }
-    maybeShowLateSlotNotice(iso, r.preferredTime);
+    maybeShowLateSlotNotice(iso, choice);
+  }
+
+  let reconcileToken = 0;
+  let lastSelection = null;
+
+  async function reconcileSelection() {
+    const token = ++reconcileToken;
+    const dateEl = document.getElementById('f-date');
+    const winEl = document.getElementById('f-arrival-window');
+    const iso = dateEl?.value || '';
+    const win = winEl?.value || '';
+    if (!iso || !win || !window.BkAvailability || typeof window.BkAvailability.selection !== 'function') {
+      lastSelection = null;
+      return { ok: true, skipped: true };
+    }
+    const data = await window.BkAvailability.selection(iso, win, scheduleDemand());
+    if (token !== reconcileToken) return { ok: true, stale: true };
+    if (!data || data.ok !== true) {
+      lastSelection = null;
+      return { ok: true, skipped: true };
+    }
+    if (data.available && data.preferredTime) {
+      lastSelection = { date: iso, window: win, available: true };
+      syncOperationalSlot({ preferredTime: data.preferredTime });
+      if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('');
+      return { ok: true, preferredTime: data.preferredTime };
+    }
+    const message = messageForScheduleError(data.error, data.userMessage);
+    lastSelection = { date: iso, window: win, available: false, message };
+    const timeEl = document.getElementById('f-time');
+    if (timeEl) timeEl.value = '';
+    if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg(message);
+    openRecovery(data.error || 'booking_slot_unavailable');
+    return { ok: false, message, error: data.error };
+  }
+
+  /**
+   * Manual date changes and suggestion clicks write the same three fields.
+   * The existing draft id is left in place so a later submit moves that hold
+   * instead of creating a second appointment.
+   */
+  function applyScheduleSelection(date, windowVal, time) {
+    const dateEl = document.getElementById('f-date');
+    if (dateEl && date) dateEl.value = date;
+    if (typeof window.bkRefreshTimeSlots === 'function') window.bkRefreshTimeSlots();
+    refreshArrivalWindowsForDates();
+    setPrimaryArrivalWindow(windowVal);
+    if (dateEl) dateEl.dispatchEvent(new Event('change', { bubbles: true }));
+    syncOperationalSlot({ preferredTime: time });
+    reconcileSelection();
   }
 
   function businessTodayIso() {
@@ -502,6 +607,7 @@
         onChange: () => {
           if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('');
           syncOperationalSlot();
+          reconcileSelection();
         },
       });
     }
@@ -623,7 +729,9 @@
       if (!p) { label.hidden = true; return; }
       const day = new Date(+p[1], +p[2] - 1, +p[3]).getDay();
       const isWeekend = day === 0 || day === 6;
-      const text = window.BkAvailability.customerWeekendLabel();
+      const text = typeof window.BkAvailability.customerWeekendLabel === 'function'
+        ? window.BkAvailability.customerWeekendLabel()
+        : '';
       if (isWeekend && text) {
         label.textContent = text;
         label.hidden = false;
@@ -650,6 +758,7 @@
       });
       refresh();
       refreshArrivalWindowsForDates();
+      reconcileSelection();
     });
   }
 
@@ -686,11 +795,14 @@
         device_type: deviceType(),
       });
       const from = document.getElementById('f-date')?.value || '';
+      const demand = scheduleDemand();
       const data = window.BkAvailability
-        ? await window.BkAvailability.nearby(from, act === 'earliest' ? 3 : 6)
+        ? await window.BkAvailability.nearby(from, act === 'earliest' ? 3 : 6, demand)
         : { openings: [] };
       const list = document.getElementById('bk-nearby-list');
-      const openings = (data && data.openings) || [];
+      const openings = ((data && data.openings) || []).filter((o) => (
+        slotFitsDuration(o.preferredDate, o.preferredTime, slotsForIso(o.preferredDate), demand)
+      ));
       if (!list) return;
       if (!openings.length) {
         list.hidden = false;
@@ -698,31 +810,21 @@
         return;
       }
       list.hidden = false;
-      list.innerHTML = openings.map((o) => (
-        '<button type="button" data-date="' + o.preferredDate + '" data-time="' + o.preferredTime + '">' +
-        o.preferredDate + ' · ' + o.preferredTime +
-        (o.isWeekend ? ' · weekend' : '') +
-        '</button>'
-      )).join('');
+      list.innerHTML = openings.map((o) => {
+        const windowVal = o.preferredArrivalWindow || SLOT_TO_WINDOW[o.preferredTime] || 'anytime';
+        return '<button type="button" data-date="' + o.preferredDate + '" data-time="' + o.preferredTime + '" data-window="' + windowVal + '">' +
+          o.preferredDate + ' · ' + o.preferredTime +
+          (o.isWeekend ? ' · weekend' : '') +
+          '</button>';
+      }).join('');
       list.querySelectorAll('button[data-date]').forEach((b) => {
         b.addEventListener('click', () => {
-          const dateEl = document.getElementById('f-date');
-          const timeEl = document.getElementById('f-time');
           const slot = b.getAttribute('data-time') || '';
-          if (dateEl) {
-            dateEl.value = b.getAttribute('data-date');
-            dateEl.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-          setTimeout(() => {
-            setPrimaryArrivalWindow(SLOT_TO_WINDOW[slot] || 'anytime');
-            if (timeEl) timeEl.value = slot;
-            syncOperationalSlot();
-            panel.classList.remove('open');
-            list.hidden = true;
-            if (typeof window.bkShowScheduleMsg === 'function') {
-              window.bkShowScheduleMsg('');
-            }
-          }, 50);
+          const windowVal = b.getAttribute('data-window') || SLOT_TO_WINDOW[slot] || 'anytime';
+          applyScheduleSelection(b.getAttribute('data-date'), windowVal, slot);
+          panel.classList.remove('open');
+          list.hidden = true;
+          if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('');
         });
       });
     });
@@ -851,8 +953,17 @@
         const time = document.getElementById('f-time')?.value || '';
         const allowed = typeof window.bkSlotsFor === 'function' ? window.bkSlotsFor(iso) : [];
         const eligible = eligibleSlotsForWindow(win, allowed);
-        if (!eligible.length || !time || !eligible.includes(time)) {
-          return { ok: false, message: 'That arrival window is unavailable on the selected date. Please choose another window.' };
+        const demand = scheduleDemand();
+        const usable = fittingSlotsForWindow(win, allowed, iso, demand);
+        if (!usable.length || !time || !usable.includes(time)) {
+          const late = demand.durationMinutes > 120 && eligible.length > 0;
+          return {
+            ok: false,
+            message: late ? DURATION_MSG : 'That arrival window is unavailable on the selected date. Please choose another window.',
+          };
+        }
+        if (lastSelection && lastSelection.date === iso && lastSelection.window === win && lastSelection.available === false) {
+          return { ok: false, message: lastSelection.message || SLOT_TAKEN_MSG };
         }
         if (primaryArrival) primaryArrival.clearError();
         const hasAlt = !!document.getElementById('f-has-alternate')?.checked;
@@ -892,7 +1003,7 @@
 
       const origContinue = window.bkContinueFromContact;
       if (typeof origContinue === 'function' && !origContinue._bkCompact) {
-        window.bkContinueFromContact = function () {
+        window.bkContinueFromContact = async function () {
           const req = ['f-first', 'f-last', 'f-phone', 'f-email', 'f-addr', 'f-date', 'f-arrival-window'];
           const missing = req.find((id) => !document.getElementById(id)?.value?.trim());
           if (missing) {
@@ -924,6 +1035,11 @@
             if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg(sched.message);
             return;
           }
+          const live = await reconcileSelection();
+          if (live && live.ok === false) {
+            if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onValidationError(4, 'invalid_schedule');
+            return;
+          }
           if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('');
           if (window.Cardetail1CheckoutAnalytics) Cardetail1CheckoutAnalytics.onStepCompleted(4);
           if (typeof window.bkGoTo === 'function') window.bkGoTo(5);
@@ -937,6 +1053,7 @@
         dateEl.addEventListener('change', () => {
           if (typeof window.bkRefreshTimeSlots === 'function') window.bkRefreshTimeSlots();
           refreshArrivalWindowsForDates();
+          reconcileSelection();
         });
       }
     }
@@ -1139,6 +1256,8 @@
     track,
     init,
     syncOperationalSlot,
+    applyScheduleSelection,
+    scheduleDemand,
     refreshArrivalWindowsForDates,
     eligibleSlotsForWindow,
     setPrimaryArrivalWindow,

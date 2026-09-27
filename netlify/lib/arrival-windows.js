@@ -67,6 +67,15 @@ const SLOT_MINUTES = Object.freeze({
   '4:00 PM': 16 * 60,
 });
 
+/** Narrow window whose first operational slot is this start. Shared by suggestion and submit. */
+const SLOT_TO_ARRIVAL_WINDOW = Object.freeze({
+  '8:00 AM': '08:00-11:00',
+  '10:00 AM': '10:00-13:00',
+  '12:00 PM': '12:00-15:00',
+  '2:00 PM': '14:00-17:00',
+  '4:00 PM': '16:00-19:00',
+});
+
 const ERROR_ARRIVAL_WINDOW_UNAVAILABLE = 'arrival_window_unavailable';
 
 function normalizeArrivalWindow(raw) {
@@ -74,6 +83,12 @@ function normalizeArrivalWindow(raw) {
   if (!v) return '';
   if (ARRIVAL_WINDOW_VALUES.includes(v)) return v;
   return '';
+}
+
+function arrivalWindowForSlot(slot) {
+  const time = Object.prototype.hasOwnProperty.call(SLOT_MINUTES, slot) ? slot : null;
+  if (!time) return '';
+  return SLOT_TO_ARRIVAL_WINDOW[time] || '';
 }
 
 function arrivalWindowLabel(raw) {
@@ -168,8 +183,10 @@ module.exports = {
   WINDOW_BOUNDS_MINUTES,
   KNOWN_OPERATIONAL_SLOTS,
   SLOT_MINUTES,
+  SLOT_TO_ARRIVAL_WINDOW,
   ERROR_ARRIVAL_WINDOW_UNAVAILABLE,
   normalizeArrivalWindow,
+  arrivalWindowForSlot,
   arrivalWindowLabel,
   slotStartMinutes,
   eligibleOperationalSlots,

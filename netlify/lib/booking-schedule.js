@@ -261,6 +261,67 @@ function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowM
   return used >= capacity;
 }
 
+/**
+ * Same span submit-booking reserves: interior companion may continue on the
+ * next open day; every other duration stays on spannedSlotTimes.
+ * Occupancy is the public map `{ 'YYYY-MM-DD|8:00 AM': count }`.
+ */
+function startFitsDemand(dateIso, startTime, opts = {}) {
+  const minutes = Number(opts.durationMinutes);
+  const companion = opts.companionInterior === true && Number.isFinite(minutes) && minutes > 120;
+  const span = companion
+    ? planCombinedAppointment(dateIso, startTime, minutes, opts.config)
+    : spannedSlotTimes(dateIso, startTime, minutes, opts.config);
+  if (!span.ok) {
+    return {
+      ok: false,
+      error: span.error || 'ceramic_duration_exceeds_day',
+      userMessage: span.message || null,
+      nextValidStart: span.nextValidStart || null,
+      span,
+    };
+  }
+  const days = Array.isArray(span.days) && span.days.length
+    ? span.days
+    : [{ date: dateIso, slots: span.slots || [] }];
+  const occupancy = opts.occupancy || {};
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  for (const day of days) {
+    for (const slot of day.slots || []) {
+      const cap = capacityForSlot(day.date, slot, opts.config, now);
+      const used = Number(occupancy[`${day.date}|${slot}`]) || 0;
+      if (used >= cap) {
+        return { ok: false, error: 'booking_slot_unavailable', span };
+      }
+    }
+  }
+  return { ok: true, span, preferredDate: dateIso, preferredTime: startTime };
+}
+
+/**
+ * First eligible start whose full span fits, matching submit-booking's
+ * pickFreeEligibleSlot decision: duration misses are not reported as a taken
+ * slot unless some fitting start is actually occupied.
+ */
+function pickEligibleStart(dateIso, eligible, opts = {}) {
+  let durationFailure = null;
+  let occupied = false;
+  for (const slot of eligible || []) {
+    const fit = startFitsDemand(dateIso, slot, opts);
+    if (!fit.ok && fit.error !== 'booking_slot_unavailable') {
+      if (!durationFailure) durationFailure = fit;
+      continue;
+    }
+    if (!fit.ok) {
+      occupied = true;
+      continue;
+    }
+    return { slot, durationFailure: null, span: fit.span };
+  }
+  if (!occupied && durationFailure) return { slot: null, durationFailure };
+  return { slot: null, durationFailure: null };
+}
+
 function buildOccupancyMap(bookings, nowMs = Date.now(), config) {
   const map = {};
   for (const b of bookings || []) {
@@ -311,5 +372,7 @@ module.exports = {
   bookingHasInteriorCompanion,
   bookingCoversSlot,
   capacityForSlot,
+  startFitsDemand,
+  pickEligibleStart,
   buildOccupancyMap,
 };

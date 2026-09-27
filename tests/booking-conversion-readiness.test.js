@@ -840,6 +840,76 @@ if (JSDOM) {
     window.innerWidth = 1440;
     assert.ok(doc.querySelector('.bk-arrival-choices'));
   });
+
+  test('DOM manual windows and suggestion share duration rules without dropping the draft', async () => {
+    const { doc, window } = await mountArrivalUx({
+      '2026-09-30': ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'],
+      '2026-10-01': ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'],
+    });
+    window.ST = {
+      draftRegistered: true,
+      bookingId: 'CD1-KEEP',
+      draftSaveToken: 'tok',
+      companionInterior: true,
+    };
+    window.CD1CeramicBooking = { appointmentMinutes() { return 720; } };
+    const dateEl = doc.getElementById('f-date');
+    dateEl.value = '2026-09-30';
+    window.BkConversion.refreshArrivalWindowsForDates();
+    const specific = doc.getElementById('f-arrival-mode-specific');
+    specific.checked = true;
+    specific.dispatchEvent(new window.Event('change', { bubbles: true }));
+    const select = doc.getElementById('f-arrival-window-select');
+    const visible = [...select.options].filter((o) => o.value && !o.hidden && !o.disabled).map((o) => o.value);
+    assert.ok(visible.includes('08:00-11:00'));
+    assert.ok(!visible.includes('10:00-13:00'));
+    assert.ok(!visible.includes('12:00-15:00'));
+    assert.ok(!visible.includes('14:00-17:00'));
+    select.value = '08:00-11:00';
+    select.dispatchEvent(new window.Event('change', { bubbles: true }));
+    window.BkConversion.syncOperationalSlot();
+    assert.equal(doc.getElementById('f-time').value, '8:00 AM');
+    assert.equal(doc.getElementById('f-arrival-window').value, '08:00-11:00');
+
+    window.BkAvailability = {
+      slotsForDate() {
+        return ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
+      },
+      customerWeekendLabel() { return ''; },
+      nearby: async (_from, _limit, demand) => {
+        assert.equal(demand.durationMinutes, 720);
+        assert.equal(demand.companionInterior, true);
+        return {
+          ok: true,
+          openings: [
+            { preferredDate: '2026-10-01', preferredTime: '8:00 AM', preferredArrivalWindow: '08:00-11:00' },
+            { preferredDate: '2026-10-01', preferredTime: '10:00 AM', preferredArrivalWindow: '10:00-13:00' },
+          ],
+        };
+      },
+      selection: async (date, windowVal, demand) => {
+        assert.equal(date, '2026-10-01');
+        assert.equal(windowVal, '08:00-11:00');
+        assert.equal(demand.durationMinutes, 720);
+        assert.equal(demand.companionInterior, true);
+        return { ok: true, available: true, preferredDate: date, preferredTime: '8:00 AM', preferredArrivalWindow: windowVal };
+      },
+    };
+    doc.getElementById('bk-slot-recovery').classList.add('open');
+    doc.querySelector('#bk-slot-recovery button[data-act="nearby"]').dispatchEvent(new window.Event('click', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    const buttons = [...doc.querySelectorAll('#bk-nearby-list button[data-date]')];
+    assert.equal(buttons.length, 1);
+    assert.equal(buttons[0].getAttribute('data-time'), '8:00 AM');
+    assert.equal(buttons[0].getAttribute('data-window'), '08:00-11:00');
+    buttons[0].dispatchEvent(new window.Event('click', { bubbles: true }));
+    assert.equal(dateEl.value, '2026-10-01');
+    assert.equal(doc.getElementById('f-arrival-window').value, '08:00-11:00');
+    assert.equal(doc.getElementById('f-time').value, '8:00 AM');
+    assert.equal(window.ST.draftRegistered, true);
+    assert.equal(window.ST.bookingId, 'CD1-KEEP');
+    assert.equal(window.ST.draftSaveToken, 'tok');
+  });
 }
 
 // ─── Analytics / backend wiring ───────────────────────────────────────────

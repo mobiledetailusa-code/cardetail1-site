@@ -15,7 +15,8 @@ const {
   validateBookingSchedule,
   isoDateParts,
 } = require('../lib/operational-availability');
-const { buildOccupancyMap, hasSlotConflict } = require('../lib/booking-schedule');
+const { buildOccupancyMap, hasSlotConflict, startFitsDemand, pickEligibleStart } = require('../lib/booking-schedule');
+const { resolveOperationalSlot, arrivalWindowForSlot } = require('../lib/arrival-windows');
 const { listBookingsForSlotLock } = require('../lib/ops-db');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 
@@ -40,6 +41,28 @@ function publicJson(status, body) {
 
 function safeError(status, error) {
   return publicJson(status, { ok: false, error });
+}
+
+function demandFromQuery(q) {
+  return {
+    durationMinutes: clampInt(q.durationMinutes, { min: 0, max: 24 * 60, fallback: 0 }),
+    companionInterior: q.companionInterior === '1' || q.companionInterior === 'true',
+  };
+}
+
+async function occupancyForDates(dates) {
+  let occupancy = {};
+  try {
+    const { indexedOccupancyForDates } = require('../lib/slot-index');
+    const indexed = await indexedOccupancyForDates(dates);
+    if (indexed.ok) {
+      occupancy = indexed.occupancy;
+    } else {
+      const bookings = await listBookingsForSlotLock().catch(() => []);
+      occupancy = buildOccupancyMap(bookings);
+    }
+  } catch (_) { /* recovery still works without occupancy */ }
+  return occupancy;
 }
 
 /** The ISO days findNearbyOpenings can reach, so the slot index is read once per day. */
@@ -106,23 +129,63 @@ exports.handler = async (event) => {
         max: MAX_NEARBY_HORIZON_DAYS,
         fallback: DEFAULT_NEARBY_HORIZON_DAYS,
       });
-      let occupancy = {};
-      try {
-        const { indexedOccupancyForDates } = require('../lib/slot-index');
-        const indexed = await indexedOccupancyForDates(horizonDates(fromDate, horizonDays));
-        if (indexed.ok) {
-          occupancy = indexed.occupancy;
-        } else {
-          const bookings = await listBookingsForSlotLock().catch(() => []);
-          occupancy = buildOccupancyMap(bookings);
-        }
-      } catch (_) { /* recovery still works without occupancy */ }
+      const demand = demandFromQuery(q);
+      const occupancy = await occupancyForDates(horizonDates(fromDate, horizonDays));
       const openings = findNearbyOpenings(fromDate, config, {
         limit,
         horizonDays,
         occupancy,
-      });
+        acceptsStart: demand.durationMinutes > 120
+          ? (iso, slot) => startFitsDemand(iso, slot, {
+            durationMinutes: demand.durationMinutes,
+            companionInterior: demand.companionInterior,
+            occupancy,
+            config,
+          }).ok
+          : null,
+      }).map((opening) => ({
+        ...opening,
+        preferredArrivalWindow: arrivalWindowForSlot(opening.preferredTime) || null,
+      }));
       return publicJson(200, { ok: true, openings });
+    }
+
+    if (action === 'selection') {
+      const date = String(q.preferredDate || q.date || '').trim();
+      const window = String(q.preferredArrivalWindow || q.window || '').trim();
+      if (!isoDateParts(date)) return safeError(400, 'invalid_date');
+      const demand = demandFromQuery(q);
+      const slots = slotsForDate(date, config);
+      const resolved = resolveOperationalSlot(date, window, slots);
+      if (!resolved.ok) {
+        return publicJson(200, { ok: true, available: false, error: resolved.error });
+      }
+      const occupancy = await occupancyForDates(horizonDates(date, 7));
+      const picked = pickEligibleStart(date, resolved.eligible, {
+        durationMinutes: demand.durationMinutes,
+        companionInterior: demand.companionInterior,
+        occupancy,
+        config,
+      });
+      if (!picked.slot) {
+        const failure = picked.durationFailure;
+        return publicJson(200, {
+          ok: true,
+          available: false,
+          error: failure ? (failure.error || 'ceramic_duration_exceeds_day') : 'booking_slot_unavailable',
+          userMessage: (failure && failure.userMessage) || null,
+          nextValidStart: (failure && failure.nextValidStart) || null,
+          preferredDate: date,
+          preferredArrivalWindow: window,
+        });
+      }
+      return publicJson(200, {
+        ok: true,
+        available: true,
+        preferredDate: date,
+        preferredTime: picked.slot,
+        preferredArrivalWindow: window,
+      });
     }
 
     if (action === 'check_slot') {

@@ -464,6 +464,7 @@ function findNearbyOpenings(fromDate, config, opts = {}) {
   const limit = Math.min(20, Math.max(1, Number(opts.limit) || 6));
   const horizonDays = Math.min(60, Math.max(7, Number(opts.horizonDays) || 21));
   const occupancy = opts.occupancy || {}; // { 'YYYY-MM-DD|8:00 AM': count }
+  const acceptsStart = typeof opts.acceptsStart === 'function' ? opts.acceptsStart : null;
   const cfg = normalizeAvailabilityConfig(config);
   const startParts = isoDateParts(fromDate) || isoDateParts(earliestBookableIso(now));
   if (!startParts) return [];
@@ -484,6 +485,7 @@ function findNearbyOpenings(fromDate, config, opts = {}) {
       const cap = capacityForSlot(iso, slot, cfg, now);
       const used = Number(occupancy[`${iso}|${slot}`]) || 0;
       if (used >= cap) continue;
+      if (acceptsStart && !acceptsStart(iso, slot)) continue;
       results.push({
         preferredDate: iso,
         preferredTime: slot,

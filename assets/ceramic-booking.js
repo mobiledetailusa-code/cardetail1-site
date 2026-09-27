@@ -902,6 +902,9 @@
           if (!on) clearInteriorAddons();
           refreshTotals();
           renderCeramicCheckout();
+          if (global.BkConversion && typeof global.BkConversion.refreshArrivalWindowsForDates === 'function') {
+            global.BkConversion.refreshArrivalWindowsForDates();
+          }
           announce(on ? 'Added — total updated' : 'Removed — total updated');
         }
       }));
