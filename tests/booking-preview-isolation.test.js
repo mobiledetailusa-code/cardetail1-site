@@ -196,7 +196,7 @@ test('deploy preview refuses a booking before it touches the shared store', asyn
 });
 
 test('isolated blobs keep a confirmed 12-hour span and a retry does not duplicate it', async () => {
-  const payload = ceramicBody({ phone: '2015550142' });
+  const payload = ceramicBody({ phone: '2015550142', email: 'span-blobs@example.com' });
   const draft = await post(payload, '203.0.113.60');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   const draftKeys = await collectKeys(slots);
@@ -248,7 +248,7 @@ test('isolated blobs keep a confirmed 12-hour span and a retry does not duplicat
 });
 
 test('a failed booking write stays unconfirmed and retry finalizes once', async () => {
-  const payload = ceramicBody({ phone: '2015550144' });
+  const payload = ceramicBody({ phone: '2015550144', email: 'fail-write@example.com' });
   let failBookingWrite = false;
   const realBookings = bookings;
   bookings = forwardingStore(realBookings, {
@@ -363,7 +363,7 @@ test('each of the six index writes can fail without confirming, and retry finish
 });
 
 test('a crash after the pending record is stored does not confirm, and retry occupies the same id', async () => {
-  const payload = ceramicBody({ phone: '2015550301', preferredDate: '2026-10-13' });
+  const payload = ceramicBody({ phone: '2015550301', preferredDate: '2026-10-13', email: 'crash-pending@example.com' });
   const draft = await post(payload, '203.0.113.130');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   let pendingSeen = false;
@@ -409,7 +409,7 @@ test('a crash after the pending record is stored does not confirm, and retry occ
 });
 
 test('two concurrent requests for the same period confirm only one booking', async () => {
-  const payload = ceramicBody({ phone: '2015550302' });
+  const payload = ceramicBody({ phone: '2015550302', email: 'concurrent-same@example.com' });
   const draft = await post(payload, '203.0.113.140');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   submitBooking.__test.resetNotificationAttempts();
@@ -501,7 +501,7 @@ test('two concurrent customers for the same period confirm only one booking', as
 });
 
 test('a foreign hold on a required slot is kept and blocks confirmation', async () => {
-  const payload = ceramicBody({ phone: '2015550304', preferredDate: '2026-10-14' });
+  const payload = ceramicBody({ phone: '2015550304', preferredDate: '2026-10-14', email: 'foreign-hold@example.com' });
   const draft = await post(payload, '203.0.113.150');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   const foreignKey = '2026-10-15/8:00 AM/booked/0/CD1-OTHER-HOLD';
@@ -580,4 +580,150 @@ test('retry restores slots for a pending-protocol record and leaves a legacy fin
   const legacyRecord = await bookings.get(legacyId, { type: 'json' });
   assert.equal(legacyRecord.isDraft, false);
   assert.equal(legacyRecord.finalizedAt, '2026-09-27T16:00:00.000Z');
+});
+
+function stripeFetchGuard() {
+  const calls = [];
+  const original = global.fetch;
+  global.fetch = async (url, opts) => {
+    const target = String(url);
+    if (target.includes('api.stripe.com')) calls.push(target);
+    if (typeof original === 'function') return original(url, opts);
+    return { ok: false, status: 599, json: async () => ({}) };
+  };
+  return {
+    calls,
+    restore() { global.fetch = original; },
+  };
+}
+
+test('occupancy failure before payment does not charge, and retry finalizes the same draft once', async () => {
+  const { setOpsStoreOverride } = require('../netlify/lib/ops-db');
+  const payload = ceramicBody({
+    phone: '2015550330',
+    email: 'occupancy-before-pay@example.com',
+    preferredDate: '2026-10-08',
+    ceramicPaymentPlan: 'prepay_full',
+  });
+  const draft = await post(payload, '203.0.113.210');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  const realSlots = slots;
+  setSlotIndexStoreOverride(forwardingStore(realSlots, {
+    beforeSet(key) {
+      if (String(key).startsWith('span-claim/')) return;
+      throw new Error('occupancy write failed before payment');
+    },
+  }));
+  submitBooking.__test.resetNotificationAttempts();
+  const stripe = stripeFetchGuard();
+  try {
+    const failed = await post(finalizeBody(payload, draft.body), '203.0.113.211');
+    assert.equal(failed.body.bookingCreated, false);
+    assert.equal(failed.body.error, 'occupancy_incomplete');
+    assert.equal(failed.body.recoverable, true);
+    assert.equal(submitBooking.__test.notificationAttempts(), 0);
+    const pending = await bookings.get(draft.body.id, { type: 'json' });
+    assert.equal(pending.isDraft, true);
+    assert.equal(pending.occupancyStatus, 'pending');
+    assert.equal(pending.finalizedAt, undefined);
+    assert.notEqual(pending.paymentStatus, 'paid');
+    assert.equal(stripe.calls.length, 0);
+
+    setOpsStoreOverride(bookings);
+    const checkout = require('../netlify/functions/ceramic-checkout-intent');
+    const refused = await checkout.handler({
+      httpMethod: 'POST',
+      headers: { 'x-forwarded-for': '203.0.113.212' },
+      body: JSON.stringify({
+        bookingId: draft.body.id,
+        phone: payload.phone,
+        phase: 'checkout',
+        expectedQuoteVersion: 1,
+      }),
+    });
+    const refusedBody = JSON.parse(refused.body);
+    assert.notEqual(refusedBody.ok, true);
+    assert.notEqual(refusedBody.error, 'stripe_create_failed');
+    if (process.env.DATABASE_URL) {
+      assert.equal(refusedBody.error, 'booking_not_ready');
+    }
+    assert.equal(stripe.calls.length, 0);
+  } finally {
+    stripe.restore();
+    setOpsStoreOverride(null);
+    setSlotIndexStoreOverride(realSlots);
+  }
+
+  const retried = await post(finalizeBody(payload, draft.body), '203.0.113.213');
+  assert.equal(retried.status, 200, JSON.stringify(retried.body));
+  assert.equal(retried.body.bookingCreated, true);
+  assert.equal(retried.body.id, draft.body.id);
+  assert.equal(retried.body.paymentSucceeded, false);
+  assert.equal(retried.body.amountPaid, 0);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  const saved = await bookings.get(draft.body.id, { type: 'json' });
+  assert.equal(saved.isDraft, false);
+  assert.equal(saved.paymentStatus, 'unpaid');
+  const again = await post(finalizeBody(payload, draft.body), '203.0.113.214');
+  assert.equal(again.body.idempotent, true);
+  assert.equal(again.body.id, draft.body.id);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+});
+
+test('a saved card stays uncharged when occupancy fails, and retry does not notify again', async () => {
+  const payload = ceramicBody({
+    phone: '2015550331',
+    email: 'card-then-occupancy@example.com',
+    preferredDate: '2026-10-09',
+    paymentMethodPreference: 'online_after_service',
+    cardOnFileRequired: true,
+    acceptedCardOnFilePolicy: true,
+  });
+  const draft = await post(payload, '203.0.113.220');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  const stored = await bookings.get(draft.body.id, { type: 'json' });
+  await bookings.setJSON(draft.body.id, {
+    ...stored,
+    cardOnFileStatus: 'saved',
+    stripePaymentMethodId: 'pm_test_saved',
+    setupIntentId: 'seti_test_saved',
+  });
+  const realSlots = slots;
+  setSlotIndexStoreOverride(forwardingStore(realSlots, {
+    beforeSet(key) {
+      if (String(key).startsWith('span-claim/')) return;
+      throw new Error('occupancy write failed after card save');
+    },
+  }));
+  submitBooking.__test.resetNotificationAttempts();
+  const stripe = stripeFetchGuard();
+  try {
+    const failed = await post(finalizeBody(payload, draft.body), '203.0.113.221');
+    assert.equal(failed.body.bookingCreated, false);
+    assert.equal(failed.body.error, 'occupancy_incomplete');
+    assert.equal(submitBooking.__test.notificationAttempts(), 0);
+    assert.equal(stripe.calls.length, 0);
+    const pending = await bookings.get(draft.body.id, { type: 'json' });
+    assert.equal(pending.isDraft, true);
+    assert.equal(pending.cardOnFileStatus, 'saved');
+    assert.notEqual(pending.paymentStatus, 'paid');
+  } finally {
+    stripe.restore();
+    setSlotIndexStoreOverride(realSlots);
+  }
+
+  const retried = await post(finalizeBody(payload, draft.body), '203.0.113.222');
+  assert.equal(retried.status, 200, JSON.stringify(retried.body));
+  assert.equal(retried.body.bookingCreated, true);
+  assert.equal(retried.body.paymentSucceeded, false);
+  assert.equal(retried.body.amountPaid, 0);
+  assert.equal(retried.body.cardOnFileStatus, 'saved');
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  const saved = await bookings.get(draft.body.id, { type: 'json' });
+  assert.equal(saved.paymentStatus, 'unpaid');
+  assert.equal(saved.amountPaid, 0);
+  const again = await post(finalizeBody(payload, draft.body), '203.0.113.223');
+  assert.equal(again.body.idempotent, true);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  assert.equal((await bookingRecordKeys(bookings)).length, 1);
 });

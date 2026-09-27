@@ -195,7 +195,10 @@ test('card registration prefers the server message over the generic fallback', (
 test('ordinary cash and card-at-service bookings persist once', async () => {
   for (const [preference, ip] of [['cash_onsite', '203.0.113.11'], ['card_onsite', '203.0.113.12']]) {
     useStores();
-    const payload = ordinary(preference, { phone: preference === 'cash_onsite' ? '2015550188' : '2015550187' });
+    const payload = ordinary(preference, {
+      phone: preference === 'cash_onsite' ? '2015550188' : '2015550187',
+      email: preference === 'cash_onsite' ? 'cash-onsite@example.com' : 'card-onsite@example.com',
+    });
     const draft = await post(payload, ip);
     assert.equal(draft.status, 200, JSON.stringify(draft.body));
     assert.equal(draft.body.ok, true);
@@ -246,7 +249,7 @@ test('12-hour ceramic interior draft reserves every required day before payment'
 });
 
 test('confirmed 12-hour appointment keeps every span after the draft hold expires', async () => {
-  const payload = ceramicBody({ phone: '2015550166' });
+  const payload = ceramicBody({ phone: '2015550166', email: 'span-hold@example.com' });
   const draft = await post(payload, '203.0.113.41');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   const draftKeys = indexKeys().map(parseSlotIndexKey);
@@ -318,7 +321,7 @@ test('ceramic cash, deposit, and prepay finalize with unpaid balances and no dup
   const cases = [
     {
       label: 'prepay',
-      extra: { ceramicPaymentPlan: 'prepay_full', phone: '2015550191' },
+      extra: { ceramicPaymentPlan: 'prepay_full', phone: '2015550191', email: 'ceramic-prepay@example.com' },
       ip: '203.0.113.31',
       total: 1530,
       deposit: 0,
@@ -329,6 +332,7 @@ test('ceramic cash, deposit, and prepay finalize with unpaid balances and no dup
       extra: {
         ceramicPaymentPlan: 'deposit',
         phone: '2015550192',
+        email: 'ceramic-deposit@example.com',
         vehicles: [{
           cat: 'cars',
           pkgId: 'ceramic_3yr',
@@ -388,6 +392,7 @@ test('ceramic cash, deposit, and prepay finalize with unpaid balances and no dup
 test('online card draft fails closed until the card is saved, then finalizes once', async () => {
   const payload = ceramicBody({
     phone: '2015550193',
+    email: 'online-card@example.com',
     paymentMethodPreference: 'online_after_service',
     cardOnFileRequired: true,
     acceptedCardOnFilePolicy: true,

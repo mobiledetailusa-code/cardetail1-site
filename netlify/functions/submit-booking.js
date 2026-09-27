@@ -1033,16 +1033,25 @@ async function notifyConfirmedBooking(store, booking, event) {
   }
 }
 
-function confirmedBookingResponse(booking, { idempotent = false, stored = null, withDelivery = null } = {}) {
+function storedBookingAmount(booking, existing) {
+  const storedApproved = booking.approvedFinalAmount ?? existing.approvedFinalAmount;
+  if (storedApproved != null && Number.isFinite(Number(storedApproved))) return Number(storedApproved);
+  const storedTotal = booking.totalPrice ?? existing.totalPrice;
+  if (storedTotal != null && Number.isFinite(Number(storedTotal))) return Number(storedTotal);
+  return null;
+}
+
+function confirmedBookingResponse(booking, { idempotent = false, stored = null, withDelivery = null, existing = null } = {}) {
+  existing = existing || booking;
+  const prior = existing;
   const row = withDelivery || booking;
-  return json(200, {
+  const shared = {
     ok: true,
     bookingCreated: true,
     id: booking.id,
     status: booking.status || 'Pending Review',
     paymentStatus: booking.paymentStatus,
     stored,
-    idempotent,
     email: row.notificationDelivery?.adminEmail || null,
     customerEmail: row.notificationDelivery?.customerEmail || { status: 'pending' },
     sms: row.notificationDelivery?.adminSms || null,
@@ -1052,8 +1061,7 @@ function confirmedBookingResponse(booking, { idempotent = false, stored = null, 
     bookingVersion: booking.bookingVersion || 1,
     quoteVersion: booking.quoteVersion || 1,
     offer: booking.offer || null,
-    approvedFinalAmount: booking.approvedFinalAmount ?? booking.totalPrice ?? null,
-    totalPrice: booking.totalPrice ?? null,
+    totalPrice: booking.totalPrice ?? prior.totalPrice ?? null,
     amountPaid: booking.amountPaid != null ? booking.amountPaid : 0,
     balanceDue: booking.balanceDue != null ? booking.balanceDue : null,
     depositAmount: booking.depositAmount != null ? booking.depositAmount : null,
@@ -1063,6 +1071,22 @@ function confirmedBookingResponse(booking, { idempotent = false, stored = null, 
       : undefined,
     ceramicChargeAmount: booking.ceramic?.chargeAmount != null ? booking.ceramic.chargeAmount : null,
     appointmentDurationMinutes: booking.appointmentDurationMinutes || null,
+  };
+  if (idempotent === true) {
+    return json(200, {
+      ...shared,
+      idempotent: true,
+      approvedFinalAmount: (function () {
+        const storedApproved = booking.approvedFinalAmount ?? existing.approvedFinalAmount;
+        if (storedApproved != null && Number.isFinite(Number(storedApproved))) return Number(storedApproved);
+        return storedBookingAmount(booking, prior);
+      })(),
+    });
+  }
+  return json(200, {
+    ...shared,
+    idempotent: false,
+    approvedFinalAmount: storedBookingAmount(booking, prior),
   });
 }
 
@@ -1694,7 +1718,14 @@ exports.handler = async (event) => {
         scheduleBookingMirror(b);
       } catch { /* ignore */ }
 
-      const withDelivery = await notifyConfirmedBooking(store, b, event);
+      let withDelivery = b;
+      try {
+        bookingNotificationAttempts += 1;
+        const notified = await deliverBookingCreatedNotifications(b, event);
+        withDelivery = await persistNotificationFields(store, b.id, notified);
+      } catch (e) {
+        console.warn('[submit-booking] transactional notify failed:', e.message);
+      }
       console.log('[submit-booking] finalize ok', {
         draftBookingId: b.id,
         setupIntentIdPrefix: siIdPrefix(b.setupIntentId),
