@@ -37,6 +37,7 @@ const CLIENT_BLOCKED_FIELDS = [
   'transactionalSmsConsent', 'transactionalSmsConsentTextVersion',
   'acceptedTransactionalSmsConsentAt', 'transactionalSmsConsentSource',
   'marketingSmsConsentAccepted',
+  'finalizedAt', 'occupancyStatus', 'occupancyPendingAt', 'notificationsClaimedAt',
 ];
 
 const PAYMENT_PREFERENCES = new Set([
@@ -1340,16 +1341,43 @@ exports.handler = async (event) => {
           bookingId: rawDraftId,
           phone: existing.phone || b.phone,
         });
-        const ready = await bookedSpanReady(existing);
+        let ready = await bookedSpanReady(existing);
         if (!ready.ok || !ready.complete) {
-          return json(503, occupancyFailureBody(
-            existing.id || rawDraftId,
-            ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'
-          ));
+          // A legacy finalized record with a missing span stays untouched.
+          // Only a record that already entered the pending-occupancy protocol
+          // may finish its own slots on retry.
+          if (!existing.occupancyPendingAt) {
+            return json(503, occupancyFailureBody(
+              existing.id || rawDraftId,
+              ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'
+            ));
+          }
+          const repaired = await reserveBookedSpan(existing);
+          if (!repaired || repaired.ok === false) {
+            const error = (repaired && repaired.error) || 'occupancy_incomplete';
+            const status = error === 'booking_slot_unavailable' ? 409 : 503;
+            return json(status, occupancyFailureBody(existing.id || rawDraftId, error));
+          }
+          ready = await bookedSpanReady(existing);
+          if (!ready.ok || !ready.complete) {
+            return json(503, occupancyFailureBody(
+              existing.id || rawDraftId,
+              ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'
+            ));
+          }
         }
         let booking = existing;
         if (tokenCheck.ok && shouldRepairConfirmedNotifications(existing)) {
-          booking = await notifyConfirmedBooking(store, existing, event);
+          const claimed = {
+            ...existing,
+            notificationsClaimedAt: new Date().toISOString(),
+          };
+          try {
+            await store.setJSON(existing.id || rawDraftId, claimed);
+            booking = await notifyConfirmedBooking(store, claimed, event);
+          } catch (err) {
+            console.warn('[submit-booking] confirmed notification claim failed', err && err.message ? err.message : err);
+          }
         }
         return confirmedBookingResponse(booking, { idempotent: true, withDelivery: booking });
       }
@@ -1601,6 +1629,25 @@ exports.handler = async (event) => {
       }
 
       b.occupancyStatus = 'complete';
+      b.occupancyPendingAt = existing.occupancyPendingAt || pending.occupancyPendingAt;
+      const readyBeforeConfirm = await bookedSpanReady(b);
+      if (!readyBeforeConfirm.ok || !readyBeforeConfirm.complete) {
+        return json(503, occupancyFailureBody(
+          rawDraftId,
+          readyBeforeConfirm.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'
+        ));
+      }
+      if (claim.nonce) {
+        const seen = await store.get(claim.key, { type: 'text' }).catch(() => null);
+        if (seen && !String(seen).includes(claim.nonce)) {
+          const current = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
+          if (recordIsConfirmed(current)) {
+            return respondIfSpanConfirmed(store, current, event, { idempotent: true });
+          }
+          return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
+        }
+      }
+
       b.notificationsClaimedAt = new Date().toISOString();
       let stored = { saved: false };
       try {
@@ -1628,19 +1675,9 @@ exports.handler = async (event) => {
         return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
       }
 
-      if (claim.nonce) {
-        const seen = await store.get(claim.key, { type: 'text' }).catch(() => null);
-        if (seen && !String(seen).includes(claim.nonce)) {
-          const current = await store.get(rawDraftId, { type: 'json' }).catch(() => null);
-          if (recordIsConfirmed(current)) {
-            return respondIfSpanConfirmed(store, current, event, { idempotent: true });
-          }
-          return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
-        }
-      }
-
       const ready = await bookedSpanReady(b);
       if (!ready.ok || !ready.complete) {
+        try { await store.setJSON(rawDraftId, pending); } catch { /* retry uses occupancyPendingAt when the revert does not land */ }
         return json(503, occupancyFailureBody(
           rawDraftId,
           ready.ok ? 'occupancy_incomplete' : 'booking_verification_unavailable'

@@ -517,3 +517,65 @@ test('a foreign hold on a required slot is kept and blocks confirmation', async 
   assert.ok(keys.includes(foreignKey), keys.join('\n'));
   assert.equal(keys.some((key) => key.includes('/booked/') && key.endsWith('/' + draft.body.id)), false);
 });
+
+async function deleteKeysForBooking(id) {
+  const keys = await collectKeys(slots);
+  for (const key of keys) {
+    if (decodeURIComponent(key).endsWith('/' + id)) await slots.delete(key);
+  }
+}
+
+test('retry restores slots for a pending-protocol record and leaves a legacy finalized record untouched', async () => {
+  const recoverablePayload = ceramicBody({ phone: '2015550321', preferredDate: '2026-10-22', email: 'recover@example.com' });
+  const recoverableDraft = await post(recoverablePayload, '203.0.113.190');
+  assert.equal(recoverableDraft.status, 200, JSON.stringify(recoverableDraft.body));
+  const recoverableId = recoverableDraft.body.id;
+  const recoverableSaved = await bookings.get(recoverableId, { type: 'json' });
+  await bookings.setJSON(recoverableId, {
+    ...recoverableSaved,
+    isDraft: false,
+    kind: 'booking',
+    finalizedAt: '2026-09-27T16:00:00.000Z',
+    occupancyStatus: 'complete',
+    occupancyPendingAt: recoverableSaved.occupancyPendingAt || '2026-09-27T15:59:00.000Z',
+  });
+  await deleteKeysForBooking(recoverableId);
+  submitBooking.__test.resetNotificationAttempts();
+  const restored = await post(finalizeBody(recoverablePayload, recoverableDraft.body), '203.0.113.191');
+  assert.equal(restored.status, 200, JSON.stringify(restored.body));
+  assert.equal(restored.body.bookingCreated, true);
+  assert.equal(restored.body.id, recoverableId);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+  const restoredKeys = (await collectKeys(slots)).map((key) => decodeURIComponent(key));
+  assert.equal(restoredKeys.filter((key) => key.includes('/booked/') && key.endsWith('/' + recoverableId)).length, 6);
+  const restoredAgain = await post(finalizeBody(recoverablePayload, recoverableDraft.body), '203.0.113.192');
+  assert.equal(restoredAgain.body.idempotent, true);
+  assert.equal(submitBooking.__test.notificationAttempts(), 1);
+
+  const legacyPayload = ceramicBody({ phone: '2015550322', preferredDate: '2026-10-26', email: 'legacy@example.com' });
+  const legacyDraft = await post(legacyPayload, '203.0.113.193');
+  assert.equal(legacyDraft.status, 200, JSON.stringify(legacyDraft.body));
+  const legacyId = legacyDraft.body.id;
+  const legacySaved = await bookings.get(legacyId, { type: 'json' });
+  const legacy = {
+    ...legacySaved,
+    isDraft: false,
+    kind: 'booking',
+    finalizedAt: '2026-09-27T16:00:00.000Z',
+    occupancyStatus: 'complete',
+  };
+  delete legacy.occupancyPendingAt;
+  await bookings.setJSON(legacyId, legacy);
+  await deleteKeysForBooking(legacyId);
+  submitBooking.__test.resetNotificationAttempts();
+  const untouched = await post(finalizeBody(legacyPayload, legacyDraft.body), '203.0.113.194');
+  assert.equal(untouched.status, 503, JSON.stringify(untouched.body));
+  assert.equal(untouched.body.bookingCreated, false);
+  assert.equal(untouched.body.error, 'occupancy_incomplete');
+  assert.equal(submitBooking.__test.notificationAttempts(), 0);
+  const legacyKeys = (await collectKeys(slots)).map((key) => decodeURIComponent(key));
+  assert.equal(legacyKeys.filter((key) => key.endsWith('/' + legacyId)).length, 0, legacyKeys.join('\n'));
+  const legacyRecord = await bookings.get(legacyId, { type: 'json' });
+  assert.equal(legacyRecord.isDraft, false);
+  assert.equal(legacyRecord.finalizedAt, '2026-09-27T16:00:00.000Z');
+});
