@@ -338,7 +338,7 @@ test('review, confirm, and success copy keep SMS opt-in-only', () => {
 test('homepage contact copy does not promise SMS to every visitor', () => {
   const index = read('index.html');
   assert.match(index, /We'll contact you with updates — SMS only if you opted in/);
-  assert.match(index, /Booking reviewed before confirmation/);
+  assert.match(index, /We'll review your request before confirming an appointment/);
   assert.doesNotMatch(index, /Appointment updates by text/);
   assert.doesNotMatch(index, /Booking confirmed by text/);
 });

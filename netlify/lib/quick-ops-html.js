@@ -72,6 +72,36 @@ function field(label, value) {
   return `<div class="row"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`;
 }
 
+function ceramicStaffCard(view) {
+  const ceramic = view && view.ceramic;
+  const internal = ceramic && ceramic.internal;
+  if (!internal) return '';
+  const audit = Array.isArray(internal.auditHistory) ? internal.auditHistory : [];
+  const latest = audit.length ? audit[audit.length - 1] : null;
+  return `<section class="card">
+  <h2>Assigned coating</h2>
+  <p class="sub">${escapeHtml(internal.staffDisclosure || '')}</p>
+  ${(ceramic.serviceLineItems || []).map((line) => field(line.name || line.serviceId, `${line.completionStatus || 'pending'} · $${Number(line.price || 0).toFixed(2)}`)).join('')}
+  ${ceramic.sequencingNote ? `<p class="note">${escapeHtml(ceramic.sequencingNote)}</p>` : ''}
+  ${(ceramic.serviceLineItems || []).filter((line) => line.completionStatus !== 'completed').map((line) => (
+    `<button type="button" class="secondary" data-action="complete_service_line" data-service-id="${escapeHtml(line.serviceId || '')}">Mark ${escapeHtml(line.name || 'service')} complete</button>`
+  )).join('')}
+  ${field('Public package', ceramic.packageName)}
+  ${field('Manufacturer', internal.coatingManufacturer)}
+  ${field('Product', internal.coatingProduct)}
+  ${field('SKU', internal.internalSku)}
+  ${field('Documented durability', internal.durabilityMonths ? `up to ${internal.durabilityMonths} months` : '')}
+  ${field('Batch / lot', internal.batchOrLotNumber)}
+  ${field('Bottle opened', internal.bottleOpenedAt)}
+  ${field('Expiration', internal.expirationDate)}
+  ${field('Application date', internal.applicationDate)}
+  ${field('Installer', internal.installer)}
+  ${internal.internalNotes ? `<p class="note">${escapeHtml(internal.internalNotes)}</p>` : ''}
+  ${(internal.cureRequirements || []).map((line) => `<p class="note">${escapeHtml(line)}</p>`).join('')}
+  ${latest ? `<p class="sub">Last audit: ${escapeHtml(latest.action || '')} ${escapeHtml(latest.at || '')}</p>` : ''}
+</section>`;
+}
+
 function quickOpsPage(view, csrfToken) {
   const a = view.actions || {};
   const money = view.money || {};
@@ -118,7 +148,7 @@ function quickOpsPage(view, csrfToken) {
 </section>
 <section class="card">
   <h2>Service</h2>
-  ${field('Package', view.service.package)}
+  ${field('Package', (view.ceramic && view.ceramic.packageName) || view.service.package)}
   ${field('Approved', money.approvedLabel)}
   ${field('Paid', money.paidLabel)}
   ${methodLine}
@@ -129,6 +159,7 @@ function quickOpsPage(view, csrfToken) {
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${request}
+${ceramicStaffCard(view)}
 <section class="card">
   <h2>Actions</h2>
   <div class="actions">${buttons}</div>
@@ -152,7 +183,7 @@ ${request}
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'x-qo-csrf': csrf },
-        body: JSON.stringify({ action: action, bookingVersion: bookingVersion })
+        body: JSON.stringify({ action: action, bookingVersion: bookingVersion, serviceId: btn.getAttribute('data-service-id') || '' })
       });
       var data = await res.json().catch(function(){ return {}; });
       if (action === 'copy_pay' && data.payUrl) {

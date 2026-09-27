@@ -1298,6 +1298,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/seasonal-driveway-addon.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
+<script src="assets/ceramic-booking.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
   <link rel="stylesheet" href="assets/public-surface.css">
@@ -2853,14 +2854,14 @@ const TRUCK_INTERIOR_SERVICE_ITEMS = [
 const PRICING = {
   cars: {
     tiers: {
-      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:125, maint:160, interior:200, full:250, refresh:335, premium:400},
-      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:145, maint:195, interior:225, full:285, refresh:385, premium:495},
-      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:165, maint:225, interior:255, full:310, refresh:430, premium:570},
-      compact_van: {label:'Compact Van',icon:'🚐',desc:'Compact cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570},
-      midsize_van: {label:'Midsize Van',icon:'🚐',desc:'Midsize cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570},
+      small: {label:'Small Car',  icon:'🚗',desc:'Sedan · Coupe · Hatchback',     wash:125, maint:160, interior:200, full:250, refresh:335, premium:400, ceramic_1yr:650, ceramic_3yr:1050},
+      suv2:  {label:'SUV 2-Row',  icon:'🚙',desc:'Compact & Mid-Size SUV',        wash:145, maint:195, interior:225, full:285, refresh:385, premium:495, ceramic_1yr:725, ceramic_3yr:1150},
+      suv3:  {label:'SUV 3-Row',  icon:'🚐',desc:'Full-Size SUV · 7–8 Passenger', wash:165, maint:225, interior:255, full:310, refresh:430, premium:570, ceramic_1yr:825, ceramic_3yr:1275},
+      compact_van: {label:'Compact Van',icon:'🚐',desc:'Compact cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570, ceramic_1yr:825, ceramic_3yr:1275},
+      midsize_van: {label:'Midsize Van',icon:'🚐',desc:'Midsize cargo / passenger van',wash:165,maint:225,interior:255,full:300,refresh:430,premium:570, ceramic_1yr:825, ceramic_3yr:1275},
       full_size_van: {label:'Full-Size Cargo Van',icon:'🚐',desc:'Full-size cargo van · Sprinter-class',wash:185,maint:255,interior:285,full:335,refresh:470,premium:625},
-      full_size_van_passenger: {label:'Full-Size Passenger Van',icon:'🚐',desc:'Full-size passenger van',wash:195,maint:265,interior:300,full:350,refresh:490,premium:650},
-      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:165, maint:225, interior:255, full:300, refresh:420, premium:555},
+      full_size_van_passenger: {label:'Full-Size Passenger Van',icon:'🚐',desc:'Full-size passenger van',wash:195,maint:265,interior:300,full:350,refresh:490,premium:650, ceramic_1yr:925, ceramic_3yr:1425},
+      truck: {label:'Truck',      icon:'🛻',desc:'Pickup · Full & Mid-Size',       wash:165, maint:225, interior:255, full:300, refresh:420, premium:555, ceramic_1yr:825, ceramic_3yr:1275},
     },
     packages:[
       {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
@@ -2868,6 +2869,16 @@ const PRICING = {
         int:[],
         feats:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior windshield cleaned','Door jambs wiped down','Tire dressing'],
         miss:['Clay bar decontamination','Paint correction','Wax or sealant','Interior vacuum','Engine bay detailing']},
+      {id:'ceramic_1yr', name:'Professional Ceramic Protection — Up to 1 Year', icon:'💎', tag:'Professional surface preparation, gloss enhancement, and hydrophobic contamination resistance. Expected durability is up to 1 year with required maintenance.', dur:'8 hours', popular:false, scope:'ext', note:'Instant price by vehicle size. Not a quote request. Does not include interior, engine bay, undercarriage, or ceramic on wheels, glass, or trim.',
+        ext:['Technical exterior wash','Tar and iron decontamination','Mechanical clay decontamination when required','One-stage gloss-enhancement polish','Panel-prep wipe','Ceramic coating on painted exterior surfaces','Normal cleaning of wheels, tires, and exterior glass','Final inspection'],
+        int:[],
+        feats:['Technical exterior wash','Tar and iron decontamination','Mechanical clay when required','One-stage gloss-enhancement polish','Panel-prep wipe','Ceramic coating on painted surfaces','Normal wheel, tire, and glass cleaning','Final inspection'],
+        miss:['Interior detailing','Engine bay','Undercarriage','Wheel ceramic','Glass ceramic','Trim ceramic','Headlight restoration','Deep paint correction','Complete defect removal']},
+      {id:'ceramic_3yr', name:'Professional Ceramic Protection — Up to 3 Years', icon:'💎', tag:'Professional surface preparation, gloss enhancement, and hydrophobic contamination resistance. Expected durability is up to 3 years with required maintenance.', dur:'10 hours', popular:false, scope:'ext', note:'Instant price by vehicle size. Not a quote request. A second layer is not offered and does not double durability.',
+        ext:['Technical exterior wash','Tar and iron decontamination','Mechanical clay decontamination when required','One-stage gloss-enhancement polish','Panel-prep wipe','Ceramic coating on painted exterior surfaces','Normal cleaning of wheels, tires, and exterior glass','Final inspection'],
+        int:[],
+        feats:['Technical exterior wash','Tar and iron decontamination','Mechanical clay when required','One-stage gloss-enhancement polish','Panel-prep wipe','Ceramic coating on painted surfaces','Normal wheel, tire, and glass cleaning','Final inspection'],
+        miss:['Interior detailing','Engine bay','Undercarriage','Wheel ceramic','Glass ceramic','Trim ceramic','Headlight restoration','Deep paint correction','Complete defect removal']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
         ext:['Exterior hand wash & rinse','Clay bar decontamination','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
@@ -2918,6 +2929,18 @@ const PRICING = {
       {id:'heavy_wet_leaf', scope:'any', name:'Heavy / Wet Leaf Buildup', desc:'For unusually heavy, wet or matted leaf buildup requiring additional time.', price:50},
       {id:'bag_place_property', scope:'any', name:'Bag & Place On Property', desc:'Leaves are bagged and placed at a customer-designated location on the property. Off-property disposal is not included.', price:35},
       {id:'pressure_surface_wash', scope:'any', name:'Pressure Wash Upgrade', desc:'Optional water-based cleaning of the driveway and immediate entry hard surfaces. Weather and site conditions permitting.', price:125},
+      {id:'ceramic_windshield', scope:'ext', name:'Windshield Ceramic Coating', desc:'Ceramic coating on the windshield only. Mutually exclusive with all-exterior-glass coating.', price:100},
+      {id:'ceramic_glass_all', scope:'ext', name:'All Exterior Glass Ceramic Coating', desc:'Ceramic coating on all exterior glass. Mutually exclusive with windshield-only coating.', price:175},
+      {id:'ceramic_wheels', scope:'ext', name:'Wheel Face Ceramic Coating', desc:'Covers accessible exterior wheel faces only. Does not include wheel removal, barrels, or brake calipers.', price:175},
+      {id:'ceramic_trim', scope:'ext', name:'Exterior Plastic Trim Ceramic Coating', desc:'Ceramic coating on exterior plastic trim. Normal cleaning of trim is not this coating.', price:125},
+      {id:'ceramic_lights', scope:'ext', name:'Headlights & Taillights Ceramic Coating', desc:'Ceramic coating on headlights and taillights. Does not include sanding or restoration.', price:75},
+      {id:'ceramic_correction', scope:'ext', name:'Moderate Paint Correction Upgrade', desc:'Adds machine-polishing time. Does not promise 100% scratch removal or complete defect removal.', price:250},
+      {id:'ceramic_waterspot', scope:'ext', name:'Water Spot Removal', desc:'Fixed preparation for water spots. Priced from the server vehicle class. Not a quote request.', price:125},
+      {id:'ceramic_contamination', scope:'ext', name:'Heavy Sap/Contamination Removal', desc:'Fixed preparation for heavy sap or contamination. Severe cases that fail eligibility are not booked as ceramic.', price:100},
+      {id:'undercarriage', scope:'ext', name:'Accessible Undercarriage Cleaning', desc:'High-pressure rinse of accessible undercarriage areas for road salt, loose dirt, and surface contamination. Excludes vehicle lifting, disassembly, rust removal, rustproofing, and heavy mud.', price:125},
+      {id:'engine_bay', scope:'ext', name:'Engine Bay Detail', desc:'Controlled low-moisture cleaning and dressing of accessible engine-bay surfaces. Excludes oil leaks, severe grease, mechanical repair, disassembly, and modified or exposed electrical systems.', price:125},
+      {id:'mobile_water', scope:'ext', name:'Mobile Water Supply', desc:'Required when accessible undercarriage cleaning is selected and the customer does not provide a usable exterior water connection.', price:50},
+      {id:'heavymud', scope:'ext', name:'Heavy Mud Removal', desc:'Packed mud removal starting at $75. May be combined with accessible undercarriage cleaning. Severe conditions may still need a photo review on non-ceramic services.', price:75},
     ],
   },
   trucks: {

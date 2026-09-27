@@ -6,6 +6,7 @@
 const { asArray } = require('./historical-adapter');
 const PowersportsCatalog = require('../../assets/powersports-model-catalog');
 const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
+const CeramicCoating = require('./ceramic-coating');
 
 const SEASONAL_DRIVEWAY_ADDONS = Object.freeze([
   { id: 'seasonal_driveway_cleanup', price: 95, name: 'Driveway & Entry Cleanup' },
@@ -170,6 +171,25 @@ function includedAddonIds(category, packageId) {
   return [...(PACKAGE_INCLUDED_ADDONS[cat]?.[pkg] || [])];
 }
 
+/**
+ * Scheduling minutes only. Interior prices stay on PRICING.cars.tiers[tier].interior.
+ */
+const PACKAGE_SERVICE_MINUTES = Object.freeze({
+  cars: Object.freeze({ interior: 120 }),
+});
+
+const INTERIOR_ADDON_MINUTES = Object.freeze({
+  pethair: 45,
+  odor: 30,
+  superint: 60,
+  sanitize: 20,
+  mold: 45,
+  biohazard: 60,
+  floormats: 15,
+  babyseat: 20,
+  stroller: 20,
+});
+
 const LENGTH_PRICING = {
   boats: {
     min: 12, max: 60, defaultFt: 22, estimateOver: 36,
@@ -272,7 +292,23 @@ const PKG_ID_ALIASES = {
   'fleet full detail': 'full',
   'fleet premium protection': 'premium',
   'custom fleet quote': 'custom',
+  '1-year ceramic protection': 'ceramic_1yr',
+  'ceramic coating 1 year': 'ceramic_1yr',
+  'ceramic_1yr': 'ceramic_1yr',
+  'professional ceramic protection — up to 1 year': 'ceramic_1yr',
+  'professional ceramic protection - up to 1 year': 'ceramic_1yr',
+  '3-year ceramic protection': 'ceramic_3yr',
+  'ceramic coating 3 year': 'ceramic_3yr',
+  'ceramic_3yr': 'ceramic_3yr',
+  'professional ceramic protection — up to 3 years': 'ceramic_3yr',
+  'professional ceramic protection - up to 3 years': 'ceramic_3yr',
 };
+
+for (const [tierKey, row] of Object.entries(PRICING.cars.tiers)) {
+  const extra = CeramicCoating.tierPackagePrices(tierKey);
+  if (extra) Object.assign(row, extra);
+}
+PRICING.cars.addons.push(...CeramicCoating.catalogAddonRows());
 
 function getRichMultiplier(_zip) {
   // Commercial optimization phase 1: ZIP wealth no longer multiplies package price.
@@ -418,10 +454,12 @@ function parseUnits(vehicle, booking) {
   return vehicle.cat === 'fleet' ? 2 : 1;
 }
 
-function computeAddonTotal(vehicle) {
+function computeAddonTotal(vehicle, booking) {
   const cat = vehicle.cat;
   const catalog = PRICING[cat]?.addons || [];
   const included = new Set(includedAddonIds(cat, vehicle.packageId || vehicle.pkgId));
+  const waterSupply = vehicle.ceramicWaterSupply || vehicle.waterSupply || booking?.ceramicWaterSupply || '';
+  const pricedVehicle = { ...vehicle, ceramicWaterSupply: waterSupply };
   let total = 0;
   const normalized = [];
   const seenFamily = new Set();
@@ -429,6 +467,8 @@ function computeAddonTotal(vehicle) {
     if (included.has(a.id)) continue;
     const def = catalog.find((x) => x.id === a.id);
     if (!def) return { ok: false, error: 'invalid_pricing' };
+    const resolved = CeramicCoating.resolveAddonPrice(a.id, { ...pricedVehicle, pkgId: vehicle.packageId || vehicle.pkgId });
+    if (resolved.handled && !resolved.ok) return resolved;
     if (SeasonalDriveway.isFamilyId(a.id)) {
       if (seenFamily.has(a.id)) continue;
       seenFamily.add(a.id);
@@ -443,9 +483,13 @@ function computeAddonTotal(vehicle) {
       continue;
     }
     const qty = Math.max(1, Number(a.qty) || 1);
-    total += def.price * qty;
-    normalized.push({ id: a.id, name: a.name || def.name || a.id, price: def.price, qty });
+    const unitPrice = resolved.handled ? resolved.price : def.price;
+    const name = resolved.handled ? resolved.name : (a.name || def.name || a.id);
+    total += unitPrice * qty;
+    normalized.push({ id: a.id, name, price: unitPrice, qty });
   }
+  const setCheck = CeramicCoating.validateAddonSet({ ...pricedVehicle, addons: normalized, pkgId: vehicle.packageId || vehicle.pkgId });
+  if (!setCheck.ok) return setCheck;
   return { ok: true, total, addons: normalized };
 }
 
@@ -456,6 +500,20 @@ function computeVehicleBasePrice(vehicle, zip, booking) {
 
   const tiers = PRICING[cat].tiers;
   const tierKey = resolveTierKey({ ...vehicle, cat });
+
+  if (CeramicCoating.isCeramicPackage(pkgId)) {
+    const ceramic = CeramicCoating.basePriceFor(cat, tierKey, pkgId);
+    if (!ceramic.ok) return ceramic;
+    return {
+      ok: true,
+      basePrice: ceramic.amount,
+      cat,
+      pkgId,
+      tierKey,
+      serviceFamily: 'ceramic_coating',
+      ceramicBand: ceramic.band,
+    };
+  }
 
   // Jet Ski / PWC is stored as a boat type, but it is not hull-length pricing.
   // A missing length must not fall through to the 22 ft Marine Wash default.
@@ -524,14 +582,20 @@ function vehiclesFromBooking(booking) {
 function computeVehicleSubtotal(vehicle, zip, booking) {
   const base = computeVehicleBasePrice(vehicle, zip, booking);
   if (!base.ok) return base;
-  const addons = computeAddonTotal({ ...vehicle, cat: base.cat });
+  const pricedVehicle = { ...vehicle, cat: base.cat, pkgId: base.pkgId, tierKey: base.tierKey };
+  const addons = computeAddonTotal(pricedVehicle, booking);
   if (!addons.ok) return addons;
-  const subtotal = base.basePrice + addons.total;
+  const companion = CeramicCoating.resolveCompanionInterior({ ...pricedVehicle, addons: addons.addons });
+  if (!companion.ok) return companion;
+  const companionPrice = companion.selected ? companion.price : 0;
+  const subtotal = base.basePrice + addons.total + companionPrice;
   return {
     ok: true,
     subtotal,
     basePrice: base.basePrice,
     addonTotal: addons.total,
+    companionInterior: !!companion.selected,
+    companionInteriorPrice: companionPrice,
     addons: addons.addons,
     cat: base.cat,
     pkgId: base.pkgId,
@@ -561,6 +625,8 @@ function computeBookingServiceSubtotal(booking) {
       tierKey: r.tierKey,
       basePrice: r.basePrice,
       addonTotal: r.addonTotal,
+      companionInterior: r.companionInterior,
+      companionInteriorPrice: r.companionInteriorPrice || 0,
       addons: r.addons,
       subtotal: r.subtotal,
     });
@@ -600,7 +666,7 @@ function coerceVehicleForCategory(vehicle, category, opts = {}) {
       exterior: 'refresh',
     };
     if (carPkgMap[pkgId]) pkgId = carPkgMap[pkgId];
-    const carPkgs = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium'];
+    const carPkgs = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium', 'ceramic_1yr', 'ceramic_3yr'];
     if (!carPkgs.includes(pkgId)) pkgId = 'full';
     const tiers = PRICING.cars.tiers || {};
     if (!tierKey || !tiers[tierKey]) {
@@ -691,6 +757,8 @@ module.exports = {
   PRICING,
   POWERSPORTS_PUBLIC_TIER_KEYS,
   PACKAGE_INCLUDED_ADDONS,
+  PACKAGE_SERVICE_MINUTES,
+  INTERIOR_ADDON_MINUTES,
   SEASONAL_DRIVEWAY_ADDONS,
   includedAddonIds,
   LENGTH_PRICING,

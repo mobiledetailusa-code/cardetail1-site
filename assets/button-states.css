@@ -79,9 +79,13 @@
 }
 .car-pkg-cta:hover,
 .car-pkg-cta:focus-visible {
-  background: #2563eb !important;
-  color: #ffffff !important;
-  border-color: #2563eb !important;
+  background: rgba(77, 143, 217, 0.16) !important;
+  color: #f7fbff !important;
+  border-color: rgba(185, 210, 240, 0.9) !important;
+}
+.car-pkg-cta:focus-visible {
+  outline: 2px solid #b9d4f8;
+  outline-offset: 2px;
 }
 .car-pkg-card--popular .car-pkg-cta:hover,
 .car-pkg-card--popular .car-pkg-cta:focus-visible {

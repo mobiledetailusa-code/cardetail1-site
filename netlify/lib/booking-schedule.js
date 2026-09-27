@@ -66,7 +66,168 @@ function isActiveBookingForSlotLock(booking, nowMs = Date.now()) {
   return true;
 }
 
-function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now()) {
+/**
+ * How many 2-hour grid slots a stored duration occupies.
+ * Missing or short durations stay on the historical single-slot hold so
+ * existing services do not change capacity.
+ */
+function occupancySpanCount(durationMinutes) {
+  const minutes = Number(durationMinutes);
+  if (!Number.isFinite(minutes) || minutes <= 120) return 1;
+  return Math.ceil(minutes / 120);
+}
+
+/**
+ * Consecutive slots a booking holds, starting at preferredTime.
+ * A duration longer than the remaining day is an all-day hold only when it
+ * starts on the first slot. That keeps a 10-hour ceramic job from being
+ * stacked on a shorter grid without opening a second slot model.
+ */
+function spannedSlotTimes(dateIso, startTime, durationMinutes, config) {
+  const slots = slotsForDate(dateIso, config);
+  const time = normalizePreferredTime(startTime);
+  if (!time) return { ok: false, error: 'booking_time_unavailable', slots: [] };
+  if (!slots.length || !slots.includes(time)) {
+    return { ok: false, error: 'booking_time_unavailable', slots: [] };
+  }
+  const minutes = Number(durationMinutes);
+  if (!Number.isFinite(minutes) || minutes <= 120) {
+    return { ok: true, slots: [time] };
+  }
+  const needed = occupancySpanCount(minutes);
+  const idx = slots.indexOf(time);
+  const available = slots.length - idx;
+  if (needed <= available) {
+    return { ok: true, slots: slots.slice(idx, idx + needed) };
+  }
+  if (idx === 0) {
+    return { ok: true, slots: slots.slice(), exceedsGrid: true };
+  }
+  return { ok: false, error: 'ceramic_duration_exceeds_day', slots: [] };
+}
+
+const EXTENDED_APPOINTMENT_MESSAGE = 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.';
+
+function nextOpenDay(dateIso, config) {
+  const parts = availability.isoDateParts(dateIso);
+  if (!parts) return null;
+  let cursor = new Date(parts.y, parts.mo - 1, parts.d);
+  for (let i = 0; i < 21; i += 1) {
+    cursor = availability.addLocalDays(cursor, 1);
+    const iso = availability.toIsoLocal(cursor);
+    const slots = slotsForDate(iso, config);
+    if (slots.length) return { iso, slots };
+  }
+  return null;
+}
+
+function bookingHasInteriorCompanion(booking) {
+  if (!booking || typeof booking !== 'object') return false;
+  if (booking.companionInterior === true) return true;
+  return (Array.isArray(booking.vehicles) ? booking.vehicles : []).some((vehicle) => (
+    vehicle && (vehicle.companionInterior === true || vehicle.companionInterior === 'true')
+  ));
+}
+
+/**
+ * Ceramic + Interior duration that does not fit the remaining day.
+ * A late start is rejected. The first slot of the day keeps the full duration
+ * and spills leading slots onto the next open day. The duration is not compressed.
+ */
+function planCombinedAppointment(dateIso, startTime, durationMinutes, config) {
+  const base = spannedSlotTimes(dateIso, startTime, durationMinutes, config);
+  const daySlots = slotsForDate(dateIso, config);
+  if (!base.ok) {
+    const next = daySlots[0]
+      ? { date: dateIso, time: daySlots[0] }
+      : null;
+    const later = next ? null : nextOpenDay(dateIso, config);
+    return {
+      ok: false,
+      error: base.error || 'ceramic_duration_exceeds_day',
+      slots: [],
+      extendedAppointment: true,
+      message: EXTENDED_APPOINTMENT_MESSAGE,
+      nextValidStart: next || (later ? { date: later.iso, time: later.slots[0] } : null),
+    };
+  }
+  if (!base.exceedsGrid) {
+    return {
+      ok: true,
+      multiDay: false,
+      exceedsGrid: false,
+      extendedAppointment: false,
+      days: [{ date: dateIso, slots: base.slots.slice() }],
+      slots: base.slots.slice(),
+    };
+  }
+  const needed = occupancySpanCount(durationMinutes);
+  const days = [{ date: dateIso, slots: base.slots.slice() }];
+  let remaining = needed - base.slots.length;
+  let cursor = dateIso;
+  while (remaining > 0) {
+    const nxt = nextOpenDay(cursor, config);
+    if (!nxt) {
+      return {
+        ok: false,
+        error: 'ceramic_duration_exceeds_day',
+        slots: [],
+        extendedAppointment: true,
+        message: EXTENDED_APPOINTMENT_MESSAGE,
+        nextValidStart: null,
+      };
+    }
+    const take = Math.min(remaining, nxt.slots.length);
+    days.push({ date: nxt.iso, slots: nxt.slots.slice(0, take) });
+    remaining -= take;
+    cursor = nxt.iso;
+  }
+  return {
+    ok: true,
+    multiDay: days.length > 1,
+    exceedsGrid: true,
+    extendedAppointment: true,
+    message: EXTENDED_APPOINTMENT_MESSAGE,
+    days,
+    slots: days[0].slots.slice(),
+  };
+}
+
+function storedScheduleDays(booking) {
+  const days = booking && booking.appointmentSchedule && booking.appointmentSchedule.days;
+  if (!Array.isArray(days) || !days.length) return null;
+  return days;
+}
+
+function plannedDaysForBooking(booking, config) {
+  const stored = storedScheduleDays(booking);
+  if (stored) return stored;
+  if (!bookingHasInteriorCompanion(booking)) return null;
+  const parts = availability.isoDateParts(booking.preferredDate);
+  if (!parts) return null;
+  const plan = planCombinedAppointment(parts.iso, booking.preferredTime, booking.appointmentDurationMinutes, config);
+  if (!plan.ok || !plan.days) return null;
+  return plan.days;
+}
+
+function bookingCoversSlot(booking, iso, time, config) {
+  const planned = plannedDaysForBooking(booking, config);
+  if (planned) {
+    const day = planned.find((row) => row && row.date === iso);
+    if (!day) return false;
+    return (day.slots || []).includes(time);
+  }
+  const parts = availability.isoDateParts(booking && booking.preferredDate);
+  if (!parts || parts.iso !== iso) return false;
+  const span = spannedSlotTimes(iso, booking.preferredTime, booking.appointmentDurationMinutes, config);
+  if (!span.ok) {
+    const start = normalizePreferredTime(booking.preferredTime);
+    return start === time;
+  }
+  return span.slots.includes(time);
+}
+
+function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, nowMs = Date.now(), config) {
   const time = normalizePreferredTime(preferredTime);
   const parts = availability.isoDateParts(preferredDate);
   if (!parts || !time) return 0;
@@ -75,10 +236,7 @@ function countSlotOccupancy(bookings, preferredDate, preferredTime, excludeId, n
   for (const b of bookings || []) {
     if (!isActiveBookingForSlotLock(b, nowMs)) continue;
     if (excludeId && String(b.id) === String(excludeId)) continue;
-    const bParts = availability.isoDateParts(b.preferredDate);
-    const bTime = normalizePreferredTime(b.preferredTime);
-    if (!bParts || !bTime) continue;
-    if (bParts.iso === parts.iso && bTime === time) count += 1;
+    if (bookingCoversSlot(b, parts.iso, time, config)) count += 1;
   }
   return count;
 }
@@ -99,19 +257,32 @@ function hasSlotConflict(bookings, preferredDate, preferredTime, excludeId, nowM
   const parts = availability.isoDateParts(preferredDate);
   if (!parts || !time) return false;
   const capacity = capacityForSlot(parts.iso, time, cfg, new Date(ts));
-  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts);
+  const used = countSlotOccupancy(bookings, parts.iso, time, excludeId, ts, cfg);
   return used >= capacity;
 }
 
-function buildOccupancyMap(bookings, nowMs = Date.now()) {
+function buildOccupancyMap(bookings, nowMs = Date.now(), config) {
   const map = {};
   for (const b of bookings || []) {
     if (!isActiveBookingForSlotLock(b, nowMs)) continue;
+    const planned = plannedDaysForBooking(b, config);
+    if (planned) {
+      for (const day of planned) {
+        for (const time of day.slots || []) {
+          const key = `${day.date}|${time}`;
+          map[key] = (map[key] || 0) + 1;
+        }
+      }
+      continue;
+    }
     const parts = availability.isoDateParts(b.preferredDate);
-    const time = normalizePreferredTime(b.preferredTime);
-    if (!parts || !time) continue;
-    const key = `${parts.iso}|${time}`;
-    map[key] = (map[key] || 0) + 1;
+    if (!parts) continue;
+    const span = spannedSlotTimes(parts.iso, b.preferredTime, b.appointmentDurationMinutes, config);
+    const times = span.ok ? span.slots : [normalizePreferredTime(b.preferredTime)].filter(Boolean);
+    for (const time of times) {
+      const key = `${parts.iso}|${time}`;
+      map[key] = (map[key] || 0) + 1;
+    }
   }
   return map;
 }
@@ -128,11 +299,17 @@ module.exports = {
   getHolidaySet,
   isClosedHoliday,
   slotsForDate,
+  nextOpenDay,
   normalizePreferredTime,
   validateBookingSchedule,
   isActiveBookingForSlotLock,
   hasSlotConflict,
   countSlotOccupancy,
+  occupancySpanCount,
+  spannedSlotTimes,
+  planCombinedAppointment,
+  bookingHasInteriorCompanion,
+  bookingCoversSlot,
   capacityForSlot,
   buildOccupancyMap,
 };

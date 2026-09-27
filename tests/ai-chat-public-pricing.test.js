@@ -168,6 +168,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   // PR B — booking-scoped Quick Ops + payment resume
   'netlify/functions/admin-quick-ops.js',
   'netlify/functions/payment-resume.js',
+  // Ceramic coating checkout prices the deposit on the server.
+  'netlify/functions/ceramic-checkout-intent.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

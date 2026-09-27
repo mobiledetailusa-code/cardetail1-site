@@ -218,6 +218,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     // PR B — booking-scoped Quick Ops + payment resume
     'netlify/functions/admin-quick-ops.js',
     'netlify/functions/payment-resume.js',
+    // Ceramic coating checkout prices the deposit on the server.
+    'netlify/functions/ceramic-checkout-intent.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

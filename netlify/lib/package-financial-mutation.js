@@ -61,6 +61,8 @@ const PACKAGE_DISPLAY = {
     full: 'Premium Full Detail',
     refresh: 'Exterior Refresh & Protect',
     premium: 'Paint Correction / Enhancement',
+    ceramic_1yr: 'Professional Ceramic Protection — Up to 1 Year',
+    ceramic_3yr: 'Professional Ceramic Protection — Up to 3 Years',
   },
   boats: {
     maint: 'Marine Wash',
@@ -119,8 +121,11 @@ function packageOptionsForVehicle(rawVehicle, bookingBase = {}) {
     ? current.pkgId
     : String(rawVehicle?.pkgId || rawVehicle?.packageId || '').trim();
 
+  const ceramicPackageIds = new Set(['ceramic_1yr', 'ceramic_3yr']);
+  const currentIsCeramic = ceramicPackageIds.has(currentPackageId);
   const options = [];
   for (const id of candidateIds) {
+    if (cat === 'cars' && ceramicPackageIds.has(id) !== currentIsCeramic) continue;
     const probe = {
       ...rawVehicle,
       cat,

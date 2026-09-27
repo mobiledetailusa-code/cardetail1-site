@@ -227,6 +227,175 @@ async function reserveAndCreatePaymentIntentLocked({
 }
 
 /**
+ * On-session ceramic PaymentIntent.
+ *
+ * Amount and purpose come from ceramic-payment (deposit, full prepay, or the
+ * exact remaining balance). This does not change customer_balance creation.
+ * An existing active obligation with a different amount or purpose is a
+ * conflict — this function will not open a second PaymentIntent beside it.
+ * The request never sets off_session or confirm.
+ */
+async function reserveCeramicPaymentIntent({
+  booking,
+  quoteVersion,
+  phase = 'checkout',
+  generation = 1,
+  stripeCustomerId = null,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+}) {
+  const { ceramicIntentSpec } = require('../ceramic-payment');
+  const spec = ceramicIntentSpec(booking, { quoteVersion, generation, phase });
+  if (!spec.ok) return { ok: false, error: spec.error, statusCode: 400 };
+  if (stripeCustomerId && !/^cus_[A-Za-z0-9]+$/.test(String(stripeCustomerId))) {
+    return { ok: false, error: 'invalid_stripe_customer', statusCode: 400 };
+  }
+
+  const prisma = getPrisma();
+  const lockKey = ['payment_intent_create', spec.bookingId, spec.quoteVersion].join(':');
+  const ACCELERATE_SAFE_TX_TIMEOUT_MS = 14_000;
+  const ACCELERATE_SAFE_TX_MAX_WAIT_MS = 5_000;
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))::text AS lock_acquired',
+      lockKey,
+    );
+    return reserveCeramicPaymentIntentLocked({
+      spec,
+      stripeCustomerId,
+      env,
+      fetchImpl,
+      prisma: tx,
+    });
+  }, { maxWait: ACCELERATE_SAFE_TX_MAX_WAIT_MS, timeout: ACCELERATE_SAFE_TX_TIMEOUT_MS });
+}
+
+async function reserveCeramicPaymentIntentLocked({
+  spec,
+  stripeCustomerId,
+  env,
+  fetchImpl,
+  prisma,
+}) {
+  const projection = await getFinancialProjection(spec.bookingId, prisma);
+  if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (projection.quoteVersion !== spec.quoteVersion) {
+    return { ok: false, error: 'stale_quote_version', statusCode: 409, projection };
+  }
+  if (projection.paymentStatus === 'paid' || !(projection.remainingCents > 0)) {
+    return { ok: false, error: projection.paymentStatus === 'paid' ? 'already_paid' : 'zero_balance', statusCode: 409, projection };
+  }
+  if (
+    projection.approvedCents !== spec.approvedCents
+    || projection.remainingCents !== spec.balanceDueCents
+  ) {
+    return { ok: false, error: 'projection_mismatch', statusCode: 409, projection };
+  }
+  if (spec.amountCents > projection.remainingCents) {
+    return { ok: false, error: 'ceramic_amount_exceeds_balance', statusCode: 409, projection };
+  }
+  if (spec.purpose === 'ceramic_balance' && spec.amountCents !== projection.remainingCents) {
+    return { ok: false, error: 'ceramic_balance_mismatch', statusCode: 409, projection };
+  }
+  if (spec.purpose === 'ceramic_checkout' && spec.amountCents < projection.remainingCents && projection.settledCents > 0) {
+    return { ok: false, error: 'ceramic_deposit_already_collected', statusCode: 409, projection };
+  }
+
+  const reserved = await foundation.reservePaymentObligation({
+    bookingId: spec.bookingId,
+    quoteVersion: spec.quoteVersion,
+    amountCents: spec.amountCents,
+    purpose: spec.purpose,
+    providerCustomerId: stripeCustomerId,
+    providerObjectType: 'payment_intent',
+    providerObjectId: null,
+    idempotencyKey: spec.idempotencyKey,
+    generation: spec.generation,
+    prisma,
+    prelocked: true,
+  });
+  if (!reserved.ok) return { ok: false, error: reserved.error, statusCode: 500 };
+
+  const attempt = reserved.attempt;
+  const stuckCreatingWithoutProvider =
+    !reserved.created &&
+    reserved.reason === 'idempotent_replay' &&
+    attempt &&
+    !attempt.providerObjectId &&
+    attempt.status === 'creating';
+
+  if (!reserved.created && !stuckCreatingWithoutProvider) {
+    if (!attempt || attempt.purpose !== spec.purpose || attempt.amountCents !== spec.amountCents) {
+      return { ok: false, error: 'active_obligation_conflict', statusCode: 409, projection };
+    }
+    return { ok: true, created: false, paymentAttempt: attempt, projection, amountCents: spec.amountCents, purpose: spec.purpose };
+  }
+
+  const guard = guardStripeOrReject(env, { purpose: 'payment_intent_create' });
+  if (guard.blocked) {
+    return { ok: false, error: guard.body?.error || 'stripe_unavailable', statusCode: guard.statusCode };
+  }
+
+  const { stripePaymentIntentForm } = require('../ceramic-payment');
+  const body = stripePaymentIntentForm(spec, stripeCustomerId);
+  if (body.has('off_session') || body.has('confirm')) {
+    return { ok: false, error: 'ceramic_off_session_forbidden', statusCode: 500 };
+  }
+
+  let stripePaymentIntent;
+  try {
+    const res = await fetchImpl('https://api.stripe.com/v1/payment_intents', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${guard.secret}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Idempotency-Key': spec.idempotencyKey,
+      },
+      body: body.toString(),
+    });
+    stripePaymentIntent = await res.json();
+    if (!res.ok) {
+      return { ok: false, error: stripePaymentIntent?.error?.message || 'stripe_create_failed', statusCode: 502 };
+    }
+  } catch {
+    return { ok: false, error: 'stripe_network_error', statusCode: 502 };
+  }
+
+  const providerAmount = Math.round(Number(stripePaymentIntent?.amount) || 0);
+  const providerCurrency = String(stripePaymentIntent?.currency || '').toLowerCase();
+  const providerBinding = paymentIntentBinding(stripePaymentIntent);
+  if (
+    !stripePaymentIntent?.id
+    || !String(stripePaymentIntent.id).startsWith('pi_')
+    || providerAmount !== spec.amountCents
+    || providerCurrency !== 'usd'
+    || providerBinding.bookingId !== spec.bookingId
+    || providerBinding.quoteVersion !== spec.quoteVersion
+    || providerBinding.purpose !== spec.purpose
+    || (stripeCustomerId && providerBinding.customerId !== stripeCustomerId)
+  ) {
+    return { ok: false, error: 'stripe_payment_intent_invariant_failed', statusCode: 502 };
+  }
+
+  const paymentAttempt = await repo.updatePaymentAttempt(attempt.id, {
+    providerObjectId: stripePaymentIntent.id,
+    status: 'open',
+  }, prisma);
+
+  return {
+    ok: true,
+    created: !stuckCreatingWithoutProvider,
+    recoveredFromTimeout: stuckCreatingWithoutProvider || undefined,
+    paymentAttempt,
+    stripePaymentIntentId: stripePaymentIntent.id,
+    clientSecret: stripePaymentIntent.client_secret || null,
+    amountCents: spec.amountCents,
+    purpose: spec.purpose,
+    projection,
+  };
+}
+
+/**
  * Retrieve client_secret for an existing PaymentIntent (idempotent reopen).
  */
 async function retrievePaymentIntentClientSecret({
@@ -833,7 +1002,10 @@ function assertPaymentIntentBinding(attempt, paymentIntent, type) {
   if (attempt.providerObjectType !== 'payment_intent') {
     throw new PaymentEventInvariantError('provider_object_type_mismatch');
   }
-  if (attempt.purpose !== 'customer_balance' || binding.purpose !== attempt.purpose) {
+  const allowedPurpose = attempt.purpose === 'customer_balance'
+    || attempt.purpose === 'ceramic_checkout'
+    || attempt.purpose === 'ceramic_balance';
+  if (!allowedPurpose || binding.purpose !== attempt.purpose) {
     throw new PaymentEventInvariantError('payment_purpose_mismatch');
   }
   if (!binding.bookingId || binding.bookingId !== attempt.bookingId) {
@@ -2170,6 +2342,7 @@ module.exports = {
   getFinancialProjection,
   getReceiptAuthorityData,
   reserveAndCreatePaymentIntent,
+  reserveCeramicPaymentIntent,
   retrievePaymentIntentClientSecret,
   createCustomerSession,
   reconcileFromStripeProvider,

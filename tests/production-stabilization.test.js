@@ -39,9 +39,10 @@ function h1Count(html) {
   return (html.match(/<h1[\s>]/gi) || []).length;
 }
 
-test('homepage How it works markets a few quick booking steps', () => {
+test('homepage no longer markets a how-it-works step list', () => {
   const html = read('index.html');
-  assert.match(html, /Book in a few quick steps/i);
+  assert.doesNotMatch(html, /id="how"/);
+  assert.doesNotMatch(html, /Book in a few quick steps/i);
   assert.doesNotMatch(html, /Book in five steps/i);
   assert.doesNotMatch(html, /five clear steps/);
   assert.doesNotMatch(html, /Book in six steps/i);

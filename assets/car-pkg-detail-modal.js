@@ -80,6 +80,62 @@ const CAR_PKG_DETAILS = {
       "Headlights",
     ],
   },
+  ceramic_1yr: {
+    title: "Professional Ceramic Protection — Up to 1 Year",
+    includes: [
+      "Technical exterior wash",
+      "Tar and iron decontamination",
+      "Mechanical clay when required",
+      "One-stage gloss-enhancement polish",
+      "Panel-prep wipe",
+      "Ceramic coating on painted exterior surfaces",
+      "Hydrophobic finish and contamination resistance on the coated paint",
+      "Normal cleaning of wheels, tires, and exterior glass",
+      "Final inspection",
+    ],
+    bestFor: [
+      "Passenger cars, SUVs, minivans, and pickups",
+      "Expected durability up to 1 year when the coating is maintained",
+    ],
+    addonsMayApply: [
+      "Windshield or all-exterior-glass ceramic",
+      "Wheel-face ceramic",
+      "Exterior trim ceramic",
+      "Headlight and taillight ceramic",
+      "Moderate paint correction",
+      "Water-spot or contamination prep",
+      "Engine bay detail",
+      "Accessible undercarriage cleaning",
+    ],
+  },
+  ceramic_3yr: {
+    title: "Professional Ceramic Protection — Up to 3 Years",
+    includes: [
+      "Technical exterior wash",
+      "Tar and iron decontamination",
+      "Mechanical clay when required",
+      "One-stage gloss-enhancement polish",
+      "Panel-prep wipe",
+      "Ceramic coating on painted exterior surfaces",
+      "Hydrophobic finish and contamination resistance on the coated paint",
+      "Normal cleaning of wheels, tires, and exterior glass",
+      "Final inspection",
+    ],
+    bestFor: [
+      "Passenger cars, SUVs, minivans, and pickups",
+      "Expected durability up to 3 years when the coating is maintained",
+    ],
+    addonsMayApply: [
+      "Windshield or all-exterior-glass ceramic",
+      "Wheel-face ceramic",
+      "Exterior trim ceramic",
+      "Headlight and taillight ceramic",
+      "Moderate paint correction",
+      "Water-spot or contamination prep",
+      "Engine bay detail",
+      "Accessible undercarriage cleaning",
+    ],
+  },
   refresh: {
     title: "Exterior Refresh & Protect",
     includes: [
@@ -127,10 +183,6 @@ function buildCarPkgDetailSectionsHtml(d) {
 }
 
 function getHomePkgPriceNote(pkgId) {
-  if (pkgId === "full") {
-    const note = document.getElementById("home-from-full-note");
-    return note ? note.textContent.trim() : "";
-  }
   const amt = document.getElementById("home-from-" + pkgId);
   const note = document.getElementById("home-from-" + pkgId + "-note");
   if (amt && note) return "From " + amt.textContent.trim() + " · " + note.textContent.trim();

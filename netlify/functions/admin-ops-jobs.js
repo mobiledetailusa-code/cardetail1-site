@@ -466,6 +466,12 @@ function adminAddonCatalogForBooking(booking) {
     byCategory[cat] = serializeCategoryAddons(cat);
   }
   const primaryCategory = categories[0];
+  const { filterAddonsForCeramicAdmin, isCeramicPackage } = require('../lib/ceramic-coating');
+  if (vehicles.some((vehicle) => isCeramicPackage(vehicle.currentPackageId))) {
+    for (const cat of Object.keys(byCategory)) {
+      byCategory[cat] = filterAddonsForCeramicAdmin(byCategory[cat]);
+    }
+  }
   const bookingVersion = Math.round(Number(booking?.bookingVersion) || 0);
   const quoteVersion = Math.round(Number(booking?.quoteVersion || booking?.quote?.quoteVersion) || 0);
   return {
@@ -499,6 +505,8 @@ const PACKAGE_DISPLAY = {
     full: 'Premium Full Detail',
     refresh: 'Exterior Refresh & Protect',
     premium: 'Paint Correction / Enhancement',
+    ceramic_1yr: 'Professional Ceramic Protection — Up to 1 Year',
+    ceramic_3yr: 'Professional Ceramic Protection — Up to 3 Years',
   },
   boats: {
     maint: 'Marine Wash',
@@ -1775,6 +1783,83 @@ async function handleAdminAction(body, testOpts = {}) {
       bookingVersion: persisted.bookingVersion,
       quoteVersion: persisted.booking.quoteVersion,
     });
+  }
+
+  if (action === 'complete_service_line') {
+    const { completeServiceLine } = require('../lib/ceramic-coating');
+    const completed = completeServiceLine(booking, body.serviceId, { role: 'admin', id: 'admin' });
+    if (!completed.ok) {
+      return jsonCors(400, { ok: false, error: completed.error, message: completed.message || null });
+    }
+    const paymentStatus = booking.paymentStatus;
+    const patched = {
+      ...completed.booking,
+      paymentStatus,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'complete_service_line',
+        by: 'admin',
+        serviceId: completed.serviceId,
+      }),
+    };
+    const persisted = await persistMutation(
+      store,
+      bookingId,
+      patched,
+      booking,
+      'complete_service_line',
+      'complete_service_line'
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      bookingVersion: persisted.bookingVersion,
+      paymentStatus: persisted.booking.paymentStatus,
+      serviceId: completed.serviceId,
+    });
+  }
+
+  if (action === 'assign_internal_coating') {
+    const { assignInternalCoating } = require('../lib/ceramic-coating');
+    const assigned = assignInternalCoating(booking, {
+      productId: body.productId,
+      cureRequirements: body.cureRequirements,
+      batchOrLotNumber: body.batchOrLotNumber,
+      bottleOpenedAt: body.bottleOpenedAt,
+      expirationDate: body.expirationDate,
+      applicationDate: body.applicationDate,
+      installer: body.installer,
+      internalNotes: body.internalNotes,
+      discloseOnReceipt: body.discloseOnReceipt === true,
+      legallyRequired: body.legallyRequired === true,
+    }, { role: 'admin', id: 'admin' });
+    if (!assigned.ok) {
+      return jsonCors(400, { ok: false, error: assigned.error, message: assigned.message || null });
+    }
+    const patched = {
+      ...assigned.booking,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'assign_internal_coating',
+        by: 'admin',
+        productId: assigned.booking.ceramic?.internal?.productId || '',
+      }),
+    };
+    const persisted = await persistMutation(
+      store,
+      bookingId,
+      patched,
+      booking,
+      'assign_internal_coating',
+      'assign_internal_coating'
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'admin_note') {

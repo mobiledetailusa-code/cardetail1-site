@@ -77,7 +77,8 @@ const {
 const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
-const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock } = require('../lib/booking-schedule');
+const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
+const { applyCeramicBooking } = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex } = require('../lib/slot-index');
 const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
@@ -213,7 +214,7 @@ async function loadSlotLockBookings() {
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const { getOperationalAvailability } = require('../lib/ops-config');
-  const { slotsForDate } = require('../lib/booking-schedule');
+  const { slotsForDate, nextOpenDay } = require('../lib/booking-schedule');
   const {
     normalizeArrivalWindow,
     resolveOperationalSlot,
@@ -241,10 +242,34 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     return hasSlotConflict(bookingsForLock, dateIso, slot, excludeId, nowMs, config);
   }
 
+  function spanFor(dateIso, startSlot) {
+    if (bookingHasInteriorCompanion(b)) {
+      return planCombinedAppointment(dateIso, startSlot, b.appointmentDurationMinutes, config);
+    }
+    return spannedSlotTimes(dateIso, startSlot, b.appointmentDurationMinutes, config);
+  }
+
+  function spanDays(span, dateIso) {
+    if (span && Array.isArray(span.days) && span.days.length) return span.days;
+    return [{ date: dateIso, slots: (span && span.slots) || [] }];
+  }
+
+  async function spanTaken(dateIso, startSlot) {
+    const span = spanFor(dateIso, startSlot);
+    if (!span.ok) return { taken: true, span };
+    for (const day of spanDays(span, dateIso)) {
+      for (const slot of day.slots || []) {
+        if (await slotTaken(day.date, slot)) return { taken: true, span };
+      }
+    }
+    return { taken: false, span };
+  }
+
   async function pickFreeEligibleSlot(dateIso, eligible) {
     if (!checkSlot) return eligible[0] || null;
     for (const slot of eligible) {
-      if (!(await slotTaken(dateIso, slot))) return slot;
+      const held = await spanTaken(dateIso, slot);
+      if (!held.taken && held.span && held.span.ok) return slot;
     }
     return null;
   }
@@ -305,7 +330,50 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     if (!b.alternateArrivalWindow) b.alternateArrivalWindow = null;
   }
 
-  if (checkSlot && await slotTaken(v.preferredDate, v.preferredTime)) {
+  const held = await spanTaken(v.preferredDate, v.preferredTime);
+  if (!held.span || !held.span.ok) {
+    return {
+      ok: false,
+      error: (held.span && held.span.error) || 'ceramic_duration_exceeds_day',
+      userMessage: held.span && held.span.message,
+      nextValidStart: held.span && held.span.nextValidStart,
+    };
+  }
+  if (held.span.multiDay || held.span.extendedAppointment) {
+    b.appointmentSchedule = {
+      multiDay: !!held.span.multiDay,
+      extendedAppointment: !!held.span.extendedAppointment,
+      days: held.span.days || [],
+      message: held.span.message || null,
+    };
+  } else if (b.appointmentSchedule) {
+    b.appointmentSchedule = null;
+  }
+  if (checkSlot && held.taken) {
+    if (bookingHasInteriorCompanion(b) && held.span && held.span.multiDay) {
+      let cursor = v.preferredDate;
+      let nextValidStart = null;
+      for (let i = 0; i < 21 && cursor; i += 1) {
+        const slots = slotsForDate(cursor, config);
+        const start = slots[0];
+        const sameFailedStart = cursor === v.preferredDate && start === v.preferredTime;
+        if (start && !sameFailedStart) {
+          const candidate = await spanTaken(cursor, start);
+          if (!candidate.taken && candidate.span && candidate.span.ok) {
+            nextValidStart = { date: cursor, time: start };
+            break;
+          }
+        }
+        const nxt = nextOpenDay(cursor, config);
+        cursor = nxt && nxt.iso;
+      }
+      return {
+        ok: false,
+        error: 'booking_slot_unavailable',
+        userMessage: 'That start cannot be reserved because every required service day must be open. Choose the next opening that can hold the full appointment.',
+        nextValidStart,
+      };
+    }
     return { ok: false, error: 'booking_slot_unavailable' };
   }
   return {
@@ -329,7 +397,7 @@ function scheduleStatus(error) {
 }
 
 function scheduleRejectResponse(status, error, meta = {}) {
-  const userMessage = error === 'booking_slot_unavailable'
+  const fallback = error === 'booking_slot_unavailable'
     ? 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.'
     : error === BOOKING_VERIFICATION_UNAVAILABLE
       ? 'We could not verify whether this time is still available. Nothing was booked. Please wait a moment and try again.'
@@ -345,7 +413,10 @@ function scheduleRejectResponse(status, error, meta = {}) {
               ? 'Please complete your alternate date and arrival window, or uncheck the alternate date option.'
               : error === 'booking_alternate_date_unavailable'
                 ? 'That alternate date is unavailable. Choose another day or window.'
-                : 'Please choose an available date and time.';
+                : error === 'ceramic_duration_exceeds_day'
+        ? (meta.userMessage || 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.')
+        : 'Please choose an available date and time.';
+  const userMessage = meta.userMessage || fallback;
   console.log('[submit-booking] schedule rejected', {
     error,
     responseCode: status,
@@ -360,6 +431,7 @@ function scheduleRejectResponse(status, error, meta = {}) {
     bookingCreated: false,
     error,
     userMessage,
+    nextValidStart: meta.nextValidStart || null,
   });
 }
 
@@ -866,6 +938,18 @@ exports.handler = async (event) => {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }
 
+  const ceramicApplied = applyCeramicBooking(b, { finalize: !isDraftRequest });
+  if (!ceramicApplied.ok) {
+    return json(400, {
+      ok: false,
+      error: ceramicApplied.error,
+      message: ceramicApplied.message || null,
+      route: ceramicApplied.route || null,
+      packageId: ceramicApplied.packageId || null,
+      depositsEnabled: ceramicApplied.depositsEnabled === false ? false : undefined,
+    });
+  }
+
   const welcomeSource = String(b.welcomeOfferSource || b.offerSource || '').trim() || null;
   delete b.welcomeOfferSource;
   delete b.offerSource;
@@ -941,6 +1025,8 @@ exports.handler = async (event) => {
         preferredDate: b.preferredDate || null,
         preferredTime: b.preferredTime || null,
         phase: 'draft',
+        userMessage: scheduleDraft.userMessage,
+        nextValidStart: scheduleDraft.nextValidStart,
       });
     }
 
@@ -969,7 +1055,16 @@ exports.handler = async (event) => {
     // Index-first for drafts: an entry with no record makes the slot look busy
     // (fail-closed) and expires on its own; a record with no entry would let a
     // second customer save a card against the same time.
-    await syncSlotIndex(draft, { previous: existing });
+    const indexed = await syncSlotIndex(draft, { previous: existing });
+    const multiDay = !!(draft.appointmentSchedule && draft.appointmentSchedule.multiDay);
+    if (multiDay && indexed && indexed.ok === false) {
+      return json(409, {
+        ok: false,
+        bookingCreated: false,
+        error: 'schedule_reservation_failed',
+        userMessage: 'Every required service day could not be reserved. Nothing was booked.',
+      });
+    }
     try {
       await store.setJSON(draftId, draft);
     } catch (e) {
@@ -1111,6 +1206,8 @@ exports.handler = async (event) => {
         preferredDate: b.preferredDate || null,
         preferredTime: b.preferredTime || null,
         phase: 'finalize',
+        userMessage: scheduleFinal.userMessage,
+        nextValidStart: scheduleFinal.nextValidStart,
       });
     }
     const finalizedAt = new Date().toISOString();
@@ -1152,6 +1249,15 @@ exports.handler = async (event) => {
       // pending_review (not not_started) so Admin + Customer share the same submitted lifecycle
       jobStatus:            'pending_review',
       portalReleasedAt:     finalizedAt,
+      ...(b.serviceFamily === 'ceramic_coating'
+        ? {
+          paymentStatus: b.amountPaid > 0
+            ? (b.balanceDue > 0 ? 'partially_paid' : 'paid')
+            : 'unpaid',
+          paymentWorkflowStatus: 'awaiting_customer_payment',
+          serviceFamily: 'ceramic_coating',
+        }
+        : {}),
       ...(cardOnFileRequired
         ? {
           // Set only by stripe-webhook (setup_intent.succeeded).
@@ -1339,6 +1445,15 @@ exports.handler = async (event) => {
       bookingVersion: b.bookingVersion || 1,
       offer: b.offer || null,
       approvedFinalAmount: b.approvedFinalAmount || b.totalPrice,
+      amountPaid: b.amountPaid != null ? b.amountPaid : 0,
+      balanceDue: b.balanceDue != null ? b.balanceDue : null,
+      depositAmount: b.depositAmount != null ? b.depositAmount : null,
+      serviceFamily: b.serviceFamily || null,
+      paymentSucceeded: b.serviceFamily === 'ceramic_coating'
+        ? (b.paymentStatus === 'paid' || b.paymentStatus === 'partially_paid')
+        : undefined,
+      ceramicChargeAmount: b.ceramic?.chargeAmount != null ? b.ceramic.chargeAmount : null,
+      appointmentDurationMinutes: b.appointmentDurationMinutes || null,
     });
   }
 

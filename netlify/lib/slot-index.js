@@ -32,7 +32,7 @@
  *     scripts/verify-slot-index.js.
  */
 
-const { DRAFT_SLOT_HOLD_MS, normalizePreferredTime, capacityForSlot } = require('./booking-schedule');
+const { DRAFT_SLOT_HOLD_MS, normalizePreferredTime, capacityForSlot, spannedSlotTimes } = require('./booking-schedule');
 const { isoDateParts } = require('./operational-availability');
 const { bookingRef } = require('./tech-security');
 
@@ -236,14 +236,41 @@ async function indexedOccupancyForDates(dates, { nowMs = Date.now() } = {}) {
 }
 
 async function deleteHoldEntries(store, bookingId, hold) {
-  if (!hold || !hold.slotDate || !hold.slotTime) return;
-  // State and expiry are part of the key, so a moved or refreshed hold is found
-  // by scanning its old slot rather than by reconstructing the old key.
-  const entries = await listSlotEntries(store, `${hold.slotDate}/${hold.slotTime}/`);
+  if (!hold || !hold.slotDate) return;
+  // Scan the whole date so a duration that occupies later slots is cleared
+  // together with the start slot. Key format is unchanged.
+  const entries = await listSlotEntries(store, `${hold.slotDate}/`);
   const stale = entries.filter((e) => String(e.bookingId) === String(bookingId));
   for (const entry of stale) {
     await store.delete(entry.key);
   }
+}
+
+function scheduleHoldDays(booking) {
+  const days = booking && booking.appointmentSchedule && booking.appointmentSchedule.days;
+  if (!Array.isArray(days)) return [];
+  return days.filter((day) => day && day.date && Array.isArray(day.slots) && day.slots.length);
+}
+
+async function deleteBookingHolds(store, bookingId, booking) {
+  const dates = new Set();
+  const hold = booking ? slotHoldForBooking(booking) : null;
+  if (hold && hold.slotDate) dates.add(hold.slotDate);
+  for (const day of scheduleHoldDays(booking)) dates.add(day.date);
+  for (const date of dates) {
+    await deleteHoldEntries(store, bookingId, { slotDate: date });
+  }
+}
+
+function holdSlotTimes(booking, hold) {
+  if (!hold || !hold.slotDate || !hold.slotTime) return [];
+  const span = spannedSlotTimes(
+    hold.slotDate,
+    hold.slotTime,
+    booking && booking.appointmentDurationMinutes
+  );
+  if (span.ok && span.slots.length) return span.slots;
+  return [hold.slotTime];
 }
 
 /**
@@ -265,17 +292,30 @@ async function syncSlotIndex(booking, { previous = null } = {}) {
     // Clear the slot the booking used to sit in when it moved, then clear the
     // target slot so a state or expiry change replaces the entry rather than
     // stacking a second one. A cancellation stops here and stays cleared.
-    if (prior && prior.slotDate
-      && (prior.slotDate !== next.slotDate || prior.slotTime !== next.slotTime)) {
-      await deleteHoldEntries(store, bookingId, prior);
-    }
-    if (next.slotDate) await deleteHoldEntries(store, bookingId, next);
+    if (previous) await deleteBookingHolds(store, bookingId, previous);
+    await deleteBookingHolds(store, bookingId, booking);
 
     if (!next.active) return { ok: true, wrote: null };
 
-    const key = slotIndexKey({ ...next, bookingId });
-    await store.setJSON(key, 1);
-    return { ok: true, wrote: key };
+    const scheduled = scheduleHoldDays(booking);
+    const writes = scheduled.length
+      ? scheduled.flatMap((day) => day.slots.map((slotTime) => ({ slotDate: day.date, slotTime })))
+      : holdSlotTimes(booking, next).map((slotTime) => ({ slotDate: next.slotDate, slotTime }));
+    let wrote = null;
+    try {
+      for (const slot of writes) {
+        if (!slot.slotDate || !slot.slotTime) continue;
+        const key = slotIndexKey({ ...next, slotDate: slot.slotDate, slotTime: slot.slotTime, bookingId });
+        await store.setJSON(key, 1);
+        wrote = key;
+      }
+    } catch (writeErr) {
+      try { await deleteBookingHolds(store, bookingId, booking); } catch { /* fail closed below */ }
+      const message = writeErr && writeErr.message ? writeErr.message : String(writeErr);
+      console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message, rolledBack: true });
+      return { ok: false, error: 'partial_reservation_rejected', message };
+    }
+    return { ok: true, wrote, wroteCount: writes.length };
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
     console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message });

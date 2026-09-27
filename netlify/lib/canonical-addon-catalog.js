@@ -133,6 +133,50 @@ const ADDON_DISPLAY = {
     name: 'Ozone Odor Treatment',
     description: 'Ozone treatment for stubborn interior odors.',
   },
+  ceramic_windshield: {
+    name: 'Windshield Ceramic Coating',
+    description: 'Ceramic coating on the windshield only. Not available together with all-exterior-glass coating.',
+  },
+  ceramic_glass_all: {
+    name: 'All Exterior Glass Ceramic Coating',
+    description: 'Ceramic coating on all exterior glass. Not available together with windshield-only coating.',
+  },
+  ceramic_wheels: {
+    name: 'Wheel Face Ceramic Coating',
+    description: 'Accessible exterior wheel faces only. Does not include wheel removal, barrels, or brake calipers.',
+  },
+  ceramic_trim: {
+    name: 'Exterior Plastic Trim Ceramic Coating',
+    description: 'Ceramic coating on exterior plastic trim. Normal cleaning is not this coating.',
+  },
+  ceramic_lights: {
+    name: 'Headlights & Taillights Ceramic Coating',
+    description: 'Ceramic coating on headlights and taillights. Does not include sanding or restoration.',
+  },
+  ceramic_correction: {
+    name: 'Moderate Paint Correction Upgrade',
+    description: 'Adds machine-polishing time. Does not promise 100% scratch removal.',
+  },
+  ceramic_waterspot: {
+    name: 'Water Spot Removal',
+    description: 'Fixed, size-based water-spot preparation for Ceramic Coating. Not a quote request.',
+  },
+  ceramic_contamination: {
+    name: 'Heavy Sap/Contamination Removal',
+    description: 'Fixed, size-based sap and contamination preparation. Extreme contamination is not eligible for instant ceramic booking.',
+  },
+  engine_bay: {
+    name: 'Engine Bay Detail',
+    description: 'Controlled low-moisture cleaning and dressing of accessible engine-bay surfaces. Not mechanical repair.',
+  },
+  undercarriage: {
+    name: 'Accessible Undercarriage Cleaning',
+    description: 'High-pressure rinse of accessible undercarriage areas. No lift, rust removal, or heavy mud.',
+  },
+  mobile_water: {
+    name: 'Mobile Water Supply',
+    description: 'Used when the customer does not provide a usable exterior water connection for undercarriage cleaning.',
+  },
   ...SeasonalDriveway.DISPLAY,
 };
 

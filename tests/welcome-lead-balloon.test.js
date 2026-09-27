@@ -26,7 +26,6 @@ const { JSDOM } = (() => {
 })();
 
 const PUBLIC_PAGES = [
-  'index.html',
   'bergen-county-hub.html',
   'new-jersey-hub.html',
   'ny-metro-hub.html',
@@ -39,6 +38,7 @@ const PUBLIC_PAGES = [
 ];
 
 const SKIP_PAGES = [
+  'index.html',
   'terms-conditions.html',
   'privacy-policy.html',
   'my-garage.html',

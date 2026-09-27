@@ -82,8 +82,8 @@ const REVIEW_AUTHORITY_FILES = [
 const FROZEN_SHA256 = {
   'netlify/lib/sms-program.js': '70f2b9307e09b673998423792ee5e9a56859b7fd1aed8f8084197343754d0950',
   'netlify/lib/sms-templates.js': 'ab527c1618187c89d16c52b72e8fc8ca82564ef381b70950fda3d5e9155acdc6',
-  // Updated for draft timeout UX + checkout false-failure / gateway reconcile.
-  'assets/booking-review-runtime.js': 'e9f3e4ac9c96582faf911a6622d0090fafc686f9130398fdff3ab78a4143dbb4',
+  // Updated for ceramic checkout evidence (serviceFamily, paymentSucceeded, amountPaid).
+  'assets/booking-review-runtime.js': '61239ab69a98e214e2c338723b0f16617572120c56f5b27530d2f80b876a66ef',
   'netlify/lib/first-party-reviews.js': 'c9d36c5212eb193b7fb26beedb3ba470f301ab96211f57e42fc19416ff5458f6',
   'netlify/functions/public-reviews.js': '2f79b256236a00f5ba7b1ff6752aebd9566a543a3a0189b26c0d75905b7847c5',
   'netlify/functions/admin-reviews.js': '8fedcd09f08c145aabfab7b98f7298759be1d14ea95d738b3cd466f726da5f60',

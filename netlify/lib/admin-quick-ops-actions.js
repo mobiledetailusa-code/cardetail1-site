@@ -35,6 +35,25 @@ async function loadProjectedBooking(bookingId) {
   };
 }
 
+async function completeServiceLineQuickOps(booking, serviceId) {
+  const { completeServiceLine } = require('./ceramic-coating');
+  const { commitBooking } = require('./booking-repository');
+  const paymentStatus = booking.paymentStatus;
+  const amountPaid = booking.amountPaid;
+  const balanceDue = booking.balanceDue;
+  const completed = completeServiceLine(booking, serviceId, { role: 'quick_ops', id: 'quick_ops' });
+  if (!completed.ok) return completed;
+  completed.booking.paymentStatus = paymentStatus;
+  completed.booking.amountPaid = amountPaid;
+  completed.booking.balanceDue = balanceDue;
+  completed.booking.updatedAt = new Date().toISOString();
+  return commitBooking({
+    bookingId: booking.id || booking.bookingId,
+    expectedBookingVersion: booking.bookingVersion,
+    nextAggregate: completed.booking,
+  });
+}
+
 async function confirmQuickOps(bookingId, opts = {}) {
   const result = await confirmBookingTransition({ bookingId, by: 'quick_ops' });
   if (!result.ok) return result;
@@ -304,4 +323,5 @@ module.exports = {
   mintPaymentLink,
   textCustomer,
   recordOnSitePayment,
+  completeServiceLineQuickOps,
 };

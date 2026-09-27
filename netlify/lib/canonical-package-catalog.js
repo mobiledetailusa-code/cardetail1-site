@@ -15,6 +15,20 @@ const {
 const { ensureVehicleIds } = require('./booking-aggregate');
 const { LENGTH_PRICING } = require('./booking-price-catalog');
 
+/**
+ * Complete Interior Detail inclusions. Prices stay in booking-price-catalog.
+ * Ceramic packages do not copy this list.
+ */
+const INTERIOR_SERVICE_INCLUSIONS = Object.freeze([
+  'Vacuuming',
+  'Shampoo and extraction where appropriate',
+  'Steam cleaning',
+  'Surface cleaning',
+  'UV protection',
+  'Door jambs',
+  'Cargo area',
+]);
+
 /** Display-only descriptions (no prices). */
 const PACKAGE_DESCRIPTIONS = {
   cars: {
@@ -23,6 +37,8 @@ const PACKAGE_DESCRIPTIONS = {
     full: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
     refresh: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
     premium: 'Clay bar, single-pass correction, Rain-X, wheel cleaning and tire shine, exterior plastic restoration, door jambs, headliner, trunk and truck bed where applicable.',
+    ceramic_1yr: 'Professional surface preparation, gloss enhancement, hydrophobic behavior, and contamination resistance on painted exterior surfaces. Expected durability is up to 1 year with required maintenance. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
+    ceramic_3yr: 'Professional surface preparation, gloss enhancement, hydrophobic behavior, and contamination resistance on painted exterior surfaces. Expected durability is up to 3 years with required maintenance. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
   },
   boats: {
     maint: 'Exterior marine wash and rinse for regularly maintained boats.',
@@ -128,6 +144,7 @@ function serializeCanonicalPackageCatalogForBooking(booking) {
 }
 
 module.exports = {
+  INTERIOR_SERVICE_INCLUSIONS,
   PACKAGE_DESCRIPTIONS,
   packageDescription,
   rawVehiclesForPackageCatalog,

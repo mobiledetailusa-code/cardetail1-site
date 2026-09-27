@@ -188,7 +188,7 @@ describe('P0-4 ZIP gate / deep-link', () => {
 
 describe('P0-5 / P0-6 funnel copy', () => {
   it('homepage copy is not hardcoded as five steps', () => {
-    assert.match(index, /Book in a few quick steps/);
+    assert.doesNotMatch(index, /Book in a few quick steps/);
     assert.doesNotMatch(index, /Book in five steps/i);
     assert.doesNotMatch(index, /five clear steps/);
     assert.match(index, /BK_VISIBLE_STEPS\s*=\s*6/);
@@ -199,7 +199,7 @@ describe('P0-5 / P0-6 funnel copy', () => {
     assert.match(index, /Popular services/);
     assert.match(index, />View all packages</);
     assert.equal((index.match(/data-pkg="(interior|full|refresh)"/g) || []).length, 3);
-    assert.doesNotMatch(index.slice(index.indexOf('id="services"'), index.indexOf('id="how"')), /data-pkg="wash"/);
+    assert.doesNotMatch(index.slice(index.indexOf('id="services"'), index.indexOf('id="ceramic-coating"')), /data-pkg="wash"/);
   });
 });
 

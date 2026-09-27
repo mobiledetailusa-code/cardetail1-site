@@ -369,6 +369,40 @@ function buildReceiptProjection(booking, requestedType, opts = {}) {
           ? 'Credit/refund due'
           : (el.remainingCents > 0 ? 'Balance outstanding' : 'Paid in full')),
       paidInFull: el.remainingCents === 0,
+      ceramic: booking.serviceFamily === 'ceramic_coating' && booking.ceramic
+        ? {
+          packageName: booking.ceramic.packageName || '',
+          durationMonths: booking.ceramic.durationMonths || null,
+          expectedDurability: booking.ceramic.expectedDurability || '',
+          sizeLabel: booking.ceramic.packages?.[0]?.sizeLabel || '',
+          appointmentDurationMinutes: booking.appointmentDurationMinutes || null,
+          curingInstructions: booking.ceramic.curingInstructions || [],
+          eligibility: booking.ceramic.eligibility || null,
+          paymentPlan: booking.ceramic.paymentPlan || null,
+          depositAmount: booking.depositAmount != null ? Number(booking.depositAmount) : null,
+          paymentStatus: booking.paymentStatus || null,
+          companionInterior: !!booking.ceramic.companionInterior,
+          serviceLineItems: (Array.isArray(booking.ceramic.serviceLineItems) ? booking.ceramic.serviceLineItems : [])
+            .map((line) => ({
+              serviceId: line.serviceId,
+              canonicalServiceId: line.canonicalServiceId,
+              name: line.name,
+              price: line.price,
+              priceCents: line.priceCents,
+              durationMinutes: line.durationMinutes,
+              inclusions: line.inclusions || [],
+              addonIds: line.addonIds || [],
+              financialAllocationCents: line.financialAllocationCents,
+              completionStatus: line.completionStatus || 'pending',
+            })),
+          ...(booking.ceramic.internal?.discloseOnReceipt === true
+            ? {
+              coatingManufacturer: booking.ceramic.internal.coatingManufacturer || '',
+              coatingProduct: booking.ceramic.internal.coatingProduct || '',
+            }
+            : {}),
+        }
+        : null,
       footer: RECEIPT_FOOTER,
       terms: 'Payments and refunds are recorded only after provider confirmation.',
       issuedAt: dateOnly(quote?.updatedAt || projectedBooking.updatedAt || booking.updatedAt || lastPayment?.date),

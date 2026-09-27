@@ -3602,6 +3602,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       '</div></div>';
     html += renderAddonSection(j);
     html += renderPackageSection(j);
+    html += renderCeramicInternalSection(j);
     html += '</div></div>'; // end vehicles panel
 
     html += '<div class="appt-panel" data-appt-panel="requests" id="appt-panel-requests" role="tabpanel" hidden><div class="job-detail-grid">';
@@ -3888,6 +3889,28 @@ async function loadTechs(fetchOpts, loadOpts) {
     const dr = $('#dResched'); if(dr) dr.onclick = () => jobAction(j.id,'reschedule',{confirmedDate:$('#dDate').value,confirmedTime:$('#dTime').value,confirmedTimeWindow:$('#dTime').value});
     const dsa = $('#dSaveAddr'); if(dsa) dsa.onclick = () => jobAction(j.id,'update_address',{address:$('#dAddr').value,zipCode:$('#dZip').value});
     const dsc = $('#dSaveCustomer'); if(dsc) dsc.onclick = () => jobAction(j.id,'update_customer',{firstName:$('#dFirst').value,lastName:$('#dLast').value,phone:$('#dPhone').value,email:$('#dEmail').value});
+    document.querySelectorAll('[data-complete-service]').forEach(function (btn) {
+      btn.onclick = function () {
+        jobAction(j.id, 'complete_service_line', { serviceId: btn.getAttribute('data-complete-service') });
+      };
+    });
+    const dCeramic = $('#dSaveCeramicProduct');
+    if (dCeramic) dCeramic.onclick = () => {
+      const productId = ($('#dCeramicProduct') && $('#dCeramicProduct').value) || '';
+      const cure = ($('#dCeramicCure') && $('#dCeramicCure').value) || '';
+      if (!productId || !cure.trim()) { toast('A product and updated cure instructions are required'); return; }
+      jobAction(j.id, 'assign_internal_coating', {
+        productId: productId,
+        cureRequirements: cure,
+        batchOrLotNumber: ($('#dCeramicBatch') && $('#dCeramicBatch').value) || '',
+        bottleOpenedAt: ($('#dCeramicOpened') && $('#dCeramicOpened').value) || '',
+        expirationDate: ($('#dCeramicExpires') && $('#dCeramicExpires').value) || '',
+        applicationDate: ($('#dCeramicApplied') && $('#dCeramicApplied').value) || '',
+        installer: ($('#dCeramicInstaller') && $('#dCeramicInstaller').value) || '',
+        internalNotes: ($('#dCeramicNotes') && $('#dCeramicNotes').value) || '',
+        discloseOnReceipt: !!($('#dCeramicDisclose') && $('#dCeramicDisclose').checked),
+      });
+    };
     const dss = $('#dSaveService'); if(dss) dss.onclick = () => {
       const packageId = ($('#dPackage') && $('#dPackage').value) || '';
       const data = drawerAddonData || {};
@@ -4317,6 +4340,53 @@ async function loadTechs(fetchOpts, loadOpts) {
   // PR3 — canonical package change controls. Package options and prices all
   // come from the server (get_job packageCatalog); the browser only ever sends
   // packageId + expectedBookingVersion (+ vehicleId when multi-vehicle).
+  function renderCeramicInternalSection(j) {
+    const internal = j && j.ceramic && j.ceramic.internal;
+    if (!internal || j.serviceFamily !== 'ceramic_coating') return '';
+    const products = Array.isArray(internal.availableProducts) ? internal.availableProducts : [];
+    const cure = Array.isArray(internal.cureRequirements) ? internal.cureRequirements.join('\n') : '';
+    const options = products.map(function (product) {
+      const label = (product.coatingManufacturer || '') + ' ' + (product.coatingProduct || '')
+        + ' · up to ' + product.durabilityMonths + ' months';
+      const selected = product.productId === internal.productId ? ' selected' : '';
+      const disabled = product.compatible ? '' : ' disabled';
+      return '<option value="' + esc(product.productId) + '"' + selected + disabled + '>' + esc(label) + '</option>';
+    }).join('');
+    const lines = Array.isArray(j.ceramic.serviceLineItems) ? j.ceramic.serviceLineItems : [];
+    const lineHtml = lines.map(function (line) {
+      const done = line.completionStatus === 'completed';
+      return '<div><b>' + esc(line.name || line.serviceId) + ':</b> $' + Number(line.price || 0).toFixed(2)
+        + ' · ' + esc(line.completionStatus || 'pending')
+        + (done ? '' : ' <button type="button" class="btn ghost sm" data-complete-service="' + esc(line.serviceId || '') + '">Mark complete</button>')
+        + '</div>';
+    }).join('');
+    const sequence = j.ceramic.sequencingNote || j.opsSequencingNote || '';
+    return '<div class="sec full" id="dCeramicInternal"><h4>Service lines</h4>'
+      + '<div class="kv">' + (lineHtml || '<div>Ceramic package</div>') + '</div>'
+      + (sequence ? '<p class="hint">' + esc(sequence) + '</p>' : '')
+      + '<h4>Assigned coating (internal)</h4>'
+      + '<p class="hint">' + esc(internal.staffDisclosure || '') + '</p>'
+      + '<div class="kv">'
+      + '<div><b>Public package:</b> ' + esc(j.ceramic.packageName || '') + '</div>'
+      + '<div><b>Manufacturer:</b> ' + esc(internal.coatingManufacturer || '') + '</div>'
+      + '<div><b>Product:</b> ' + esc(internal.coatingProduct || '') + '</div>'
+      + '<div><b>SKU:</b> ' + esc(internal.internalSku || '') + '</div>'
+      + '<div><b>Documented durability:</b> up to ' + esc(String(internal.durabilityMonths || '')) + ' months</div>'
+      + '</div>'
+      + '<div class="op-grid" style="margin-top:10px">'
+      + '<div class="full"><label>Replacement product</label><select id="dCeramicProduct">' + options + '</select></div>'
+      + '<div><label>Batch or lot</label><input type="text" id="dCeramicBatch" value="' + esc(internal.batchOrLotNumber || '') + '"></div>'
+      + '<div><label>Bottle opened</label><input type="text" id="dCeramicOpened" value="' + esc(internal.bottleOpenedAt || '') + '"></div>'
+      + '<div><label>Expiration</label><input type="text" id="dCeramicExpires" value="' + esc(internal.expirationDate || '') + '"></div>'
+      + '<div><label>Application date</label><input type="text" id="dCeramicApplied" value="' + esc(internal.applicationDate || '') + '"></div>'
+      + '<div class="full"><label>Installer</label><input type="text" id="dCeramicInstaller" value="' + esc(internal.installer || '') + '"></div>'
+      + '<div class="full"><label>Updated cure instructions</label><textarea id="dCeramicCure" rows="4">' + esc(cure) + '</textarea></div>'
+      + '<div class="full"><label>Internal notes</label><textarea id="dCeramicNotes" rows="2">' + esc(internal.internalNotes || '') + '</textarea></div>'
+      + '<div class="full"><label><input type="checkbox" id="dCeramicDisclose"' + (internal.discloseOnReceipt ? ' checked' : '') + '> Print manufacturer on the customer receipt</label></div>'
+      + '<div class="full appt-edit-actions"><button type="button" class="btn ghost sm" id="dSaveCeramicProduct" style="width:100%;min-height:44px">Update assigned coating</button></div>'
+      + '</div></div>';
+  }
+
   function renderPackageSection(j) {
     const data = drawerAddonData || {};
     const cat = data.packageCatalog;
