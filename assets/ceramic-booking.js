@@ -377,6 +377,7 @@
     var reviewBtn = document.querySelector('#bs4 .btn-row .btn-n');
     if (!on) {
       if (reviewBtn) reviewBtn.disabled = false;
+      syncChargePresentation();
       return;
     }
     var answers = readAnswers();
@@ -408,6 +409,80 @@
     }
     renderCompanion();
     paintCompanionTotal();
+    syncChargePresentation();
+  }
+
+  function syncChargePresentation() {
+    var copy = document.getElementById('bk-charged-copy');
+    var amt = document.querySelector('.bk-charged-stack .bk-charged-amt');
+    var badge = document.querySelector('#bs5 .pay-badge');
+    var online = document.getElementById('bk-online-rec-msg');
+    var details = document.getElementById('bk-pay-details-body');
+    var ceramic = !!(global.ST && isCeramicPackage(global.ST.pkgId));
+    var plan = ceramic ? readPlan() : '';
+    function mark(el) { if (el) el.setAttribute('data-cd1-charge', 'ceramic'); }
+    function clearMark(el) { if (el) el.removeAttribute('data-cd1-charge'); }
+    if (!ceramic) {
+      if (amt && amt.getAttribute('data-cd1-charge') === 'ceramic') {
+        amt.textContent = '$0.00';
+        clearMark(amt);
+      }
+      if (copy && copy.getAttribute('data-cd1-charge') === 'ceramic') {
+        copy.textContent = 'No payment is collected when you submit this booking request.';
+        clearMark(copy);
+      }
+      if (badge && badge.getAttribute('data-cd1-charge') === 'ceramic') {
+        badge.textContent = '✓ Request first · No charge today';
+        clearMark(badge);
+      }
+      if (online && online.getAttribute('data-cd1-charge') === 'ceramic') {
+        online.textContent = online.getAttribute('data-standard') || '';
+        clearMark(online);
+      }
+      if (details && details.getAttribute('data-cd1-charge') === 'ceramic') {
+        var stored = details.getAttribute('data-standard-html');
+        if (stored) details.innerHTML = stored;
+        clearMark(details);
+      }
+      return;
+    }
+    var approved = displayedServiceTotal();
+    var dueNow = plan === 'prepay_full' ? approved : (plan === 'deposit' ? depositCentsFor(approved) / 100 : null);
+    var dueLabel = dueNow == null ? '' : ('$' + dueNow.toFixed(2));
+    if (amt) {
+      mark(amt);
+      amt.textContent = dueLabel || '—';
+    }
+    if (copy) {
+      mark(copy);
+      if (plan === 'prepay_full') {
+        copy.textContent = 'The full approved total' + (dueLabel ? ' of ' + dueLabel : '') + ' is charged to confirm this appointment.';
+      } else if (plan === 'deposit') {
+        copy.textContent = 'A deposit' + (dueLabel ? ' of ' + dueLabel : '') + ' is charged to confirm this appointment. That is 25% of the approved total, or the package minimum when that is higher. The remaining balance is collected later and is not charged automatically.';
+      } else {
+        copy.textContent = 'This Ceramic Coating appointment is charged to confirm. Choose deposit or full prepay before submitting.';
+      }
+    }
+    if (badge) {
+      mark(badge);
+      badge.textContent = plan === 'prepay_full'
+        ? 'Full amount charged to confirm'
+        : (plan === 'deposit' ? 'Deposit charged to confirm' : 'Charged to confirm');
+    }
+    if (online) {
+      mark(online);
+      online.textContent = 'Save a card only if you choose Pay online later. The amount due today is still charged to confirm this appointment.';
+    }
+    if (details) {
+      if (!details.getAttribute('data-standard-html')) details.setAttribute('data-standard-html', details.innerHTML);
+      mark(details);
+      var chargeLine = plan === 'prepay_full'
+        ? 'The full approved total is charged to confirm. The booking is paid only after Stripe confirms the payment.'
+        : (plan === 'deposit'
+          ? 'A deposit of 25% of the approved total, or the package minimum when that is higher, is charged to confirm. The remaining balance is collected later and is not charged automatically.'
+          : 'Deposit or full prepay is charged to confirm this Ceramic Coating appointment.');
+      details.innerHTML = '<ul><li>' + chargeLine + '</li><li>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li><li>A saved card does not replace the amount due today.</li></ul>';
+    }
   }
 
   function syncAddonPrices() {
@@ -745,6 +820,7 @@
       '.cd1-ceramic-more summary{min-height:48px;display:flex;align-items:center;cursor:pointer}',
       '#ceramic-selection-status{min-height:1.2em;font-size:13px;color:#166534}',
       '.cd1-ceramic-sticky{display:none}',
+      'body:has(#bs5.on) #ceramic-sticky,body:has(#bs6.on) #ceramic-sticky{display:none!important}',
       '@media(max-width:760px){',
       '.cd1-ceramic-sticky.is-on{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1200;align-items:center;justify-content:space-between;gap:8px;max-width:100%;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d5dbe3}',
       '.booking-modal.cd1-sticky-pad{padding-bottom:calc(76px + env(safe-area-inset-bottom))}',
@@ -1098,6 +1174,7 @@
     rows.push(moneyLine('Approved final total', approved));
     rows.push(moneyLine('Amount due today', dueNow));
     rows.push(moneyLine('Remaining balance', balance));
+    syncChargePresentation();
     var extended = extendedCopy()
       ? ('<p class="bk-addr-hint">' + extendedCopy() + '</p>')
       : '';

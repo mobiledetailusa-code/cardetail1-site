@@ -55,7 +55,7 @@ test('the request-only contract keeps $0 today and requires a card only for Pay 
     );
     assert.match(
       html,
-      /Choose Pay online later to save a card securely \(nothing charged today\)\./,
+      /Save a card securely now\. Nothing is charged today\./,
       `${page} lost the Pay online later help copy`,
     );
     assert.match(
@@ -80,7 +80,7 @@ test('the request-only contract keeps $0 today and requires a card only for Pay 
     );
     // The pre-existing honest statements must survive.
     assert.match(html, /Charged today/, `${page} lost the charged-today row`);
-    assert.match(html, /still nothing charged today/, `${page} lost the nothing-charged-today confirm row`);
+    assert.match(html, /No payment is collected when you submit this booking request\./, `${page} lost the no-charge request sentence`);
   }
 });
 

@@ -76,12 +76,20 @@
   color:var(--blue,#4da3ff);
   border:1px solid rgba(77,163,255,.35);
 }
+#bk-ov #card-container{min-height:0;margin-top:0}
+#bs5 .btn-row{position:static;background:none;padding-top:0}
+.bk-preview-banner{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;font-size:14px;font-weight:700;line-height:1.4}
+.bk-preview-banner[hidden]{display:none!important}
+.bk-pay-details{margin:0}
+.bk-pay-details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--blue,#2563eb)}
+.bk-pay-details[hidden]{display:none!important}
+#bk-onsite-card-copy[hidden],#bk-onsite-cash-copy[hidden],#bk-pay-pref-err[hidden]{display:none!important}
 .bk-online-card-wrap{
   display:flex;
   flex-direction:column;
-  gap:10px;
-  margin-top:4px;
-  padding:12px 14px;
+  gap:8px;
+  margin-top:0;
+  padding:10px 12px;
   border:1px solid rgba(77,163,255,.28);
   border-radius:12px;
   background:rgba(77,163,255,.06);

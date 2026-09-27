@@ -212,10 +212,15 @@
       },
       {
         "id": "pay-later-options",
-        "anchor": "#bk-pay-pref-copy",
+        "anchor": "#bk-online-rec-msg",
         "match": "contains",
-        "texts": ["Choose Pay online later to save a card securely (nothing charged today)."],
-        "why": "The review step explains card vs onsite options without recommending a method."
+        "texts": ["Save a card securely now. Nothing is charged today."],
+        "visibility": {
+          "exemptIndices": [0],
+          "revealedBy": "#pc-online",
+          "$why": "The explanation sits in #bk-online-card-wrap, which stays [hidden] until Pay online later is selected."
+        },
+        "why": "Pay online later shows one short save-card explanation. It is hidden until that option is selected."
       },
       {
         "id": "request-first-badge",
@@ -249,8 +254,8 @@
         "id": "request-only-row",
         "anchor": "p.bk-charged-copy",
         "match": "contains",
-        "texts": ["still nothing charged today"],
-        "why": "Even with card save for Pay online later, the review step states nothing is charged today."
+        "texts": ["No payment is collected when you submit this booking request."],
+        "why": "The review step states once that a standard request collects no payment. Ceramic deposit and prepay replace this sentence at runtime."
       },
       {
         "id": "submit-label",

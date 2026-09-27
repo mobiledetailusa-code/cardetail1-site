@@ -32,7 +32,7 @@ test('index.html keeps public booking, ZIP routing, and separate saved-card capa
   assert.match(index, /waitForVerifiedCardSave/);
   assert.match(index, /Step 05 — Review/);
   assert.match(index, /No payment is collected when you submit this booking request/i);
-  assert.match(index, /Choose Pay online later to save a card securely/i);
+  assert.match(index, /Save a card securely now\. Nothing is charged today/i);
 });
 
 test('index.html admin login routes to canonical admin-ops console', () => {
