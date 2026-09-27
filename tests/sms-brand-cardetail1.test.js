@@ -376,16 +376,25 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
 
   it('15. booking/payment behavior unchanged', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
-    const stripeFiles = diff.split(/\r?\n/).filter((file) => /stripe/i.test(file));
-    assert.deepEqual(stripeFiles, ['netlify/functions/stripe-webhook.js']);
+    const stripeFiles = diff.split(/\r?\n/).filter((file) => file && /stripe/i.test(file));
     // Brand/SMS work must not rewrite refund, quote, or receipt projection authority.
     // payment-authority-service.js may gain non-brand reconcile helpers on other
     // lifecycle PRs; those are covered by stale-payment-attempt tests.
+    //
+    // The stripe-file pin is a containment guard for SMS-surface PRs, not a
+    // snapshot of origin/master. On master (and on unrelated PRs) git diff vs
+    // origin/master is empty, so requiring stripe-webhook.js always appears
+    // fails Integration protection after any merge that already landed that file.
     const smsSurface = execSync(
       'git diff --name-only origin/master -- netlify/functions/twilio-inbound.js netlify/functions/twilio-outbox-worker.js netlify/functions/twilio-status-callback.js netlify/functions/twilio-voice.js netlify/lib/twilio-inbound-handler.js netlify/lib/twilio-outbox.js netlify/lib/sms-templates.js',
       { cwd: ROOT, encoding: 'utf8' },
     );
     if (smsSurface.trim()) {
+      const allowedStripeFiles = new Set(['netlify/functions/stripe-webhook.js']);
+      assert.deepEqual(
+        stripeFiles.filter((file) => !allowedStripeFiles.has(file)),
+        [],
+      );
       assert.doesNotMatch(diff, /refund-adjustment|canonical-quote/);
     }
     assert.equal(BUSINESS.name, 'Cardetail1');
