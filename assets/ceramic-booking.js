@@ -48,10 +48,22 @@
   var EXTERIOR_PROTECTION = {
     wax1yr: true,
     polymer: true,
-    rainx: true,
     claybar: true
   };
+  var GLASS_IDS = {
+    rainx: true,
+    ceramic_windshield: true,
+    ceramic_glass_all: true
+  };
+  var WATER_REPELLENT = {
+    id: 'rainx',
+    name: 'Windshield Water-Repellent Treatment',
+    description: 'Hydrophobic windshield treatment that improves water beading and visibility. This is not a ceramic coating.',
+    minutes: 15
+  };
+  var EXTENDED_APPOINTMENT_MESSAGE = 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.';
   var ADDON_MINUTES = {
+    rainx: 15,
     ceramic_windshield: 30,
     ceramic_glass_all: 60,
     ceramic_wheels: 60,
@@ -111,6 +123,7 @@
     if (GLOBAL_IDS[id]) return !!GLOBAL_PACKAGES[pkg];
     if (id === 'engine' && isCeramicPackage(pkg)) return false;
     if (isCeramicPackage(pkg) && EXTERIOR_PROTECTION[id]) return false;
+    if (id === 'rainx') return true;
     if (INTERIOR_IDS[id]) {
       if (!isCeramicPackage(pkg)) return true;
       return !!(state && state.companionInterior);
@@ -290,15 +303,25 @@
 
   function hideIncompatibleCards() {
     if (!global.ST) return;
-    var cards = document.querySelectorAll('.addon[data-id]');
-    cards.forEach(function (card) {
-      var id = card.getAttribute('data-id');
-      var show = addonVisible({ id: id }, global.ST);
-      card.hidden = !show;
-      card.style.display = show ? '' : 'none';
-    });
+    var ceramic = isCeramicPackage(global.ST.pkgId);
+    var grid = document.getElementById('addon-grid');
+    if (ceramic && grid) {
+      grid.querySelectorAll('.addon').forEach(function (card) { card.remove(); });
+      grid.hidden = true;
+      grid.style.display = 'none';
+    } else if (grid) {
+      grid.hidden = false;
+      grid.style.display = '';
+      var cards = document.querySelectorAll('#addon-grid .addon[data-id]');
+      cards.forEach(function (card) {
+        var id = card.getAttribute('data-id');
+        var show = addonVisible({ id: id }, global.ST);
+        card.hidden = !show;
+        card.style.display = show ? '' : 'none';
+      });
+    }
     syncAddonPrices();
-    renderCompanion();
+    renderCeramicCheckout();
   }
 
   function wrap(name, after) {
@@ -319,9 +342,21 @@
     payload.ceramicPaymentPlan = readPlan();
     payload.ceramicEligibility = readAnswers();
     payload.ceramicWaterSupply = readWaterSupply();
+    sanitizeCeramicAddons();
     if (Array.isArray(payload.vehicles)) {
       payload.vehicles.forEach(function (vehicle) {
         if (!isCeramicPackage(vehicle.pkgId)) return;
+        var glassSeen = false;
+        vehicle.addons = (vehicle.addons || []).filter(function (addon) {
+          if (!addon || EXTERIOR_PROTECTION[addon.id]) return false;
+          if (!companionSelected() && INTERIOR_IDS[addon.id]) return false;
+          if (GLASS_IDS[addon.id]) {
+            if (glassSeen) return false;
+            glassSeen = true;
+            if (addon.id === 'rainx') addon.name = WATER_REPELLENT.name;
+          }
+          return true;
+        });
         vehicle.ceramicWaterSupply = payload.ceramicWaterSupply;
         var selected = companionSelected();
         var already = Number(vehicle.companionInteriorPrice) || 0;
@@ -352,85 +387,465 @@
     if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
   }
 
-  function renderCompanion() {
+  function catalogAddon(id) {
+    var list = interiorCatalog();
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].id === id) return list[i];
+    }
+    return null;
+  }
+
+  function addonPrice(id) {
+    var row = catalogAddon(id);
+    var price = row ? Number(row.price) : 0;
+    if (SIZE_PRICE[id]) price = displayPrice({ id: id, price: price }, global.ST && global.ST.tierKey);
+    return price;
+  }
+
+  function formatHours(mins) {
+    var minutes = Math.max(0, Math.round(Number(mins) || 0));
+    var h = Math.floor(minutes / 60);
+    var m = minutes % 60;
+    if (!m) return h + (h === 1 ? ' hour' : ' hours');
+    if (!h) return m + ' min';
+    return h + ' hr ' + m + ' min';
+  }
+
+  function sanitizeCeramicAddons() {
+    if (!global.ST || !Array.isArray(global.ST.addons) || !isCeramicPackage(global.ST.pkgId)) return;
+    var glass = null;
+    var next = [];
+    global.ST.addons.forEach(function (addon) {
+      if (!addon || EXTERIOR_PROTECTION[addon.id]) return;
+      if (!companionSelected() && INTERIOR_IDS[addon.id]) return;
+      if (GLASS_IDS[addon.id]) {
+        if (glass) return;
+        glass = addon.id;
+        if (addon.id === 'rainx') addon.name = WATER_REPELLENT.name;
+      }
+      next.push(addon);
+    });
+    global.ST.addons = next;
+    if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
+  }
+
+  function announce(text) {
+    var live = document.getElementById('ceramic-selection-status');
+    if (!live) return;
+    live.textContent = text;
+    global.clearTimeout(announce._timer);
+    announce._timer = global.setTimeout(function () {
+      if (live.textContent === text) live.textContent = '';
+    }, 2500);
+  }
+
+  function bindScrollGuard(card, input) {
+    var drag = { moved: false, x: 0, y: 0 };
+    card.addEventListener('pointerdown', function (e) {
+      drag.x = e.clientX;
+      drag.y = e.clientY;
+      drag.moved = false;
+    });
+    card.addEventListener('pointermove', function (e) {
+      if (Math.abs(e.clientY - drag.y) > 10 || Math.abs(e.clientX - drag.x) > 10) drag.moved = true;
+    });
+    input.addEventListener('click', function (e) {
+      if (!drag.moved) return;
+      e.preventDefault();
+      drag.moved = false;
+    });
+  }
+
+  function touchCard(opts) {
+    var card = document.createElement('label');
+    card.className = 'cd1-touch-card' + (opts.selected ? ' sel' : '');
+    var input = document.createElement('input');
+    input.type = opts.type || 'checkbox';
+    input.name = opts.name || '';
+    input.value = opts.value || opts.id;
+    input.checked = !!opts.selected;
+    input.setAttribute('data-id', opts.id);
+    if (opts.id) card.setAttribute('data-id', opts.id);
+    var copy = document.createElement('span');
+    copy.className = 'cd1-touch-copy';
+    var title = document.createElement('span');
+    title.className = 'addon-name';
+    title.textContent = opts.nameText;
+    copy.appendChild(title);
+    if (opts.meta) {
+      var meta = document.createElement('span');
+      meta.className = 'cd1-touch-meta';
+      meta.textContent = opts.meta;
+      copy.appendChild(meta);
+    }
+    if (opts.desc) {
+      var desc = document.createElement('span');
+      desc.className = 'cd1-touch-desc';
+      desc.textContent = opts.desc;
+      copy.appendChild(desc);
+    }
+    card.appendChild(input);
+    card.appendChild(copy);
+    bindScrollGuard(card, input);
+    input.addEventListener('change', function () {
+      opts.onChange(input.checked, input.value);
+    });
+    return card;
+  }
+
+  function hasAddon(id) {
+    return (global.ST.addons || []).some(function (addon) { return addon.id === id; });
+  }
+
+  function writeAddon(id, on, name, price) {
+    var addons = (global.ST.addons || []).slice();
+    addons = addons.filter(function (addon) { return addon.id !== id; });
+    if (on) addons.push({ id: id, name: name, price: price });
+    global.ST.addons = addons;
+    if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
+  }
+
+  function applyGlass(value) {
+    var addons = (global.ST.addons || []).filter(function (addon) { return !GLASS_IDS[addon.id]; });
+    if (value && GLASS_IDS[value]) {
+      var row = catalogAddon(value);
+      var name = value === 'rainx' ? WATER_REPELLENT.name : ((row && row.name) || value);
+      addons.push({ id: value, name: name, price: addonPrice(value) });
+    }
+    global.ST.addons = addons;
+    if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
+    refreshTotals();
+    renderCeramicCheckout();
+    announce(value ? 'Added — total updated' : 'Removed — total updated');
+  }
+
+  function refreshTotals() {
+    if (typeof global.updateTotal === 'function') global.updateTotal();
+    paintCompanionTotal();
+    injectCheckoutSummary();
+    renderSticky();
+  }
+
+  function nextOpenIso(iso) {
+    if (typeof global.bkIsoParts !== 'function' || typeof global.bkSlotsFor !== 'function') return null;
+    var parts = global.bkIsoParts(iso);
+    if (!parts) return null;
+    var dt = new Date(parts.iso + 'T12:00:00');
+    for (var i = 0; i < 21; i += 1) {
+      dt.setDate(dt.getDate() + 1);
+      var next = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+      var slots = global.bkSlotsFor(next);
+      if (slots && slots.length) return { iso: next, slots: slots };
+    }
+    return null;
+  }
+
+  function plannedDays() {
+    if (!companionSelected() || typeof global.bkSlotsFor !== 'function') return null;
+    var dateEl = document.getElementById('f-date');
+    var timeEl = document.getElementById('f-time');
+    var iso = dateEl && dateEl.value;
+    var time = timeEl && timeEl.value;
+    if (!iso || !time) return { pending: true, days: [] };
+    var slots = global.bkSlotsFor(iso) || [];
+    var idx = slots.indexOf(time);
+    if (idx < 0) return { pending: true, days: [] };
+    var needed = Math.ceil(appointmentMinutes() / 120);
+    if (needed <= slots.length - idx) {
+      return { multiDay: false, days: [{ date: iso, slots: slots.slice(idx, idx + needed) }] };
+    }
+    if (idx !== 0) return { blocked: true, days: [] };
+    var days = [{ date: iso, slots: slots.slice() }];
+    var remaining = needed - slots.length;
+    var cursor = iso;
+    while (remaining > 0) {
+      var nxt = nextOpenIso(cursor);
+      if (!nxt) return { blocked: true, days: days };
+      var take = Math.min(remaining, nxt.slots.length);
+      days.push({ date: nxt.iso, slots: nxt.slots.slice(0, take) });
+      remaining -= take;
+      cursor = nxt.iso;
+    }
+    return { multiDay: days.length > 1, days: days };
+  }
+
+  function extendedCopy() {
+    var plan = plannedDays();
+    if (!companionSelected()) return '';
+    var minutes = appointmentMinutes();
+    var text = EXTENDED_APPOINTMENT_MESSAGE + ' Estimated working time: ' + formatHours(minutes) + '.';
+    if (plan && plan.multiDay && plan.days.length) {
+      text += ' Reserved dates: ' + plan.days.map(function (day) { return day.date; }).join(', ') + '.';
+    }
+    return text;
+  }
+
+  function ensureStyles() {
+    if (document.getElementById('cd1-ceramic-touch-css')) return;
+    var style = document.createElement('style');
+    style.id = 'cd1-ceramic-touch-css';
+    style.textContent = [
+      '.cd1-ceramic-checkout{max-width:100%;overflow-x:hidden}',
+      '.cd1-ceramic-checkout h3{font-size:15px;margin:14px 0 8px}',
+      '.cd1-touch-card{display:flex;align-items:flex-start;gap:12px;width:100%;max-width:100%;box-sizing:border-box;min-height:48px;padding:12px;margin:0 0 8px;border:1px solid #d5dbe3;border-radius:12px;background:#fff;cursor:pointer}',
+      '.cd1-touch-card input{width:22px;height:22px;min-width:22px;margin-top:2px;flex:0 0 22px}',
+      '.cd1-touch-card:has(input:checked),.cd1-touch-card.sel{border:2px solid #1d4ed8;background:#eff6ff}',
+      '.cd1-touch-card:focus-within{outline:2px solid #1d4ed8;outline-offset:2px}',
+      '.cd1-touch-copy{display:flex;flex-direction:column;gap:2px;min-width:0}',
+      '.cd1-touch-meta{font-weight:700}',
+      '.cd1-touch-desc,.cd1-support{font-size:13px;line-height:1.35}',
+      '.cd1-disclose{min-height:48px;min-width:48px;padding:8px 12px;margin:0 0 8px;background:#fff;border:1px solid #d5dbe3;border-radius:10px}',
+      '.cd1-ceramic-more{margin-top:8px}',
+      '.cd1-ceramic-more summary{min-height:48px;display:flex;align-items:center;cursor:pointer}',
+      '#ceramic-selection-status{min-height:1.2em;font-size:13px;color:#166534}',
+      '.cd1-ceramic-sticky{display:none}',
+      '@media(max-width:760px){',
+      '.booking-modal-ov.open .cd1-ceramic-sticky.is-on{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1200;align-items:center;justify-content:space-between;gap:8px;max-width:100%;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d5dbe3}',
+      '.booking-modal.cd1-sticky-pad{padding-bottom:calc(76px + env(safe-area-inset-bottom))}',
+      '.cd1-ceramic-sticky button{min-height:48px;min-width:48px;padding:0 14px}',
+      '.cd1-sticky-meta{font-size:14px;font-weight:700;min-width:0}',
+      '}',
+      '@media(max-width:430px){.cd1-ceramic-checkout,.cd1-touch-card,.cd1-ceramic-sticky{max-width:100%;overflow-x:hidden}}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  function renderCeramicCheckout() {
+    ensureStyles();
     var grid = document.getElementById('addon-grid');
-    if (!grid || !global.ST) return;
-    var existing = document.getElementById('complete-vehicle');
-    var on = isCeramicPackage(global.ST.pkgId);
+    var existing = document.getElementById('ceramic-checkout');
+    var on = !!(global.ST && isCeramicPackage(global.ST.pkgId));
     if (!on) {
-      if (global.ST.companionInterior) {
+      if (global.ST && global.ST.companionInterior) {
         global.ST.companionInterior = false;
         clearInteriorAddons();
       }
       if (existing) existing.remove();
+      renderSticky();
       return;
     }
+    sanitizeCeramicAddons();
+    if (!grid) return;
     if (!existing) {
-      existing = document.createElement('section');
-      existing.id = 'complete-vehicle';
-      existing.className = 'fg full';
+      existing = document.createElement('div');
+      existing.id = 'ceramic-checkout';
+      existing.className = 'cd1-ceramic-checkout';
       grid.insertAdjacentElement('afterend', existing);
     }
-    var price = interiorPrice();
-    var checked = companionSelected();
-    existing.innerHTML = [
-      '<div class="fl">Complete your vehicle</div>',
-      '<label class="addon' + (checked ? ' sel' : '') + '" style="display:flex;gap:10px;align-items:flex-start;margin:8px 0">',
-      '<input type="checkbox" id="companion-interior"' + (checked ? ' checked' : '') + '>',
-      '<span><strong>Add Complete Interior Detail</strong>',
-      price ? ' <span class="addon-price">+$' + price + '</span>' : '',
-      '<span class="bk-addr-hint" style="display:block">' + INTERIOR_DESCRIPTION + '</span></span></label>',
-      '<div id="companion-addons"></div>',
-      '<p id="companion-extended" class="bk-addr-hint"' + (checked ? '' : ' hidden') + '>This combined service may require an extended appointment. The duration is not shortened, and a late same-day start is not available.</p>'
-    ].join('');
-    var box = existing.querySelector('#companion-interior');
-    if (box) {
-      box.addEventListener('change', function () {
-        global.ST.companionInterior = box.checked;
-        if (!box.checked) clearInteriorAddons();
-        renderCompanion();
-        if (typeof global.updateTotal === 'function') global.updateTotal();
-        paintCompanionTotal();
-      });
+    var focus = document.activeElement && document.activeElement.value;
+    existing.innerHTML = '';
+    existing.appendChild(sectionTitle('Glass protection'));
+    var glass = document.createElement('div');
+    glass.id = 'ceramic-glass';
+    var currentGlass = '';
+    Object.keys(GLASS_IDS).forEach(function (id) { if (hasAddon(id)) currentGlass = id; });
+    glass.appendChild(touchCard({
+      type: 'radio', name: 'ceramic-glass', id: 'none', value: '', nameText: 'No additional glass protection',
+      selected: !currentGlass,
+      onChange: function () { applyGlass(''); }
+    }));
+    glass.appendChild(touchCard({
+      type: 'radio', name: 'ceramic-glass', id: 'rainx', value: 'rainx',
+      nameText: WATER_REPELLENT.name,
+      meta: '$' + addonPrice('rainx'),
+      desc: WATER_REPELLENT.description,
+      selected: currentGlass === 'rainx',
+      onChange: function () { applyGlass('rainx'); }
+    }));
+    ['ceramic_windshield', 'ceramic_glass_all'].forEach(function (id) {
+      var row = catalogAddon(id);
+      glass.appendChild(touchCard({
+        type: 'radio', name: 'ceramic-glass', id: id, value: id,
+        nameText: (row && row.name) || id,
+        meta: '$' + addonPrice(id),
+        desc: row && row.desc,
+        selected: currentGlass === id,
+        onChange: function () { applyGlass(id); }
+      }));
+    });
+    existing.appendChild(glass);
+
+    existing.appendChild(sectionTitle('Ceramic protection upgrades'));
+    var upgrades = document.createElement('div');
+    upgrades.id = 'ceramic-upgrades';
+    ['ceramic_wheels', 'ceramic_trim', 'ceramic_lights'].forEach(function (id) {
+      var row = catalogAddon(id);
+      upgrades.appendChild(touchCard({
+        type: 'checkbox', id: id, value: id,
+        nameText: (row && row.name) || id,
+        meta: '$' + addonPrice(id),
+        selected: hasAddon(id),
+        onChange: function (checked) {
+          writeAddon(id, checked, (row && row.name) || id, addonPrice(id));
+          refreshTotals();
+          renderCeramicCheckout();
+          announce(checked ? 'Added — total updated' : 'Removed — total updated');
+        }
+      }));
+    });
+    existing.appendChild(upgrades);
+    existing.appendChild(renderInteriorCard());
+    existing.appendChild(renderMoreServices());
+    var live = document.createElement('div');
+    live.id = 'ceramic-selection-status';
+    live.setAttribute('aria-live', 'polite');
+    existing.appendChild(live);
+    var extended = document.createElement('p');
+    extended.id = 'companion-extended';
+    extended.className = 'cd1-support';
+    var copy = extendedCopy();
+    extended.hidden = !copy;
+    extended.textContent = copy;
+    existing.appendChild(extended);
+    if (focus) {
+      var again = existing.querySelector('input[value="' + focus + '"]');
+      if (again && again.focus) again.focus();
     }
-    renderCompanionAddons();
+    renderSticky();
   }
 
-  function renderCompanionAddons() {
-    var host = document.getElementById('companion-addons');
-    if (!host) return;
-    host.innerHTML = '';
-    if (!companionSelected()) return;
-    var catalog = interiorCatalog();
-    catalog.forEach(function (addon) {
-      if (!INTERIOR_IDS[addon.id]) return;
-      var selected = (global.ST.addons || []).some(function (row) { return row.id === addon.id; });
-      var card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'addon' + (selected ? ' sel' : '');
-      card.setAttribute('data-id', addon.id);
-      card.setAttribute('data-price', String(addon.price));
-      var names = {
-        pethair: 'Pet Hair Removal',
-        odor: 'Odor Treatment & Sanitize',
-        superint: 'Super Interior Upgrade',
-        mold: 'Mold Treatment',
-        sanitize: 'Interior Sanitizing',
-        biohazard: 'Biohazard Cleaning',
-        floormats: 'Floor Mat Deep Clean',
-        babyseat: 'Baby / Car Seat Cleaning',
-        stroller: 'Baby Stroller Cleaning'
-      };
-      var label = names[addon.id] || addon.name || addon.id;
-      card.innerHTML = '<span class="addon-name">' + label + '</span> <span class="addon-price">+$' + addon.price + '</span>';
-      card.addEventListener('click', function () {
-        if (typeof global.toggleAddon === 'function') global.toggleAddon(card);
-        renderCompanionAddons();
-        paintCompanionTotal();
-        injectCheckoutSummary();
-      });
-      host.appendChild(card);
+  function sectionTitle(text) {
+    var h = document.createElement('h3');
+    h.textContent = text;
+    return h;
+  }
+
+  function renderInteriorCard() {
+    var section = document.createElement('section');
+    section.id = 'complete-vehicle';
+    section.appendChild(sectionTitle('Complete your vehicle'));
+    var price = interiorPrice();
+    var checked = companionSelected();
+    section.appendChild(touchCard({
+      type: 'checkbox', id: 'interior', value: 'interior', nameText: 'Add Complete Interior Detail',
+      meta: '$' + price + ' · approximately ' + formatHours(120),
+      desc: 'Deep interior cleaning added to the same vehicle and booking.',
+      selected: checked,
+      onChange: function (on) {
+        global.ST.companionInterior = on;
+        if (!on) clearInteriorAddons();
+        refreshTotals();
+        renderCeramicCheckout();
+        announce(on ? 'Added — total updated' : 'Removed — total updated');
+      }
+    }));
+    var disclose = document.createElement('button');
+    disclose.type = 'button';
+    disclose.className = 'cd1-disclose';
+    disclose.id = 'interior-inclusions-btn';
+    disclose.textContent = "See what's included";
+    disclose.setAttribute('aria-expanded', 'false');
+    var list = document.createElement('ul');
+    list.id = 'interior-inclusions';
+    list.hidden = true;
+    ['Vacuuming', 'Shampoo and extraction where appropriate', 'Steam cleaning', 'Surface cleaning', 'UV protection', 'Door jambs', 'Cargo area'].forEach(function (item) {
+      var li = document.createElement('li');
+      li.textContent = item;
+      list.appendChild(li);
     });
+    disclose.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      list.hidden = !list.hidden;
+      disclose.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
+    });
+    section.appendChild(disclose);
+    section.appendChild(list);
+    var nested = document.createElement('div');
+    nested.id = 'companion-addons';
+    if (checked) {
+      [{ id: 'pethair', name: 'Pet Hair Removal' }, { id: 'odor', name: 'Odor Treatment' }].forEach(function (item) {
+        nested.appendChild(touchCard({
+          type: 'checkbox', id: item.id, value: item.id, nameText: item.name,
+          meta: '$' + addonPrice(item.id),
+          selected: hasAddon(item.id),
+          onChange: function (on) {
+            writeAddon(item.id, on, item.name, addonPrice(item.id));
+            announce(on ? 'Added — total updated' : 'Removed — total updated');
+            refreshTotals();
+          }
+        }));
+      });
+    }
+    section.appendChild(nested);
+    return section;
+  }
+
+  function renderMoreServices() {
+    var details = document.createElement('details');
+    details.id = 'ceramic-more';
+    details.className = 'cd1-ceramic-more';
+    var summary = document.createElement('summary');
+    summary.textContent = 'More services';
+    details.appendChild(summary);
+    var ids = ['ceramic_correction', 'ceramic_waterspot', 'ceramic_contamination', 'undercarriage', 'engine_bay', 'heavymud'];
+    if (hasAddon('undercarriage')) ids.push('mobile_water');
+    ids.forEach(function (id) {
+      var row = catalogAddon(id);
+      details.appendChild(touchCard({
+        type: 'checkbox', id: id, value: id,
+        nameText: (row && row.name) || id,
+        meta: '$' + addonPrice(id),
+        selected: hasAddon(id),
+        onChange: function (on) {
+          writeAddon(id, on, (row && row.name) || id, addonPrice(id));
+          if (id === 'undercarriage' && !on) writeAddon('mobile_water', false, '', 0);
+          refreshTotals();
+          renderCeramicCheckout();
+          announce(on ? 'Added — total updated' : 'Removed — total updated');
+        }
+      }));
+    });
+    return details;
+  }
+
+  function renderSticky() {
+    ensureStyles();
+    var bar = document.getElementById('ceramic-sticky');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'ceramic-sticky';
+      bar.className = 'cd1-ceramic-sticky';
+      var meta = document.createElement('div');
+      meta.className = 'cd1-sticky-meta';
+      var totalEl = document.createElement('span');
+      totalEl.id = 'ceramic-sticky-total';
+      var durEl = document.createElement('span');
+      durEl.id = 'ceramic-sticky-dur';
+      meta.appendChild(totalEl);
+      meta.appendChild(durEl);
+      var continueBtn = document.createElement('button');
+      continueBtn.type = 'button';
+      continueBtn.id = 'ceramic-sticky-continue';
+      continueBtn.textContent = 'Continue';
+      bar.appendChild(meta);
+      bar.appendChild(continueBtn);
+      document.body.appendChild(bar);
+      continueBtn.addEventListener('click', function () {
+        var on = document.querySelector('.bsec.on');
+        var btn = on && on.querySelector('.btn-n, .btn-sub');
+        if (btn && !btn.disabled) btn.click();
+      });
+    }
+    var modal = document.querySelector('.booking-modal-ov');
+    var shell = document.querySelector('.booking-modal');
+    var open = !!(modal && modal.classList.contains('open') && global.ST && global.ST.pkgId);
+    bar.classList.toggle('is-on', open);
+    bar.hidden = !open;
+    if (shell) shell.classList.toggle('cd1-sticky-pad', open);
+    if (!open) return;
+    var total = displayedServiceTotal();
+    var totalEl = document.getElementById('ceramic-sticky-total');
+    var durEl = document.getElementById('ceramic-sticky-dur');
+    if (totalEl) totalEl.textContent = typeof global.bkMoney === 'function' ? global.bkMoney(total) : ('$' + total.toFixed(2));
+    if (durEl) {
+      var mins = isCeramicPackage(global.ST.pkgId) ? appointmentMinutes() : 0;
+      durEl.textContent = mins ? ('· Approx. ' + formatHours(mins)) : '';
+    }
+  }
+
+  function renderCompanion() {
+    renderCeramicCheckout();
   }
 
   function paintCompanionTotal() {
@@ -493,8 +908,8 @@
     rows.push(moneyLine('Approved final total', approved));
     rows.push(moneyLine('Amount due today', dueNow));
     rows.push(moneyLine('Remaining balance', balance));
-    var extended = companionSelected()
-      ? '<p class="bk-addr-hint">This combined service may require an extended appointment.</p>'
+    var extended = extendedCopy()
+      ? ('<p class="bk-addr-hint">' + extendedCopy() + '</p>')
       : '';
     box.innerHTML = '<div class="fl">Appointment summary</div>' + rows.join('') + extended;
   }
@@ -540,7 +955,7 @@
         if (slots.length && time && time !== slots[0] && minutes > Math.max(120, (slots.length - slots.indexOf(time)) * 120)) {
           return {
             ok: false,
-            message: 'This combined service may require an extended appointment. Choose the first opening of a full day. A late start is not available, and the duration is not shortened.'
+            message: EXTENDED_APPOINTMENT_MESSAGE + ' A late start is not available, and the duration is not shortened.'
           };
         }
         if (minutes > fit) {
@@ -558,18 +973,25 @@
         var selected = global.ST && Array.isArray(global.ST.addons)
           ? global.ST.addons.some(function (a) { return a.id === id; })
           : false;
-        if (!selected && global.ST && isCeramicPackage(global.ST.pkgId)) {
-          var ids = global.ST.addons.map(function (a) { return a.id; });
-          if ((id === 'ceramic_windshield' && ids.indexOf('ceramic_glass_all') >= 0)
-            || (id === 'ceramic_glass_all' && ids.indexOf('ceramic_windshield') >= 0)) {
-            global.alert('Choose windshield coating or all exterior glass coating, not both.');
-            return;
-          }
+        if (!selected && global.ST && isCeramicPackage(global.ST.pkgId) && GLASS_IDS[id]) {
+          global.ST.addons = global.ST.addons.filter(function (addon) { return !GLASS_IDS[addon.id] || addon.id === id; });
         }
-        return origToggle.apply(this, arguments);
+        if (!selected && global.ST && isCeramicPackage(global.ST.pkgId) && EXTERIOR_PROTECTION[id]) return;
+        var result = origToggle.apply(this, arguments);
+        announce('Added — total updated');
+        renderSticky();
+        return result;
       };
       global.toggleAddon._ceramicWrapped = true;
     }
+    var overlay = document.querySelector('.booking-modal-ov');
+    if (overlay && typeof global.MutationObserver === 'function') {
+      new MutationObserver(function () { renderSticky(); }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
+    }
+    ['f-date', 'f-time'].forEach(function (id) {
+      var field = document.getElementById(id);
+      if (field) field.addEventListener('change', function () { renderCeramicCheckout(); });
+    });
     syncPanel();
   }
 
@@ -581,6 +1003,9 @@
     readAnswers: readAnswers,
     readPlan: readPlan,
     readWaterSupply: readWaterSupply,
+    renderCeramicCheckout: renderCeramicCheckout,
+    appointmentMinutes: appointmentMinutes,
+    waterRepellentName: WATER_REPELLENT.name,
     boot: boot
   };
 

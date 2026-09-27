@@ -20,6 +20,11 @@ const {
   evaluateEligibility,
   PUBLIC_PACKAGE_NAMES,
   resolveCompanionInterior,
+  resolveAddonPrice,
+  waterRepellentOffer,
+  filterAddonsForCeramicAdmin,
+  WATER_REPELLENT_NAME,
+  WATER_REPELLENT_DESCRIPTION,
   validateAddonSet,
 } = require('../netlify/lib/ceramic-coating');
 const {
@@ -733,7 +738,7 @@ describe('ceramic plus interior companion', () => {
     const late = planCombinedAppointment(WEEKDAY, '10:00 AM', minutes.minutes);
     assert.equal(late.ok, false);
     assert.equal(late.error, 'ceramic_duration_exceeds_day');
-    assert.match(late.message, /extended appointment/);
+    assert.equal(late.message, 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.');
     assert.equal(late.nextValidStart.time, '8:00 AM');
     const planned = planCombinedAppointment(WEEKDAY, '8:00 AM', 600);
     assert.equal(planned.ok, true);
@@ -817,5 +822,77 @@ describe('ceramic plus interior companion', () => {
     assert.equal(unpaid.amountPaid, 0);
     assert.equal(unpaid.vehicles[0].serviceLineItems.find((line) => line.serviceId === 'interior').completionStatus, 'completed');
     assert.equal(unpaid.vehicles[0].serviceLineItems.find((line) => line.serviceId === 'ceramic_1yr').completionStatus, 'pending');
+  });
+});
+
+describe('ceramic glass protection and removed exterior add-ons', () => {
+  it('prices windshield water-repellent at the canonical $25 and marks it non-ceramic', () => {
+    const offer = waterRepellentOffer();
+    const catalog = PRICING.cars.addons.find((addon) => addon.id === 'rainx');
+    assert.equal(catalog.price, 25);
+    assert.equal(offer.price, catalog.price);
+    assert.equal(offer.price, 25);
+    assert.equal(offer.name, WATER_REPELLENT_NAME);
+    assert.equal(offer.name, 'Windshield Water-Repellent Treatment');
+    assert.match(offer.description, /not a ceramic coating/);
+    assert.equal(offer.description, WATER_REPELLENT_DESCRIPTION);
+    assert.equal(offer.nonCeramic, true);
+    for (const pkgId of ['ceramic_1yr', 'ceramic_3yr']) {
+      const resolved = resolveAddonPrice('rainx', vehicle(pkgId, 'small'));
+      assert.equal(resolved.ok, true);
+      assert.equal(resolved.price, 25);
+      assert.equal(resolved.name, 'Windshield Water-Repellent Treatment');
+      const quoted = computeVehicleSubtotal(vehicle(pkgId, 'small', [{ id: 'rainx', name: 'Rain-X', price: 99 }]), ZIP);
+      assert.equal(quoted.ok, true, quoted.error);
+      assert.equal(quoted.addons.find((addon) => addon.id === 'rainx').price, 25);
+      assert.equal(quoted.addons.find((addon) => addon.id === 'rainx').name, 'Windshield Water-Repellent Treatment');
+      assert.equal(quoted.subtotal, PRICES[pkgId].small + 25);
+    }
+    const minutes = durationForVehicle(vehicle('ceramic_1yr', 'small', [{ id: 'rainx' }]));
+    assert.equal(minutes.minutes, 480 + 15);
+  });
+
+  it('rejects wax, sealant, clay, and more than one glass option', () => {
+    for (const id of ['wax1yr', 'polymer', 'claybar']) {
+      const rejected = validateAddonSet(vehicle('ceramic_1yr', 'small', [{ id }]));
+      assert.equal(rejected.ok, false);
+      assert.equal(rejected.error, 'incompatible_addon');
+      const priced = computeVehicleSubtotal(vehicle('ceramic_3yr', 'small', [{ id }]), ZIP);
+      assert.equal(priced.ok, false);
+      assert.equal(priced.error, 'incompatible_addon');
+    }
+    const pairs = [
+      ['rainx', 'ceramic_windshield'],
+      ['rainx', 'ceramic_glass_all'],
+      ['ceramic_windshield', 'ceramic_glass_all'],
+    ];
+    for (const pair of pairs) {
+      const rejected = validateAddonSet(vehicle('ceramic_1yr', 'small', pair.map((id) => ({ id }))));
+      assert.equal(rejected.error, 'ceramic_glass_mutually_exclusive');
+    }
+    const interiorOnly = computeVehicleSubtotal(vehicle('ceramic_1yr', 'small', [{ id: 'odor' }]), ZIP);
+    assert.equal(interiorOnly.error, 'interior_addon_requires_service');
+  });
+
+  it('removes wax, sealant, and clay from ceramic admin add-on options', () => {
+    const rows = [
+      { id: 'rainx', name: 'Rain-X Windshield Treatment' },
+      { id: 'wax1yr' },
+      { id: 'polymer' },
+      { id: 'claybar' },
+      { id: 'ceramic_lights' },
+    ];
+    const filtered = filterAddonsForCeramicAdmin(rows).map((row) => row.id);
+    assert.deepEqual(filtered, ['rainx', 'ceramic_lights']);
+    const admin = fs.readFileSync(path.join(__dirname, '../netlify/functions/admin-ops-jobs.js'), 'utf8');
+    assert.match(admin, /filterAddonsForCeramicAdmin/);
+  });
+
+  it('shows every reserved date for a multi-day ceramic and interior appointment', () => {
+    const planned = planCombinedAppointment(WEEKDAY, '8:00 AM', 600);
+    assert.equal(planned.multiDay, true);
+    assert.deepEqual(planned.days.map((day) => day.date), [WEEKDAY, '2026-10-06']);
+    assert.equal(planned.message, 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.');
+    assert.equal(planned.days[0].slots.length + planned.days[1].slots.length, 5);
   });
 });

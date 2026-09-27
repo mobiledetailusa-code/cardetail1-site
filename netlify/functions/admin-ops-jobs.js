@@ -466,6 +466,12 @@ function adminAddonCatalogForBooking(booking) {
     byCategory[cat] = serializeCategoryAddons(cat);
   }
   const primaryCategory = categories[0];
+  const { filterAddonsForCeramicAdmin, isCeramicPackage } = require('../lib/ceramic-coating');
+  if (vehicles.some((vehicle) => isCeramicPackage(vehicle.currentPackageId))) {
+    for (const cat of Object.keys(byCategory)) {
+      byCategory[cat] = filterAddonsForCeramicAdmin(byCategory[cat]);
+    }
+  }
   const bookingVersion = Math.round(Number(booking?.bookingVersion) || 0);
   const quoteVersion = Math.round(Number(booking?.quoteVersion || booking?.quote?.quoteVersion) || 0);
   return {

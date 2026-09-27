@@ -284,6 +284,31 @@ describe('keeping the index in sync', () => {
     assert.match(logged, /bookingRef/);
   });
 
+  it('rolls back every day when a multi-day continuation write fails', async () => {
+    const store = fakeIndexStore([]);
+    const original = store.setJSON.bind(store);
+    let attempts = 0;
+    store.setJSON = (key) => {
+      attempts += 1;
+      if (attempts === 2) return Promise.reject(new Error('continuation failed'));
+      return original(key);
+    };
+    setSlotIndexStoreOverride(store);
+    const result = await syncSlotIndex(submittedBooking({
+      preferredDate: '2026-10-05',
+      preferredTime: '8:00 AM',
+      appointmentSchedule: {
+        days: [
+          { date: '2026-10-05', slots: ['8:00 AM'] },
+          { date: '2026-10-06', slots: ['8:00 AM'] },
+        ],
+      },
+    }));
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'partial_reservation_rejected');
+    assert.deepEqual(store.keys(), []);
+  });
+
   it('rejects a record with no id instead of writing a bad key', async () => {
     const store = fakeIndexStore([]);
     setSlotIndexStoreOverride(store);

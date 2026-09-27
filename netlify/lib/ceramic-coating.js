@@ -259,9 +259,14 @@ const INTERIOR_ONLY_ADDON_IDS = Object.freeze([
   'babyseat',
   'stroller',
 ]);
-const EXTERIOR_PROTECTION_ADDON_IDS = Object.freeze(['wax1yr', 'polymer', 'rainx', 'claybar']);
+const EXTERIOR_PROTECTION_ADDON_IDS = Object.freeze(['wax1yr', 'polymer', 'claybar']);
 const GENERAL_ADDON_IDS = Object.freeze(['engine', 'engine_bay', 'undercarriage', 'heavymud']);
 const WATER_ADDON_ID = 'mobile_water';
+const WATER_REPELLENT_ID = 'rainx';
+const WATER_REPELLENT_NAME = 'Windshield Water-Repellent Treatment';
+const WATER_REPELLENT_DESCRIPTION = 'Hydrophobic windshield treatment that improves water beading and visibility. This is not a ceramic coating.';
+const WATER_REPELLENT_MINUTES = 15;
+const GLASS_PROTECTION_IDS = Object.freeze(['rainx', 'ceramic_windshield', 'ceramic_glass_all']);
 const SINGLE_SELECT_INTERIOR_IDS = Object.freeze(['pethair', 'odor']);
 
 const GLOBAL_PACKAGE_IDS = Object.freeze([
@@ -407,13 +412,37 @@ function priceAndMinutesForAddon(id, band) {
  * Resolve one add-on against the server catalog.
  * handled:false means the caller should keep the normal flat catalog price.
  */
+function waterRepellentOffer() {
+  const row = (catalogPricing().PRICING?.cars?.addons || []).find((addon) => addon.id === WATER_REPELLENT_ID);
+  const price = row ? Number(row.price) : NaN;
+  if (!(price > 0)) return null;
+  return {
+    id: WATER_REPELLENT_ID,
+    name: WATER_REPELLENT_NAME,
+    price,
+    minutes: WATER_REPELLENT_MINUTES,
+    description: WATER_REPELLENT_DESCRIPTION,
+    nonCeramic: true,
+  };
+}
+
+function filterAddonsForCeramicAdmin(rows) {
+  const blocked = exteriorProtectionSet();
+  return (Array.isArray(rows) ? rows : []).filter((row) => row && !blocked.has(row.id));
+}
+
 function resolveAddonPrice(id, vehicle) {
   const addonId = String(id || '').trim();
+  const pkgId = String(vehicle?.pkgId || vehicle?.packageId || '').trim();
+  const ceramic = isCeramicPackage(pkgId);
+  if (addonId === WATER_REPELLENT_ID && ceramic) {
+    const offer = waterRepellentOffer();
+    if (!offer) return { handled: true, ok: false, error: 'invalid_pricing', addonId };
+    return { handled: true, ok: true, ...offer };
+  }
   if (!isKnownCeramicCatalogAddon(addonId)) return { handled: false };
   const cat = String(vehicle?.cat || vehicle?.category || '').trim();
-  const pkgId = String(vehicle?.pkgId || vehicle?.packageId || '').trim();
   const tierKey = String(vehicle?.tierKey || vehicle?.tier || '').trim();
-  const ceramic = isCeramicPackage(pkgId);
 
   // Powersports and fleet already price Heavy Mud Removal. Do not replace those catalogs.
   if (addonId === 'heavymud' && cat !== 'cars') return { handled: false };
@@ -554,6 +583,7 @@ function validateAddonSet(vehicle) {
       if (protectionIds.has(id)) {
         return { ok: false, error: 'incompatible_addon', addonId: id };
       }
+      if (id === WATER_REPELLENT_ID) continue;
       if (interiorIds.has(id)) {
         if (!companion) {
           return {
@@ -582,11 +612,13 @@ function validateAddonSet(vehicle) {
       }
     }
   }
-  if (ids.includes('ceramic_windshield') && ids.includes('ceramic_glass_all')) {
+  const selectedGlass = GLASS_PROTECTION_IDS.filter((id) => ids.includes(id));
+  if (selectedGlass.length > 1) {
     return {
       ok: false,
       error: 'ceramic_glass_mutually_exclusive',
-      message: 'Choose windshield ceramic coating or all exterior glass ceramic coating, not both.',
+      addonIds: selectedGlass,
+      message: 'Choose one glass protection option. Windshield water-repellent treatment, windshield ceramic coating, and all exterior glass ceramic coating cannot be combined.',
     };
   }
   if (ids.includes(LEGACY_ENGINE_ADDON_ID) && ids.includes('engine_bay')) {
@@ -635,6 +667,11 @@ function durationForVehicle(vehicle) {
     const id = String(addon && addon.id || '').trim();
     if (!id) continue;
     const units = addonUnits(addon);
+    if (id === WATER_REPELLENT_ID) {
+      const offer = waterRepellentOffer();
+      if (offer) ceramicMinutes += offer.minutes * units;
+      continue;
+    }
     const priced = priceAndMinutesForAddon(id, band);
     if (priced) {
       ceramicMinutes += priced.minutes * units;
@@ -680,6 +717,7 @@ function buildVehicleServiceLines(vehicle, pkg, priced) {
     ...Object.keys(SIZE_ADDONS).filter((id) => SIZE_ADDONS[id].ceramicOnly),
     ...GENERAL_ADDON_IDS,
     LEGACY_ENGINE_ADDON_ID,
+    WATER_REPELLENT_ID,
   ]);
   const ceramicAddons = addonMoney(addons, ceramicAddonIds);
   const interiorAddons = addonMoney(addons, interiorAddonSet());
@@ -694,7 +732,7 @@ function buildVehicleServiceLines(vehicle, pkg, priced) {
     durationMinutes: duration.ceramicMinutes,
     inclusions: INCLUSIONS.slice(),
     addonIds: ceramicAddons.ids,
-    compatibleAddons: [...ceramicAddonIds, WATER_ADDON_ID],
+    compatibleAddons: [...ceramicAddonIds, WATER_ADDON_ID].filter((id) => !exteriorProtectionSet().has(id)),
     financialAllocationCents: centsFromDollars(priced.amount) + ceramicAddons.cents,
     completionStatus: ceramicCompletion.completionStatus,
     completedAt: ceramicCompletion.completedAt,
@@ -1237,6 +1275,10 @@ module.exports = {
   INTERIOR_SERVICE_NAME,
   INTERIOR_ONLY_ADDON_IDS,
   EXTERIOR_PROTECTION_ADDON_IDS,
+  WATER_REPELLENT_ID,
+  WATER_REPELLENT_NAME,
+  WATER_REPELLENT_DESCRIPTION,
+  GLASS_PROTECTION_IDS,
   SEQUENCING_NOTE,
   isCeramicPackage,
   packageDef,
@@ -1248,6 +1290,8 @@ module.exports = {
   isCeramicAddonId,
   isKnownCeramicCatalogAddon,
   resolveAddonPrice,
+  waterRepellentOffer,
+  filterAddonsForCeramicAdmin,
   validateAddonSet,
   companionInteriorSelected,
   resolveCompanionInterior,

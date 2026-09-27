@@ -214,7 +214,7 @@ async function loadSlotLockBookings() {
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } = {}) {
   const { getOperationalAvailability } = require('../lib/ops-config');
-  const { slotsForDate } = require('../lib/booking-schedule');
+  const { slotsForDate, nextOpenDay } = require('../lib/booking-schedule');
   const {
     normalizeArrivalWindow,
     resolveOperationalSlot,
@@ -350,6 +350,30 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     b.appointmentSchedule = null;
   }
   if (checkSlot && held.taken) {
+    if (bookingHasInteriorCompanion(b) && held.span && held.span.multiDay) {
+      let cursor = v.preferredDate;
+      let nextValidStart = null;
+      for (let i = 0; i < 21 && cursor; i += 1) {
+        const slots = slotsForDate(cursor, config);
+        const start = slots[0];
+        const sameFailedStart = cursor === v.preferredDate && start === v.preferredTime;
+        if (start && !sameFailedStart) {
+          const candidate = await spanTaken(cursor, start);
+          if (!candidate.taken && candidate.span && candidate.span.ok) {
+            nextValidStart = { date: cursor, time: start };
+            break;
+          }
+        }
+        const nxt = nextOpenDay(cursor, config);
+        cursor = nxt && nxt.iso;
+      }
+      return {
+        ok: false,
+        error: 'booking_slot_unavailable',
+        userMessage: 'That start cannot be reserved because every required service day must be open. Choose the next opening that can hold the full appointment.',
+        nextValidStart,
+      };
+    }
     return { ok: false, error: 'booking_slot_unavailable' };
   }
   return {
@@ -373,7 +397,7 @@ function scheduleStatus(error) {
 }
 
 function scheduleRejectResponse(status, error, meta = {}) {
-  const userMessage = error === 'booking_slot_unavailable'
+  const fallback = error === 'booking_slot_unavailable'
     ? 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.'
     : error === BOOKING_VERIFICATION_UNAVAILABLE
       ? 'We could not verify whether this time is still available. Nothing was booked. Please wait a moment and try again.'
@@ -392,6 +416,7 @@ function scheduleRejectResponse(status, error, meta = {}) {
                 : error === 'ceramic_duration_exceeds_day'
         ? (meta.userMessage || 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.')
         : 'Please choose an available date and time.';
+  const userMessage = meta.userMessage || fallback;
   console.log('[submit-booking] schedule rejected', {
     error,
     responseCode: status,
@@ -1030,7 +1055,15 @@ exports.handler = async (event) => {
     // Index-first for drafts: an entry with no record makes the slot look busy
     // (fail-closed) and expires on its own; a record with no entry would let a
     // second customer save a card against the same time.
-    await syncSlotIndex(draft, { previous: existing });
+    const indexed = await syncSlotIndex(draft, { previous: existing });
+    if (indexed && indexed.ok === false) {
+      return json(409, {
+        ok: false,
+        bookingCreated: false,
+        error: 'schedule_reservation_failed',
+        userMessage: 'Every required service day could not be reserved. Nothing was booked.',
+      });
+    }
     try {
       await store.setJSON(draftId, draft);
     } catch (e) {

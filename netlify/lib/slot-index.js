@@ -302,11 +302,18 @@ async function syncSlotIndex(booking, { previous = null } = {}) {
       ? scheduled.flatMap((day) => day.slots.map((slotTime) => ({ slotDate: day.date, slotTime })))
       : holdSlotTimes(booking, next).map((slotTime) => ({ slotDate: next.slotDate, slotTime }));
     let wrote = null;
-    for (const slot of writes) {
-      if (!slot.slotDate || !slot.slotTime) continue;
-      const key = slotIndexKey({ ...next, slotDate: slot.slotDate, slotTime: slot.slotTime, bookingId });
-      await store.setJSON(key, 1);
-      wrote = key;
+    try {
+      for (const slot of writes) {
+        if (!slot.slotDate || !slot.slotTime) continue;
+        const key = slotIndexKey({ ...next, slotDate: slot.slotDate, slotTime: slot.slotTime, bookingId });
+        await store.setJSON(key, 1);
+        wrote = key;
+      }
+    } catch (writeErr) {
+      try { await deleteBookingHolds(store, bookingId, booking); } catch { /* fail closed below */ }
+      const message = writeErr && writeErr.message ? writeErr.message : String(writeErr);
+      console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message, rolledBack: true });
+      return { ok: false, error: 'partial_reservation_rejected', message };
     }
     return { ok: true, wrote, wroteCount: writes.length };
   } catch (err) {

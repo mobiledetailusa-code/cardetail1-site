@@ -1368,7 +1368,30 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 .cred-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx);flex:1;min-width:170px}
 .cred-item b{color:var(--white)}
 /* ── BEFORE & AFTER ── */
-.ba-section{background:var(--bg1);padding:48px 20px 40px;border-top:1px solid rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.03)}
+.ba-section{background:var(--bg1);padding:28px 16px 32px;border-top:1px solid rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.03)}
+.ba-section.is-carousel{overflow:hidden}
+.ba-section.is-carousel .ba-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;margin-top:16px;scrollbar-width:none}
+.ba-section.is-carousel .ba-card{flex:0 0 100%;max-width:100%;min-width:0;scroll-snap-align:start}
+.ba-section.is-carousel .ba-card.is-more{display:none}
+.ba-section.is-carousel.is-expanded .ba-card.is-more{display:block}
+.ba-section.is-carousel .ba-caption{display:none}
+.ba-section.is-carousel .ba-compare,.ba-section.is-carousel .ba-showcase{aspect-ratio:4/3;overflow:hidden}
+.ba-section.is-carousel .ba-compare img,.ba-section.is-carousel .ba-showcase img{width:100%;height:100%;object-fit:cover}
+.ba-carousel-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;max-width:100%;flex-wrap:wrap}
+#ba-dots{display:flex;flex-wrap:wrap;justify-content:center;gap:0;max-width:160px}
+.ba-carousel-nav button,.ba-dot{min-height:48px;min-width:48px}
+.ba-dot{width:12px;min-width:48px;border:0;background:transparent;position:relative}
+.ba-dot::before{content:'';width:8px;height:8px;border-radius:50%;background:#94a3b8;display:block;margin:0 auto}
+.ba-dot[aria-current="true"]::before{background:#1d4ed8}
+#ba-more{display:block;margin:12px auto 0}
+@media(min-width:900px){
+  .ba-section.is-carousel .ba-card{flex-basis:calc(50% - 6px)}
+}
+.how-grid.how-grid--compact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:760px){
+  .how-grid.how-grid--compact{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:4px}
+  .how-grid.how-grid--compact .how-card{flex:0 0 78%;scroll-snap-align:start;padding:14px}
+}
 .ba-inner{max-width:1100px;margin:0 auto}
 .ba-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:20px;margin-top:28px;align-items:stretch}
 .ba-showcase-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08) 18%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.08) 82%,transparent);margin:44px 0 0}
@@ -2192,9 +2215,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
 
 <div class="car-addons-block">
-      <div class="car-addons-title">Add-ons</div>
-      <div class="car-addons-sub">Wax, clay bar, engine bay, pet hair, odor, headlights, and more — add when you book.</div>
-      <div class="car-addon-chips" id="home-addon-chips"></div>
+      <p class="car-addons-sub">Compatible add-ons are shown during booking.</p>
+      <button type="button" class="btn-outline" onclick="openBooking(null)">Check price and options</button>
     </div>
 
     <div class="car-services-cta">
@@ -2211,7 +2233,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="ba-inner">
     <div class="sec-eye">Before &amp; after</div>
     <h2 class="sec-title" id="ba-heading">Before &amp; after mobile detailing in Bergen County</h2>
-    <div class="sec-desc">Drag to compare — actual customer vehicles detailed on-site.</div>
+    <div class="sec-desc">Recent work from the route.</div>
 
     <div class="ba-grid">
 
@@ -2549,30 +2571,23 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="sec-eye">How it works</div>
     <div class="sec-title">Book in a few quick steps</div>
-    <div class="sec-desc">Request your appointment in a few quick steps — Category, Package, Vehicle, Info, then Review &amp; Submit. After we receive it, you will see Request Sent. We review it first, then contact you about confirmation. If you opted in for SMS, updates may be sent by text. No card or payment method is required to submit.</div>
-    <div class="how-grid">
-      <div class="how-card how-card--photo how-card--book">
+    <div class="how-grid how-grid--compact">
+      <div class="how-card">
         <div class="how-card-copy">
-        <div class="how-title">Book online</div>
-        <div class="how-desc">Pick your package, vehicle, and preferred date.</div>
+        <div class="how-title">Choose your service</div>
+        <div class="how-desc">Pick the package that fits the vehicle.</div>
         </div>
       </div>
-      <div class="how-card how-card--photo how-card--request">
+      <div class="how-card">
         <div class="how-card-copy">
-        <div class="how-title">Send your request</div>
-        <div class="how-desc">No payment is required to submit your request. We review it first, then contact you about confirmation. If you opted in for SMS, updates may be sent by text. Payment is handled later when applicable.</div>
+        <div class="how-title">Select your vehicle and time</div>
+        <div class="how-desc">Tell us the vehicle and an open time.</div>
         </div>
       </div>
-      <div class="how-card how-card--photo how-card--arrive">
+      <div class="how-card">
         <div class="how-card-copy">
-        <div class="how-title">We come to you</div>
-        <div class="how-desc">We arrive at your driveway, home, or office with our own equipment.</div>
-        </div>
-      </div>
-      <div class="how-card how-card--photo how-card--inspect">
-        <div class="how-card-copy">
-        <div class="how-title">Inspect &amp; pay after</div>
-        <div class="how-desc">Walk the vehicle with your tech — final payment after the detail (cash, card on-site, or approved online).</div>
+        <div class="how-title">Confirm and pay</div>
+        <div class="how-desc">Review the total, then confirm payment.</div>
         </div>
       </div>
     </div>
@@ -8941,12 +8956,83 @@ function _updateHomeFromPrices(){
   if(fullNote) fullNote.textContent=`From ${fmtFull(tiers.small.full)} · priced by vehicle type`;
 }
 
-const HOME_ADDON_IDS=['pethair','odor','engine','headlight','claybar','rainx','wax1yr'];
-function renderHomeAddons(){
-  const wrap=document.getElementById('home-addon-chips');
-  if(!wrap) return;
-  const addons=(PRICING.cars.addons||[]).filter(a=>HOME_ADDON_IDS.includes(a.id));
-  wrap.innerHTML=addons.map(a=>`<button type="button" class="car-addon-chip" onclick="openBooking(null)">${a.name} <b>+$${a.price}</b></button>`).join('');
+function renderHomeAddons(){}
+
+function initHomeWorkCarousel(){
+  const section=document.getElementById('before-after');
+  const grid=section&&section.querySelector('.ba-grid');
+  if(!section||!grid||grid.dataset.carousel==='1') return;
+  grid.dataset.carousel='1';
+  section.classList.add('is-carousel');
+  const cards=[...grid.querySelectorAll('.ba-card')];
+  cards.forEach((card,i)=>{ if(i>=6) card.classList.add('is-more'); });
+  cards.forEach(card=>{
+    card.querySelectorAll('img').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
+  });
+  const nav=document.createElement('div');
+  nav.className='ba-carousel-nav';
+  nav.innerHTML='<button type="button" id="ba-prev" aria-label="Previous">‹</button><div id="ba-dots" role="tablist" aria-label="Work gallery position"></div><button type="button" id="ba-next" aria-label="Next">›</button>';
+  grid.insertAdjacentElement('afterend', nav);
+  let moreBtn=null;
+  if(cards.length>6){
+    moreBtn=document.createElement('button');
+    moreBtn.type='button';
+    moreBtn.id='ba-more';
+    moreBtn.className='btn-outline';
+    moreBtn.textContent='View more work';
+    nav.insertAdjacentElement('afterend', moreBtn);
+    moreBtn.addEventListener('click', ()=>{
+      section.classList.add('is-expanded');
+      moreBtn.hidden=true;
+      renderDots();
+    });
+  }
+  const dots=nav.querySelector('#ba-dots');
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let timer=null;
+  let paused=reduce;
+  function pageSize(){ return window.innerWidth>=900?2:1; }
+  function renderDots(){
+    const shown=cards.filter(card=>!card.classList.contains('is-more')||section.classList.contains('is-expanded'));
+    const pages=Math.max(1, Math.ceil(shown.length/pageSize()));
+    dots.innerHTML='';
+    for(let i=0;i<pages;i++){
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='ba-dot';
+      b.setAttribute('aria-label','Show work '+(i+1));
+      b.addEventListener('click', ()=>{ pause(); go(i); });
+      dots.appendChild(b);
+    }
+    markDot();
+  }
+  function currentPage(){
+    const w=grid.clientWidth||1;
+    return Math.round(grid.scrollLeft/w);
+  }
+  function markDot(){
+    const page=currentPage();
+    [...dots.children].forEach((dot,i)=>dot.setAttribute('aria-current', i===page?'true':'false'));
+  }
+  function go(page){
+    const w=grid.clientWidth||0;
+    grid.scrollTo({ left: page*w, behavior: reduce?'auto':'smooth' });
+  }
+  function pause(){ paused=true; if(timer){ clearInterval(timer); timer=null; } }
+  nav.querySelector('#ba-prev').addEventListener('click', ()=>{ pause(); go(Math.max(0, currentPage()-1)); });
+  nav.querySelector('#ba-next').addEventListener('click', ()=>{ pause(); go(currentPage()+1); });
+  grid.addEventListener('scroll', markDot, { passive:true });
+  grid.addEventListener('pointerdown', pause);
+  grid.addEventListener('touchstart', pause, { passive:true });
+  renderDots();
+  window.addEventListener('resize', renderDots);
+  if(!reduce){
+    timer=setInterval(()=>{
+      if(paused) return;
+      const pages=dots.children.length||1;
+      go((currentPage()+1)%pages);
+    }, 8000);
+  }
 }
 
 (function initTrustSeasonIcon(){
@@ -9042,6 +9128,7 @@ function osPreviewRequested(){
 }
 function osRunBookingPricingInit(){
   renderHomeAddons();
+  initHomeWorkCarousel();
   _updateHomeFromPrices();
   updateBkFromPrices();
   try{ if(typeof initCarPkgDetailModal==='function') initCarPkgDetailModal(); }catch(e){}

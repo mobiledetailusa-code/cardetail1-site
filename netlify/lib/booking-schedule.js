@@ -106,7 +106,7 @@ function spannedSlotTimes(dateIso, startTime, durationMinutes, config) {
   return { ok: false, error: 'ceramic_duration_exceeds_day', slots: [] };
 }
 
-const EXTENDED_APPOINTMENT_MESSAGE = 'This combined service may require an extended appointment. The duration is not shortened, and a late same-day start is not available. Choose the first opening of a full day.';
+const EXTENDED_APPOINTMENT_MESSAGE = 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.';
 
 function nextOpenDay(dateIso, config) {
   const parts = availability.isoDateParts(dateIso);
@@ -299,6 +299,7 @@ module.exports = {
   getHolidaySet,
   isClosedHoliday,
   slotsForDate,
+  nextOpenDay,
   normalizePreferredTime,
   validateBookingSchedule,
   isActiveBookingForSlotLock,
