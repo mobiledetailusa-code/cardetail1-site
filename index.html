@@ -723,21 +723,6 @@ body.rv-overlay-lock{overflow:hidden}
 .svc-btn{width:100%;padding:12px;border-radius:999px;border:1px solid var(--bbr);background:transparent;color:var(--blue);font-family:var(--fb);font-size:13px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:.2s}
 .svc-btn:hover{background:var(--blue);color:var(--white);border-color:var(--blue)}
 
-/* ── HOW IT WORKS ── */
-.how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;counter-reset:how}
-.how-card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);padding:24px 20px;position:relative;counter-increment:how;box-shadow:var(--shadow-sm)}
-.how-title{font-size:16px;font-weight:600;color:var(--ink);margin-bottom:6px}
-.how-card::before{content:counter(how);font-family:var(--fb);font-size:13px;font-weight:700;color:var(--blue);opacity:.7;position:absolute;top:14px;right:14px;line-height:1;letter-spacing:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;background:var(--bdim);border-radius:50%}
-.how-ico{font-size:32px;margin-bottom:14px}
-.how-desc{font-size:13px;color:var(--ink-soft);line-height:1.55}
-
-/* ── TRUST BADGES ── */
-.trust-row{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg1);box-shadow:var(--shadow-sm)}
-.trust-item{flex:1;min-width:160px;padding:24px 18px;text-align:center;border-right:1px solid var(--line)}
-.trust-item:last-child{border-right:none}
-.trust-ico{font-size:28px;margin-bottom:8px}
-.trust-val{font-family:var(--fb);font-size:17px;font-weight:600;color:var(--ink);letter-spacing:0}
-.trust-lbl{font-size:12px;color:var(--mu);letter-spacing:.01em;text-transform:none}
 /* ── BACK TO TOP ── */
 #btt{position:fixed;bottom:90px;right:18px;width:44px;height:44px;border-radius:50%;border:1px solid var(--line-strong);background:var(--bg1);color:var(--blue);font-size:20px;cursor:pointer;z-index:985;display:none;align-items:center;justify-content:center;transition:opacity .25s,transform .25s,background .2s;box-shadow:var(--shadow-md)}
 #btt.btt-on{display:flex}
@@ -1392,11 +1377,6 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 @media(min-width:900px){
   .ba-section.is-carousel .ba-card{flex-basis:calc(50% - 6px)}
 }
-.how-grid.how-grid--compact{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media(max-width:760px){
-  .how-grid.how-grid--compact{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:10px;padding-bottom:4px}
-  .how-grid.how-grid--compact .how-card{flex:0 0 78%;scroll-snap-align:start;padding:14px}
-}
 .ba-inner{max-width:1100px;margin:0 auto}
 .ba-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:20px;margin-top:28px;align-items:stretch}
 .ba-showcase-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08) 18%,rgba(255,255,255,.12) 50%,rgba(255,255,255,.08) 82%,transparent);margin:44px 0 0}
@@ -1526,16 +1506,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .act-card{width:230px;padding:16px}
   .activity-track{gap:12px}
 
-  /* ── HOW IT WORKS ── */
-  .how-grid{grid-template-columns:1fr 1fr;gap:12px}
-  .how-card{padding:18px 14px}
-
-  /* ── TRUST BADGES ── */
-  .trust-row{flex-wrap:wrap}
-  .trust-item{min-width:50%;flex:0 0 50%;border-bottom:1px solid rgba(255,255,255,.06)}
-  .trust-item:nth-child(even){border-right:none}
-  .trust-val{font-size:22px}
-
   /* ── SECTION ── */
   .section{padding:56px 16px}
   .sec-title{font-size:clamp(28px,8vw,44px)}
@@ -1641,8 +1611,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hero h1{font-size:clamp(26px,7.2vw,32px)}
   .hero-zip-input{font-size:20px!important;letter-spacing:.12em}
   #bk-cat-grid{grid-template-columns:1fr 1fr}
-  .how-grid{grid-template-columns:1fr}
-  .trust-item{min-width:100%;flex:0 0 100%;border-right:none}
   .act-card{width:210px}
   .date-grid,.time-grid{grid-template-columns:repeat(2,1fr)}
 }
@@ -1785,7 +1753,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .hero-zip-wrap{margin-bottom:0}
 #services{content-visibility:auto;contain-intrinsic-size:900px;scroll-margin-top:76px}
 @media(max-width:640px){#services{scroll-margin-top:68px}}
-.section-full,.results-section,.ba-section,#how{content-visibility:auto;contain-intrinsic-size:900px}
+.section-full,.results-section,.ba-section{content-visibility:auto;contain-intrinsic-size:900px}
 #reviews{content-visibility:auto;contain-intrinsic-size:760px;scroll-margin-top:76px}
 .rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
 .rw-img.rw-loaded{animation:none;background:none}
@@ -1994,14 +1962,27 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .luxury-surface .cd1-tone-base+.cd1-tone-raised{background:linear-gradient(180deg,var(--cd1-surface-base) 0,var(--cd1-surface-raised) 40px,var(--cd1-surface-raised) 100%)!important}
 .luxury-surface .cd1-tone-base+.cd1-tone-media{background:linear-gradient(180deg,var(--cd1-surface-base) 0,var(--cd1-surface-media) 40px,var(--cd1-surface-media) 100%)!important}
 .luxury-surface #services.cd1-tone-raised,
-.luxury-surface #how.cd1-tone-raised,
 .luxury-surface #faq.cd1-tone-raised{background:linear-gradient(180deg,var(--cd1-surface-base) 0,var(--cd1-surface-raised) 40px,var(--cd1-surface-raised) 100%)!important}
 .luxury-surface #reviews.cd1-tone-base{background:var(--cd1-surface-base)!important}
 .luxury-surface .results-section{
-  background:linear-gradient(180deg,var(--cd1-surface-raised) 0,var(--cd1-surface-base) 40px,var(--cd1-surface-base) 100%)!important;
-  padding-top:var(--section-pad-desktop);
+  background:var(--cd1-surface-base)!important;
+  padding-top:32px;
   padding-bottom:var(--section-pad-desktop);
   border:none!important;
+}
+.luxury-surface .cd1-sameday{padding-bottom:32px}
+.luxury-surface .results-section .cred-row{
+  margin-top:20px;
+  padding:0;
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+  gap:8px 22px;
+  align-items:center;
+}
+.luxury-surface .results-section .cred-item{
+  flex:1 1 240px;
+  min-width:min(100%,220px);
 }
 .luxury-surface .home-service-areas{
   background:linear-gradient(180deg,var(--cd1-surface-raised) 0,var(--cd1-surface-base) 40px,var(--cd1-surface-base) 100%)!important;
@@ -2027,7 +2008,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .luxury-surface .cd1-tone-raised,
   .luxury-surface .cd1-tone-media{padding-top:var(--section-pad-mobile);padding-bottom:var(--section-pad-mobile)}
   .luxury-surface .cd1-sameday{padding-left:16px;padding-right:16px}
-  .luxury-surface .results-section,
+  .luxury-surface .cd1-sameday{padding-bottom:24px}
+  .luxury-surface .results-section{padding-top:24px;padding-bottom:var(--section-pad-mobile)}
   .luxury-surface .home-service-areas{padding-top:var(--section-pad-mobile);padding-bottom:var(--section-pad-mobile)}
   .luxury-surface .home-service-areas{padding-left:0;padding-right:0}
   .luxury-surface #services>.section,
@@ -2330,8 +2312,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="ba-inner">
     <div class="cd1-head">
     <div class="sec-eye">Before &amp; after</div>
-    <h2 class="sec-title" id="ba-heading">Before &amp; after mobile detailing in Bergen County</h2>
-    <div class="sec-desc">Recent work from the route.</div>
+    <h2 class="sec-title" id="ba-heading">Before &amp; after mobile detailing near you</h2>
+    <div class="sec-desc">Recent results from customer driveways and offices.</div>
     </div>
 
     <div class="ba-grid">
@@ -2665,36 +2647,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </section>
 
-<!-- HOW IT WORKS -->
-<div id="how" class="cd1-tone-raised">
-  <div class="section">
-    <div class="cd1-head">
-    <div class="sec-eye">How it works</div>
-    <div class="sec-title">Book in a few quick steps</div>
-    </div>
-    <div class="how-grid how-grid--compact">
-      <div class="how-card">
-        <div class="how-card-copy">
-        <div class="how-title">Choose your service</div>
-        <div class="how-desc">Pick the package that fits the vehicle.</div>
-        </div>
-      </div>
-      <div class="how-card">
-        <div class="how-card-copy">
-        <div class="how-title">Select your vehicle and time</div>
-        <div class="how-desc">Tell us the vehicle and an open time.</div>
-        </div>
-      </div>
-      <div class="how-card">
-        <div class="how-card-copy">
-        <div class="how-title">Confirm and pay</div>
-        <div class="how-desc">Review the total, then confirm payment.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- REAL RESULTS -->
 <div class="results-section">
   <div class="results-inner">
@@ -2720,25 +2672,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     <div class="cred-row">
       <div class="cred-item"><span>🚐</span><span><b>Mobile service</b> — we come to you</span></div>
       <div class="cred-item"><span>📋</span><span><b>Clear packages</b> — know what you're booking</span></div>
-      <div class="cred-item"><span>📍</span><span><b>Bergen County</b> &amp; nearby NJ/NY</span></div>
-      <div class="cred-item"><span>✓</span><span><b>No charge today</b> — request first, pay later</span></div>
+      <div class="cred-item"><span>🔒</span><span><b>Secure checkout</b> — payment terms shown before confirmation</span></div>
     </div>
     <div class="results-cta">
       <button class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
       <button class="btn-outline" onclick="openBooking(null)">View all packages</button>
-    </div>
-  </div>
-</div>
-
-<!-- TRUST -->
-<div class="section-full cd1-tone-base">
-  <div class="section">
-    <div class="trust-row">
-      <div class="trust-item"><div class="trust-ico">🚐</div><div class="trust-val">Mobile</div><div class="trust-lbl">We come to you</div></div>
-      <div class="trust-item"><div class="trust-ico">📍</div><div class="trust-val">Local</div><div class="trust-lbl">Bergen &amp; nearby NJ/NY</div></div>
-      <div class="trust-item"><div class="trust-ico">✓</div><div class="trust-val">No charge today</div><div class="trust-lbl">Request first, pay later</div></div>
-      <div class="trust-item"><div class="trust-ico">📋</div><div class="trust-val">Clear pricing</div><div class="trust-lbl">By package &amp; size</div></div>
-      <div class="trust-item"><div class="trust-ico">⚡</div><div class="trust-val">Same-day</div><div class="trust-lbl">When slots remain</div></div>
     </div>
   </div>
 </div>
@@ -2768,15 +2706,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
       <a class="btn-outline" href="my-garage.html#lookup">Leave a Cardetail1 review</a>
       <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
-    </div>
-    <div class="cred-row" style="margin-top:20px">
-      <div class="cred-item"><span>🚐</span><span>Mobile car detailing</span></div>
-      <div class="cred-item"><span>📍</span><span>Palisades Park · Bergen County</span></div>
-      <div class="cred-item"><span>📋</span><span>Transparent packages</span></div>
-      <div class="cred-item"><span>✓</span><span>Booking reviewed before confirmation</span></div>
-    </div>
-    <div style="text-align:center;margin-top:14px">
-      <span style="font-size:12px;color:var(--mu)">Based in Palisades Park, NJ · Serving Bergen County and nearby NJ/NY areas</span>
     </div>
   </div>
 </div>
@@ -9687,7 +9616,6 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 <script src="assets/booking-address-suggest.js"></script>
 <script src="assets/booking-availability-client.js"></script>
 
-  <script src="assets/welcome-lead-balloon.js" defer></script>
   <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

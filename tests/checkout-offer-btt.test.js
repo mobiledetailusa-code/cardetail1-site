@@ -39,9 +39,9 @@ describe('six-step checkout', () => {
     assert.match(html, /id="bpt6"[\s\S]*Confirm/);
   });
 
-  it('public copy says Book in a few quick steps', () => {
+  it('homepage marketing copy does not hardcode a step count', () => {
     const html = read('index.html');
-    assert.match(html, /Book in a few quick steps/i);
+    assert.doesNotMatch(html, /Book in a few quick steps/i);
     assert.doesNotMatch(html, /Book in six steps/i);
     assert.doesNotMatch(html, /Book in five steps/i);
   });

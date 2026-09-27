@@ -324,16 +324,14 @@ describe('home page compression', () => {
   const html = read('index.html');
   const css = html;
 
-  it('replaces the priced add-on strip and compacts how it works', () => {
+  it('replaces the priced add-on strip and drops the homepage how-it-works section', () => {
     assert.match(html, /Compatible add-ons are shown during booking\./);
     assert.match(html, /Check price and options/);
     assert.equal(html.includes('id="home-addon-chips"'), false);
     assert.equal(html.includes('HOME_ADDON_IDS'), false);
-    assert.match(html, /Choose your service/);
-    assert.match(html, /Select your vehicle and time/);
-    assert.match(html, /Confirm and pay/);
+    assert.equal(html.includes('id="how"'), false);
+    assert.equal(html.includes('how-grid--compact'), false);
     assert.equal(html.includes('Inspect &amp; pay after'), false);
-    assert.match(html, /how-grid--compact/);
   });
 
   it('builds one work carousel instead of a vertical gallery dump', () => {
