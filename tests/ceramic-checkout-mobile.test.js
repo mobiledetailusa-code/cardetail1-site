@@ -354,3 +354,214 @@ describe('home page compression', () => {
     assert.match(script, /cd1-sticky-pad/);
   });
 });
+
+function productionCarsCatalog() {
+  const html = read('index.html');
+  const carsStart = html.indexOf('\n  cars: {');
+  const trucksStart = html.indexOf('\n  trucks: {', carsStart);
+  assert.ok(carsStart > 0 && trucksStart > carsStart);
+  const cars = html.slice(carsStart, trucksStart);
+  const suv3 = cars.match(/suv3:\s*\{[^}]+\}/);
+  assert.ok(suv3);
+  const tier = {
+    interior: Number(suv3[0].match(/interior:(\d+)/)[1]),
+    ceramic_1yr: Number(suv3[0].match(/ceramic_1yr:(\d+)/)[1]),
+  };
+  const addonStart = cars.indexOf('addons:[');
+  assert.ok(addonStart > 0);
+  const addons = [];
+  const re = /\{id:'([^']+)'[\s\S]*?name:'([^']*)'[\s\S]*?price:(\d+)/g;
+  re.lastIndex = addonStart;
+  let match;
+  while ((match = re.exec(cars))) {
+    addons.push({ id: match[1], name: match[2], price: Number(match[3]), desc: '' });
+  }
+  return { tier, addons };
+}
+
+function clickControl(ctx, value) {
+  const input = checkout(ctx).querySelector(`input[value="${value}"]`);
+  assert.ok(input, `missing control ${value}`);
+  input.checked = true;
+  input.dispatch('change', {});
+}
+
+function visible(ctx) {
+  return textOf(checkout(ctx)).replace(/\s+/g, ' ');
+}
+
+describe('MDX ceramic checkout rerenders from the production catalog', () => {
+  const catalog = productionCarsCatalog();
+  const rawIds = ['ceramic_windshield', 'ceramic_glass_all', 'ceramic_wheels', 'ceramic_trim', 'ceramic_lights'];
+
+  it('reads the deployed cars catalog instead of a second price list', () => {
+    assert.equal(catalog.tier.ceramic_1yr, 825);
+    assert.equal(catalog.tier.interior, 255);
+    assert.equal(catalog.addons.find((row) => row.id === 'rainx').price, 25);
+    assert.equal(catalog.addons.find((row) => row.id === 'pethair').price, 95);
+    assert.equal(catalog.addons.find((row) => row.id === 'odor').price, 90);
+    assert.equal(catalog.addons.find((row) => row.id === 'ceramic_windshield').price, 100);
+    const script = read('assets/ceramic-booking.js');
+    assert.equal(script.includes('eval('), false);
+    assert.match(read('index.html'), /window\.PRICING = PRICING/);
+    assert.match(read('index.html'), /window\.ST = ST/);
+  });
+
+  it('keeps labels and totals after every click, rerender, and saved session', () => {
+    const ctx = createPage();
+    ctx.PRICING = { cars: { tiers: { suv3: catalog.tier }, addons: catalog.addons } };
+    ctx.ST.tierKey = 'suv3';
+    ctx.ST.basePrice = catalog.tier.ceramic_1yr;
+    ctx.ST.vehicleLabel = '2016 Acura MDX';
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+
+    let text = visible(ctx);
+    assert.match(text, /Windshield Water-Repellent Treatment/);
+    assert.match(text, /\$25/);
+    assert.match(text, /This is not a ceramic coating/);
+    assert.match(text, /Windshield Ceramic Coating/);
+    assert.match(text, /All Exterior Glass Ceramic Coating/);
+    assert.match(text, /Wheel Face Ceramic Coating/);
+    assert.match(text, /Exterior Plastic Trim Ceramic Coating/);
+    assert.match(text, /Headlights & Taillights Ceramic Coating/);
+    assert.match(text, /\$255 · approximately 2 hours/);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$825.00');
+    rawIds.forEach((id) => assert.equal(text.includes(id), false, id));
+    assert.equal(/\$0(?:\.00)?\b/.test(text), false);
+
+    clickControl(ctx, 'rainx');
+    text = visible(ctx);
+    assert.match(text, /Windshield Water-Repellent Treatment/);
+    assert.match(text, /\$25/);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'rainx').price, 25);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$850.00');
+    rawIds.forEach((id) => assert.equal(text.includes(id), false, id));
+    assert.equal(/\$0(?:\.00)?\b/.test(text), false);
+
+    clickControl(ctx, 'none');
+    assert.equal(ctx.ST.addons.some((addon) => addon.id === 'rainx'), false);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$825.00');
+
+    clickControl(ctx, 'interior');
+    text = visible(ctx);
+    assert.match(text, /\$255 · approximately 2 hours/);
+    assert.match(text, /Pet Hair Removal/);
+    assert.match(text, /\$95/);
+    assert.match(text, /Odor Treatment/);
+    assert.match(text, /\$90/);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$1080.00');
+    assert.equal(ctx.CD1CeramicBooking.appointmentMinutes(), 480 + 120);
+
+    clickControl(ctx, 'rainx');
+    text = visible(ctx);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$1105.00');
+    assert.match(ctx.document.getElementById('ceramic-sticky-dur').textContent, /10 hr 15 min/);
+    assert.equal(ctx.CD1CeramicBooking.appointmentMinutes(), 480 + 15 + 120);
+    assert.match(text, /\$25/);
+    assert.match(text, /\$255 · approximately 2 hours/);
+
+    clickControl(ctx, 'pethair');
+    clickControl(ctx, 'odor');
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    text = visible(ctx);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'pethair').price, 95);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'odor').price, 90);
+    assert.match(text, /\$95/);
+    assert.match(text, /\$90/);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$1290.00');
+
+    clickControl(ctx, 'ceramic_windshield');
+    const glassIds = Array.from(ctx.ST.addons, (addon) => String(addon.id))
+      .filter((id) => id === 'rainx' || id === 'ceramic_windshield' || id === 'ceramic_glass_all');
+    assert.deepEqual(glassIds, ['ceramic_windshield']);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_windshield').price, 100);
+    text = visible(ctx);
+    assert.match(text, /Windshield Ceramic Coating/);
+    assert.equal(text.includes('ceramic_windshield'), false);
+
+    const interior = checkout(ctx).querySelector('input[value="interior"]');
+    interior.checked = false;
+    interior.dispatch('change', {});
+    text = visible(ctx);
+    assert.equal(ctx.ST.companionInterior, false);
+    assert.equal(ctx.ST.addons.some((addon) => addon.id === 'pethair' || addon.id === 'odor'), false);
+    assert.equal(text.includes('Pet Hair Removal'), false);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$925.00');
+
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_windshield').price, 100);
+    assert.match(visible(ctx), /Windshield Ceramic Coating/);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$925.00');
+
+    ctx.ST.addons = [{ id: 'rainx', name: 'rainx', price: 0 }];
+    ctx.ST.companionInterior = false;
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    text = visible(ctx);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'rainx').name, 'Windshield Water-Repellent Treatment');
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'rainx').price, 25);
+    assert.match(text, /Windshield Water-Repellent Treatment/);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$850.00');
+    assert.equal(/\$0(?:\.00)?\b/.test(text), false);
+
+    clickControl(ctx, 'ceramic_windshield');
+    clickControl(ctx, 'ceramic_glass_all');
+    text = visible(ctx);
+    const glassAfterSwitch = Array.from(ctx.ST.addons, (addon) => String(addon.id))
+      .filter((id) => id === 'rainx' || id === 'ceramic_windshield' || id === 'ceramic_glass_all');
+    assert.deepEqual(glassAfterSwitch, ['ceramic_glass_all']);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_glass_all').price, 175);
+    assert.match(text, /All Exterior Glass Ceramic Coating/);
+    assert.match(text, /\$175/);
+    assert.equal(text.includes('ceramic_glass_all'), false);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$1000.00');
+
+    const more = ctx.document.getElementById('ceramic-more');
+    assert.equal(more.tag, 'details');
+    more.open = true;
+    clickControl(ctx, 'ceramic_waterspot');
+    text = visible(ctx);
+    assert.match(text, /Water Spot Removal/);
+    assert.match(text, /\$225/);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_waterspot').price, 225);
+    assert.equal(text.includes('ceramic_waterspot'), false);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$1225.00');
+
+    const savedVehicle = {
+      pkgId: 'ceramic_1yr',
+      addons: ctx.ST.addons.map((addon) => ({ id: addon.id, name: addon.id, price: 0 })),
+      subtotal: 825,
+    };
+    ctx.ST.addons = [];
+    ctx.ST.companionInterior = false;
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$825.00');
+    ctx.ST.addons = savedVehicle.addons;
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    text = visible(ctx);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_glass_all').name, 'All Exterior Glass Ceramic Coating');
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_glass_all').price, 175);
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_waterspot').name, 'Water Spot Removal');
+    assert.equal(ctx.ST.addons.find((addon) => addon.id === 'ceramic_waterspot').price, 225);
+    assert.match(text, /All Exterior Glass Ceramic Coating/);
+    assert.match(text, /Water Spot Removal/);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-total').textContent, '$1225.00');
+    rawIds.forEach((id) => assert.equal(text.includes(id), false, id));
+    assert.equal(/\$0(?:\.00)?\b/.test(text), false);
+  });
+
+  it('fails closed when an add-on cannot resolve canonical metadata', () => {
+    const ctx = createPage();
+    ctx.PRICING = { cars: { tiers: { suv3: { interior: 255, ceramic_1yr: 825 } }, addons: [] } };
+    ctx.ST.tierKey = 'suv3';
+    ctx.ST.basePrice = 825;
+    ctx.ST.addons = [{ id: 'ceramic_windshield', name: 'ceramic_windshield', price: 0 }];
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    const text = visible(ctx);
+    assert.equal(ctx.ST.addons.some((addon) => addon.id === 'ceramic_windshield'), false);
+    rawIds.forEach((id) => assert.equal(text.includes(id), false, id));
+    assert.equal(/\$0(?:\.00)?\b/.test(text), false);
+    assert.match(text, /prices could not be confirmed/);
+    assert.equal(ctx.document.getElementById('next3').disabled, true);
+    assert.equal(ctx.document.getElementById('ceramic-sticky-continue').disabled, true);
+  });
+});

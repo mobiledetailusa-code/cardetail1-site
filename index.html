@@ -4165,6 +4165,7 @@ let PRICING = {
   }
 
 };
+window.PRICING = PRICING;
 
 
 // ── LENGTH PRICING FOR BOATS / RVs / TRAVEL TRAILERS ─────────────────────────
@@ -5099,6 +5100,7 @@ let ST = {cat:'',pkgId:'',pkg:null,tierKey:'',tier:null,vehicleLabel:'',basePric
   cardSetupConfirmed:false,
   cardOnFileSaved:false
 };
+window.ST = ST;
 // (Stripe payment state declared in the STEP 6 section below)
 
 // ── NAV HELPERS ────────────────────────────────────────────────────────────────
@@ -9194,6 +9196,7 @@ async function osBootstrapPreview(){
     adapted=window.StorefrontPreviewAdapter.adaptStorefrontPreview(data);
   }catch(e){ return osPreviewFail(); }
   PRICING=osApplyPreviewShell(adapted.PRICING);
+  window.PRICING = PRICING;
   LENGTH_PRICING=adapted.LENGTH_PRICING||{};
   var ver=(adapted.meta && adapted.meta.draftVersion!=null) ? (' · draft v'+adapted.meta.draftVersion) : '';
   var when=(adapted.meta && adapted.meta.savedAt) ? (' · saved '+String(adapted.meta.savedAt).slice(0,19).replace('T',' ')) : '';

@@ -61,6 +61,12 @@
     description: 'Hydrophobic windshield treatment that improves water beading and visibility. This is not a ceramic coating.',
     minutes: 15
   };
+  var INTERIOR_SERVICE_MINUTES = 120;
+  var CATALOG_ERROR = 'Some options are unavailable because their prices could not be confirmed.';
+  var addonCatalog = null;
+  var addonCatalogSource = null;
+  var unresolvedIds = [];
+  var catalogBlocked = false;
   var EXTENDED_APPOINTMENT_MESSAGE = 'Extended appointment: this service requires multiple service days. All dates will be reserved before payment.';
   var ADDON_MINUTES = {
     rainx: 15,
@@ -132,21 +138,124 @@
     return true;
   }
 
+  function syncLiveState() {
+    var lexical = null;
+    try {
+      if (typeof ST !== 'undefined' && ST) lexical = ST;
+    } catch (err) { lexical = null; }
+    if (lexical && global.ST !== lexical) global.ST = lexical;
+    return global.ST || lexical;
+  }
+
   function pageValue(name) {
-    if (global[name] != null) return global[name];
-    try { return (0, eval)(name); } catch (err) { return null; }
+    if (name === 'ST') return syncLiveState();
+    if (name === 'PRICING') {
+      var pricing = null;
+      try {
+        if (typeof PRICING !== 'undefined' && PRICING) pricing = PRICING;
+      } catch (err) { pricing = null; }
+      if (pricing && global.PRICING !== pricing) {
+        try { global.PRICING = pricing; } catch (err2) { /* published catalog is optional */ }
+      }
+      return pricing || global.PRICING || null;
+    }
+    return global[name] == null ? null : global[name];
+  }
+
+  function interiorOffer() {
+    var pricing = pageValue('PRICING');
+    var state = syncLiveState();
+    var tier = pricing && pricing.cars && state && pricing.cars.tiers[state.tierKey];
+    var price = tier ? Number(tier.interior) : NaN;
+    if (!(price > 0)) {
+      noteUnresolved('interior');
+      return null;
+    }
+    return {
+      id: 'interior',
+      name: 'Complete Interior Detail',
+      price: price,
+      minutes: INTERIOR_SERVICE_MINUTES,
+      description: 'Deep interior cleaning added to the same vehicle and booking.'
+    };
   }
 
   function interiorPrice() {
-    var pricing = pageValue('PRICING');
-    var state = pageValue('ST') || global.ST;
-    var tier = pricing && pricing.cars && state && pricing.cars.tiers[state.tierKey];
-    return tier && tier.interior ? Number(tier.interior) : 0;
+    var offer = interiorOffer();
+    return offer ? offer.price : 0;
   }
 
-  function interiorCatalog() {
+  function canonicalAddons() {
     var pricing = pageValue('PRICING');
-    return (pricing && pricing.cars && pricing.cars.addons) || [];
+    var list = pricing && pricing.cars && pricing.cars.addons;
+    if (!Array.isArray(list)) return addonCatalog;
+    if (addonCatalog && addonCatalogSource === list) return addonCatalog;
+    var map = Object.create(null);
+    list.forEach(function (row) {
+      if (!row || !row.id) return;
+      var price = Number(row.price);
+      var name = row.name ? String(row.name) : '';
+      if (!(price > 0) || !name || name === row.id) return;
+      map[row.id] = {
+        id: row.id,
+        name: name,
+        description: String(row.desc || row.description || ''),
+        price: price,
+        minutes: ADDON_MINUTES[row.id] || 0
+      };
+    });
+    if (map.rainx) {
+      map.rainx = {
+        id: 'rainx',
+        name: WATER_REPELLENT.name,
+        description: WATER_REPELLENT.description,
+        price: map.rainx.price,
+        minutes: WATER_REPELLENT.minutes,
+        nonCeramic: true
+      };
+    }
+    if (map.odor) map.odor.name = 'Odor Treatment';
+    if (map.pethair) map.pethair.name = 'Pet Hair Removal';
+    addonCatalog = map;
+    addonCatalogSource = list;
+    return map;
+  }
+
+  function offerPrice(row) {
+    if (!row) return null;
+    if (SIZE_PRICE[row.id]) {
+      var sized = Number(displayPrice({ id: row.id, price: row.price }, syncLiveState() && syncLiveState().tierKey));
+      if (sized > 0) return sized;
+    }
+    return row.price > 0 ? row.price : null;
+  }
+
+  function noteUnresolved(id) {
+    if (!id || unresolvedIds.indexOf(id) >= 0) return;
+    unresolvedIds.push(id);
+    if (global.console && global.console.error) global.console.error('Unresolved ceramic add-on', id);
+  }
+
+  function resolveOffer(id) {
+    var map = canonicalAddons();
+    var row = map && map[id];
+    if (!row) {
+      noteUnresolved(id);
+      return null;
+    }
+    var price = offerPrice(row);
+    if (!(price > 0) || !row.name || row.name === id) {
+      noteUnresolved(id);
+      return null;
+    }
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      price: price,
+      minutes: row.minutes || 0,
+      nonCeramic: !!row.nonCeramic
+    };
   }
 
   function companionSelected() {
@@ -165,7 +274,7 @@
       var qty = Math.max(1, Number(addon.qty) || 1);
       minutes += extra * qty;
     });
-    if (companionSelected()) minutes += 120;
+    if (companionSelected()) minutes += INTERIOR_SERVICE_MINUTES;
     return minutes;
   }
 
@@ -302,6 +411,7 @@
   }
 
   function hideIncompatibleCards() {
+    syncLiveState();
     if (!global.ST) return;
     var ceramic = isCeramicPackage(global.ST.pkgId);
     var grid = document.getElementById('addon-grid');
@@ -353,19 +463,23 @@
           if (GLASS_IDS[addon.id]) {
             if (glassSeen) return false;
             glassSeen = true;
-            if (addon.id === 'rainx') addon.name = WATER_REPELLENT.name;
           }
+          var row = resolveOffer(addon.id);
+          if (!row) return false;
+          addon.name = row.name;
+          addon.price = row.price;
           return true;
         });
         vehicle.ceramicWaterSupply = payload.ceramicWaterSupply;
         var selected = companionSelected();
+        var interior = selected ? interiorOffer() : null;
         var already = Number(vehicle.companionInteriorPrice) || 0;
-        vehicle.companionInterior = selected;
-        if (selected && !already) {
-          vehicle.companionInteriorPrice = interiorPrice();
-          vehicle.subtotal = (Number(vehicle.subtotal) || 0) + interiorPrice();
+        vehicle.companionInterior = !!(selected && interior);
+        if (selected && interior && !already) {
+          vehicle.companionInteriorPrice = interior.price;
+          vehicle.subtotal = (Number(vehicle.subtotal) || 0) + interior.price;
         }
-        if (!selected && already) {
+        if (!(selected && interior) && already) {
           vehicle.subtotal = Math.max(0, (Number(vehicle.subtotal) || 0) - already);
           vehicle.companionInteriorPrice = 0;
           vehicle.addons = (vehicle.addons || []).filter(function (addon) { return !INTERIOR_IDS[addon.id]; });
@@ -388,18 +502,12 @@
   }
 
   function catalogAddon(id) {
-    var list = interiorCatalog();
-    for (var i = 0; i < list.length; i += 1) {
-      if (list[i].id === id) return list[i];
-    }
-    return null;
+    return resolveOffer(id);
   }
 
   function addonPrice(id) {
-    var row = catalogAddon(id);
-    var price = row ? Number(row.price) : 0;
-    if (SIZE_PRICE[id]) price = displayPrice({ id: id, price: price }, global.ST && global.ST.tierKey);
-    return price;
+    var row = resolveOffer(id);
+    return row ? row.price : null;
   }
 
   function formatHours(mins) {
@@ -412,6 +520,7 @@
   }
 
   function sanitizeCeramicAddons() {
+    syncLiveState();
     if (!global.ST || !Array.isArray(global.ST.addons) || !isCeramicPackage(global.ST.pkgId)) return;
     var glass = null;
     var next = [];
@@ -421,8 +530,11 @@
       if (GLASS_IDS[addon.id]) {
         if (glass) return;
         glass = addon.id;
-        if (addon.id === 'rainx') addon.name = WATER_REPELLENT.name;
       }
+      var row = resolveOffer(addon.id);
+      if (!row) return;
+      addon.name = row.name;
+      addon.price = row.price;
       next.push(addon);
     });
     global.ST.addons = next;
@@ -497,26 +609,41 @@
     return (global.ST.addons || []).some(function (addon) { return addon.id === id; });
   }
 
-  function writeAddon(id, on, name, price) {
+  function writeAddon(id, on) {
+    syncLiveState();
     var addons = (global.ST.addons || []).slice();
     addons = addons.filter(function (addon) { return addon.id !== id; });
-    if (on) addons.push({ id: id, name: name, price: price });
+    if (on) {
+      var row = resolveOffer(id);
+      if (!row) {
+        global.ST.addons = addons;
+        if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
+        return false;
+      }
+      addons.push({ id: row.id, name: row.name, price: row.price });
+    }
     global.ST.addons = addons;
     if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
+    return true;
   }
 
   function applyGlass(value) {
+    syncLiveState();
     var addons = (global.ST.addons || []).filter(function (addon) { return !GLASS_IDS[addon.id]; });
+    var added = false;
     if (value && GLASS_IDS[value]) {
-      var row = catalogAddon(value);
-      var name = value === 'rainx' ? WATER_REPELLENT.name : ((row && row.name) || value);
-      addons.push({ id: value, name: name, price: addonPrice(value) });
+      var row = resolveOffer(value);
+      if (row) {
+        addons.push({ id: row.id, name: row.name, price: row.price });
+        added = true;
+      }
     }
     global.ST.addons = addons;
     if (typeof global.recalcAddonTotal === 'function') global.recalcAddonTotal();
     refreshTotals();
     renderCeramicCheckout();
-    announce(value ? 'Added — total updated' : 'Removed — total updated');
+    if (value && !added) announce(CATALOG_ERROR);
+    else announce(value ? 'Added — total updated' : 'Removed — total updated');
   }
 
   function refreshTotals() {
@@ -610,8 +737,47 @@
     document.head.appendChild(style);
   }
 
+  function appendResolvedCard(parent, id, opts) {
+    var row = resolveOffer(id);
+    if (!row) return;
+    parent.appendChild(touchCard({
+      type: opts.type || 'checkbox',
+      name: opts.name || '',
+      id: id,
+      value: id,
+      nameText: row.name,
+      meta: '$' + row.price + (opts.metaSuffix || ''),
+      desc: opts.desc == null ? row.description : opts.desc,
+      selected: !!opts.selected,
+      onChange: opts.onChange
+    }));
+  }
+
+  function applyCatalogGate(host) {
+    catalogBlocked = unresolvedIds.length > 0;
+    if (catalogBlocked && host) {
+      var error = document.createElement('p');
+      error.id = 'ceramic-catalog-error';
+      error.className = 'cd1-support';
+      error.setAttribute('role', 'alert');
+      error.textContent = CATALOG_ERROR;
+      host.appendChild(error);
+    }
+    var next = document.getElementById('next3');
+    var stickyBtn = document.getElementById('ceramic-sticky-continue');
+    if (catalogBlocked) {
+      if (next) next.disabled = true;
+      if (stickyBtn) stickyBtn.disabled = true;
+      return;
+    }
+    if (typeof global.syncContinueGate === 'function') global.syncContinueGate();
+    if (stickyBtn) stickyBtn.disabled = false;
+  }
+
   function renderCeramicCheckout() {
     ensureStyles();
+    syncLiveState();
+    unresolvedIds = [];
     var grid = document.getElementById('addon-grid');
     var existing = document.getElementById('ceramic-checkout');
     var on = !!(global.ST && isCeramicPackage(global.ST.pkgId));
@@ -621,6 +787,7 @@
         clearInteriorAddons();
       }
       if (existing) existing.remove();
+      catalogBlocked = false;
       renderSticky();
       return;
     }
@@ -644,24 +811,15 @@
       selected: !currentGlass,
       onChange: function () { applyGlass(''); }
     }));
-    glass.appendChild(touchCard({
-      type: 'radio', name: 'ceramic-glass', id: 'rainx', value: 'rainx',
-      nameText: WATER_REPELLENT.name,
-      meta: '$' + addonPrice('rainx'),
-      desc: WATER_REPELLENT.description,
-      selected: currentGlass === 'rainx',
+    appendResolvedCard(glass, 'rainx', {
+      type: 'radio', name: 'ceramic-glass', selected: currentGlass === 'rainx',
       onChange: function () { applyGlass('rainx'); }
-    }));
+    });
     ['ceramic_windshield', 'ceramic_glass_all'].forEach(function (id) {
-      var row = catalogAddon(id);
-      glass.appendChild(touchCard({
-        type: 'radio', name: 'ceramic-glass', id: id, value: id,
-        nameText: (row && row.name) || id,
-        meta: '$' + addonPrice(id),
-        desc: row && row.desc,
-        selected: currentGlass === id,
+      appendResolvedCard(glass, id, {
+        type: 'radio', name: 'ceramic-glass', selected: currentGlass === id,
         onChange: function () { applyGlass(id); }
-      }));
+      });
     });
     existing.appendChild(glass);
 
@@ -669,19 +827,15 @@
     var upgrades = document.createElement('div');
     upgrades.id = 'ceramic-upgrades';
     ['ceramic_wheels', 'ceramic_trim', 'ceramic_lights'].forEach(function (id) {
-      var row = catalogAddon(id);
-      upgrades.appendChild(touchCard({
-        type: 'checkbox', id: id, value: id,
-        nameText: (row && row.name) || id,
-        meta: '$' + addonPrice(id),
+      appendResolvedCard(upgrades, id, {
         selected: hasAddon(id),
         onChange: function (checked) {
-          writeAddon(id, checked, (row && row.name) || id, addonPrice(id));
+          var ok = writeAddon(id, checked);
           refreshTotals();
           renderCeramicCheckout();
-          announce(checked ? 'Added — total updated' : 'Removed — total updated');
+          announce(checked && ok ? 'Added — total updated' : (checked ? CATALOG_ERROR : 'Removed — total updated'));
         }
-      }));
+      });
     });
     existing.appendChild(upgrades);
     existing.appendChild(renderInteriorCard());
@@ -697,6 +851,7 @@
     extended.hidden = !copy;
     extended.textContent = copy;
     existing.appendChild(extended);
+    applyCatalogGate(existing);
     if (focus) {
       var again = existing.querySelector('input[value="' + focus + '"]');
       if (again && again.focus) again.focus();
@@ -714,21 +869,24 @@
     var section = document.createElement('section');
     section.id = 'complete-vehicle';
     section.appendChild(sectionTitle('Complete your vehicle'));
-    var price = interiorPrice();
+    var offer = interiorOffer();
     var checked = companionSelected();
-    section.appendChild(touchCard({
-      type: 'checkbox', id: 'interior', value: 'interior', nameText: 'Add Complete Interior Detail',
-      meta: '$' + price + ' · approximately ' + formatHours(120),
-      desc: 'Deep interior cleaning added to the same vehicle and booking.',
-      selected: checked,
-      onChange: function (on) {
-        global.ST.companionInterior = on;
-        if (!on) clearInteriorAddons();
-        refreshTotals();
-        renderCeramicCheckout();
-        announce(on ? 'Added — total updated' : 'Removed — total updated');
-      }
-    }));
+    if (offer) {
+      section.appendChild(touchCard({
+        type: 'checkbox', id: 'interior', value: 'interior', nameText: 'Add Complete Interior Detail',
+        meta: '$' + offer.price + ' · approximately ' + formatHours(offer.minutes),
+        desc: offer.description,
+        selected: checked,
+        onChange: function (on) {
+          syncLiveState();
+          global.ST.companionInterior = on;
+          if (!on) clearInteriorAddons();
+          refreshTotals();
+          renderCeramicCheckout();
+          announce(on ? 'Added — total updated' : 'Removed — total updated');
+        }
+      }));
+    }
     var disclose = document.createElement('button');
     disclose.type = 'button';
     disclose.className = 'cd1-disclose';
@@ -754,17 +912,15 @@
     var nested = document.createElement('div');
     nested.id = 'companion-addons';
     if (checked) {
-      [{ id: 'pethair', name: 'Pet Hair Removal' }, { id: 'odor', name: 'Odor Treatment' }].forEach(function (item) {
-        nested.appendChild(touchCard({
-          type: 'checkbox', id: item.id, value: item.id, nameText: item.name,
-          meta: '$' + addonPrice(item.id),
-          selected: hasAddon(item.id),
+      ['pethair', 'odor'].forEach(function (id) {
+        appendResolvedCard(nested, id, {
+          selected: hasAddon(id),
           onChange: function (on) {
-            writeAddon(item.id, on, item.name, addonPrice(item.id));
-            announce(on ? 'Added — total updated' : 'Removed — total updated');
+            var ok = writeAddon(id, on);
             refreshTotals();
+            announce(on && ok ? 'Added — total updated' : (on ? CATALOG_ERROR : 'Removed — total updated'));
           }
-        }));
+        });
       });
     }
     section.appendChild(nested);
@@ -781,20 +937,16 @@
     var ids = ['ceramic_correction', 'ceramic_waterspot', 'ceramic_contamination', 'undercarriage', 'engine_bay', 'heavymud'];
     if (hasAddon('undercarriage')) ids.push('mobile_water');
     ids.forEach(function (id) {
-      var row = catalogAddon(id);
-      details.appendChild(touchCard({
-        type: 'checkbox', id: id, value: id,
-        nameText: (row && row.name) || id,
-        meta: '$' + addonPrice(id),
+      appendResolvedCard(details, id, {
         selected: hasAddon(id),
         onChange: function (on) {
-          writeAddon(id, on, (row && row.name) || id, addonPrice(id));
-          if (id === 'undercarriage' && !on) writeAddon('mobile_water', false, '', 0);
+          var ok = writeAddon(id, on);
+          if (id === 'undercarriage' && !on) writeAddon('mobile_water', false);
           refreshTotals();
           renderCeramicCheckout();
-          announce(on ? 'Added — total updated' : 'Removed — total updated');
+          announce(on && ok ? 'Added — total updated' : (on ? CATALOG_ERROR : 'Removed — total updated'));
         }
-      }));
+      });
     });
     return details;
   }
@@ -899,11 +1051,14 @@
     var dueNow = plan === 'deposit' ? depositCentsFor(approved) / 100 : approved;
     var balance = Math.round((approved - dueNow) * 100) / 100;
     var rows = [moneyLine(pkgName, global.ST.basePrice || 0)];
-    if (companionSelected()) rows.push(moneyLine('Complete Interior Detail', interiorPrice()));
-    groups.ceramic.forEach(function (addon) { rows.push(moneyLine(addon.name || addon.id, addon.price)); });
-    groups.general.forEach(function (addon) { rows.push(moneyLine(addon.name || addon.id, addon.price)); });
-    groups.interior.forEach(function (addon) { rows.push(moneyLine(addon.name || addon.id, addon.price)); });
-    groups.water.forEach(function (addon) { rows.push(moneyLine(addon.name || 'Mobile Water Supply', addon.price)); });
+    var interior = companionSelected() ? interiorOffer() : null;
+    if (interior) rows.push(moneyLine(interior.name, interior.price));
+    [groups.ceramic, groups.general, groups.interior, groups.water].forEach(function (list) {
+      list.forEach(function (addon) {
+        var row = resolveOffer(addon && addon.id);
+        if (row) rows.push(moneyLine(row.name, row.price));
+      });
+    });
     if (travel) rows.push(moneyLine('Travel', travel));
     rows.push(moneyLine('Approved final total', approved));
     rows.push(moneyLine('Amount due today', dueNow));
@@ -915,7 +1070,20 @@
   }
 
   function boot() {
+    syncLiveState();
     ensurePanel();
+    var origGate = global.syncContinueGate;
+    if (typeof origGate === 'function' && !origGate._ceramicWrapped) {
+      global.syncContinueGate = function () {
+        var result = origGate.apply(this, arguments);
+        if (catalogBlocked) {
+          var next = document.getElementById('next3');
+          if (next) next.disabled = true;
+        }
+        return result;
+      };
+      global.syncContinueGate._ceramicWrapped = true;
+    }
     wrap('renderAddons', hideIncompatibleCards);
     wrap('setBasePrice', function () {
       hideIncompatibleCards();
@@ -924,9 +1092,11 @@
     wrap('updateTotal', paintCompanionTotal);
     wrap('buildCurrentVehicleItem', function (item) {
       if (!item || !isCeramicPackage(item.pkgId) || !companionSelected()) return;
+      var interior = interiorOffer();
+      if (!interior) return;
       item.companionInterior = true;
-      item.companionInteriorPrice = interiorPrice();
-      item.subtotal = (Number(item.subtotal) || 0) + interiorPrice();
+      item.companionInteriorPrice = interior.price;
+      item.subtotal = (Number(item.subtotal) || 0) + interior.price;
     });
     wrap('buildBookingPayload', function (payload) {
       attachPayload(payload);
