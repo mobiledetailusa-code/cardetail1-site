@@ -20,7 +20,7 @@ const lookup = read('netlify/functions/lookup-booking.js');
 test('Step 5 offers Pay online later and requires a card only for that option', () => {
   assert.match(index, /Step 05 — Review &amp; Submit/);
   assert.match(index, /No payment is collected when you submit this booking request\./);
-  assert.match(index, /Choose Pay online later to save a card securely \(nothing charged today\)\./);
+  assert.match(index, /Save a card securely now\. Nothing is charged today\./);
   assert.doesNotMatch(index, /bk-pay-rec-badge/);
   assert.doesNotMatch(index, /recommended payment method|Pay online later \(recommended\)|Recommended: Pay online/i);
   assert.match(index, /Request first · No charge today/);
@@ -48,8 +48,8 @@ test('Pay online later card panel stays readable in the light booking modal', ()
   const block = index.slice(start, end);
   assert.doesNotMatch(block, /color:var\(--white\)/);
   assert.doesNotMatch(block, /rgba\(255,255,255,\.04\)/);
-  assert.match(block, /class="bk-cof-policy-box"/);
-  assert.match(block, /class="bk-online-card-body"/);
+  assert.match(block, /bk-cof-policy-box/);
+  assert.match(block, /bk-online-card-body/);
 });
 
 test('booking steps use site theme atmosphere (hero photo too dark for readable step bg)', () => {

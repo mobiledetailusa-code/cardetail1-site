@@ -1066,7 +1066,7 @@ body.rv-overlay-lock{overflow:hidden}
 .pay-t{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--blue);margin-bottom:4px}
 .pay-sub{font-size:12.5px;color:var(--mu);margin-bottom:14px;line-height:1.5}
 .pay-badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--gr);background:var(--grdim);border:1px solid var(--grbr);border-radius:999px;padding:4px 13px;margin-bottom:14px}
-#card-container{min-height:80px;margin-top:6px}
+#card-container{min-height:0;margin-top:0}
 .pay-err{color:var(--rd);font-size:12px;margin-top:7px;display:none}
 .pay-err.show{display:block}
 .stripe-pay{margin-top:6px}
@@ -3388,7 +3388,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="bk-charged-label">Charged today</span>
               <span class="bk-charged-amt">$0.00</span>
             </div>
-            <p class="bk-charged-copy">No payment is collected when you submit this booking request. Card at service and cash need no card today. Pay online later asks you to save a card securely first — still nothing charged today.</p>
+            <p class="bk-charged-copy" id="bk-charged-copy">No payment is collected when you submit this booking request.</p>
           </div>
           <div class="oc">
             <div class="oc-t">Appointment</div>
@@ -3409,17 +3409,21 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
-              <p class="bk-pay-pref-help" id="bk-pay-pref-copy">Choose Pay online later to save a card securely (nothing charged today). Or pay by card or cash at service — no card needed to submit those options.</p>
-              <p class="bk-pay-pref-help" id="bk-pay-pref-err" hidden role="alert"></p>
+              <p class="bk-pay-pref-help" id="bk-onsite-card-copy" hidden>Card at service — no card needed to submit. Pay by card when we finish the job.</p>
+              <p class="bk-pay-pref-help" id="bk-onsite-cash-copy" hidden>Cash at service — no card needed to submit. Pay with cash when we finish the job.</p>
               <div class="bk-online-card-wrap" id="bk-online-card-wrap" hidden>
-                <p class="bk-online-rec-msg" id="bk-online-rec-msg">Pay online later requires saving a card securely below — nothing is charged today. Final payment is requested online after service when approved.</p>
+                <p class="bk-online-rec-msg" id="bk-online-rec-msg" data-standard="Save a card securely now. Nothing is charged today. Payment is requested online after the service is approved.">Save a card securely now. Nothing is charged today. Payment is requested online after the service is approved.</p>
                 <div id="cof-wrap">
-                  <div class="fl bk-online-card-title">Card required for Pay online later</div>
-                  <div class="bk-online-card-body">No charge today. Your card is securely saved by Stripe and may only be charged according to our cancellation, no-show, access, or approved service payment policy.</div>
                   <div id="card-container"></div>
-                  <div class="pay-err" id="pay-err"></div>
-                  <div class="bk-cof-policy-box">
-                    <div class="bk-cof-policy-copy">
+                  <label class="terms-check" id="cof-policy-label">
+                    <input type="checkbox" id="cof-policy-ok" onchange="cofCheckboxChanged()">
+                    <span>I authorize Cardetail1 to securely save my card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">booking policy</a>.</span>
+                  </label>
+                  <button type="button" class="btn-n" id="stripe-auth-btn" style="width:100%;opacity:0.5;cursor:not-allowed" disabled onclick="confirmSetupIntent()">Save my card securely</button>
+                  <div class="pay-err" id="pay-err" role="alert"></div>
+                  <details class="bk-pay-details bk-cof-policy-box" id="bk-pay-details">
+                    <summary>Payment &amp; cancellation details</summary>
+                    <div class="bk-online-card-body bk-cof-policy-copy" id="bk-pay-details-body">
                       <strong>Before saving your card, please note:</strong>
                       <ul>
                         <li>No charge is made today for saving your card.</li>
@@ -3427,15 +3431,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
                         <li>Final service payment is collected online after service when approved, or on-site if you change your preference later.</li>
                       </ul>
                     </div>
-                    <label class="terms-check">
-                      <input type="checkbox" id="cof-policy-ok" onchange="cofCheckboxChanged()">
-                      <span>I authorize Cardetail1 to securely save my card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the booking policy.</span>
-                    </label>
-                  </div>
-                  <button type="button" class="btn-n" id="stripe-auth-btn" style="margin-top:12px;width:100%;opacity:0.5;cursor:not-allowed" disabled onclick="confirmSetupIntent()">Save my card securely</button>
+                  </details>
                 </div>
                 <div id="stripe-status" class="pay-status" style="display:none"></div>
               </div>
+              <p class="bk-pay-pref-help" id="bk-pay-pref-err" hidden role="alert"></p>
               <span id="c-pay-method" hidden>Select a preference</span>
             </div>
           </div>
@@ -3450,10 +3450,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <p class="bdesc">This sends a booking request — we'll review your location, vehicle, weather, and access, then contact you about confirmation. This request does not confirm an appointment; we'll contact you after checking schedule, location, weather, and access. If you opted in for SMS, updates may be sent by text.</p>
         <div class="pay-box">
           <div class="pay-t">What happens next · <a href="/terms-conditions" target="_blank" rel="noopener noreferrer" style="color:var(--blue);text-decoration:underline;text-underline-offset:3px;font-size:10px">Read Full Terms →</a></div>
-          <ul style="list-style:none;padding:0;margin:0 0 10px">
-            <li style="font-size:12.5px;color:var(--mu);margin-bottom:9px;padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Pay online later</strong> — save a card securely first; nothing is charged today.</li>
-            <li style="font-size:12.5px;color:var(--mu);padding-left:14px;position:relative"><span style="position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:var(--blue);display:block"></span><strong style="color:var(--tx)">Card or cash at service</strong> — no card needed to submit; pay when we finish the job.</li>
-          </ul>
           <div class="pay-badge">✓ Request first · No charge today</div>
         </div>
         <div class="btn-row">
@@ -7171,7 +7167,21 @@ async function requestSetupIntentWithVersionSync(bookingId,draftSaveToken,bookin
   }
 }
 
+function showPreviewBookingDisabled(){
+  const msg='Preview only — booking submission is disabled.';
+  const banner=document.getElementById('bk-preview-banner');
+  if(banner){ banner.hidden=false; banner.textContent=msg; }
+  const err=document.getElementById('pay-err');
+  if(err){ err.textContent=msg; err.classList.add('show'); }
+  const pref=document.getElementById('bk-pay-pref-err');
+  if(pref){ pref.hidden=false; pref.textContent=msg; }
+  const btn=document.getElementById('stripe-auth-btn');
+  if(btn){ btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='not-allowed'; btn.textContent='Save my card securely'; btn.onclick=null; }
+  const slot=document.getElementById('card-container');
+  if(slot) slot.innerHTML='';
+}
 async function initCardOnFile(){
+  if(IS_DEPLOY_PREVIEW){ showPreviewBookingDisabled(); return; }
   if(OS_PREVIEW_ACTIVE){ return; }
   if(cardInitInProgress) return;
   if(!ST.payMethod){
@@ -7245,6 +7255,7 @@ async function initCardOnFile(){
           rate_limited:'Too many attempts. Please wait a few minutes and try again.',
           invalid_phone:'Please enter a valid phone number (at least 7 digits).',
           missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
+          preview_booking_disabled:'Preview only — booking submission is disabled.',
           'Draft booking not found':'Your booking session expired. Go back one step and try again.',
           'Missing customer name or phone':'Please complete your contact details before saving your card.',
           'Failed to pre-register booking':'Could not register booking. Please try again in a moment.',
@@ -7286,6 +7297,10 @@ async function initCardOnFile(){
   }catch(e){
     if(!isStale()){
       const msg=String(e.message||'Secure card saving is temporarily unavailable.');
+      if(IS_DEPLOY_PREVIEW || /preview_booking_disabled/.test(msg)){
+        showPreviewBookingDisabled();
+        return;
+      }
       document.getElementById('card-container').innerHTML='<div style="padding:14px;font-size:13px;color:#ef4444;line-height:1.5">'+msg.replace(/</g,'&lt;')+'</div>';
       if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; btn.textContent='Try secure card setup again'; btn.onclick=initCardOnFile; }
     }
@@ -7306,6 +7321,7 @@ function selectPaymentPreference(preference,activeId){
 }
 
 async function confirmSetupIntent(){
+  if(IS_DEPLOY_PREVIEW){ showPreviewBookingDisabled(); return; }
   if(OS_PREVIEW_ACTIVE){ alert('Preview mode — bookings and payments are disabled.'); return; }
   const cb=document.getElementById('cof-policy-ok');
   const err=document.getElementById('pay-err'); err.classList.remove('show');

@@ -168,7 +168,7 @@ describe('price presentation', () => {
   });
 
   it('no competing prominent Travel row in the collapsed summary', () => {
-    const summary = html.match(/<div class="bk-financial-summary"[\s\S]*?<p class="bk-charged-copy">[\s\S]*?<\/p>/)[0];
+    const summary = html.match(/<div class="bk-financial-summary"[\s\S]*?<p class="bk-charged-copy"[^>]*>[\s\S]*?<\/p>/)[0];
     assert.doesNotMatch(summary, />Travel</);
     assert.doesNotMatch(summary, /Service subtotal/);
   });
