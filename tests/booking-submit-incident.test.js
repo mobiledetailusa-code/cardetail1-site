@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const SUBMIT_PATH = require.resolve('../netlify/functions/submit-booking');
-const { setSlotIndexStoreOverride } = require('../netlify/lib/slot-index');
+const { setSlotIndexStoreOverride, parseSlotIndexKey, indexedOccupancyForDates } = require('../netlify/lib/slot-index');
+const { DRAFT_SLOT_HOLD_MS } = require('../netlify/lib/booking-schedule');
 const { projectBookingForCustomer } = require('../netlify/lib/ops-schema');
 const { projectQuickOpsBooking } = require('../netlify/lib/admin-quick-ops-view');
 
@@ -242,6 +243,75 @@ test('12-hour ceramic interior draft reserves every required day before payment'
   assert.equal(spill.status, 409);
   assert.equal(spill.body.error, 'booking_slot_unavailable');
   assert.equal(spill.body.bookingCreated, false);
+});
+
+test('confirmed 12-hour appointment keeps every span after the draft hold expires', async () => {
+  const payload = ceramicBody({ phone: '2015550166' });
+  const draft = await post(payload, '203.0.113.41');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
+  const draftKeys = indexKeys().map(parseSlotIndexKey);
+  assert.equal(draftKeys.length, 6);
+  assert.ok(draftKeys.every((entry) => entry && entry.state === 'draft' && entry.expiresAtMs > Date.now()));
+  const afterDraftTtl = Date.now() + DRAFT_SLOT_HOLD_MS + 60 * 1000;
+  const expiredDraft = await indexedOccupancyForDates([WEEKDAY, '2026-09-29'], { nowMs: afterDraftTtl });
+  assert.equal(expiredDraft.ok, true);
+  assert.equal(expiredDraft.occupancy[`${WEEKDAY}|8:00 AM`] || 0, 0);
+  assert.equal(expiredDraft.occupancy['2026-09-29|8:00 AM'] || 0, 0);
+
+  const fin = await finalize(payload, draft.body);
+  assert.equal(fin.status, 200, JSON.stringify(fin.body));
+  assert.equal(fin.body.bookingCreated, true);
+  const saved = bookings.records().find((row) => row.id === fin.body.id);
+  assert.equal(saved.isDraft, false);
+  assert.equal(saved.appointmentStatus, 'pending_review');
+  assert.equal(saved.paymentStatus, 'unpaid');
+  assert.equal(saved.amountPaid, 0);
+  assert.equal(saved.appointmentDurationMinutes, 720);
+  assert.equal(saved.totalPrice, 1530);
+  assert.equal(saved.appointmentSchedule.multiDay, true);
+  assert.deepEqual(saved.appointmentSchedule.days.map((day) => day.date), [WEEKDAY, '2026-09-29']);
+  assert.ok(saved.vehicles.some((vehicle) => vehicle.companionInterior === true));
+
+  const bookedKeys = indexKeys().map(parseSlotIndexKey);
+  assert.equal(bookedKeys.length, 6);
+  assert.ok(bookedKeys.every((entry) => entry && entry.state === 'booked' && entry.bookingId === saved.id));
+  const stillHeld = await indexedOccupancyForDates([WEEKDAY, '2026-09-29', '2026-09-30'], { nowMs: afterDraftTtl });
+  assert.equal(stillHeld.occupancy[`${WEEKDAY}|8:00 AM`], 1);
+  assert.equal(stillHeld.occupancy[`${WEEKDAY}|2:00 PM`], 1);
+  assert.equal(stillHeld.occupancy['2026-09-29|8:00 AM'], 1);
+  assert.equal(stillHeld.occupancy['2026-09-29|10:00 AM'], 1);
+  assert.equal(stillHeld.occupancy['2026-09-29|12:00 PM'] || 0, 0);
+
+  const conflict = await post(ordinary('cash_onsite', {
+    phone: '2015550167',
+    preferredDate: '2026-09-29',
+    preferredTime: '8:00 AM',
+    preferredArrivalWindow: '08:00-11:00',
+  }), '203.0.113.42');
+  assert.equal(conflict.status, 409);
+  assert.equal(conflict.body.error, 'booking_slot_unavailable');
+  assert.equal(conflict.body.bookingCreated, false);
+  assert.equal(bookings.records().filter((row) => row.isDraft !== true && row.id !== saved.id).length, 0);
+
+  const { handler } = require('../netlify/functions/booking-availability');
+  const nearby = await handler({
+    httpMethod: 'GET',
+    queryStringParameters: {
+      action: 'nearby',
+      fromDate: WEEKDAY,
+      limit: '8',
+      durationMinutes: '720',
+      companionInterior: '1',
+    },
+  });
+  const openings = JSON.parse(nearby.body).openings;
+  assert.ok(openings.length > 0);
+  for (const opening of openings) {
+    assert.equal(opening.preferredTime, '8:00 AM');
+    assert.equal(opening.preferredArrivalWindow, '08:00-11:00');
+    assert.notEqual(opening.preferredDate, WEEKDAY);
+    assert.notEqual(opening.preferredDate, '2026-09-29');
+  }
 });
 
 test('ceramic cash, deposit, and prepay finalize with unpaid balances and no duplicate', async () => {
