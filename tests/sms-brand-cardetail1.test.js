@@ -377,7 +377,19 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   it('15. booking/payment behavior unchanged', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     const stripeFiles = diff.split(/\r?\n/).filter((file) => /stripe/i.test(file));
-    assert.deepEqual(stripeFiles, ['netlify/functions/stripe-webhook.js']);
+    // Ceramic settlement in stripe-webhook.js is already on master (2b6bbf8).
+    // This branch must not rewrite that file or any other stripe-named path.
+    // Requiring the webhook to stay dirty against origin/master fails master
+    // itself and every later branch that leaves payment files alone.
+    assert.deepEqual(stripeFiles, []);
+    // The settlement remains the only stripe-named delta since the commit
+    // before it (2b6bbf8^). Another stripe path since that base still fails.
+    const sinceSettlement = execSync(
+      'git diff --name-only 544b875ae387ba1b49f55816e945ad74a724b3b5 -- netlify scripts',
+      { cwd: ROOT, encoding: 'utf8' },
+    );
+    const settledStripeFiles = sinceSettlement.split(/\r?\n/).filter((file) => /stripe/i.test(file));
+    assert.deepEqual(settledStripeFiles, ['netlify/functions/stripe-webhook.js']);
     // Brand/SMS work must not rewrite refund, quote, or receipt projection authority.
     // payment-authority-service.js may gain non-brand reconcile helpers on other
     // lifecycle PRs; those are covered by stale-payment-attempt tests.
