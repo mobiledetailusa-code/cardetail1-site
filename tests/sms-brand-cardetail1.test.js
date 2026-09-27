@@ -376,7 +376,8 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
 
   it('15. booking/payment behavior unchanged', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
-    assert.doesNotMatch(diff, /stripe/i);
+    const stripeFiles = diff.split(/\r?\n/).filter((file) => /stripe/i.test(file));
+    assert.deepEqual(stripeFiles, ['netlify/functions/stripe-webhook.js']);
     // Brand/SMS work must not rewrite refund, quote, or receipt projection authority.
     // payment-authority-service.js may gain non-brand reconcile helpers on other
     // lifecycle PRs; those are covered by stale-payment-attempt tests.

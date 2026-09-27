@@ -600,7 +600,7 @@
       '#ceramic-selection-status{min-height:1.2em;font-size:13px;color:#166534}',
       '.cd1-ceramic-sticky{display:none}',
       '@media(max-width:760px){',
-      '.booking-modal-ov.open .cd1-ceramic-sticky.is-on{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1200;align-items:center;justify-content:space-between;gap:8px;max-width:100%;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d5dbe3}',
+      '.cd1-ceramic-sticky.is-on{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:1200;align-items:center;justify-content:space-between;gap:8px;max-width:100%;box-sizing:border-box;padding:8px 12px calc(8px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d5dbe3}',
       '.booking-modal.cd1-sticky-pad{padding-bottom:calc(76px + env(safe-area-inset-bottom))}',
       '.cd1-ceramic-sticky button{min-height:48px;min-width:48px;padding:0 14px}',
       '.cd1-sticky-meta{font-size:14px;font-weight:700;min-width:0}',
