@@ -143,7 +143,7 @@ test('deploy preview states the block at checkout start and does not offer a car
   const btn = w.document.getElementById('stripe-auth-btn');
   w.initCardOnFile();
   assert.equal(called.n, 0);
-  assert.match(html, /async function confirmSetupIntent\(\)\{\s*if\(IS_DEPLOY_PREVIEW\)\{ showPreviewBookingDisabled\(\); return; \}/);
+  assert.match(html, /async function confirmSetupIntent\(\)\{\s*if\(OS_PREVIEW_ACTIVE\)\{[^}]*return;\s*\}\s*if\(IS_DEPLOY_PREVIEW\)\{ showPreviewBookingDisabled\(\); return; \}/);
   assert.equal(btn.textContent, 'Save my card securely');
   assert.doesNotMatch(btn.textContent, /Try secure card setup again/);
   w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');

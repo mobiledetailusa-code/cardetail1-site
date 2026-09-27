@@ -7181,8 +7181,8 @@ function showPreviewBookingDisabled(){
   if(slot) slot.innerHTML='';
 }
 async function initCardOnFile(){
-  if(IS_DEPLOY_PREVIEW){ showPreviewBookingDisabled(); return; }
   if(OS_PREVIEW_ACTIVE){ return; }
+  if(IS_DEPLOY_PREVIEW){ showPreviewBookingDisabled(); return; }
   if(cardInitInProgress) return;
   if(!ST.payMethod){
     stripeMsg('stripe-status','Choose a payment preference first.',false);
@@ -7321,8 +7321,8 @@ function selectPaymentPreference(preference,activeId){
 }
 
 async function confirmSetupIntent(){
-  if(IS_DEPLOY_PREVIEW){ showPreviewBookingDisabled(); return; }
   if(OS_PREVIEW_ACTIVE){ alert('Preview mode — bookings and payments are disabled.'); return; }
+  if(IS_DEPLOY_PREVIEW){ showPreviewBookingDisabled(); return; }
   const cb=document.getElementById('cof-policy-ok');
   const err=document.getElementById('pay-err'); err.classList.remove('show');
   if(!cb||!cb.checked){ err.textContent='Please check the authorization box to continue.'; err.classList.add('show'); return; }
