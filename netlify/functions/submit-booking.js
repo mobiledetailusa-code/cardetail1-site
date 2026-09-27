@@ -916,8 +916,34 @@ async function persistNotificationFields(store, bookingId, notified) {
   return merged;
 }
 
+function requestHostname(event) {
+  const headers = (event && event.headers) || {};
+  const raw = headers['x-forwarded-host'] || headers['X-Forwarded-Host'] || headers.host || headers.Host || '';
+  return String(raw).split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+}
+
+/**
+ * Deploy previews call getStore(), the site-wide blob store production uses.
+ * Refuse the write here so a preview test cannot create a live reservation.
+ * Production and local dev are unchanged.
+ */
+function refuseSharedPreviewBooking(event) {
+  const { deployContext } = require('../lib/trusted-site-origin');
+  const ctx = deployContext();
+  const previewHost = /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(requestHostname(event));
+  if (ctx !== 'deploy-preview' && !previewHost) return null;
+  return json(403, {
+    ok: false,
+    bookingCreated: false,
+    error: 'preview_booking_disabled',
+    userMessage: 'This preview cannot create bookings because it uses the same storage as the live site.',
+  });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const previewRefusal = refuseSharedPreviewBooking(event);
+  if (previewRefusal) return previewRefusal;
   const previewCheck = await (previewTransactionGuardOverride
     || require('../lib/owner-studio/preview-transaction-guard').checkPreviewTransactionRequest)(event);
   if (previewCheck.previewRequest) {

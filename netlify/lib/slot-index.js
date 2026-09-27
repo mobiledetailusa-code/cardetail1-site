@@ -74,6 +74,12 @@ function slotIndexKey({ slotDate, slotTime, state, expiresAtMs, bookingId }) {
   ].join('/');
 }
 
+function decodeIndexPart(value) {
+  const text = String(value || '');
+  try { return decodeURIComponent(text); }
+  catch { return text; }
+}
+
 function parseSlotIndexKey(key) {
   const parts = String(key || '').split('/');
   if (parts.length < 5) return null;
@@ -83,8 +89,10 @@ function parseSlotIndexKey(key) {
   if (!Number.isFinite(expiresAtMs)) return null;
   return {
     key,
-    slotDate,
-    slotTime,
+    slotDate: decodeIndexPart(slotDate),
+    // Blob servers may list "8:00 AM" as "8:00%20AM". Keep the raw key for
+    // delete, and compare occupancy on the decoded slot time.
+    slotTime: decodeIndexPart(slotTime),
     state,
     expiresAtMs,
     bookingId: idParts.join('/'),
@@ -153,8 +161,12 @@ function slotHoldForBooking(booking, nowMs = Date.now()) {
 async function listSlotEntries(store, prefix) {
   const out = [];
   const paged = store.list({ prefix, paginate: true });
-  if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
-    for await (const page of paged) {
+  // An async list() returns a Promise of the paginator. Reading .blobs on
+  // that Promise, or skipping it because a Promise is not itself iterable,
+  // reports a full index as empty.
+  const iterable = paged && typeof paged.then === 'function' ? await paged : paged;
+  if (iterable && typeof iterable[Symbol.asyncIterator] === 'function') {
+    for await (const page of iterable) {
       for (const blob of (page && page.blobs) || []) {
         const entry = parseSlotIndexKey(blob.key);
         if (entry) out.push(entry);
@@ -162,7 +174,7 @@ async function listSlotEntries(store, prefix) {
     }
     return out;
   }
-  const listing = await paged;
+  const listing = iterable;
   for (const blob of (listing && listing.blobs) || []) {
     const entry = parseSlotIndexKey(blob.key);
     if (entry) out.push(entry);
@@ -179,8 +191,11 @@ async function readSlotHolds(slotDate, slotTime, { excludeId = null, nowMs = Dat
   const time = normalizePreferredTime(slotTime);
   if (!parts || !time) return [];
   const store = await slotIndexStore();
-  const entries = await listSlotEntries(store, `${parts.iso}/${time}/`);
+  // Date prefix, then filter the decoded time. A time prefix such as
+  // "2026-10-05/8:00 AM/" misses a stored key "2026-10-05/8:00%20AM/...".
+  const entries = await listSlotEntries(store, `${parts.iso}/`);
   return entries.filter((e) => {
+    if (e.slotTime !== time) return false;
     if (!entryIsActive(e, nowMs)) return false;
     if (excludeId && String(e.bookingId) === String(excludeId)) return false;
     return true;

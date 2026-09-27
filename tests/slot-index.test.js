@@ -138,6 +138,35 @@ describe('reading occupancy', () => {
     assert.deepEqual(holds.map((h) => h.bookingId), ['A']);
   });
 
+  it('reads a percent-encoded slot time from a thenable list', async () => {
+    const encoded = '2026-09-15/10:00%20AM/booked/0/CD1-ENC';
+    const store = {
+      list() {
+        const page = { blobs: [{ key: encoded }] };
+        return Promise.resolve({
+          [Symbol.asyncIterator]() {
+            return {
+              async next() {
+                if (this.done) return { done: true, value: undefined };
+                this.done = true;
+                return { done: false, value: page };
+              },
+            };
+          },
+        });
+      },
+    };
+    setSlotIndexStoreOverride(store);
+    const parsed = parseSlotIndexKey(encoded);
+    assert.equal(parsed.slotTime, '10:00 AM');
+    assert.equal(parsed.key, encoded);
+    const holds = await readSlotHolds(DATE, TIME);
+    assert.deepEqual(holds.map((h) => h.bookingId), ['CD1-ENC']);
+    assert.deepEqual(await indexedSlotConflict(DATE, TIME), { ok: true, conflict: true });
+    const occupancy = await indexedOccupancyForDates([DATE]);
+    assert.equal(occupancy.occupancy[`${DATE}|10:00 AM`], 1);
+  });
+
   it('ignores expired draft holds and honours excludeId', async () => {
     const store = fakeIndexStore([
       slotIndexKey({ slotDate: DATE, slotTime: TIME, state: 'draft', expiresAtMs: Date.now() - 1, bookingId: 'STALE' }),
