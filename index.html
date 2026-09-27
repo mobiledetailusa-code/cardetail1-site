@@ -1715,12 +1715,45 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 #bk-cat-grid .bk-cat-specialty-label{display:none}
 /* trucks sits in the same 2-col tile grid — never full-bleed */
 #bk-cat-grid #bkcat-trucks{grid-column:auto}
-.car-pkg-grid--ceramic{grid-template-columns:1fr 1fr;margin-bottom:28px}
+.car-pkg-grid--ceramic{grid-template-columns:1fr 1fr;margin-bottom:12px}
 #ceramic-coating{scroll-margin-top:84px}
+#services>.section{padding:36px 24px 28px}
+.car-pkg-intro{margin-bottom:12px}
+.car-pkg-intro .sec-title{margin-bottom:4px}
+.car-pkg-intro .sec-desc{font-size:14px;line-height:1.4}
+.car-pkg-grid{gap:12px;margin-bottom:10px}
+.car-pkg-top{padding:12px 14px 10px}
+.car-pkg-name{font-size:16px;margin-bottom:4px}
+.car-pkg-desc{font-size:13px;line-height:1.35;margin-bottom:8px}
+.car-pkg-scope{margin-bottom:3px}
+.car-pkg-popular{margin-bottom:6px;padding:3px 8px}
+.car-pkg-see-btn{margin-top:6px}
+.car-pkg-chip{padding:3px 8px;font-size:10.5px}
+.car-pkg-foot{padding:10px 14px 12px}
+.car-pkg-price-row{margin-bottom:8px}
+.car-pkg-price-amt{font-size:clamp(22px,3vw,26px)}
+.car-addons-block{margin-bottom:14px;padding:12px 14px}
+.cd1-multi-cta{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;margin:8px 0 2px;padding:8px 8px 8px 16px;border:1px solid rgba(196,165,116,.32);border-radius:999px;background:rgba(18,24,31,.45)}
+.cd1-multi-cta p{margin:0;font-size:14px;font-weight:600;color:var(--ink);letter-spacing:.01em;line-height:1.3}
+.cd1-multi-cta .btn-primary{width:auto;flex:0 0 auto;padding:10px 16px;font-size:12px;min-height:40px;white-space:nowrap}
+.cd1-seam{position:relative;height:46px;margin:0;overflow:hidden;pointer-events:none;line-height:0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+.cd1-seam svg{display:block;width:100%;height:100%}
+.cd1-wave-base,.cd1-wave-ink{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.cd1-wave-base{stroke:rgba(196,165,116,.5);stroke-width:1.25}
+.cd1-wave-ink{stroke:#9ec4f0;stroke-width:1.7;stroke-dasharray:100;stroke-dashoffset:100;animation:cd1WaveDraw 5.6s cubic-bezier(.45,0,.2,1) infinite}
+.cd1-seam::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:linear-gradient(135deg,#f3e6cf,#4d8fd9);box-shadow:0 0 0 3px #141b24,0 0 14px rgba(77,143,217,.5);z-index:1}
+@keyframes cd1WaveDraw{0%{stroke-dashoffset:100;opacity:.15}58%{stroke-dashoffset:0;opacity:1}78%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:.2}}
+#services .cd1-seam{margin:4px 0 8px}
+@media(prefers-reduced-motion:reduce){
+  .cd1-wave-ink{animation:none;stroke-dashoffset:0;opacity:1}
+}
 @media(max-width:760px){
-  .car-pkg-grid{grid-template-columns:1fr;gap:14px}
+  .car-pkg-grid{grid-template-columns:1fr;gap:12px}
   .car-pkg-grid--ceramic{grid-template-columns:1fr}
   .car-pkg-card--popular{order:-1}
+  .cd1-seam{height:32px}
+  .cd1-multi-cta{flex-direction:column;align-items:stretch;text-align:center;border-radius:14px;padding:12px}
+  .cd1-multi-cta .btn-primary{width:100%;min-height:44px}
 }
 @media(min-width:761px) and (max-width:980px){
   .car-pkg-grid{grid-template-columns:1fr 1fr}
@@ -1752,7 +1785,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .rw-img{background:linear-gradient(110deg,var(--bg2) 25%,var(--bg3) 42%,var(--bg2) 58%);background-size:200% 100%;animation:imgShimmer 1.4s linear infinite}
 .rw-img.rw-loaded{animation:none;background:none}
 @keyframes imgShimmer{to{background-position:-200% 0}}
-.ba-section{background:var(--bg1);padding:64px 24px 56px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ba-section{background:var(--bg1);padding:48px 24px 40px;border-top:none;border-bottom:1px solid var(--line)}
 .ba-card{background:var(--bg1);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:.22s;box-shadow:var(--shadow-sm)}
 .ba-vehicle{font-family:var(--fd);font-size:17px;color:var(--ink);letter-spacing:.02em;margin-bottom:4px}
 .ba-showcase-divider{background:linear-gradient(90deg,transparent,var(--line) 18%,var(--line-strong) 50%,var(--line) 82%,transparent)}
@@ -1893,8 +1926,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .hero-zip-btn{width:100%;min-height:48px;padding:12px 16px;font-size:15px!important}
   .hero-zip-feedback{min-height:0;margin-top:8px;justify-content:flex-start;text-align:left}
   .hero-zip-feedback>span{font-size:12px!important;line-height:1.45}
-  #services .section{padding:44px 16px 52px}
-  #services .sec-desc{margin-bottom:28px}
+  #services .section{padding:24px 16px 28px}
+  #services .car-pkg-intro .sec-desc{margin-bottom:0}
   .car-pkg-cta{min-height:48px;font-size:13px;padding:13px 16px;letter-spacing:.03em}
   .car-services-cta .btn-primary,.car-services-cta .btn-outline{width:100%;min-height:48px;font-size:16px}
   .car-services-cta{flex-direction:column;width:100%}
@@ -2076,22 +2109,15 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
+<div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
+
 <!-- SERVICES — car-first purchase path -->
 <div id="services" style="background:var(--bg1)">
   <div class="section">
     <div class="car-pkg-intro">
       <div class="sec-eye">Featured packages</div>
       <h2 class="sec-title">Popular services</h2>
-      <p class="sec-desc">Three of our most booked car packages. Ceramic Coating is its own service just below — book professional protection for up to 1 year or up to 3 years directly. More options, including Exterior Hand Wash, Maintenance Detail, and Signature Restoration, appear when you book. Final pricing adjusts by vehicle, condition, location, and add-ons.</p>
-    </div>
-
-    <div class="cd1-multi-cta" data-cd1-multi-vehicle-section style="text-align:center;margin:18px auto 8px;max-width:640px;padding:18px 16px;border:1px solid rgba(77,163,255,.28);border-radius:18px;background:rgba(18,32,52,.45)">
-      <p style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:.02em;margin:0 0 6px">Detail 2 or more vehicles in one visit</p>
-      <p style="font-size:13px;color:#8a9bb0;margin:0 0 14px">Book multiple vehicles now — use Add Another Vehicle in checkout.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">
-        <button type="button" class="btn-primary booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
-      </div>
-      <p style="font-size:12px;color:#8a9bb0;margin-top:12px">One vehicle? Book any package above — same service quality for every customer.</p>
+      <p class="sec-desc">The three packages customers book most. Price follows the vehicle.</p>
     </div>
 
     <div class="car-pkg-grid">
@@ -2099,9 +2125,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
-          <p class="car-pkg-desc">Vacuum, shampoo, steam, headliner, door jambs, trunk and truck bed where applicable — plus dash, windshield, and UV protectant.</p>
+          <p class="car-pkg-desc">Deep clean inside — vacuum, shampoo, steam, and protectant.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
@@ -2122,9 +2147,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <span class="car-pkg-popular">Most booked</span>
           <span class="car-pkg-scope">Inside &amp; out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
-          <p class="car-pkg-desc">Our premium inside-and-out package — interior detail plus exterior wash, protection, and light paint cleaning.</p>
+          <p class="car-pkg-desc">Interior plus exterior wash, protection, and light paint cleaning.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
@@ -2142,9 +2166,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Premium exterior</span>
           <h3 class="car-pkg-name">Exterior Refresh &amp; Protect</h3>
-          <p class="car-pkg-desc">Advanced exterior-only package — clay bar, polish, sealant, wheels, windshield, and gloss restoration. Premium paint enhancement, not a basic wash.</p>
+          <p class="car-pkg-desc">Exterior only — clay, polish, sealant, and gloss.</p>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Cars · boats · RVs · powersports</span>
             <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
@@ -2162,17 +2185,24 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
     </div>
 
-    <div id="ceramic-coating" class="car-pkg-intro" style="margin-top:8px">
+    <div class="cd1-multi-cta" data-cd1-multi-vehicle-section>
+      <p>Detail 2 or more vehicles in one visit</p>
+      <button type="button" class="btn-primary booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
+    </div>
+
+    <div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
+
+    <div id="ceramic-coating" class="car-pkg-intro">
       <div class="sec-eye">Ceramic Coating</div>
       <h2 class="sec-title">Ceramic Coating</h2>
-      <p class="sec-desc">Professional surface preparation, gloss enhancement, and a hydrophobic finish that resists contamination. Expected durability is up to the term you book and depends on maintenance. Painted exterior surfaces only. Interior, engine bay, undercarriage, and ceramic on wheels, glass, or trim are not included.</p>
+      <p class="sec-desc">Painted exterior only. Durability is up to the term you book and depends on maintenance.</p>
     </div>
     <div class="car-pkg-grid car-pkg-grid--ceramic">
       <article class="car-pkg-card">
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Up to 1 year</span>
           <h3 class="car-pkg-name">Professional Ceramic Protection — Up to 1 Year</h3>
-          <p class="car-pkg-desc">Professional surface preparation, gloss enhancement, and hydrophobic contamination resistance. Expected durability is up to 1 year with required maintenance. Installation quality sets the result.</p>
+          <p class="car-pkg-desc">Prep, gloss, and a hydrophobic finish. Up to 1 year with maintenance.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Passenger cars &amp; pickups</span>
             <span class="car-pkg-chip">⏱ 8 hours</span>
@@ -2194,7 +2224,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="car-pkg-top">
           <span class="car-pkg-scope">Up to 3 years</span>
           <h3 class="car-pkg-name">Professional Ceramic Protection — Up to 3 Years</h3>
-          <p class="car-pkg-desc">Professional surface preparation, gloss enhancement, and hydrophobic contamination resistance. Expected durability is up to 3 years with required maintenance. Installation quality sets the result.</p>
+          <p class="car-pkg-desc">Prep, gloss, and a hydrophobic finish. Up to 3 years with maintenance.</p>
           <div class="car-pkg-meta">
             <span class="car-pkg-chip">Passenger cars &amp; pickups</span>
             <span class="car-pkg-chip">⏱ 10 hours</span>
@@ -2227,6 +2257,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 <!-- Radar widget removed — now lives in admin.html dispatch board -->
+
+<div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
 
 <!-- BEFORE & AFTER -->
 <section class="ba-section" id="before-after" aria-labelledby="ba-heading">
@@ -2566,6 +2598,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </section>
 
+<div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
+
 <!-- HOW IT WORKS -->
 <div id="how" style="background:var(--bg0)">
   <div class="section">
@@ -2642,6 +2676,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
+<div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
+
 <!-- REVIEWS -->
 <div id="reviews" style="background:var(--bg0)">
   <div class="section">
@@ -2679,6 +2715,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 </div>
 
 
+<div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
+
 <!-- HOME FAQ (visible; matches FAQPage schema) -->
 <section class="home-faq-section" id="faq" aria-labelledby="home-faq-title">
   <div class="section">
@@ -2693,6 +2731,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
   </div>
 </section>
+
+<div class="cd1-seam" aria-hidden="true"><svg viewBox="0 0 1200 48" preserveAspectRatio="none" focusable="false"><path class="cd1-wave-base" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/><path class="cd1-wave-ink" pathLength="100" d="M0 26C150 26 150 10 300 10C450 10 450 24 600 24C750 24 750 38 900 38C1050 38 1050 26 1200 26"/></svg></div>
 
 <!-- SERVICE AREAS -->
 <section class="home-service-areas" aria-labelledby="home-service-areas-title">
