@@ -86,12 +86,13 @@ function matches(el, sel) {
   if (sel === '.btn-n, .btn-sub') return el.classList.contains('btn-n') || el.classList.contains('btn-sub');
   if (sel.startsWith('#')) return el.id === sel.slice(1);
   if (sel.startsWith('.')) return el.classList.contains(sel.slice(1));
-  if (sel.includes('[value="')) {
-    const value = sel.match(/\[value="([^"]*)"\]/)[1];
-    return el.value === value;
+  const attr = sel.match(/^(?:(\w+))?\[(name|value)="([^"]*)"\]$/);
+  if (attr) {
+    const [, tag, key, value] = attr;
+    if (tag && el.tag !== tag) return false;
+    return el[key] === value;
   }
   if (sel.includes('[data-id')) return !!el.getAttribute('data-id');
-  if (sel === 'input[value=""]') return el.tag === 'input' && el.value === '';
   if (sel.startsWith('input')) return el.tag === 'input';
   if (sel === 'h3') return el.tag === 'h3';
   if (sel === 'summary') return el.tag === 'summary';
@@ -563,18 +564,18 @@ describe('MDX ceramic checkout rerenders from the production catalog', () => {
     assert.equal(ctx.document.getElementById('ceramic-sticky-continue').disabled, true);
   });
 
-  it('removes eligibility questions and still shows water and payment choices', () => {
+  it('removes eligibility, water, and deposit choices from the ceramic info step', () => {
     const ctx = createPage();
-    const panel = ctx.document.getElementById('ceramic-panel');
-    const html = panel.innerHTML;
-    assert.equal(html.includes('Ceramic Coating eligibility'), false);
-    assert.equal(html.includes('repainted'), false);
-    assert.equal(html.includes('type="checkbox"'), false);
-    assert.match(html, /name="ceramic-water"/);
-    assert.match(html, /name="ceramic-plan"/);
-    assert.match(html, /prepay_full/);
-    assert.match(html, /value="deposit"/);
+    const text = textOf(ctx.document.body);
+    assert.equal(text.includes('Ceramic Coating eligibility'), false);
+    assert.equal(text.includes('repainted'), false);
+    assert.equal(ctx.document.querySelector('input[name="ceramic-water"]'), null);
+    assert.equal(ctx.document.querySelector('input[name="ceramic-plan"]'), null);
+    assert.equal(text.includes('Undercarriage water'), false);
+    assert.equal(text.includes('Prepay in Full'), false);
+    assert.equal(text.includes('Reserve with Deposit'), false);
     assert.equal(typeof ctx.CD1CeramicBooking.readAnswers, 'undefined');
+    assert.equal(typeof ctx.CD1CeramicBooking.readPlan, 'undefined');
   });
 
   it('hides Continue on the submit step and does not press the offer button', () => {

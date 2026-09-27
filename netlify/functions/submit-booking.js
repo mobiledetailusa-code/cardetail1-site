@@ -79,7 +79,12 @@ const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
 const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
-const { applyCeramicBooking, retainStoredCeramicEligibility } = require('../lib/ceramic-coating');
+const {
+  applyCeramicBooking,
+  retainStoredCeramicEligibility,
+  retainStoredCeramicPayment,
+  ceramicPayAtServiceViolation,
+} = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex, reserveBookedSpan, bookedSpanReady } = require('../lib/slot-index');
 const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
@@ -1321,6 +1326,17 @@ exports.handler = async (event) => {
       draftId = await newUniqueId(store);
     }
 
+    const draftPay = ceramicPayAtServiceViolation(b, existing, { finalize: false });
+    if (draftPay) {
+      return json(400, {
+        ok: false,
+        bookingCreated: false,
+        error: draftPay.error,
+        message: draftPay.message,
+        userMessage: draftPay.message,
+      });
+    }
+
     const draft = buildDraftRecord(b, draftId, now, existing);
     // Index-first for drafts: an entry with no record makes the slot look busy
     // (fail-closed) and expires on its own; a record with no entry would let a
@@ -1429,6 +1445,16 @@ exports.handler = async (event) => {
       return json(401, { ok: false, error: 'draft_token_invalid' });
     }
     const preference = String(b.paymentMethodPreference || existing.paymentMethodPreference || '');
+    const finalizePay = ceramicPayAtServiceViolation(b, existing, { finalize: true });
+    if (finalizePay) {
+      return json(400, {
+        ok: false,
+        bookingCreated: false,
+        error: finalizePay.error,
+        message: finalizePay.message,
+        userMessage: finalizePay.message,
+      });
+    }
     const cardOnFileRequired = resolveCardOnFileRequired(
       preference,
       existing.cardOnFileRequired
@@ -1489,6 +1515,7 @@ exports.handler = async (event) => {
     const finalizedAt = new Date().toISOString();
     const transactionalSmsConsentAccepted = b.transactionalSmsConsentAccepted === true;
     retainStoredCeramicEligibility(b, existing);
+    retainStoredCeramicPayment(b, existing);
 
     // Preserve fields the webhook may have already set on the draft.
     b = {

@@ -279,47 +279,15 @@
     return minutes;
   }
 
-  function depositCentsFor(totalDollars) {
-    var cents = Math.round(Number(totalDollars) * 100);
-    var percent = Math.round(cents * 25 / 100);
-    var minimum = global.ST && global.ST.pkgId === 'ceramic_3yr' ? 25000 : 15000;
-    return Math.max(percent, minimum);
-  }
-
   function displayedServiceTotal() {
     if (!global.ST) return 0;
     var fee = typeof global.getTravelFeeAmount === 'function' ? global.getTravelFeeAmount() : 0;
     return (Number(global.ST.basePrice) || 0) + (Number(global.ST.addonTotal) || 0) + fee + companionDollars();
   }
 
-  function readWaterSupply() {
-    var el = document.querySelector('input[name="ceramic-water"]:checked');
-    return el ? el.value : '';
-  }
-
-  function readPlan() {
-    var el = document.querySelector('input[name="ceramic-plan"]:checked');
-    return el ? el.value : '';
-  }
-
   function ensurePanel() {
-    var host = document.getElementById('bs4');
-    if (!host || document.getElementById('ceramic-panel')) return;
-    var panel = document.createElement('div');
-    panel.id = 'ceramic-panel';
-    panel.hidden = true;
-    panel.className = 'fg full';
-    panel.innerHTML = [
-      '<fieldset class="ceramic-q" id="ceramic-water-q"><legend>Undercarriage water</legend>',
-      '<label><input type="radio" name="ceramic-water" value="customer"> I will provide a usable exterior water connection</label> ',
-      '<label><input type="radio" name="ceramic-water" value="mobile"> Add Mobile Water Supply (+$50)</label></fieldset>',
-      '<fieldset class="ceramic-q"><legend>Payment</legend>',
-      '<label><input type="radio" name="ceramic-plan" value="prepay_full"> Prepay in Full</label> ',
-      '<label id="ceramic-deposit-label"><input type="radio" name="ceramic-plan" value="deposit"> Reserve with Deposit</label>',
-      '<p id="ceramic-pay-note" class="bk-addr-hint"></p></fieldset>'
-    ].join('');
-    host.appendChild(panel);
-    panel.addEventListener('change', syncPanel);
+    var old = document.getElementById('ceramic-panel');
+    if (old) old.remove();
   }
 
   function ensurePaintConditionNotes() {
@@ -342,31 +310,40 @@
     return on && on.id ? on.id : '';
   }
 
+  function syncCeramicPaymentChoices() {
+    var online = document.getElementById('pc-online');
+    var ceramic = !!(global.ST && isCeramicPackage(global.ST.pkgId));
+    if (online) online.hidden = ceramic;
+    if (!ceramic) return;
+    var wrap = document.getElementById('bk-online-card-wrap');
+    if (wrap) wrap.hidden = true;
+    if (global.ST && global.ST.payMethod === 'online_after_service') {
+      global.ST.payMethod = '';
+      ['pc-online', 'pc-onsite', 'pc-cash'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('sel');
+        el.setAttribute('aria-pressed', 'false');
+      });
+    }
+  }
+
   function syncPanel() {
-    var panel = document.getElementById('ceramic-panel');
-    if (!panel || !global.ST) return;
+    if (!global.ST) return;
     var on = isCeramicPackage(global.ST.pkgId);
-    panel.hidden = !on;
     var reviewBtn = document.querySelector('#bs4 .btn-row .btn-n');
     if (!on) {
       if (reviewBtn) reviewBtn.disabled = false;
+      syncCeramicPaymentChoices();
       syncChargePresentation();
       return;
     }
     ensurePaintConditionNotes();
     var stickyBtn = document.getElementById('ceramic-sticky-continue');
     if (stickyBtn) stickyBtn.disabled = !!catalogBlocked;
-    var note = document.getElementById('ceramic-pay-note');
-    var plan = readPlan();
-    var due = displayedServiceTotal();
-    var deposit = (depositCentsFor(due) / 100).toFixed(2);
-    if (note) {
-      note.textContent = plan === 'deposit'
-        ? ('Deposit $' + deposit + ' is charged now. That is 25% of the approved total, or the package minimum when that is higher. The remaining balance is collected later and is not charged automatically.')
-        : (plan === 'prepay_full' ? 'The full approved total is charged now. The booking is paid only after Stripe confirms the payment.' : '');
-    }
     renderCompanion();
     paintCompanionTotal();
+    syncCeramicPaymentChoices();
     syncChargePresentation();
   }
 
@@ -377,7 +354,6 @@
     var online = document.getElementById('bk-online-rec-msg');
     var details = document.getElementById('bk-pay-details-body');
     var ceramic = !!(global.ST && isCeramicPackage(global.ST.pkgId));
-    var plan = ceramic ? readPlan() : '';
     function mark(el) { if (el) el.setAttribute('data-cd1-charge', 'ceramic'); }
     function clearMark(el) { if (el) el.removeAttribute('data-cd1-charge'); }
     if (!ceramic) {
@@ -404,42 +380,26 @@
       }
       return;
     }
-    var approved = displayedServiceTotal();
-    var dueNow = plan === 'prepay_full' ? approved : (plan === 'deposit' ? depositCentsFor(approved) / 100 : null);
-    var dueLabel = dueNow == null ? '' : ('$' + dueNow.toFixed(2));
     if (amt) {
       mark(amt);
-      amt.textContent = dueLabel || '—';
+      amt.textContent = '$0.00';
     }
     if (copy) {
       mark(copy);
-      if (plan === 'prepay_full') {
-        copy.textContent = 'The full approved total' + (dueLabel ? ' of ' + dueLabel : '') + ' is charged to confirm this appointment.';
-      } else if (plan === 'deposit') {
-        copy.textContent = 'A deposit' + (dueLabel ? ' of ' + dueLabel : '') + ' is charged to confirm this appointment. That is 25% of the approved total, or the package minimum when that is higher. The remaining balance is collected later and is not charged automatically.';
-      } else {
-        copy.textContent = 'This Ceramic Coating appointment is charged to confirm. Choose deposit or full prepay before submitting.';
-      }
+      copy.textContent = 'Payment is collected at the appointment. Nothing is charged when you submit this request.';
     }
     if (badge) {
       mark(badge);
-      badge.textContent = plan === 'prepay_full'
-        ? 'Full amount charged to confirm'
-        : (plan === 'deposit' ? 'Deposit charged to confirm' : 'Charged to confirm');
+      badge.textContent = 'Pay at service · No charge today';
     }
     if (online) {
       mark(online);
-      online.textContent = 'Save a card only if you choose Pay online later. The amount due today is still charged to confirm this appointment.';
+      online.textContent = 'Card and cash are collected at the appointment. No card is saved to reserve.';
     }
     if (details) {
       if (!details.getAttribute('data-standard-html')) details.setAttribute('data-standard-html', details.innerHTML);
       mark(details);
-      var chargeLine = plan === 'prepay_full'
-        ? 'The full approved total is charged to confirm. The booking is paid only after Stripe confirms the payment.'
-        : (plan === 'deposit'
-          ? 'A deposit of 25% of the approved total, or the package minimum when that is higher, is charged to confirm. The remaining balance is collected later and is not charged automatically.'
-          : 'Deposit or full prepay is charged to confirm this Ceramic Coating appointment.');
-      details.innerHTML = '<ul><li>' + chargeLine + '</li><li>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li><li>A saved card does not replace the amount due today.</li></ul>';
+      details.innerHTML = '<ul><li>Payment is collected at the appointment by card or cash. Nothing is charged to reserve this booking.</li><li>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li></ul>';
     }
   }
 
@@ -501,16 +461,17 @@
   function attachPayload(payload) {
     if (!payload || !global.ST || !isCeramicPackage(global.ST.pkgId)) return payload;
     payload.serviceFamily = 'ceramic_coating';
-    payload.ceramicPaymentPlan = readPlan();
+    delete payload.ceramicPaymentPlan;
+    delete payload.paymentPlan;
     delete payload.ceramicEligibility;
-    payload.ceramicWaterSupply = readWaterSupply();
+    delete payload.ceramicWaterSupply;
     sanitizeCeramicAddons();
     if (Array.isArray(payload.vehicles)) {
       payload.vehicles.forEach(function (vehicle) {
         if (!isCeramicPackage(vehicle.pkgId)) return;
         var glassSeen = false;
         vehicle.addons = (vehicle.addons || []).filter(function (addon) {
-          if (!addon || EXTERIOR_PROTECTION[addon.id]) return false;
+          if (!addon || addon.id === 'mobile_water' || EXTERIOR_PROTECTION[addon.id]) return false;
           if (!companionSelected() && INTERIOR_IDS[addon.id]) return false;
           if (GLASS_IDS[addon.id]) {
             if (glassSeen) return false;
@@ -522,7 +483,7 @@
           addon.price = row.price;
           return true;
         });
-        vehicle.ceramicWaterSupply = payload.ceramicWaterSupply;
+        delete vehicle.ceramicWaterSupply;
         var selected = companionSelected();
         var interior = selected ? interiorOffer() : null;
         var already = Number(vehicle.companionInteriorPrice) || 0;
@@ -577,7 +538,7 @@
     var glass = null;
     var next = [];
     global.ST.addons.forEach(function (addon) {
-      if (!addon || EXTERIOR_PROTECTION[addon.id]) return;
+      if (!addon || addon.id === 'mobile_water' || EXTERIOR_PROTECTION[addon.id]) return;
       if (!companionSelected() && INTERIOR_IDS[addon.id]) return;
       if (GLASS_IDS[addon.id]) {
         if (glass) return;
@@ -991,13 +952,11 @@
     summary.textContent = 'More services';
     details.appendChild(summary);
     var ids = ['ceramic_correction', 'ceramic_waterspot', 'ceramic_contamination', 'undercarriage', 'engine_bay', 'heavymud'];
-    if (hasAddon('undercarriage')) ids.push('mobile_water');
     ids.forEach(function (id) {
       appendResolvedCard(details, id, {
         selected: hasAddon(id),
         onChange: function (on) {
           var ok = writeAddon(id, on);
-          if (id === 'undercarriage' && !on) writeAddon('mobile_water', false);
           refreshTotals();
           renderCeramicCheckout();
           announce(on && ok ? 'Added — total updated' : (on ? CATALOG_ERROR : 'Removed — total updated'));
@@ -1113,9 +1072,6 @@
     var pkgName = (global.ST.pkg && global.ST.pkg.name) || 'Ceramic Coating';
     var travel = typeof global.getTravelFeeAmount === 'function' ? global.getTravelFeeAmount() : 0;
     var approved = displayedServiceTotal();
-    var plan = readPlan();
-    var dueNow = plan === 'deposit' ? depositCentsFor(approved) / 100 : approved;
-    var balance = Math.round((approved - dueNow) * 100) / 100;
     var rows = [moneyLine(pkgName, global.ST.basePrice || 0)];
     var interior = companionSelected() ? interiorOffer() : null;
     if (interior) rows.push(moneyLine(interior.name, interior.price));
@@ -1127,13 +1083,15 @@
     });
     if (travel) rows.push(moneyLine('Travel', travel));
     rows.push(moneyLine('Approved final total', approved));
-    rows.push(moneyLine('Amount due today', dueNow));
-    rows.push(moneyLine('Remaining balance', balance));
+    rows.push(moneyLine('Due today', 0));
+    rows.push(moneyLine('Balance due at service', approved));
     syncChargePresentation();
     var extended = extendedCopy()
       ? ('<p class="bk-addr-hint">' + extendedCopy() + '</p>')
       : '';
-    box.innerHTML = '<div class="fl">Appointment summary</div>' + rows.join('') + extended;
+    box.innerHTML = '<div class="fl">Appointment summary</div>' + rows.join('')
+      + '<p class="bk-addr-hint">Payment is collected at the appointment by card or cash. Nothing is charged to reserve.</p>'
+      + extended;
   }
 
   function boot() {
@@ -1221,11 +1179,28 @@
       };
       global.toggleAddon._ceramicWrapped = true;
     }
+    if (global.Cardetail1BookingReview
+      && typeof global.Cardetail1BookingReview.selectRequestPaymentPreference === 'function'
+      && !global.Cardetail1BookingReview.selectRequestPaymentPreference._ceramicPay) {
+      var origPay = global.Cardetail1BookingReview.selectRequestPaymentPreference;
+      var wrappedPay = function (preference) {
+        if (global.ST && isCeramicPackage(global.ST.pkgId) && preference === 'online_after_service') {
+          syncCeramicPaymentChoices();
+          return;
+        }
+        var result = origPay.apply(this, arguments);
+        try { syncCeramicPaymentChoices(); } catch (err) { /* display only */ }
+        return result;
+      };
+      wrappedPay._ceramicPay = true;
+      global.Cardetail1BookingReview.selectRequestPaymentPreference = wrappedPay;
+      global.selectRequestPaymentPreference = wrappedPay;
+    }
     var origGo = global.bkGoTo;
     if (typeof origGo === 'function' && !origGo._ceramicSticky) {
       var wrappedGo = function () {
         var result = origGo.apply(this, arguments);
-        try { renderSticky(); } catch (err) { /* display only */ }
+        try { renderSticky(); syncCeramicPaymentChoices(); syncChargePresentation(); } catch (err) { /* display only */ }
         return result;
       };
       wrappedGo._ceramicSticky = true;
@@ -1249,8 +1224,6 @@
     bandFor: bandFor,
     displayPrice: displayPrice,
     addonVisible: addonVisible,
-    readPlan: readPlan,
-    readWaterSupply: readWaterSupply,
     renderCeramicCheckout: renderCeramicCheckout,
     appointmentMinutes: appointmentMinutes,
     waterRepellentName: WATER_REPELLENT.name,

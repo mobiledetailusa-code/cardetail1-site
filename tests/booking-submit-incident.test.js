@@ -70,7 +70,6 @@ function ceramicBody(extra = {}) {
     preferredTime: '8:00 AM',
     preferredArrivalWindow: 'anytime',
     scheduleFlexibility: 'exact',
-    ceramicPaymentPlan: 'prepay_full',
     vehicleCategory: 'cars',
     vehicle: 'Large SUV',
     package: 'Professional Ceramic Protection — Up to 3 Years',
@@ -316,86 +315,124 @@ test('confirmed 12-hour appointment keeps every span after the draft hold expire
   }
 });
 
-test('ceramic cash, deposit, and prepay finalize with unpaid balances and no duplicate', async () => {
-  const cases = [
-    {
-      label: 'prepay',
-      extra: { ceramicPaymentPlan: 'prepay_full', phone: '2015550191', email: 'ceramic-prepay@example.com' },
-      ip: '203.0.113.31',
-      total: 1530,
-      deposit: 0,
-      duration: 720,
-    },
-    {
-      label: 'deposit',
-      extra: {
-        ceramicPaymentPlan: 'deposit',
-        phone: '2015550192',
-        email: 'ceramic-deposit@example.com',
-        vehicles: [{
-          cat: 'cars',
-          pkgId: 'ceramic_3yr',
-          tierKey: 'suv3',
-          vehicleLabel: 'Large SUV',
-          basePrice: 1275,
-          subtotal: 1625,
-          companionInterior: true,
-          companionInteriorPrice: 255,
-          addons: [{ id: 'pethair', name: 'Pet Hair Removal', price: 95, qty: 1 }],
-          addonTotal: 95,
-        }],
-        totalPrice: 1625,
+test('ceramic cash and card at service stay unpaid with the full balance and no stripe call', async () => {
+  const originalFetch = global.fetch;
+  const stripeCalls = [];
+  global.fetch = async (url, opts) => {
+    if (String(url).includes('api.stripe.com')) stripeCalls.push(String(url));
+    if (typeof originalFetch === 'function') return originalFetch(url, opts);
+    return { ok: false, status: 599, json: async () => ({}) };
+  };
+  try {
+    const cases = [
+      {
+        label: 'cash',
+        extra: { paymentMethodPreference: 'cash_onsite', phone: '2015550191', email: 'ceramic-cash@example.com' },
+        ip: '203.0.113.31',
       },
-      ip: '203.0.113.32',
-      total: 1625,
-      deposit: 406.25,
-      duration: 765,
-    },
-  ];
-
-  for (const row of cases) {
-    useStores();
-    const payload = ceramicBody(row.extra);
-    const draft = await post(payload, row.ip);
-    assert.equal(draft.status, 200, `${row.label} ${JSON.stringify(draft.body)}`);
-    const fin = await finalize(payload, draft.body);
-    assert.equal(fin.status, 200, `${row.label} ${JSON.stringify(fin.body)}`);
-    assert.equal(fin.body.bookingCreated, true);
-    assert.equal(fin.body.paymentSucceeded, false);
-    const saved = bookings.records().find((item) => item.id === fin.body.id);
-    assert.equal(saved.isDraft, false);
-    assert.equal(saved.paymentStatus, 'unpaid');
-    assert.equal(saved.amountPaid, 0);
-    assert.equal(saved.balanceDue, row.total);
-    assert.equal(saved.approvedFinalAmount, row.total);
-    assert.equal(saved.depositAmount, row.deposit);
-    assert.equal(saved.ceramicPaymentPlan, row.extra.ceramicPaymentPlan);
-    assert.equal(saved.appointmentDurationMinutes, row.duration);
-    assert.equal(saved.appointmentSchedule.multiDay, true);
-    const again = await finalize(payload, draft.body);
-    assert.equal(again.body.idempotent, true);
-    assert.equal(bookings.records().length, 1);
-    const garage = projectBookingForCustomer(saved);
-    const admin = projectQuickOpsBooking(saved);
-    assert.equal(garage.id, saved.id);
-    assert.equal(garage.approvedFinalAmount, row.total);
-    assert.equal(garage.amountPaid, 0);
-    assert.equal(admin.bookingId, saved.id);
-    assert.equal(admin.paid, false);
-    assert.equal(admin.ceramic.paymentPlan, row.extra.ceramicPaymentPlan);
-    assert.equal(admin.service.durationMinutes, row.duration);
-    assert.equal(admin.status, 'pending_review');
-    assert.equal(saved.ceramic.eligibility, null);
-    assert.equal(saved.ceramic.technicalApproval, undefined);
-    assert.equal(saved.vehicleTechnicallyApproved, undefined);
-    assert.ok(saved.ceramic.serviceLineItems.every((line) => line.completionStatus === 'pending'));
-    assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'ceramic_correction'), false);
-    const occupied = indexKeys().map(parseSlotIndexKey).filter((entry) => entry && entry.bookingId === saved.id && entry.state === 'booked');
-    assert.equal(occupied.length, Math.ceil(row.duration / 120));
+      {
+        label: 'card',
+        extra: {
+          paymentMethodPreference: 'card_onsite',
+          phone: '2015550192',
+          email: 'ceramic-card@example.com',
+          ceramicPaymentPlan: 'deposit',
+          ceramicWaterSupply: 'mobile',
+        },
+        ip: '203.0.113.32',
+      },
+    ];
+    for (const row of cases) {
+      useStores();
+      stripeCalls.length = 0;
+      const payload = ceramicBody(row.extra);
+      delete payload.ceramicEligibility;
+      const draft = await post(payload, row.ip);
+      assert.equal(draft.status, 200, `${row.label} ${JSON.stringify(draft.body)}`);
+      const fin = await finalize(payload, draft.body);
+      assert.equal(fin.status, 200, `${row.label} ${JSON.stringify(fin.body)}`);
+      assert.equal(fin.body.bookingCreated, true);
+      assert.equal(fin.body.paymentSucceeded, false);
+      const saved = bookings.records().find((item) => item.id === fin.body.id);
+      assert.equal(saved.isDraft, false);
+      assert.equal(saved.paymentStatus, 'unpaid');
+      assert.equal(saved.amountPaid, 0);
+      assert.equal(saved.balanceDue, 1530);
+      assert.equal(saved.approvedFinalAmount, 1530);
+      assert.equal(saved.depositAmount, 0);
+      assert.equal(saved.ceramicPaymentPlan, null);
+      assert.equal(saved.ceramic.paymentPlan, null);
+      assert.equal(saved.ceramic.chargeAmount, 0);
+      assert.equal(saved.cardOnFileRequired, false);
+      assert.equal(saved.cardOnFileStatus, 'not_collected');
+      assert.equal(saved.setupIntentId, undefined);
+      assert.equal(saved.paymentIntentId, undefined);
+      assert.equal(stripeCalls.length, 0);
+      assert.equal(saved.appointmentDurationMinutes, 720);
+      assert.equal(saved.appointmentSchedule.multiDay, true);
+      assert.equal(saved.appointmentSchedule.days[1].date, '2026-09-29');
+      const again = await finalize(payload, draft.body);
+      assert.equal(again.body.idempotent, true);
+      assert.equal(bookings.records().length, 1);
+      const garage = projectBookingForCustomer(saved);
+      const admin = projectQuickOpsBooking(saved);
+      assert.equal(garage.approvedFinalAmount, 1530);
+      assert.equal(garage.amountPaid, 0);
+      assert.equal(garage.balanceDue, 1530);
+      assert.equal(admin.paid, false);
+      assert.equal(admin.ceramic.paymentPlan, null);
+      assert.equal(admin.service.durationMinutes, 720);
+      assert.equal(saved.ceramic.eligibility, null);
+      const occupied = indexKeys().map(parseSlotIndexKey).filter((entry) => entry && entry.bookingId === saved.id && entry.state === 'booked');
+      assert.equal(occupied.length, 6);
+      assert.ok(occupied.some((entry) => entry.slotDate === '2026-09-29'));
+    }
+  } finally {
+    global.fetch = originalFetch;
   }
 });
 
-test('online card draft fails closed until the card is saved, then finalizes once', async () => {
+test('ceramic undercarriage does not add a water fee when water access is no, unsure, or blank', async () => {
+  for (const [waterAvailable, phone] of [['no', '2015550181'], ['unsure', '2015550182'], ['', '2015550183']]) {
+    useStores();
+    const payload = ceramicBody({
+      phone,
+      email: `ceramic-water-${phone}@example.com`,
+      waterAvailable,
+      vehicles: [{
+        cat: 'cars',
+        pkgId: 'ceramic_3yr',
+        tierKey: 'suv3',
+        vehicleLabel: 'Large SUV',
+        basePrice: 1275,
+        subtotal: 1705,
+        companionInterior: true,
+        companionInteriorPrice: 255,
+        addons: [
+          { id: 'undercarriage', name: 'Accessible Undercarriage Cleaning', price: 175, qty: 1 },
+          { id: 'mobile_water', name: 'Mobile Water Supply', price: 50, qty: 1 },
+        ],
+        addonTotal: 175,
+      }],
+      totalPrice: 1705,
+    });
+    const draft = await post(payload, `203.0.113.${phone.slice(-2)}`);
+    assert.equal(draft.status, 200, `${waterAvailable} ${JSON.stringify(draft.body)}`);
+    const fin = await finalize(payload, draft.body);
+    assert.equal(fin.status, 200, `${waterAvailable} ${JSON.stringify(fin.body)}`);
+    const saved = bookings.records().find((item) => item.id === fin.body.id);
+    assert.equal(saved.approvedFinalAmount, 1705);
+    assert.equal(saved.balanceDue, 1705);
+    assert.equal(saved.paymentStatus, 'unpaid');
+    assert.equal(saved.amountPaid, 0);
+    assert.equal(saved.waterAvailable, waterAvailable);
+    assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'mobile_water'), false);
+    assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'undercarriage'), true);
+    assert.equal(saved.appointmentSchedule.multiDay, true);
+  }
+});
+
+test('a new ceramic booking rejects pay online later and does not save a card', async () => {
   const payload = ceramicBody({
     phone: '2015550193',
     email: 'online-card@example.com',
@@ -404,32 +441,53 @@ test('online card draft fails closed until the card is saved, then finalizes onc
     acceptedCardOnFilePolicy: true,
   });
   const draft = await post(payload, '203.0.113.41');
+  assert.equal(draft.status, 400, JSON.stringify(draft.body));
+  assert.equal(draft.body.error, 'ceramic_pay_at_service_only');
+  assert.notEqual(draft.body.bookingCreated, true);
+  assert.equal(bookings.records().length, 0);
+});
+
+test('a stored deposit plan and historical water line survive a later submit', async () => {
+  const payload = ceramicBody({
+    phone: '2015550197',
+    email: 'ceramic-history@example.com',
+  });
+  const draft = await post(payload, '203.0.113.61');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
-  const blocked = await finalize(payload, draft.body);
-  assert.equal(blocked.status, 409);
-  assert.equal(blocked.body.error, 'card_on_file_not_saved');
-  assert.equal(blocked.body.ok, false);
-  assert.notEqual(blocked.body.bookingCreated, true);
-  assert.equal(bookings.records().filter((row) => row.isDraft === false).length, 0);
-
   const stored = bookings.records().find((row) => row.id === draft.body.id);
-  stored.cardOnFileStatus = 'saved';
-  stored.stripePaymentMethodId = 'pm_test_saved';
-  stored.setupIntentId = 'seti_test_saved';
+  stored.ceramicPaymentPlan = 'deposit';
+  stored.depositAmount = 406.25;
+  stored.ceramic = {
+    ...(stored.ceramic || {}),
+    paymentPlan: 'deposit',
+    depositAmount: 406.25,
+    chargeAmount: 406.25,
+  };
   await bookings.setJSON(stored.id, stored);
-
   const fin = await finalize(payload, draft.body);
   assert.equal(fin.status, 200, JSON.stringify(fin.body));
-  assert.equal(fin.body.bookingCreated, true);
-  assert.equal(fin.body.cardOnFileStatus, 'saved');
-  assert.equal(fin.body.paymentSucceeded, false);
-  assert.equal(fin.body.amountPaid, 0);
-  assert.equal(fin.body.balanceDue, 1530);
   const saved = bookings.records().find((row) => row.id === fin.body.id);
-  assert.equal(saved.isDraft, false);
+  assert.equal(saved.ceramicPaymentPlan, 'deposit');
+  assert.equal(saved.depositAmount, 406.25);
+  assert.equal(saved.ceramic.chargeAmount, 406.25);
+  assert.equal(saved.amountPaid, 0);
+  assert.equal(saved.balanceDue, 1530);
   assert.equal(saved.paymentStatus, 'unpaid');
+  saved.vehicles[0].addons = [
+    ...(saved.vehicles[0].addons || []),
+    { id: 'mobile_water', name: 'Mobile Water Supply', price: 50, qty: 1 },
+  ];
+  saved.approvedFinalAmount = 1580;
+  saved.totalPrice = 1580;
+  saved.balanceDue = 1580;
+  await bookings.setJSON(saved.id, saved);
   const again = await finalize(payload, draft.body);
   assert.equal(again.body.idempotent, true);
+  const kept = bookings.records().find((row) => row.id === fin.body.id);
+  assert.equal(kept.depositAmount, 406.25);
+  assert.equal(kept.ceramicPaymentPlan, 'deposit');
+  assert.equal(kept.approvedFinalAmount, 1580);
+  assert.equal(kept.vehicles[0].addons.some((addon) => addon.id === 'mobile_water' && addon.price === 50), true);
   assert.equal(bookings.records().length, 1);
 });
 
@@ -510,8 +568,9 @@ test('a later finalize keeps eligibility answers already stored on the draft', a
   assert.equal(saved.ceramic.eligibility.remainDry12h, 'no');
   assert.equal(saved.ceramic.eligibility.severeContamination, 'yes');
   assert.deepEqual(saved.ceramic.warnings, ['stored before the form was removed']);
-  assert.equal(saved.approvedFinalAmount, 1625);
-  assert.equal(saved.depositAmount, 406.25);
+    assert.equal(saved.approvedFinalAmount, 1625);
+    assert.equal(saved.depositAmount, 0);
+    assert.equal(saved.ceramicPaymentPlan, null);
   assert.equal(saved.amountPaid, 0);
   assert.equal(saved.paymentStatus, 'unpaid');
   assert.equal(saved.appointmentDurationMinutes, 765);
