@@ -670,24 +670,20 @@ test('occupancy failure before payment does not charge, and retry finalizes the 
   assert.equal(submitBooking.__test.notificationAttempts(), 1);
 });
 
-test('a saved card stays uncharged when occupancy fails, and retry does not notify again', async () => {
+test('ceramic card at service stays uncharged when occupancy fails, and retry does not notify again', async () => {
   const payload = ceramicBody({
     phone: '2015550331',
     email: 'card-then-occupancy@example.com',
     preferredDate: '2026-10-09',
-    paymentMethodPreference: 'online_after_service',
-    cardOnFileRequired: true,
-    acceptedCardOnFilePolicy: true,
+    paymentMethodPreference: 'card_onsite',
+    cardOnFileRequired: false,
+    acceptedCardOnFilePolicy: false,
   });
   const draft = await post(payload, '203.0.113.220');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   const stored = await bookings.get(draft.body.id, { type: 'json' });
-  await bookings.setJSON(draft.body.id, {
-    ...stored,
-    cardOnFileStatus: 'saved',
-    stripePaymentMethodId: 'pm_test_saved',
-    setupIntentId: 'seti_test_saved',
-  });
+  assert.equal(stored.cardOnFileStatus, 'not_collected');
+  assert.equal(stored.setupIntentId, undefined);
   const realSlots = slots;
   setSlotIndexStoreOverride(forwardingStore(realSlots, {
     beforeSet(key) {
@@ -705,7 +701,8 @@ test('a saved card stays uncharged when occupancy fails, and retry does not noti
     assert.equal(stripe.calls.length, 0);
     const pending = await bookings.get(draft.body.id, { type: 'json' });
     assert.equal(pending.isDraft, true);
-    assert.equal(pending.cardOnFileStatus, 'saved');
+    assert.equal(pending.cardOnFileStatus, 'not_collected');
+    assert.equal(pending.setupIntentId, undefined);
     assert.notEqual(pending.paymentStatus, 'paid');
   } finally {
     stripe.restore();
@@ -717,7 +714,7 @@ test('a saved card stays uncharged when occupancy fails, and retry does not noti
   assert.equal(retried.body.bookingCreated, true);
   assert.equal(retried.body.paymentSucceeded, false);
   assert.equal(retried.body.amountPaid, 0);
-  assert.equal(retried.body.cardOnFileStatus, 'saved');
+  assert.equal(retried.body.cardOnFileStatus, 'not_collected');
   assert.equal(submitBooking.__test.notificationAttempts(), 1);
   const saved = await bookings.get(draft.body.id, { type: 'json' });
   assert.equal(saved.paymentStatus, 'unpaid');

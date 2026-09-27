@@ -103,28 +103,40 @@ test('cash and card at service do not require the hidden card authorization', as
   assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
 });
 
-test('ceramic deposit and prepay do not say nothing is charged today', () => {
+test('ceramic pay at service offers card or cash and does not charge to reserve', () => {
   const { w, ctx } = boot('https://cardetail1.com/');
   w.ST.pkgId = 'ceramic_1yr';
   w.ST.basePrice = 1625;
+  w.ST.addonTotal = 0;
   w.getTravelFeeAmount = function () { return 0; };
   vm.runInContext(ceramicSrc, ctx);
   w.CD1CeramicBooking.boot();
-  const deposit = w.document.querySelector('input[name="ceramic-plan"][value="deposit"]');
-  deposit.checked = true;
-  deposit.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.equal(w.document.querySelector('input[name="ceramic-plan"]'), null);
+  assert.equal(w.document.querySelector('input[name="ceramic-water"]'), null);
+  assert.equal(w.document.getElementById('pc-online').hidden, true);
+  assert.equal(w.document.getElementById('pc-onsite').hidden, false);
+  assert.equal(w.document.getElementById('pc-cash').hidden, false);
   const charged = w.document.getElementById('bk-charged-copy').textContent;
   const badge = w.document.querySelector('#bs5 .pay-badge').textContent;
-  const online = w.document.getElementById('bk-online-rec-msg').textContent;
-  assert.match(charged, /deposit of \$406\.25/i);
-  assert.doesNotMatch(charged + badge + online, /nothing is charged today|no payment is collected|no charge today/i);
+  assert.match(charged, /collected at the appointment/i);
+  assert.match(charged, /nothing is charged/i);
+  assert.match(badge, /no charge today/i);
+  assert.doesNotMatch(charged + badge, /deposit|prepay|charged to confirm/i);
+  assert.equal(w.document.querySelector('.bk-charged-stack .bk-charged-amt').textContent, '$0.00');
+  w.Cardetail1BookingReview.selectRequestPaymentPreference('cash_onsite');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
+  w.Cardetail1BookingReview.selectRequestPaymentPreference('card_onsite');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
+  w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');
+  assert.notEqual(w.ST.payMethod, 'online_after_service');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
 
-  const prepay = w.document.querySelector('input[name="ceramic-plan"][value="prepay_full"]');
-  prepay.checked = true;
-  prepay.dispatchEvent(new w.Event('change', { bubbles: true }));
-  const full = w.document.getElementById('bk-charged-copy').textContent;
-  assert.match(full, /full approved total of \$1625\.00/i);
-  assert.doesNotMatch(full, /nothing is charged today|no payment is collected/i);
+  w.ST.pkgId = 'full';
+  w.CD1CeramicBooking.boot();
+  assert.equal(w.document.getElementById('pc-online').hidden, false);
+  w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');
+  assert.equal(w.ST.payMethod, 'online_after_service');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, false);
 });
 
 test('deploy preview states the block at checkout start and does not offer a card retry', () => {

@@ -19,6 +19,7 @@ const {
   durationForVehicle,
   evaluateEligibility,
   retainStoredCeramicEligibility,
+  stampStoredCeramicChargePlan,
   PUBLIC_PACKAGE_NAMES,
   resolveCompanionInterior,
   resolveAddonPrice,
@@ -208,16 +209,24 @@ describe('ceramic add-ons', () => {
     assert.equal(bothEngines.error, 'engine_addon_mutually_exclusive');
   });
 
-  it('requires water supply with undercarriage and keeps heavy mud combinable', () => {
+  it('does not add mobile water or block undercarriage when water access is unanswered', () => {
     const missing = computeVehicleSubtotal(vehicle('ceramic_1yr', 'small', [{ id: 'undercarriage' }]), ZIP);
-    assert.equal(missing.error, 'water_supply_required');
+    assert.equal(missing.ok, true, missing.error);
+    assert.equal(missing.addonTotal, 125);
     const mobile = computeVehicleSubtotal(vehicle('ceramic_1yr', 'suv3', [
       { id: 'undercarriage' },
       { id: 'mobile_water' },
       { id: 'heavymud' },
     ], { ceramicWaterSupply: 'mobile' }), ZIP);
     assert.equal(mobile.ok, true, mobile.error);
-    assert.equal(mobile.addonTotal, 175 + 50 + 75);
+    assert.equal(mobile.addonTotal, 175 + 75);
+    assert.equal(mobile.addons.some((addon) => addon.id === 'mobile_water'), false);
+    const wash = computeVehicleSubtotal(vehicle('wash', 'small', [
+      { id: 'undercarriage' },
+      { id: 'mobile_water' },
+    ]), ZIP);
+    assert.equal(wash.ok, true, wash.error);
+    assert.equal(wash.addonTotal, 125 + 50);
   });
 
   it('rejects a browser price that does not match the server total', () => {
@@ -276,7 +285,11 @@ describe('ceramic eligibility', () => {
     assert.equal(applied.ok, true, applied.error);
     assert.equal(booking.ceramic.eligibility, null);
     assert.equal(booking.approvedFinalAmount, 650);
-    assert.equal(booking.depositAmount, 162.5);
+    assert.equal(booking.depositAmount, 0);
+    assert.equal(booking.ceramicPaymentPlan, null);
+    assert.equal(booking.ceramic.chargeAmount, 0);
+    assert.equal(booking.paymentStatus, 'unpaid');
+    assert.equal(booking.balanceDue, 650);
     assert.equal(booking.ceramic.technicalApproval, undefined);
 
     const again = applyCeramicBooking({
@@ -310,8 +323,11 @@ describe('ceramic eligibility', () => {
     assert.equal(ui.includes('Ceramic Coating eligibility'), false);
     assert.equal(ui.includes('Has the vehicle been repainted'), false);
     assert.equal(ui.includes('payload.ceramicEligibility ='), false);
-    assert.match(ui, /name="ceramic-plan"/);
-    assert.match(ui, /name="ceramic-water"/);
+    assert.equal(ui.includes('name="ceramic-plan"'), false);
+    assert.equal(ui.includes('name="ceramic-water"'), false);
+    assert.equal(ui.includes('Undercarriage water'), false);
+    assert.equal(ui.includes('Prepay in Full'), false);
+    assert.match(home, /Water access — Optional/);
     assert.match(home, /Technical exterior wash/);
     assert.match(modal, /Ceramic coating on painted exterior surfaces/);
   });
@@ -322,6 +338,10 @@ describe('ceramic payment state', () => {
     const booking = pricedBooking(pkgId, 'small', [], {}, { ceramicPaymentPlan: plan });
     const applied = applyCeramicBooking(booking, { finalize: true });
     assert.equal(applied.ok, true, applied.error);
+    assert.equal(booking.ceramicPaymentPlan, null);
+    assert.equal(booking.depositAmount, 0);
+    const stamped = stampStoredCeramicChargePlan(booking, plan);
+    assert.equal(stamped.ok, true, stamped.error);
     return booking;
   }
 
@@ -408,20 +428,23 @@ describe('ceramic payment state', () => {
     assert.equal(booking.ledger.entries.length, 2);
   });
 
-  it('disables the deposit plan when the feature flag is off', () => {
+  it('keeps a new booking unpaid when deposits are off and still blocks a stored deposit charge', () => {
     const booking = pricedBooking('ceramic_3yr', 'suv2', [], {}, { ceramicPaymentPlan: 'deposit' });
-    const blocked = applyCeramicBooking(booking, {
+    const applied = applyCeramicBooking(booking, {
       finalize: true,
       env: { CD1_CERAMIC_DEPOSITS: '0' },
     });
+    assert.equal(applied.ok, true, applied.error);
+    assert.equal(booking.ceramicPaymentPlan, null);
+    assert.equal(booking.depositAmount, 0);
+    assert.equal(booking.approvedFinalAmount, 1150);
+    assert.equal(booking.balanceDue, 1150);
+    const blocked = stampStoredCeramicChargePlan(booking, 'deposit', { CD1_CERAMIC_DEPOSITS: '0' });
     assert.equal(blocked.error, 'ceramic_deposit_disabled');
-    const prepay = pricedBooking('ceramic_3yr', 'suv2', [], {}, { ceramicPaymentPlan: 'prepay_full' });
-    const allowed = applyCeramicBooking(prepay, {
-      finalize: true,
-      env: { CD1_CERAMIC_DEPOSITS: '0' },
-    });
-    assert.equal(allowed.ok, true);
-    assert.equal(prepay.approvedFinalAmount, 1150);
+    const historical = pricedBooking('ceramic_3yr', 'suv2');
+    applyCeramicBooking(historical, { finalize: true });
+    assert.equal(stampStoredCeramicChargePlan(historical, 'deposit').ok, true);
+    assert.equal(chargeDueNow(historical, { CD1_CERAMIC_DEPOSITS: '0' }).error, 'ceramic_deposit_disabled');
   });
 
   it('builds an on-session deposit intent and refuses a manipulated amount', () => {
@@ -528,6 +551,7 @@ describe('ceramic portals, receipts, and messages', () => {
     });
     const applied = applyCeramicBooking(booking, { finalize: true });
     assert.equal(applied.ok, true, applied.error);
+    assert.equal(stampStoredCeramicChargePlan(booking, 'deposit').ok, true);
     applyStripePaymentIntent(booking, {
       id: 'pi_portal',
       status: 'succeeded',
@@ -567,6 +591,26 @@ describe('ceramic portals, receipts, and messages', () => {
     assert.equal(receipt.receipt.ceramic.coatingManufacturer, undefined);
     assert.doesNotMatch(JSON.stringify(receipt.receipt.ceramic), /GYEON|CanCoat|Mohs/);
     assert.equal(receipt.receipt.paidInFull, false);
+  });
+
+  it('says payment is collected at the appointment when no deposit plan is stored', () => {
+    const booking = pricedBooking('ceramic_1yr', 'small', [], {}, {
+      firstName: 'Ava',
+      lastName: 'Stone',
+      phone: '2015550100',
+      email: 'ava@example.com',
+      preferredDate: WEEKDAY,
+      preferredTime: '8:00 AM',
+      ceramicPaymentPlan: 'deposit',
+    });
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    const email = buildEmailContent('booking.request_received', booking, 'https://cardetail1.com/my-garage.html');
+    assert.match(email.text, /collected at the appointment/);
+    assert.match(email.text, /Nothing is charged to reserve/);
+    assert.doesNotMatch(email.text, /Deposit:/);
+    const sms = buildSmsBody('booking.request_received', booking, 'https://cardetail1.com/my-garage.html');
+    assert.match(sms, /Pay at the appointment/);
   });
 
   it('itemizes ceramic totals in email and SMS', () => {
@@ -610,6 +654,7 @@ describe('ceramic public names and internal coating assignment', () => {
     });
     const applied = applyCeramicBooking(booking, { finalize: true });
     assert.equal(applied.ok, true, applied.error);
+    assert.equal(stampStoredCeramicChargePlan(booking, 'prepay_full').ok, true);
     return booking;
   }
 
@@ -831,9 +876,12 @@ describe('ceramic plus interior companion', () => {
     assert.equal(depositCentsForApproved('ceramic_1yr', 400), 15000);
     const full = pricedBooking('ceramic_1yr', 'small', [], { companionInterior: true }, { ceramicPaymentPlan: 'prepay_full' });
     applyCeramicBooking(full, { finalize: true });
+    assert.equal(stampStoredCeramicChargePlan(full, 'prepay_full').ok, true);
     assert.equal(chargeDueNow(full).chargeCents, 85000);
     const deposit = pricedBooking('ceramic_1yr', 'suv3', [], { companionInterior: true }, { ceramicPaymentPlan: 'deposit' });
     applyCeramicBooking(deposit, { finalize: true });
+    assert.equal(deposit.depositAmount, 0);
+    assert.equal(stampStoredCeramicChargePlan(deposit, 'deposit').ok, true);
     assert.equal(deposit.approvedFinalAmount, 825 + 255);
     assert.equal(deposit.depositAmount, 270);
     assert.equal(chargeDueNow(deposit).chargeCents, 27000);
@@ -849,6 +897,7 @@ describe('ceramic plus interior companion', () => {
       email: 'ava@example.com',
     });
     applyCeramicBooking(booking, { finalize: true });
+    assert.equal(stampStoredCeramicChargePlan(booking, 'prepay_full').ok, true);
     applyStripePaymentIntent(booking, {
       id: 'pi_combo',
       status: 'succeeded',
@@ -939,6 +988,7 @@ describe('ceramic glass protection and removed exterior add-ons', () => {
       { id: 'wax1yr' },
       { id: 'polymer' },
       { id: 'claybar' },
+      { id: 'mobile_water' },
       { id: 'ceramic_lights' },
     ];
     const filtered = filterAddonsForCeramicAdmin(rows).map((row) => row.id);

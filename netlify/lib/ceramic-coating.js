@@ -227,7 +227,7 @@ const FLAT_GLOBAL_ADDONS = Object.freeze({
     price: 50,
     minutes: 0,
     global: true,
-    description: 'Required when accessible undercarriage cleaning is selected and the customer does not provide a usable exterior water connection.',
+    description: 'Historical mobile water supply line. New bookings do not add this fee from water access, and Ceramic Coating no longer requires it.',
   }),
   heavymud: Object.freeze({
     id: 'heavymud',
@@ -400,7 +400,7 @@ function waterRepellentOffer() {
 
 function filterAddonsForCeramicAdmin(rows) {
   const blocked = exteriorProtectionSet();
-  return (Array.isArray(rows) ? rows : []).filter((row) => row && !blocked.has(row.id));
+  return (Array.isArray(rows) ? rows : []).filter((row) => row && !blocked.has(row.id) && row.id !== WATER_ADDON_ID);
 }
 
 function resolveAddonPrice(id, vehicle) {
@@ -600,24 +600,8 @@ function validateAddonSet(vehicle) {
       message: 'Choose Engine Bay Top Clean or Engine Bay Detail, not both.',
     };
   }
-  if (ids.includes('mobile_water') && !ids.includes('undercarriage')) {
+  if (!ceramic && ids.includes('mobile_water') && !ids.includes('undercarriage')) {
     return { ok: false, error: 'mobile_water_requires_undercarriage' };
-  }
-  if (ids.includes('undercarriage')) {
-    const supply = String(vehicle?.ceramicWaterSupply || vehicle?.waterSupply || '').trim();
-    if (supply !== 'customer' && supply !== 'mobile') {
-      return {
-        ok: false,
-        error: 'water_supply_required',
-        message: 'Undercarriage cleaning needs either a usable exterior water connection or Mobile Water Supply.',
-      };
-    }
-    if (supply === 'mobile' && !ids.includes('mobile_water')) {
-      return { ok: false, error: 'mobile_water_required' };
-    }
-    if (supply === 'customer' && ids.includes('mobile_water')) {
-      return { ok: false, error: 'mobile_water_not_needed' };
-    }
   }
   if (!ceramic) {
     for (const id of ids) {
@@ -759,6 +743,109 @@ function evaluateEligibility(raw) {
     ok: true,
     answers: normalizeEligibilityAnswers(raw),
     warnings: [],
+  };
+}
+
+function stripRetiredCeramicWaterFee(vehicle) {
+  if (!vehicle || !isCeramicPackage(vehicle.pkgId || vehicle.packageId)) return vehicle;
+  if (Array.isArray(vehicle.addons)) {
+    vehicle.addons = vehicle.addons.filter((addon) => String(addon && addon.id || '') !== WATER_ADDON_ID);
+  }
+  delete vehicle.ceramicWaterSupply;
+  delete vehicle.waterSupply;
+  return vehicle;
+}
+
+/**
+ * Keep a deposit or prepay obligation that is already stored.
+ * A new request cannot create one, and omitting the plan does not erase it.
+ */
+function retainStoredCeramicPayment(booking, existing) {
+  if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) return booking;
+  const plan = normalizePaymentPlan(
+    existing && (existing.ceramicPaymentPlan || (existing.ceramic && existing.ceramic.paymentPlan))
+  );
+  if (!plan) {
+    booking.ceramicPaymentPlan = null;
+    booking.depositAmount = 0;
+    booking.ceramic.paymentPlan = null;
+    booking.ceramic.depositAmount = 0;
+    booking.ceramic.chargeAmount = 0;
+    return booking;
+  }
+  const depositAmount = existing.depositAmount != null ? Number(existing.depositAmount) : 0;
+  const chargeAmount = existing.ceramic && existing.ceramic.chargeAmount != null
+    ? Number(existing.ceramic.chargeAmount)
+    : (plan === 'deposit' ? depositAmount : Number(existing.approvedFinalAmount || booking.approvedFinalAmount || 0));
+  booking.ceramicPaymentPlan = plan;
+  booking.depositAmount = depositAmount;
+  booking.ceramic.paymentPlan = plan;
+  booking.ceramic.depositAmount = existing.ceramic && existing.ceramic.depositAmount != null
+    ? Number(existing.ceramic.depositAmount)
+    : depositAmount;
+  booking.ceramic.chargeAmount = chargeAmount;
+  if (existing.ceramic && existing.ceramic.depositsEnabled != null) {
+    booking.ceramic.depositsEnabled = existing.ceramic.depositsEnabled;
+  }
+  return booking;
+}
+
+/**
+ * Reconstruct a stored deposit or prepay so later collection still matches
+ * the original obligation. Public checkout does not call this.
+ */
+function stampStoredCeramicChargePlan(booking, plan, env = process.env) {
+  const normalized = normalizePaymentPlan(plan);
+  if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) {
+    return { ok: false, error: 'ceramic_booking_required' };
+  }
+  if (!normalized) return { ok: false, error: 'ceramic_payment_plan_required' };
+  if (normalized === 'deposit' && !depositsEnabled(env)) {
+    return {
+      ok: false,
+      error: 'ceramic_deposit_disabled',
+      message: 'Reserve with Deposit is temporarily unavailable. Prepay in Full is still available.',
+      depositsEnabled: false,
+    };
+  }
+  const approved = Math.round((Number(booking.approvedFinalAmount) || 0) * 100) / 100;
+  const depositAmount = normalized === 'deposit'
+    ? depositCentsForApproved(booking.ceramic.packageId, approved) / 100
+    : 0;
+  if (normalized === 'deposit' && !(depositAmount > 0 && depositAmount < approved)) {
+    return { ok: false, error: 'ceramic_deposit_invalid' };
+  }
+  const chargeAmount = normalized === 'deposit' ? depositAmount : approved;
+  booking.ceramicPaymentPlan = normalized;
+  booking.depositAmount = depositAmount;
+  booking.ceramic.paymentPlan = normalized;
+  booking.ceramic.depositAmount = depositAmount;
+  booking.ceramic.chargeAmount = chargeAmount;
+  booking.ceramic.depositsEnabled = depositsEnabled(env);
+  return { ok: true, booking };
+}
+
+const CERAMIC_PAY_AT_SERVICE = new Set(['cash_onsite', 'card_onsite']);
+
+/**
+ * New Ceramic reservations offer card or cash at the appointment only.
+ * A stored deposit or prepay plan keeps the payment path it already had.
+ */
+function ceramicPayAtServiceViolation(booking, existing, { finalize = false } = {}) {
+  if (!booking || booking.serviceFamily !== 'ceramic_coating') return null;
+  const storedPlan = normalizePaymentPlan(
+    existing && (existing.ceramicPaymentPlan || (existing.ceramic && existing.ceramic.paymentPlan))
+  );
+  if (storedPlan) return null;
+  const preference = String(
+    booking.paymentMethodPreference || (existing && existing.paymentMethodPreference) || ''
+  ).trim();
+  if (!preference && !finalize) return null;
+  if (CERAMIC_PAY_AT_SERVICE.has(preference)) return null;
+  return {
+    ok: false,
+    error: preference ? 'ceramic_pay_at_service_only' : 'ceramic_payment_preference_required',
+    message: 'Ceramic Coating is reserved for payment at the appointment. Choose card at service or cash at service. Nothing is charged to reserve.',
   };
 }
 
@@ -927,7 +1014,11 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
 
   let durationMinutes = 0;
   const stampedVehicles = [];
+  delete booking.ceramicWaterSupply;
+  delete booking.ceramicPaymentPlan;
+  delete booking.paymentPlan;
   for (const vehicle of vehicles) {
+    stripRetiredCeramicWaterFee(vehicle);
     const pkgId = String(vehicle.pkgId || vehicle.packageId || '').trim();
     const priced = basePriceFor(vehicle.cat || vehicle.category, vehicle.tierKey || vehicle.tier, pkgId);
     if (!priced.ok) return priced;
@@ -960,32 +1051,14 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
   }
 
   const primary = packageDef(ceramicVehicles[0].pkgId || ceramicVehicles[0].packageId);
-  const plan = normalizePaymentPlan(booking.ceramicPaymentPlan || booking.paymentPlan);
-  if (finalize && !plan) {
-    return {
-      ok: false,
-      error: 'ceramic_payment_plan_required',
-      message: 'Choose Prepay in Full or Reserve with Deposit.',
-      depositsEnabled: depositsEnabled(env),
-    };
-  }
-  if (plan === 'deposit' && !depositsEnabled(env)) {
-    return {
-      ok: false,
-      error: 'ceramic_deposit_disabled',
-      message: 'Reserve with Deposit is temporarily unavailable. Prepay in Full is still available.',
-      depositsEnabled: false,
-    };
-  }
-
+  // New reservations are pay-at-service. A browser deposit or prepay choice
+  // does not create an amount due today. Stored plans are restored later.
+  const plan = '';
   const serviceDollars = vehicles.reduce((sum, v) => sum + (Number(v.subtotal) || 0), 0);
   const travel = Math.round((Number(booking.travelFeeAmount) || 0) * 100) / 100;
   const approved = Math.round((serviceDollars + travel) * 100) / 100;
-  const depositAmount = plan === 'deposit' ? depositCentsForApproved(primary.id, approved) / 100 : 0;
-  if (plan === 'deposit' && !(depositAmount > 0 && depositAmount < approved)) {
-    return { ok: false, error: 'ceramic_deposit_invalid' };
-  }
-  const chargeAmount = plan === 'deposit' ? depositAmount : (plan === 'prepay_full' ? approved : 0);
+  const depositAmount = 0;
+  const chargeAmount = 0;
 
   const settledCents = (Array.isArray(booking.ledger?.entries) ? booking.ledger.entries : [])
     .filter((entry) => entry && entry.kind === 'settlement')
@@ -1281,6 +1354,10 @@ module.exports = {
   evaluateEligibility,
   normalizeEligibilityAnswers,
   retainStoredCeramicEligibility,
+  retainStoredCeramicPayment,
+  stampStoredCeramicChargePlan,
+  ceramicPayAtServiceViolation,
+  stripRetiredCeramicWaterFee,
   depositsEnabled,
   normalizePaymentPlan,
   depositDollarsForPackage,

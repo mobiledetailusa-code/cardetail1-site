@@ -458,12 +458,17 @@ function computeAddonTotal(vehicle, booking) {
   const cat = vehicle.cat;
   const catalog = PRICING[cat]?.addons || [];
   const included = new Set(includedAddonIds(cat, vehicle.packageId || vehicle.pkgId));
-  const waterSupply = vehicle.ceramicWaterSupply || vehicle.waterSupply || booking?.ceramicWaterSupply || '';
-  const pricedVehicle = { ...vehicle, ceramicWaterSupply: waterSupply };
+  const ceramicPackage = CeramicCoating.isCeramicPackage(vehicle.packageId || vehicle.pkgId);
+  const pricedVehicle = { ...vehicle };
+  delete pricedVehicle.ceramicWaterSupply;
+  delete pricedVehicle.waterSupply;
+  const sourceAddons = ceramicPackage
+    ? (vehicle.addons || []).filter((addon) => addon && addon.id !== 'mobile_water')
+    : (vehicle.addons || []);
   let total = 0;
   const normalized = [];
   const seenFamily = new Set();
-  for (const a of (vehicle.addons || [])) {
+  for (const a of sourceAddons) {
     if (included.has(a.id)) continue;
     const def = catalog.find((x) => x.id === a.id);
     if (!def) return { ok: false, error: 'invalid_pricing' };
