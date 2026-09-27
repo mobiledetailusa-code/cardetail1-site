@@ -176,6 +176,7 @@ function finalizeBody(draftBody, draftResponse, extra = {}) {
 
 test('deploy preview refuses a booking before it touches the shared store', async () => {
   process.env.CONTEXT = 'deploy-preview';
+  submitBooking.__test.setBlobsStoreOverride(null);
   const refused = await post(ceramicBody(), '203.0.113.50');
   assert.equal(refused.status, 403);
   assert.equal(refused.body.error, 'preview_booking_disabled');
@@ -184,6 +185,7 @@ test('deploy preview refuses a booking before it touches the shared store', asyn
   assert.equal((await collectKeys(slots)).length, 0);
 
   process.env.CONTEXT = 'dev';
+  submitBooking.__test.setBlobsStoreOverride(async () => bookings);
   const byHost = await post(ceramicBody({ phone: '2015550141' }), '203.0.113.51', {
     host: 'deploy-preview-327--cardetail1.netlify.app',
   });

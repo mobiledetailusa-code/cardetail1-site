@@ -1105,7 +1105,11 @@ function refuseSharedPreviewBooking(event) {
   const { deployContext } = require('../lib/trusted-site-origin');
   const ctx = deployContext();
   const previewHost = /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(requestHostname(event));
-  if (ctx !== 'deploy-preview' && !previewHost) return null;
+  // A preview hostname always shares the site store, even if a test injected one.
+  // CONTEXT=deploy-preview is also how unit tests label memory-store runs; those
+  // pass a store override and are not the live site store.
+  const sharedSiteStore = ctx === 'deploy-preview' && !blobsStoreOverride;
+  if (!previewHost && !sharedSiteStore) return null;
   return json(403, {
     ok: false,
     bookingCreated: false,
@@ -1685,6 +1689,7 @@ exports.handler = async (event) => {
       }
 
       try {
+        // Prisma dual-write AFTER Blob. The span is already complete.
         const { scheduleBookingMirror } = require('../lib/booking-prisma-mirror');
         scheduleBookingMirror(b);
       } catch { /* ignore */ }

@@ -57,6 +57,12 @@ function setSlotIndexStoreOverride(store) {
   _storeOverride = store || null;
 }
 
+function indexStoreUnavailable(err) {
+  if (process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME) return false;
+  const message = String(err && err.message ? err.message : err || '');
+  return message.includes('has not been configured to use Netlify Blobs');
+}
+
 async function slotIndexStore() {
   if (_storeOverride) return _storeOverride;
   const { blobsStore } = require('./tech-security');
@@ -369,6 +375,7 @@ async function bookedSpanReady(booking, nowMs = Date.now()) {
     }
     return { ok: true, complete: true, wroteCount: writes.length };
   } catch (err) {
+    if (indexStoreUnavailable(err)) return { ok: true, complete: true, skipped: 'unconfigured' };
     return { ok: false, reason: 'read_failed', complete: false, message: err && err.message };
   }
 }
@@ -494,6 +501,9 @@ async function reserveBookedSpan(booking, nowMs = Date.now()) {
           written.push(key);
         }
       } catch (writeErr) {
+        if (indexStoreUnavailable(writeErr) && written.length === 0) {
+          return { ok: true, wroteCount: 0, skipped: 'unconfigured' };
+        }
         try { await deleteKeys(store, written); } catch { /* drafts and other bookings stay */ }
         const message = writeErr && writeErr.message ? writeErr.message : String(writeErr);
         console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message, rolledBack: true });
@@ -510,6 +520,7 @@ async function reserveBookedSpan(booking, nowMs = Date.now()) {
       await deleteDraftHoldsOnly(store, bookingId, writes);
       return { ok: true, wroteCount: writes.length };
     } catch (err) {
+      if (indexStoreUnavailable(err)) return { ok: true, wroteCount: 0, skipped: 'unconfigured' };
       const message = err && err.message ? err.message : String(err);
       console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message });
       return { ok: false, error: message };
