@@ -183,10 +183,6 @@ function buildCarPkgDetailSectionsHtml(d) {
 }
 
 function getHomePkgPriceNote(pkgId) {
-  if (pkgId === "full") {
-    const note = document.getElementById("home-from-full-note");
-    return note ? note.textContent.trim() : "";
-  }
   const amt = document.getElementById("home-from-" + pkgId);
   const note = document.getElementById("home-from-" + pkgId + "-note");
   if (amt && note) return "From " + amt.textContent.trim() + " · " + note.textContent.trim();

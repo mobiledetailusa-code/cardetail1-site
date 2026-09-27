@@ -251,7 +251,10 @@ test('static starting-price surfaces are verified against the catalog', () => {
     const html = read(file);
     assert.match(html, new RegExp(`id="home-from-interior">\\$${carInterior}<`), file);
     assert.match(html, new RegExp(`id="home-from-refresh">\\$${carRefresh}<`), file);
-    assert.match(html, new RegExp(`From \\$${PRICING.cars.tiers.small.full} · priced by vehicle type`), file);
+  }
+  assert.match(read('index.html'), new RegExp(`id="home-from-full">\\$${PRICING.cars.tiers.small.full}<`));
+  for (const file of ['new-jersey-hub.html', 'connecticut-hub.html', 'ny-metro-hub.html', 'pennsylvania-hub.html']) {
+    assert.match(read(file), new RegExp(`From \\$${PRICING.cars.tiers.small.full} · priced by vehicle type`), file);
   }
 
   for (const file of ['new-jersey-hub.html', 'connecticut-hub.html', 'ny-metro-hub.html', 'pennsylvania-hub.html']) {

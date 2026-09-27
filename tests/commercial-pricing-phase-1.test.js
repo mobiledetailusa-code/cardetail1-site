@@ -304,7 +304,7 @@ describe('phase 1 unchanged categories and public From$ surfaces', () => {
     const index = read('index.html');
     assert.match(index, new RegExp(`id="home-from-interior">\\$${APPROVED_CARS.small.interior}`));
     assert.match(index, new RegExp(`id="home-from-refresh">\\$${APPROVED_CARS.small.refresh}`));
-    assert.match(index, new RegExp(`From \\$${APPROVED_CARS.small.full} · priced by vehicle type`));
+    assert.match(index, new RegExp(`id="home-from-full">\\$${APPROVED_CARS.small.full}<`));
     assert.doesNotMatch(index, /RICH_ZIPS\.has\(zip\.trim\(\)\) \? 1\.05/);
     assert.match(index, /function getRichMultiplier\(zip\)\{\s*\/\/ Wealth-based ZIP premium retired/);
 
