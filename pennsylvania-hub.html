@@ -5723,7 +5723,7 @@ async function initCardOnFile(){
           'Missing customer name or phone':'Please complete your contact details before saving your card.',
           'Failed to pre-register booking':'Could not register booking. Please try again in a moment.',
         };
-        throw new Error(draftErrMap[draftData.error]||'Could not register booking. Please try again.');
+        throw new Error(String(draftData.userMessage||draftData.message||'').trim()||draftErrMap[draftData.error]||'Could not register booking. Please try again.');
       }
       const session=captureDraftSaveResponse(draftData);
       draftSessionBookingId=session.bookingId;

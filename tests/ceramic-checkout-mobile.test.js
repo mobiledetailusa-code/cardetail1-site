@@ -82,6 +82,8 @@ function createElement(tag) {
 }
 
 function matches(el, sel) {
+  if (sel === '.bsec.on') return el.classList.contains('bsec') && el.classList.contains('on');
+  if (sel === '.btn-n, .btn-sub') return el.classList.contains('btn-n') || el.classList.contains('btn-sub');
   if (sel.startsWith('#')) return el.id === sel.slice(1);
   if (sel.startsWith('.')) return el.classList.contains(sel.slice(1));
   if (sel.includes('[value="')) {
@@ -89,8 +91,6 @@ function matches(el, sel) {
     return el.value === value;
   }
   if (sel.includes('[data-id')) return !!el.getAttribute('data-id');
-  if (sel === '.bsec.on') return el.classList.contains('bsec') && el.classList.contains('on');
-  if (sel === '.btn-n, .btn-sub') return el.classList.contains('btn-n') || el.classList.contains('btn-sub');
   if (sel === 'input[value=""]') return el.tag === 'input' && el.value === '';
   if (sel.startsWith('input')) return el.tag === 'input';
   if (sel === 'h3') return el.tag === 'h3';
@@ -561,5 +561,37 @@ describe('MDX ceramic checkout rerenders from the production catalog', () => {
     assert.match(text, /prices could not be confirmed/);
     assert.equal(ctx.document.getElementById('next3').disabled, true);
     assert.equal(ctx.document.getElementById('ceramic-sticky-continue').disabled, true);
+  });
+
+  it('hides Continue on the submit step and does not press the offer button', () => {
+    const ctx = createPage();
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    const bar = ctx.document.getElementById('ceramic-sticky');
+    assert.equal(bar.classList.contains('is-on'), true);
+    const bs5 = ctx.document.createElement('div');
+    bs5.id = 'bs5';
+    bs5.className = 'bsec on';
+    const offer = ctx.document.createElement('button');
+    offer.id = 'bk-offer-apply';
+    offer.className = 'btn-n';
+    offer.hidden = true;
+    let offerClicks = 0;
+    offer.click = () => { offerClicks += 1; };
+    const submit = ctx.document.createElement('button');
+    submit.id = 'sub-btn';
+    submit.className = 'btn-sub';
+    let submitClicks = 0;
+    submit.click = () => { submitClicks += 1; };
+    bs5.appendChild(offer);
+    bs5.appendChild(submit);
+    ctx.document.body.appendChild(bs5);
+    ctx.document.getElementById('bs3').classList.remove('on');
+    ctx.CD1CeramicBooking.renderCeramicCheckout();
+    assert.equal(bar.classList.contains('is-on'), false);
+    assert.equal(bar.hidden, true);
+    assert.equal(ctx.document.querySelector('.booking-modal').classList.contains('cd1-sticky-pad'), false);
+    ctx.document.getElementById('ceramic-sticky-continue').click();
+    assert.equal(offerClicks, 0);
+    assert.equal(submitClicks, 1);
   });
 });

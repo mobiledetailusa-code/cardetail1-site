@@ -350,23 +350,42 @@
     panel.addEventListener('change', syncPanel);
   }
 
+  function eligibilityBlockMessage(answers) {
+    answers = answers || {};
+    if (answers.repainted60 === 'yes' || answers.clearCoatFailing === 'yes' || answers.severeContamination === 'yes') {
+      return 'This vehicle is not eligible for instant Ceramic Coating. Book Paint Restoration instead. No ceramic quote will be created.';
+    }
+    if (answers.matteWrapPpf === 'yes') {
+      return 'Matte paint, vinyl wrap, or PPF needs a compatible service. The gloss paint-coating package will not be used.';
+    }
+    if (answers.remainDry12h === 'no') {
+      return 'Ceramic Coating needs the vehicle to stay dry for at least 12 hours.';
+    }
+    return '';
+  }
+
+  function activeBookingStepId() {
+    var on = document.querySelector('.bsec.on');
+    return on && on.id ? on.id : '';
+  }
+
   function syncPanel() {
     var panel = document.getElementById('ceramic-panel');
     if (!panel || !global.ST) return;
     var on = isCeramicPackage(global.ST.pkgId);
     panel.hidden = !on;
-    if (!on) return;
+    var reviewBtn = document.querySelector('#bs4 .btn-row .btn-n');
+    if (!on) {
+      if (reviewBtn) reviewBtn.disabled = false;
+      return;
+    }
     var answers = readAnswers();
     var block = document.getElementById('ceramic-block');
     var warn = document.getElementById('ceramic-warning');
-    var message = '';
-    if (answers.repainted60 === 'yes' || answers.clearCoatFailing === 'yes' || answers.severeContamination === 'yes') {
-      message = 'This vehicle is not eligible for instant Ceramic Coating. Book Paint Restoration instead. No ceramic quote will be created.';
-    } else if (answers.matteWrapPpf === 'yes') {
-      message = 'Matte paint, vinyl wrap, or PPF needs a compatible service. The gloss paint-coating package will not be used.';
-    } else if (answers.remainDry12h === 'no') {
-      message = 'Ceramic Coating needs the vehicle to stay dry for at least 12 hours.';
-    }
+    var message = eligibilityBlockMessage(answers);
+    if (reviewBtn) reviewBtn.disabled = !!message;
+    var stickyBtn = document.getElementById('ceramic-sticky-continue');
+    if (stickyBtn) stickyBtn.disabled = !!(message || catalogBlocked);
     if (block) {
       block.hidden = !message;
       block.textContent = message;
@@ -975,17 +994,25 @@
       document.body.appendChild(bar);
       continueBtn.addEventListener('click', function () {
         var on = document.querySelector('.bsec.on');
-        var btn = on && on.querySelector('.btn-n, .btn-sub');
-        if (btn && !btn.disabled) btn.click();
+        var buttons = on ? on.querySelectorAll('.btn-n, .btn-sub') : [];
+        for (var i = 0; i < buttons.length; i++) {
+          var btn = buttons[i];
+          if (!btn || btn.disabled || btn.hidden) continue;
+          if (btn.id === 'bk-offer-apply' || btn.id === 'bk-offer-dismiss') continue;
+          btn.click();
+          return;
+        }
       });
     }
     var modal = document.querySelector('.booking-modal-ov');
     var shell = document.querySelector('.booking-modal');
+    var step = activeBookingStepId();
     var open = !!(modal && modal.classList.contains('open') && global.ST && global.ST.pkgId);
-    bar.classList.toggle('is-on', open);
-    bar.hidden = false;
-    if (shell) shell.classList.toggle('cd1-sticky-pad', open);
-    if (!open) return;
+    var show = open && step !== 'bs5' && step !== 'bs6';
+    bar.classList.toggle('is-on', show);
+    bar.hidden = !show;
+    if (shell) shell.classList.toggle('cd1-sticky-pad', show);
+    if (!show) return;
     var total = displayedServiceTotal();
     var totalEl = document.getElementById('ceramic-sticky-total');
     var durEl = document.getElementById('ceramic-sticky-dur');
@@ -993,6 +1020,11 @@
     if (durEl) {
       var mins = isCeramicPackage(global.ST.pkgId) ? appointmentMinutes() : 0;
       durEl.textContent = mins ? ('· Approx. ' + formatHours(mins)) : '';
+    }
+    var stickyBtn = document.getElementById('ceramic-sticky-continue');
+    if (stickyBtn) {
+      var hard = isCeramicPackage(global.ST.pkgId) && !!eligibilityBlockMessage(readAnswers());
+      stickyBtn.disabled = !!(hard || catalogBlocked);
     }
   }
 
@@ -1153,6 +1185,25 @@
         return result;
       };
       global.toggleAddon._ceramicWrapped = true;
+    }
+    var origGo = global.bkGoTo;
+    if (typeof origGo === 'function' && !origGo._ceramicSticky) {
+      var wrappedGo = function () {
+        var result = origGo.apply(this, arguments);
+        try { renderSticky(); } catch (err) { /* display only */ }
+        return result;
+      };
+      wrappedGo._ceramicSticky = true;
+      global.bkGoTo = wrappedGo;
+    }
+    var origPay = global.goToPayment;
+    if (typeof origPay === 'function' && !origPay._ceramicWrapped) {
+      var wrappedPay = function () {
+        if (global.ST && isCeramicPackage(global.ST.pkgId) && eligibilityBlockMessage(readAnswers())) return;
+        return origPay.apply(this, arguments);
+      };
+      wrappedPay._ceramicWrapped = true;
+      global.goToPayment = wrappedPay;
     }
     var overlay = document.querySelector('.booking-modal-ov');
     if (overlay && typeof global.MutationObserver === 'function') {

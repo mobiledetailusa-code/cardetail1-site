@@ -266,12 +266,25 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
   }
 
   async function pickFreeEligibleSlot(dateIso, eligible) {
-    if (!checkSlot) return eligible[0] || null;
+    if (!checkSlot) return { slot: eligible[0] || null, durationFailure: null };
+    let durationFailure = null;
+    let occupied = false;
     for (const slot of eligible) {
       const held = await spanTaken(dateIso, slot);
-      if (!held.taken && held.span && held.span.ok) return slot;
+      if (!held.span || held.span.ok === false) {
+        if (!durationFailure) {
+          durationFailure = held.span || { error: 'ceramic_duration_exceeds_day' };
+        }
+        continue;
+      }
+      if (held.taken) {
+        occupied = true;
+        continue;
+      }
+      return { slot, durationFailure: null };
     }
-    return null;
+    if (!occupied && durationFailure) return { slot: null, durationFailure };
+    return { slot: null, durationFailure: null };
   }
 
   try {
@@ -283,15 +296,23 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null } 
     const slots = slotsForDate(b.preferredDate, config);
     const resolved = resolveOperationalSlot(b.preferredDate, window, slots);
     if (!resolved.ok) return { ok: false, error: resolved.error || ERROR_ARRIVAL_WINDOW_UNAVAILABLE };
-    const free = await pickFreeEligibleSlot(b.preferredDate, resolved.eligible || [resolved.preferredTime]);
-    if (!free) {
+    const picked = await pickFreeEligibleSlot(b.preferredDate, resolved.eligible || [resolved.preferredTime]);
+    if (!picked.slot) {
+      if (picked.durationFailure) {
+        return {
+          ok: false,
+          error: picked.durationFailure.error || 'ceramic_duration_exceeds_day',
+          userMessage: picked.durationFailure.message,
+          nextValidStart: picked.durationFailure.nextValidStart || null,
+        };
+      }
       return {
         ok: false,
         error: checkSlot ? 'booking_slot_unavailable' : ERROR_ARRIVAL_WINDOW_UNAVAILABLE,
       };
     }
     b.preferredArrivalWindow = window;
-    b.preferredTime = free;
+    b.preferredTime = picked.slot;
   } else {
     // Legacy path: preferredTime remains the customer + operational value.
     b.preferredArrivalWindow = b.preferredArrivalWindow || '';
@@ -531,6 +552,25 @@ function buildDraftRecord(b, draftId, now, existing = null) {
     welcomeOffer: b.welcomeOffer || existing?.welcomeOffer || null,
     approvedFinalAmount: b.approvedFinalAmount ?? existing?.approvedFinalAmount ?? null,
     discountAmount: b.discountAmount ?? existing?.discountAmount ?? 0,
+    // Server-computed after catalog + schedule checks. The client copies are
+    // stripped or ignored; these fields are what the slot index reserves.
+    appointmentDurationMinutes: Number(b.appointmentDurationMinutes) > 0
+      ? Number(b.appointmentDurationMinutes)
+      : null,
+    appointmentSchedule: b.appointmentSchedule && typeof b.appointmentSchedule === 'object'
+      ? {
+          multiDay: !!b.appointmentSchedule.multiDay,
+          extendedAppointment: !!b.appointmentSchedule.extendedAppointment,
+          days: Array.isArray(b.appointmentSchedule.days) ? b.appointmentSchedule.days : [],
+          message: b.appointmentSchedule.message || null,
+        }
+      : null,
+    serviceFamily: b.serviceFamily || null,
+    companionInterior: b.companionInterior === true,
+    ceramicPaymentPlan: b.ceramicPaymentPlan || null,
+    depositAmount: b.depositAmount != null ? b.depositAmount : null,
+    amountPaid: b.amountPaid != null ? b.amountPaid : null,
+    balanceDue: b.balanceDue != null ? b.balanceDue : null,
   };
 }
 
@@ -942,8 +982,10 @@ exports.handler = async (event) => {
   if (!ceramicApplied.ok) {
     return json(400, {
       ok: false,
+      bookingCreated: false,
       error: ceramicApplied.error,
       message: ceramicApplied.message || null,
+      userMessage: ceramicApplied.message || null,
       route: ceramicApplied.route || null,
       packageId: ceramicApplied.packageId || null,
       depositsEnabled: ceramicApplied.depositsEnabled === false ? false : undefined,
