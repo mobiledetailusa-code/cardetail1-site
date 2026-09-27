@@ -499,6 +499,8 @@ const PACKAGE_DISPLAY = {
     full: 'Premium Full Detail',
     refresh: 'Exterior Refresh & Protect',
     premium: 'Paint Correction / Enhancement',
+    ceramic_1yr: 'Professional Ceramic Protection — Up to 1 Year',
+    ceramic_3yr: 'Professional Ceramic Protection — Up to 3 Years',
   },
   boats: {
     maint: 'Marine Wash',
@@ -1775,6 +1777,46 @@ async function handleAdminAction(body, testOpts = {}) {
       bookingVersion: persisted.bookingVersion,
       quoteVersion: persisted.booking.quoteVersion,
     });
+  }
+
+  if (action === 'assign_internal_coating') {
+    const { assignInternalCoating } = require('../lib/ceramic-coating');
+    const assigned = assignInternalCoating(booking, {
+      productId: body.productId,
+      cureRequirements: body.cureRequirements,
+      batchOrLotNumber: body.batchOrLotNumber,
+      bottleOpenedAt: body.bottleOpenedAt,
+      expirationDate: body.expirationDate,
+      applicationDate: body.applicationDate,
+      installer: body.installer,
+      internalNotes: body.internalNotes,
+      discloseOnReceipt: body.discloseOnReceipt === true,
+      legallyRequired: body.legallyRequired === true,
+    }, { role: 'admin', id: 'admin' });
+    if (!assigned.ok) {
+      return jsonCors(400, { ok: false, error: assigned.error, message: assigned.message || null });
+    }
+    const patched = {
+      ...assigned.booking,
+      updatedAt: now,
+      eventLog: appendEventLog(booking, {
+        action: 'assign_internal_coating',
+        by: 'admin',
+        productId: assigned.booking.ceramic?.internal?.productId || '',
+      }),
+    };
+    const persisted = await persistMutation(
+      store,
+      bookingId,
+      patched,
+      booking,
+      'assign_internal_coating',
+      'assign_internal_coating'
+    );
+    if (!persisted.ok) {
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+    }
+    return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
   if (action === 'admin_note') {

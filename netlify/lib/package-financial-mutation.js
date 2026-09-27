@@ -61,8 +61,8 @@ const PACKAGE_DISPLAY = {
     full: 'Premium Full Detail',
     refresh: 'Exterior Refresh & Protect',
     premium: 'Paint Correction / Enhancement',
-    ceramic_1yr: '1-Year Ceramic Protection',
-    ceramic_3yr: '3-Year Ceramic Protection',
+    ceramic_1yr: 'Professional Ceramic Protection — Up to 1 Year',
+    ceramic_3yr: 'Professional Ceramic Protection — Up to 3 Years',
   },
   boats: {
     maint: 'Marine Wash',

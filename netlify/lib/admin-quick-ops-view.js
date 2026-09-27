@@ -133,14 +133,15 @@ function projectQuickOpsBooking(booking, shared = null) {
     ceramic: booking.serviceFamily === 'ceramic_coating' && booking.ceramic
       ? {
         packageName: booking.ceramic.packageName || '',
-        product: booking.ceramic.product || '',
         durationMonths: booking.ceramic.durationMonths || null,
+        expectedDurability: booking.ceramic.expectedDurability || '',
         sizeLabel: booking.ceramic.packages?.[0]?.sizeLabel || '',
         eligibility: booking.ceramic.eligibility || null,
         curingInstructions: booking.ceramic.curingInstructions || [],
         paymentPlan: booking.ceramic.paymentPlan || booking.ceramicPaymentPlan || null,
         depositAmount: booking.depositAmount != null ? Number(booking.depositAmount) : null,
         paymentStatus: booking.paymentStatus || null,
+        internal: booking.ceramic.internal || null,
       }
       : null,
     money: {

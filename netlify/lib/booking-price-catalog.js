@@ -276,9 +276,13 @@ const PKG_ID_ALIASES = {
   '1-year ceramic protection': 'ceramic_1yr',
   'ceramic coating 1 year': 'ceramic_1yr',
   'ceramic_1yr': 'ceramic_1yr',
+  'professional ceramic protection — up to 1 year': 'ceramic_1yr',
+  'professional ceramic protection - up to 1 year': 'ceramic_1yr',
   '3-year ceramic protection': 'ceramic_3yr',
   'ceramic coating 3 year': 'ceramic_3yr',
   'ceramic_3yr': 'ceramic_3yr',
+  'professional ceramic protection — up to 3 years': 'ceramic_3yr',
+  'professional ceramic protection - up to 3 years': 'ceramic_3yr',
 };
 
 for (const [tierKey, row] of Object.entries(PRICING.cars.tiers)) {

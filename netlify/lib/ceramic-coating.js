@@ -21,22 +21,27 @@
  * Semis, RVs, boats, buses, trailers, and powersports are not in this map.
  */
 
+const PUBLIC_PACKAGE_NAMES = Object.freeze({
+  ceramic_1yr: 'Professional Ceramic Protection — Up to 1 Year',
+  ceramic_3yr: 'Professional Ceramic Protection — Up to 3 Years',
+});
+
 const PACKAGES = Object.freeze({
   ceramic_1yr: Object.freeze({
     id: 'ceramic_1yr',
-    name: '1-Year Ceramic Protection',
-    product: 'GYEON Q² CanCoat EVO or equivalent approved 12-month coating',
+    name: PUBLIC_PACKAGE_NAMES.ceramic_1yr,
     durationMonths: 12,
     depositDollars: 150,
     baseMinutes: 480,
+    defaultCoatingId: 'gyeon_q2_cancot_evo',
   }),
   ceramic_3yr: Object.freeze({
     id: 'ceramic_3yr',
-    name: '3-Year Ceramic Protection',
-    product: 'GYEON Q² Mohs EVO or equivalent approved 36-month coating',
+    name: PUBLIC_PACKAGE_NAMES.ceramic_3yr,
     durationMonths: 36,
     depositDollars: 250,
     baseMinutes: 600,
+    defaultCoatingId: 'gyeon_q2_mohs_evo',
   }),
 });
 
@@ -91,8 +96,45 @@ const EXCLUSIONS = Object.freeze([
 const CURING_INSTRUCTIONS = Object.freeze([
   'Keep the vehicle dry for at least 12 hours.',
   'Do not wash for 7 days.',
-  'Durability depends on maintenance and operating conditions.',
+  'Expected durability is up to the booked term and depends on maintenance and operating conditions.',
   'Ceramic coating protects the existing finish and does not repair damaged paint.',
+]);
+
+/**
+ * Approved coatings. These names are internal. Public packages never include
+ * the manufacturer, SKU, or product name.
+ */
+const INTERNAL_COATINGS = Object.freeze({
+  gyeon_q2_cancot_evo: Object.freeze({
+    id: 'gyeon_q2_cancot_evo',
+    coatingManufacturer: 'GYEON',
+    coatingProduct: 'Q² CanCoat EVO',
+    internalSku: 'GYEON-Q2-CANCOAT-EVO',
+    durabilityMonths: 12,
+    cureRequirements: CURING_INSTRUCTIONS,
+  }),
+  gyeon_q2_mohs_evo: Object.freeze({
+    id: 'gyeon_q2_mohs_evo',
+    coatingManufacturer: 'GYEON',
+    coatingProduct: 'Q² Mohs EVO',
+    internalSku: 'GYEON-Q2-MOHS-EVO',
+    durabilityMonths: 36,
+    cureRequirements: CURING_INSTRUCTIONS,
+  }),
+});
+
+const STAFF_PRODUCT_DISCLOSURE = 'If the customer asks which coating product will be used, answer with the assigned manufacturer and product. Brand-neutral public names are not permission to misrepresent the product.';
+
+const PUBLIC_CURE_BRAND_BLOCK = Object.freeze([
+  'gyeon',
+  'cancot',
+  'mohs',
+  '9h',
+  'scratch proof',
+  'scratch-proof',
+  'permanent protection',
+  'guaranteed scratch',
+  'manufacturer warranty',
 ]);
 
 const PAINT_RESTORATION_PACKAGE_ID = 'premium';
@@ -500,6 +542,102 @@ function depositDollarsForPackage(packageId) {
   return pkg ? pkg.depositDollars : 0;
 }
 
+function coatingById(productId) {
+  return INTERNAL_COATINGS[String(productId || '').trim()] || null;
+}
+
+function expectedDurabilityLabel(durationMonths) {
+  const months = Math.round(Number(durationMonths) || 0);
+  if (months === 12) return 'up to 1 year';
+  if (months === 36) return 'up to 3 years';
+  if (months > 0) return `up to ${months} months`;
+  return '';
+}
+
+function optionalText(value, max) {
+  if (value == null || value === '') return null;
+  const text = String(value).replace(/\s+/g, ' ').trim().slice(0, max);
+  return text || null;
+}
+
+function normalizeCureRequirements(value) {
+  const rows = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' ? value.split(/\n+/) : []);
+  return rows
+    .map((line) => String(line || '').replace(/\s+/g, ' ').trim().slice(0, 240))
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function cureLeaksBrand(lines) {
+  const blob = lines.join(' ').toLowerCase();
+  return PUBLIC_CURE_BRAND_BLOCK.some((needle) => blob.includes(needle));
+}
+
+function catalogChoices(packageId) {
+  const pkg = packageDef(packageId);
+  const sold = pkg ? pkg.durationMonths : 0;
+  return Object.values(INTERNAL_COATINGS).map((product) => ({
+    productId: product.id,
+    coatingManufacturer: product.coatingManufacturer,
+    coatingProduct: product.coatingProduct,
+    internalSku: product.internalSku,
+    durabilityMonths: product.durabilityMonths,
+    compatible: product.durabilityMonths >= sold,
+  }));
+}
+
+function isAdminActor(actor) {
+  const role = String(actor?.role || actor?.actorRole || '').trim().toLowerCase();
+  const id = String(actor?.id || actor?.actorId || actor?.email || '').trim();
+  return role === 'admin' && !!id;
+}
+
+function buildInternalRecord(product, pkg, extras, auditHistory) {
+  const cure = normalizeCureRequirements(extras.cureRequirements || product.cureRequirements);
+  return {
+    coatingManufacturer: product.coatingManufacturer,
+    coatingProduct: product.coatingProduct,
+    internalSku: product.internalSku,
+    productId: product.id,
+    durabilityMonths: product.durabilityMonths,
+    batchOrLotNumber: optionalText(extras.batchOrLotNumber, 80),
+    bottleOpenedAt: optionalText(extras.bottleOpenedAt, 40),
+    expirationDate: optionalText(extras.expirationDate, 40),
+    applicationDate: optionalText(extras.applicationDate, 40),
+    installer: optionalText(extras.installer, 80),
+    cureRequirements: cure,
+    internalNotes: optionalText(extras.internalNotes, 2000) || '',
+    discloseOnReceipt: extras.discloseOnReceipt === true,
+    disclosureBasis: extras.discloseOnReceipt === true
+      ? (extras.disclosureBasis || 'admin_selected')
+      : null,
+    staffDisclosure: STAFF_PRODUCT_DISCLOSURE,
+    compatibleWithSoldDuration: product.durabilityMonths >= pkg.durationMonths,
+    availableProducts: catalogChoices(pkg.id),
+    auditHistory,
+  };
+}
+
+function initialInternalRecord(pkg, nowIso) {
+  const product = coatingById(pkg.defaultCoatingId);
+  return buildInternalRecord(product, pkg, {
+    cureRequirements: product.cureRequirements,
+    discloseOnReceipt: false,
+  }, [{
+    at: nowIso,
+    action: 'initial_assignment',
+    actorRole: 'system',
+    actorId: 'ceramic-coating',
+    packageId: pkg.id,
+    publicPackageName: pkg.name,
+    productId: product.id,
+    durabilityMonths: product.durabilityMonths,
+    soldDurationMonths: pkg.durationMonths,
+  }]);
+}
+
 /**
  * Stamp server-owned ceramic fields onto a booking after catalog pricing.
  * Does not read client totals. Callers still compare client totalPrice separately.
@@ -531,11 +669,14 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
     const duration = durationForVehicle(vehicle);
     durationMinutes += duration.minutes;
     const pkg = packageDef(pkgId);
+    vehicle.pkgName = pkg.name;
+    vehicle.packageName = pkg.name;
+    delete vehicle.product;
     stampedVehicles.push({
       packageId: pkgId,
       packageName: pkg.name,
-      product: pkg.product,
       durationMonths: pkg.durationMonths,
+      expectedDurability: expectedDurabilityLabel(pkg.durationMonths),
       tierKey: priced.tierKey,
       sizeBand: priced.band,
       sizeLabel: priced.bandLabel,
@@ -574,7 +715,13 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
   const settledCents = (Array.isArray(booking.ledger?.entries) ? booking.ledger.entries : [])
     .filter((entry) => entry && entry.kind === 'settlement')
     .reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry.amountCents) || 0)), 0);
+  const assignedAt = new Date().toISOString();
+  const internal = initialInternalRecord(primary, assignedAt);
   booking.serviceFamily = 'ceramic_coating';
+  booking.package = primary.name;
+  booking.packageName = primary.name;
+  booking.serviceLabel = primary.name;
+  if (typeof booking.service !== 'object' || booking.service == null) booking.service = primary.name;
   booking.appointmentDurationMinutes = durationMinutes;
   booking.depositAmount = depositAmount;
   booking.ceramicPaymentPlan = plan || null;
@@ -593,12 +740,13 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
   booking.ceramic = {
     serviceFamily: 'ceramic_coating',
     packages: stampedVehicles,
+    packageId: primary.id,
     packageName: primary.name,
-    product: primary.product,
     durationMonths: primary.durationMonths,
+    expectedDurability: expectedDurabilityLabel(primary.durationMonths),
     inclusions: INCLUSIONS.slice(),
     exclusions: EXCLUSIONS.slice(),
-    curingInstructions: CURING_INSTRUCTIONS.slice(),
+    curingInstructions: internal.cureRequirements.slice(),
     eligibility: eligibility.answers || null,
     warnings: eligibility.warnings || [],
     appointmentDurationMinutes: durationMinutes,
@@ -607,19 +755,121 @@ function applyCeramicBooking(booking, { finalize = false, env = process.env } = 
     chargeAmount,
     depositsEnabled: depositsEnabled(env),
     paintRestorationPackageId: PAINT_RESTORATION_PACKAGE_ID,
+    internal,
   };
   return { ok: true, ceramic: true, booking };
+}
+
+/**
+ * Replace the assigned coating without changing the public package.
+ * Requires an admin actor, a product whose documented durability is at least
+ * the sold term, and updated cure instructions. Appends audit history.
+ */
+function assignInternalCoating(booking, input = {}, actor = null) {
+  if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) {
+    return { ok: false, error: 'ceramic_booking_required' };
+  }
+  if (!isAdminActor(actor)) {
+    return {
+      ok: false,
+      error: 'ceramic_product_change_unauthorized',
+      message: 'Changing the assigned coating requires Admin authorization.',
+    };
+  }
+  const packageId = booking.ceramic.packageId
+    || booking.ceramic.packages?.[0]?.packageId
+    || '';
+  const pkg = packageDef(packageId);
+  if (!pkg) return { ok: false, error: 'ceramic_package_required' };
+  const product = coatingById(input.productId);
+  if (!product) return { ok: false, error: 'ceramic_product_unknown' };
+  if (product.durabilityMonths < pkg.durationMonths) {
+    return {
+      ok: false,
+      error: 'ceramic_product_durability_insufficient',
+      message: 'The assigned coating durability is below the duration sold.',
+      soldDurationMonths: pkg.durationMonths,
+      productDurabilityMonths: product.durabilityMonths,
+    };
+  }
+  const cureRequirements = normalizeCureRequirements(input.cureRequirements);
+  if (!cureRequirements.length) {
+    return {
+      ok: false,
+      error: 'ceramic_cure_required',
+      message: 'Updated cure instructions are required when the assigned coating changes.',
+    };
+  }
+  if (cureLeaksBrand(cureRequirements)) {
+    return {
+      ok: false,
+      error: 'ceramic_cure_brand_leak',
+      message: 'Cure instructions shown to customers stay brand-neutral. Put manufacturer detail in internal notes.',
+    };
+  }
+  const previous = booking.ceramic.internal || {};
+  const disclose = input.discloseOnReceipt === true || input.legallyRequired === true;
+  const auditHistory = Array.isArray(previous.auditHistory) ? previous.auditHistory.slice() : [];
+  auditHistory.push({
+    at: new Date().toISOString(),
+    action: 'internal_product_change',
+    actorRole: 'admin',
+    actorId: String(actor.id || actor.actorId || actor.email),
+    packageId: pkg.id,
+    publicPackageName: pkg.name,
+    fromProductId: previous.productId || null,
+    toProductId: product.id,
+    fromDurabilityMonths: previous.durabilityMonths || null,
+    toDurabilityMonths: product.durabilityMonths,
+    soldDurationMonths: pkg.durationMonths,
+    cureRequirements,
+    discloseOnReceipt: disclose,
+  });
+  const internal = buildInternalRecord(product, pkg, {
+    batchOrLotNumber: input.batchOrLotNumber,
+    bottleOpenedAt: input.bottleOpenedAt,
+    expirationDate: input.expirationDate,
+    applicationDate: input.applicationDate,
+    installer: input.installer,
+    cureRequirements,
+    internalNotes: input.internalNotes,
+    discloseOnReceipt: disclose,
+    disclosureBasis: input.legallyRequired === true ? 'legally_required' : (disclose ? 'admin_selected' : null),
+  }, auditHistory);
+  booking.package = pkg.name;
+  booking.packageName = pkg.name;
+  booking.serviceLabel = pkg.name;
+  if (typeof booking.service !== 'object' || booking.service == null) booking.service = pkg.name;
+  booking.ceramic.packageId = pkg.id;
+  booking.ceramic.packageName = pkg.name;
+  booking.ceramic.durationMonths = pkg.durationMonths;
+  booking.ceramic.expectedDurability = expectedDurabilityLabel(pkg.durationMonths);
+  booking.ceramic.curingInstructions = cureRequirements.slice();
+  booking.ceramic.internal = internal;
+  delete booking.ceramic.product;
+  return { ok: true, booking };
 }
 
 function customerCeramicSummary(booking) {
   if (!booking || booking.serviceFamily !== 'ceramic_coating' || !booking.ceramic) return null;
   const c = booking.ceramic;
+  const packages = (Array.isArray(c.packages) ? c.packages : []).map((row) => ({
+    packageId: row.packageId,
+    packageName: row.packageName,
+    durationMonths: row.durationMonths,
+    expectedDurability: row.expectedDurability || expectedDurabilityLabel(row.durationMonths),
+    tierKey: row.tierKey,
+    sizeBand: row.sizeBand,
+    sizeLabel: row.sizeLabel,
+    basePrice: row.basePrice,
+  }));
   return {
     serviceFamily: 'ceramic_coating',
+    packageId: c.packageId || packages[0]?.packageId || null,
     packageName: c.packageName,
-    product: c.product,
     durationMonths: c.durationMonths,
-    packages: c.packages || [],
+    expectedDurability: c.expectedDurability || expectedDurabilityLabel(c.durationMonths),
+    packages,
     inclusions: c.inclusions || INCLUSIONS.slice(),
     exclusions: c.exclusions || EXCLUSIONS.slice(),
     curingInstructions: c.curingInstructions || CURING_INSTRUCTIONS.slice(),
@@ -636,7 +886,10 @@ function customerCeramicSummary(booking) {
 }
 
 module.exports = {
+  PUBLIC_PACKAGE_NAMES,
   PACKAGES,
+  INTERNAL_COATINGS,
+  STAFF_PRODUCT_DISCLOSURE,
   TIER_BAND,
   BAND_LABEL,
   BASE_PRICES,
@@ -666,6 +919,8 @@ module.exports = {
   depositsEnabled,
   normalizePaymentPlan,
   depositDollarsForPackage,
+  expectedDurabilityLabel,
   applyCeramicBooking,
+  assignInternalCoating,
   customerCeramicSummary,
 };

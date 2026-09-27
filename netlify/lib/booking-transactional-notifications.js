@@ -207,8 +207,9 @@ function ceramicNotice(booking) {
   const c = booking.ceramic;
   const money = [
     `Package: ${c.packageName || 'Ceramic Coating'}`,
-    c.product ? `Product: ${c.product}` : '',
-    c.durationMonths ? `Coating term: ${c.durationMonths} months` : '',
+    (c.expectedDurability || c.durationMonths)
+      ? `Expected durability: ${c.expectedDurability || `up to ${c.durationMonths} months`}`
+      : '',
     booking.appointmentDurationMinutes ? `Appointment duration: ${booking.appointmentDurationMinutes} minutes` : '',
     booking.approvedFinalAmount != null ? `Approved total: $${Number(booking.approvedFinalAmount).toFixed(2)}` : '',
     booking.amountPaid != null ? `Amount paid: $${Number(booking.amountPaid).toFixed(2)}` : '',

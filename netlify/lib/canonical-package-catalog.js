@@ -23,8 +23,8 @@ const PACKAGE_DESCRIPTIONS = {
     full: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
     refresh: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
     premium: 'Clay bar, single-pass correction, Rain-X, wheel cleaning and tire shine, exterior plastic restoration, door jambs, headliner, trunk and truck bed where applicable.',
-    ceramic_1yr: '1-Year Ceramic Protection on painted exterior surfaces with wash, decontamination, one-stage polish, and panel prep. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
-    ceramic_3yr: '3-Year Ceramic Protection on painted exterior surfaces with wash, decontamination, one-stage polish, and panel prep. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
+    ceramic_1yr: 'Professional surface preparation, gloss enhancement, hydrophobic behavior, and contamination resistance on painted exterior surfaces. Expected durability is up to 1 year with required maintenance. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
+    ceramic_3yr: 'Professional surface preparation, gloss enhancement, hydrophobic behavior, and contamination resistance on painted exterior surfaces. Expected durability is up to 3 years with required maintenance. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
   },
   boats: {
     maint: 'Exterior marine wash and rinse for regularly maintained boats.',

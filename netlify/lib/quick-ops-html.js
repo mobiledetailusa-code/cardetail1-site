@@ -72,6 +72,31 @@ function field(label, value) {
   return `<div class="row"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`;
 }
 
+function ceramicStaffCard(view) {
+  const ceramic = view && view.ceramic;
+  const internal = ceramic && ceramic.internal;
+  if (!internal) return '';
+  const audit = Array.isArray(internal.auditHistory) ? internal.auditHistory : [];
+  const latest = audit.length ? audit[audit.length - 1] : null;
+  return `<section class="card">
+  <h2>Assigned coating</h2>
+  <p class="sub">${escapeHtml(internal.staffDisclosure || '')}</p>
+  ${field('Public package', ceramic.packageName)}
+  ${field('Manufacturer', internal.coatingManufacturer)}
+  ${field('Product', internal.coatingProduct)}
+  ${field('SKU', internal.internalSku)}
+  ${field('Documented durability', internal.durabilityMonths ? `up to ${internal.durabilityMonths} months` : '')}
+  ${field('Batch / lot', internal.batchOrLotNumber)}
+  ${field('Bottle opened', internal.bottleOpenedAt)}
+  ${field('Expiration', internal.expirationDate)}
+  ${field('Application date', internal.applicationDate)}
+  ${field('Installer', internal.installer)}
+  ${internal.internalNotes ? `<p class="note">${escapeHtml(internal.internalNotes)}</p>` : ''}
+  ${(internal.cureRequirements || []).map((line) => `<p class="note">${escapeHtml(line)}</p>`).join('')}
+  ${latest ? `<p class="sub">Last audit: ${escapeHtml(latest.action || '')} ${escapeHtml(latest.at || '')}</p>` : ''}
+</section>`;
+}
+
 function quickOpsPage(view, csrfToken) {
   const a = view.actions || {};
   const money = view.money || {};
@@ -118,7 +143,7 @@ function quickOpsPage(view, csrfToken) {
 </section>
 <section class="card">
   <h2>Service</h2>
-  ${field('Package', view.service.package)}
+  ${field('Package', (view.ceramic && view.ceramic.packageName) || view.service.package)}
   ${field('Approved', money.approvedLabel)}
   ${field('Paid', money.paidLabel)}
   ${methodLine}
@@ -129,6 +154,7 @@ function quickOpsPage(view, csrfToken) {
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${request}
+${ceramicStaffCard(view)}
 <section class="card">
   <h2>Actions</h2>
   <div class="actions">${buttons}</div>

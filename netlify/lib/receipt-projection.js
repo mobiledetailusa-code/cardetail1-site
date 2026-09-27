@@ -372,8 +372,8 @@ function buildReceiptProjection(booking, requestedType, opts = {}) {
       ceramic: booking.serviceFamily === 'ceramic_coating' && booking.ceramic
         ? {
           packageName: booking.ceramic.packageName || '',
-          product: booking.ceramic.product || '',
           durationMonths: booking.ceramic.durationMonths || null,
+          expectedDurability: booking.ceramic.expectedDurability || '',
           sizeLabel: booking.ceramic.packages?.[0]?.sizeLabel || '',
           appointmentDurationMinutes: booking.appointmentDurationMinutes || null,
           curingInstructions: booking.ceramic.curingInstructions || [],
@@ -381,6 +381,12 @@ function buildReceiptProjection(booking, requestedType, opts = {}) {
           paymentPlan: booking.ceramic.paymentPlan || null,
           depositAmount: booking.depositAmount != null ? Number(booking.depositAmount) : null,
           paymentStatus: booking.paymentStatus || null,
+          ...(booking.ceramic.internal?.discloseOnReceipt === true
+            ? {
+              coatingManufacturer: booking.ceramic.internal.coatingManufacturer || '',
+              coatingProduct: booking.ceramic.internal.coatingProduct || '',
+            }
+            : {}),
         }
         : null,
       footer: RECEIPT_FOOTER,

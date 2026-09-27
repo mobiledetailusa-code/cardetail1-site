@@ -314,7 +314,10 @@ function projectBookingForCustomer(b) {
     balanceDue: src.balanceDue != null ? Number(src.balanceDue) : (amountDueApproved > 0 ? amountDueApproved : 0),
     serviceFamily: src.serviceFamily || '',
     appointmentDurationMinutes: src.appointmentDurationMinutes || null,
-    ceramic: src.ceramic || null,
+    ceramic: (() => {
+      const { customerCeramicSummary } = require('./ceramic-coating');
+      return customerCeramicSummary(src);
+    })(),
   };
 }
 

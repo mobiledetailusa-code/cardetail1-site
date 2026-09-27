@@ -2169,10 +2169,12 @@
       '</dl>' +
       (b.ceramic && (b.serviceFamily === 'ceramic_coating' || b.ceramic.serviceFamily === 'ceramic_coating')
         ? '<div class="ceramic-summary"><p><strong>' + esc(b.ceramic.packageName || 'Ceramic Coating') + '</strong>'
-          + (b.ceramic.durationMonths ? ' · ' + esc(String(b.ceramic.durationMonths)) + ' months' : '')
+          + (b.ceramic.expectedDurability
+            ? ' · ' + esc(b.ceramic.expectedDurability)
+            : (b.ceramic.durationMonths ? ' · up to ' + esc(String(b.ceramic.durationMonths)) + ' months' : ''))
           + (b.ceramic.packages && b.ceramic.packages[0] && b.ceramic.packages[0].sizeLabel
             ? ' · ' + esc(b.ceramic.packages[0].sizeLabel) : '')
-          + '</p><p>' + esc(b.ceramic.product || '') + '</p>'
+          + '</p>'
           + (b.appointmentDurationMinutes ? '<p>Appointment: ' + esc(String(b.appointmentDurationMinutes)) + ' minutes</p>' : '')
           + ((b.ceramic.curingInstructions || []).length
             ? '<ul>' + b.ceramic.curingInstructions.map(function (line) { return '<li>' + esc(line) + '</li>'; }).join('') + '</ul>'

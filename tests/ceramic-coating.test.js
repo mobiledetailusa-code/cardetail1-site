@@ -6,13 +6,17 @@ const assert = require('node:assert/strict');
 const {
   PRICING,
   computeVehicleSubtotal,
+  inferPkgId,
 } = require('../netlify/lib/booking-price-catalog');
 const { applyServerTravelAndTotal } = require('../netlify/lib/travel-fee');
 const {
   applyCeramicBooking,
+  assignInternalCoating,
   basePriceFor,
+  customerCeramicSummary,
   durationForVehicle,
   evaluateEligibility,
+  PUBLIC_PACKAGE_NAMES,
 } = require('../netlify/lib/ceramic-coating');
 const {
   appendSettlement,
@@ -31,6 +35,8 @@ const { projectBookingForCustomer } = require('../netlify/lib/ops-schema');
 const { buildReceiptProjection } = require('../netlify/lib/receipt-projection');
 const { buildEmailContent, buildSmsBody } = require('../netlify/lib/booking-transactional-notifications');
 const { reserveCeramicPaymentIntent } = require('../netlify/lib/db/payment-authority-service');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const ZIP = '07601';
 const WEEKDAY = '2026-10-05';
@@ -449,7 +455,7 @@ describe('ceramic portals, receipts, and messages', () => {
       email: 'ava@example.com',
       preferredDate: WEEKDAY,
       preferredTime: '8:00 AM',
-      package: '1-Year Ceramic Protection',
+      package: 'GYEON Q² CanCoat EVO',
     });
     const applied = applyCeramicBooking(booking, { finalize: true });
     assert.equal(applied.ok, true, applied.error);
@@ -466,7 +472,10 @@ describe('ceramic portals, receipts, and messages', () => {
     const booking = captured();
     assert.equal(booking.approvedFinalAmount, 800);
     const ops = projectQuickOpsBooking(booking);
-    assert.equal(ops.ceramic.packageName, '1-Year Ceramic Protection');
+    assert.equal(ops.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
+    assert.equal(ops.ceramic.internal.coatingManufacturer, 'GYEON');
+    assert.equal(ops.ceramic.internal.coatingProduct, 'Q² CanCoat EVO');
+    assert.match(ops.ceramic.internal.staffDisclosure, /answer with the assigned manufacturer/);
     assert.equal(ops.ceramic.durationMonths, 12);
     assert.equal(ops.service.durationMinutes, 500);
     const customer = projectBookingForCustomer(booking);
@@ -474,27 +483,37 @@ describe('ceramic portals, receipts, and messages', () => {
     assert.equal(customer.depositAmount, 150);
     assert.equal(customer.balanceDue, 650);
     assert.equal(customer.paymentStatus, 'partially_paid');
+    assert.equal(customer.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
+    assert.equal(customer.ceramic.expectedDurability, 'up to 1 year');
+    assert.equal(customer.ceramic.internal, undefined);
+    assert.equal(customer.ceramic.product, undefined);
+    assert.doesNotMatch(JSON.stringify(customer), /GYEON|CanCoat|Mohs/);
     assert.ok(customer.ceramic.curingInstructions.some((line) => /12 hours/.test(line)));
     const receipt = buildReceiptProjection(booking, 'payment');
     assert.equal(receipt.ok, true, receipt.error);
     assert.equal(receipt.receipt.financialSummary.approvedTotal.display, '$800.00');
     assert.equal(receipt.receipt.financialSummary.amountPaid.display, '$150.00');
     assert.equal(receipt.receipt.financialSummary.remainingBalance.display, '$650.00');
-    assert.equal(receipt.receipt.ceramic.packageName, '1-Year Ceramic Protection');
+    assert.equal(receipt.receipt.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
+    assert.equal(receipt.receipt.ceramic.coatingManufacturer, undefined);
+    assert.doesNotMatch(JSON.stringify(receipt.receipt.ceramic), /GYEON|CanCoat|Mohs/);
     assert.equal(receipt.receipt.paidInFull, false);
   });
 
   it('itemizes ceramic totals in email and SMS', () => {
     const booking = captured();
     const email = buildEmailContent('booking.request_received', booking, 'https://cardetail1.com/my-garage.html');
-    assert.match(email.text, /1-Year Ceramic Protection/);
+    assert.match(email.text, /Professional Ceramic Protection — Up to 1 Year/);
+    assert.match(email.text, /Expected durability: up to 1 year/);
+    assert.doesNotMatch(email.text, /GYEON|CanCoat|Mohs/);
     assert.match(email.text, /Approved total: \$800\.00/);
     assert.match(email.text, /Amount paid: \$150\.00/);
     assert.match(email.text, /Remaining balance: \$650\.00/);
     assert.match(email.text, /Do not wash for 7 days/);
     assert.match(email.html, /does not repair damaged paint/);
     const sms = buildSmsBody('booking.request_received', booking, 'https://cardetail1.com/my-garage.html');
-    assert.match(sms, /1-Year Ceramic Protection/);
+    assert.match(sms, /Professional Ceramic Protection — Up to 1 Year/);
+    assert.doesNotMatch(sms, /GYEON|CanCoat|Mohs/);
     assert.match(sms, /Balance due \$650\.00/);
     assert.match(sms, /does not repair paint/);
   });
@@ -504,5 +523,135 @@ describe('ceramic portals, receipts, and messages', () => {
     assert.equal(wash.options.some((o) => o.id === 'ceramic_1yr'), false);
     const ceramic = packageOptionsForVehicle({ cat: 'cars', pkgId: 'ceramic_1yr', tierKey: 'small' }, { zipCode: ZIP });
     assert.deepEqual(ceramic.options.map((o) => o.id).sort(), ['ceramic_1yr', 'ceramic_3yr']);
+    assert.equal(ceramic.options.find((o) => o.id === 'ceramic_1yr').name, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
+  });
+});
+
+describe('ceramic public names and internal coating assignment', () => {
+  const CURE = [
+    'Keep the vehicle dry for at least 12 hours.',
+    'Do not wash for 7 days.',
+    'Expected durability is up to the booked term and depends on maintenance.',
+  ];
+
+  function booked(pkgId) {
+    const booking = pricedBooking(pkgId, 'small', [], {}, {
+      ceramicPaymentPlan: 'prepay_full',
+      package: 'GYEON Q² Mohs EVO',
+    });
+    const applied = applyCeramicBooking(booking, { finalize: true });
+    assert.equal(applied.ok, true, applied.error);
+    return booking;
+  }
+
+  it('keeps manufacturer names off the public package and checkout copy', () => {
+    assert.equal(PUBLIC_PACKAGE_NAMES.ceramic_1yr, 'Professional Ceramic Protection — Up to 1 Year');
+    assert.equal(PUBLIC_PACKAGE_NAMES.ceramic_3yr, 'Professional Ceramic Protection — Up to 3 Years');
+    assert.equal(inferPkgId({ pkgName: PUBLIC_PACKAGE_NAMES.ceramic_1yr }, {}), 'ceramic_1yr');
+    assert.equal(inferPkgId({ pkgName: PUBLIC_PACKAGE_NAMES.ceramic_3yr }, {}), 'ceramic_3yr');
+    const booking = booked('ceramic_1yr');
+    assert.equal(booking.package, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
+    assert.equal(booking.ceramic.internal.coatingManufacturer, 'GYEON');
+    assert.equal(customerCeramicSummary(booking).coatingManufacturer, undefined);
+    const pages = [
+      'index.html',
+      'bergen-county-hub.html',
+      'connecticut-hub.html',
+      'essex-county-hub.html',
+      'hudson-county-hub.html',
+      'new-jersey-hub.html',
+      'newark-mobile-detailing.html',
+      'ny-metro-hub.html',
+      'passaic-county-hub.html',
+      'pennsylvania-hub.html',
+      'template-city.html',
+      'trenton-mobile-detailing.html',
+      'westchester-mobile-detailing.html',
+      'assets/car-pkg-detail-modal.js',
+      'assets/my-garage.js',
+    ];
+    for (const rel of pages) {
+      const text = fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+      assert.doesNotMatch(text, /GYEON|CanCoat|Mohs|9H|scratch proof|permanent protection/i, rel);
+      assert.match(text, /Professional Ceramic Protection — Up to 1 Year|ceramic\.packageName/);
+    }
+    const home = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    assert.match(home, /Professional Ceramic Protection — Up to 3 Years/);
+    assert.match(home, /hydrophobic/i);
+  });
+
+  it('prints the manufacturer on a receipt only when Admin selects disclosure', () => {
+    const booking = booked('ceramic_3yr');
+    applyStripePaymentIntent(booking, {
+      id: 'pi_receipt_brand',
+      status: 'succeeded',
+      amount_received: Math.round(booking.approvedFinalAmount * 100),
+      metadata: { purpose: 'ceramic_checkout', bookingId: booking.id },
+    });
+    const hidden = buildReceiptProjection(booking, 'payment');
+    assert.equal(hidden.receipt.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_3yr);
+    assert.equal(hidden.receipt.ceramic.coatingManufacturer, undefined);
+    const disclosed = assignInternalCoating(booking, {
+      productId: 'gyeon_q2_mohs_evo',
+      cureRequirements: CURE,
+      discloseOnReceipt: true,
+      installer: 'Riley',
+    }, { role: 'admin', id: 'admin-1' });
+    assert.equal(disclosed.ok, true, disclosed.error);
+    const receipt = buildReceiptProjection(booking, 'payment');
+    assert.equal(receipt.receipt.ceramic.coatingManufacturer, 'GYEON');
+    assert.equal(receipt.receipt.ceramic.coatingProduct, 'Q² Mohs EVO');
+    assert.equal(receipt.receipt.ceramic.packageName, PUBLIC_PACKAGE_NAMES.ceramic_3yr);
+    assert.equal(customerCeramicSummary(booking).coatingManufacturer, undefined);
+  });
+
+  it('rejects a coating whose documented durability is below the sold term', () => {
+    const booking = booked('ceramic_3yr');
+    const denied = assignInternalCoating(booking, {
+      productId: 'gyeon_q2_cancot_evo',
+      cureRequirements: CURE,
+    }, { role: 'admin', id: 'admin-1' });
+    assert.equal(denied.ok, false);
+    assert.equal(denied.error, 'ceramic_product_durability_insufficient');
+    assert.equal(booking.ceramic.internal.productId, 'gyeon_q2_mohs_evo');
+    assert.equal(booking.ceramic.packageId, 'ceramic_3yr');
+  });
+
+  it('changes the internal coating without changing the public package', () => {
+    const booking = booked('ceramic_1yr');
+    const blocked = assignInternalCoating(booking, {
+      productId: 'gyeon_q2_mohs_evo',
+      cureRequirements: CURE,
+    }, { role: 'quick_ops', id: 'ops-1' });
+    assert.equal(blocked.error, 'ceramic_product_change_unauthorized');
+    const brandedCure = assignInternalCoating(booking, {
+      productId: 'gyeon_q2_mohs_evo',
+      cureRequirements: ['GYEON cure: keep dry 12 hours.'],
+    }, { role: 'admin', id: 'admin-1' });
+    assert.equal(brandedCure.error, 'ceramic_cure_brand_leak');
+    const changed = assignInternalCoating(booking, {
+      productId: 'gyeon_q2_mohs_evo',
+      cureRequirements: CURE,
+      batchOrLotNumber: 'LOT-42',
+      installer: 'Riley',
+      internalNotes: 'Customer asked; answered with the assigned product.',
+    }, { role: 'admin', id: 'admin-1' });
+    assert.equal(changed.ok, true, changed.error);
+    assert.equal(booking.ceramic.packageId, 'ceramic_1yr');
+    assert.equal(booking.package, PUBLIC_PACKAGE_NAMES.ceramic_1yr);
+    assert.equal(booking.ceramic.internal.coatingProduct, 'Q² Mohs EVO');
+    assert.equal(booking.ceramic.internal.durabilityMonths, 36);
+    assert.equal(booking.ceramic.internal.batchOrLotNumber, 'LOT-42');
+    assert.deepEqual(booking.ceramic.curingInstructions, CURE);
+    const audit = booking.ceramic.internal.auditHistory;
+    assert.equal(audit.at(-1).action, 'internal_product_change');
+    assert.equal(audit.at(-1).actorRole, 'admin');
+    assert.equal(audit.at(-1).fromProductId, 'gyeon_q2_cancot_evo');
+    assert.equal(audit.at(-1).packageId, 'ceramic_1yr');
+    const missingCure = assignInternalCoating(booking, {
+      productId: 'gyeon_q2_cancot_evo',
+      cureRequirements: [],
+    }, { role: 'admin', id: 'admin-1' });
+    assert.equal(missingCure.error, 'ceramic_cure_required');
   });
 });

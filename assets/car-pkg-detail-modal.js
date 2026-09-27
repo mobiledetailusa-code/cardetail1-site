@@ -81,7 +81,7 @@ const CAR_PKG_DETAILS = {
     ],
   },
   ceramic_1yr: {
-    title: "1-Year Ceramic Protection",
+    title: "Professional Ceramic Protection — Up to 1 Year",
     includes: [
       "Technical exterior wash",
       "Tar and iron decontamination",
@@ -89,12 +89,13 @@ const CAR_PKG_DETAILS = {
       "One-stage gloss-enhancement polish",
       "Panel-prep wipe",
       "Ceramic coating on painted exterior surfaces",
+      "Hydrophobic finish and contamination resistance on the coated paint",
       "Normal cleaning of wheels, tires, and exterior glass",
       "Final inspection",
     ],
     bestFor: [
       "Passenger cars, SUVs, minivans, and pickups",
-      "A 12-month paint coating with an instant size-based price",
+      "Expected durability up to 1 year when the coating is maintained",
     ],
     addonsMayApply: [
       "Windshield or all-exterior-glass ceramic",
@@ -108,7 +109,7 @@ const CAR_PKG_DETAILS = {
     ],
   },
   ceramic_3yr: {
-    title: "3-Year Ceramic Protection",
+    title: "Professional Ceramic Protection — Up to 3 Years",
     includes: [
       "Technical exterior wash",
       "Tar and iron decontamination",
@@ -116,12 +117,13 @@ const CAR_PKG_DETAILS = {
       "One-stage gloss-enhancement polish",
       "Panel-prep wipe",
       "Ceramic coating on painted exterior surfaces",
+      "Hydrophobic finish and contamination resistance on the coated paint",
       "Normal cleaning of wheels, tires, and exterior glass",
       "Final inspection",
     ],
     bestFor: [
       "Passenger cars, SUVs, minivans, and pickups",
-      "A 36-month paint coating with an instant size-based price",
+      "Expected durability up to 3 years when the coating is maintained",
     ],
     addonsMayApply: [
       "Windshield or all-exterior-glass ceramic",
