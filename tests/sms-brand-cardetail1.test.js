@@ -377,18 +377,27 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   it('15. booking/payment behavior unchanged', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     const stripeFiles = diff.split(/\r?\n/).filter((file) => /stripe/i.test(file));
-    // The after-service charge confirms on payment_intent webhooks. That is the
-    // only stripe-named file this payment work may change. Any other stripe
-    // path, and any SMS-file rewrite of refund or quote authority, still fails.
-    assert.deepEqual(stripeFiles, ['netlify/functions/stripe-webhook.js']);
-    // The settlement remains the only stripe-named delta since the commit
-    // before it (2b6bbf8^). Another stripe path since that base still fails.
+    // The after-service charge may confirm on payment_intent webhooks. That is
+    // the only stripe-named file a diff may include. An empty diff is valid:
+    // master and any branch that does not edit Stripe must pass. Any other
+    // stripe path, and any SMS-file rewrite of refund or quote authority, fails.
+    const stripeAllowlist = new Set(['netlify/functions/stripe-webhook.js']);
+    const unexpectedStripe = (files) => files.filter((file) => !stripeAllowlist.has(file));
+    assert.deepEqual(unexpectedStripe([]), []);
+    assert.deepEqual(unexpectedStripe(['netlify/functions/stripe-webhook.js']), []);
+    assert.deepEqual(
+      unexpectedStripe(['netlify/functions/create-payment-intent.js']),
+      ['netlify/functions/create-payment-intent.js'],
+    );
+    assert.deepEqual(unexpectedStripe(stripeFiles), []);
+    // Since the pre-settlement base, another stripe path still fails. The
+    // webhook file does not have to appear in this diff.
     const sinceSettlement = execSync(
       'git diff --name-only 544b875ae387ba1b49f55816e945ad74a724b3b5 -- netlify scripts',
       { cwd: ROOT, encoding: 'utf8' },
     );
     const settledStripeFiles = sinceSettlement.split(/\r?\n/).filter((file) => /stripe/i.test(file));
-    assert.deepEqual(settledStripeFiles, ['netlify/functions/stripe-webhook.js']);
+    assert.deepEqual(unexpectedStripe(settledStripeFiles), []);
     // Brand/SMS work must not rewrite refund, quote, or receipt projection authority.
     // payment-authority-service.js may gain non-brand reconcile helpers on other
     // lifecycle PRs; those are covered by stale-payment-attempt tests.
