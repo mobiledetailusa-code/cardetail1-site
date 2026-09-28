@@ -48,6 +48,10 @@ button:disabled{opacity:.45}
 .msg{min-height:1.2em;margin:8px 0 0;color:#7a1f1f}
 .ok{color:#0b3d2e}
 .sub{color:#5b6b64;font-size:.9rem}
+label{display:block;font-size:.85rem;color:#5b6b64;margin:10px 0 4px}
+input,select,textarea{width:100%;box-sizing:border-box;border:1px solid #d7d0c4;border-radius:10px;padding:12px;font:1rem/1.3 system-ui,sans-serif;background:#fff;color:#14201c}
+textarea{min-height:76px;resize:vertical}
+.warn{background:#fff6e8;border:1px solid #e6d3a8;border-radius:10px;padding:10px 12px;color:#6a4b12;font-size:.92rem;margin:8px 0}
 </style>
 </head>
 <body>
@@ -156,8 +160,33 @@ function quickOpsPage(view, csrfToken) {
   ${field('Date', view.service.date)}
   ${field('Window', view.service.window)}
   ${field('Address', view.service.address)}
+  ${field('Technician', view.assignment && view.assignment.label)}
+  ${field('Tech payout', money.payoutLabel)}
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
+${a.assign ? `<section class="card">
+  <h2>Assign technician</h2>
+  <p class="sub">Send this job to someone already on the roster, or type a mobile number. A number that is not on the roster gets a basic link: address, customer name, map, cash or card, and a payment link. That job closes automatically when the customer pays.</p>
+  <label for="qo-tech">Registered technician</label>
+  <select id="qo-tech"><option value="">Load the roster, or leave blank</option></select>
+  <div class="actions"><button type="button" class="secondary" data-action="list_techs">Load roster</button></div>
+  <label for="qo-phone">Freelance phone</label>
+  <input id="qo-phone" inputmode="tel" autocomplete="tel" placeholder="(201) 555-0100">
+  <p class="sub">If this number already belongs to a technician, the job goes to that account instead of a one-off link.</p>
+  <div class="actions"><button type="button" data-action="assign_tech">Assign job</button></div>
+</section>` : ''}
+${a.adjust ? `<section class="card">
+  <h2>Change price</h2>
+  <p class="warn">A decrease lowers the technician payout by the same share. A $200 job with a $120 payout, lowered by $20, pays $108.</p>
+  <label for="qo-adj-type">Change</label>
+  <select id="qo-adj-type"><option value="increase">Increase</option><option value="decrease">Decrease</option></select>
+  <label for="qo-adj-amount">Amount ($)</label>
+  <input id="qo-adj-amount" inputmode="decimal" placeholder="20.00">
+  <label for="qo-adj-note">Note (required)</label>
+  <textarea id="qo-adj-note" maxlength="500" placeholder="Why the price is changing"></textarea>
+  <p class="sub" id="qo-adj-preview"></p>
+  <div class="actions"><button type="button" data-action="adjust_price">Apply price change</button></div>
+</section>` : ''}
 ${request}
 ${ceramicStaffCard(view)}
 <section class="card">
@@ -169,21 +198,202 @@ ${ceramicStaffCard(view)}
 (function(){
   var csrf = ${JSON.stringify(csrfToken)};
   var bookingVersion = ${JSON.stringify(view.bookingVersion || 0)};
+  var approvedCents = ${JSON.stringify(money.approvedCents || 0)};
+  var payoutCents = ${JSON.stringify(money.payoutCents)};
   var msg = document.getElementById('qo-msg');
   function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
+  function dollars(cents){ return '$' + (Math.max(0, Math.round(cents)) / 100).toFixed(2); }
+  function previewAdjust(){
+    var el = document.getElementById('qo-adj-preview');
+    var amountEl = document.getElementById('qo-adj-amount');
+    var typeEl = document.getElementById('qo-adj-type');
+    if (!el || !amountEl || !typeEl) return;
+    var raw = String(amountEl.value || '').replace(/[^0-9.]/g, '');
+    var cents = Math.round(Number(raw) * 100);
+    if (!cents) { el.textContent = payoutCents == null ? 'Technician payout is not set yet.' : ('Current payout ' + dollars(payoutCents) + '.'); return; }
+    var next = typeEl.value === 'decrease' ? approvedCents - cents : approvedCents + cents;
+    if (next < 0) { el.textContent = 'That decrease is larger than the balance.'; return; }
+    var line = 'New total ' + dollars(next) + '.';
+    if (payoutCents != null && approvedCents > 0) {
+      var nextPay = Math.round(payoutCents * next / approvedCents);
+      line += ' Technician payout becomes ' + dollars(nextPay) + '.';
+      if (typeEl.value === 'decrease') line += ' Lowering the price lowers the payout.';
+    }
+    el.textContent = line;
+  }
+  var amountEl = document.getElementById('qo-adj-amount');
+  var typeEl = document.getElementById('qo-adj-type');
+  if (amountEl) amountEl.addEventListener('input', previewAdjust);
+  if (typeEl) typeEl.addEventListener('change', previewAdjust);
+  previewAdjust();
   document.addEventListener('click', async function(ev){
     var btn = ev.target.closest('[data-action]');
     if (!btn) return;
     var action = btn.getAttribute('data-action');
     var confirmText = btn.getAttribute('data-confirm');
     if (confirmText && !window.confirm(confirmText)) return;
+    var payload = { action: action, bookingVersion: bookingVersion, serviceId: btn.getAttribute('data-service-id') || '' };
+    if (action === 'assign_tech') {
+      payload.techId = (document.getElementById('qo-tech') || {}).value || '';
+      payload.phone = (document.getElementById('qo-phone') || {}).value || '';
+      if (!payload.techId && !String(payload.phone).trim()) { setMsg('Choose a technician or enter a phone'); return; }
+    }
+    if (action === 'adjust_price') {
+      payload.type = (document.getElementById('qo-adj-type') || {}).value || '';
+      payload.amountDollars = (document.getElementById('qo-adj-amount') || {}).value || '';
+      payload.reason = (document.getElementById('qo-adj-note') || {}).value || '';
+      if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
+      if (payload.type === 'decrease' && !window.confirm('Lowering the price also lowers the technician payout by the same share. Continue?')) return;
+    }
     btn.disabled = true;
     try {
       var res = await fetch('/.netlify/functions/admin-quick-ops', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json', 'x-qo-csrf': csrf },
-        body: JSON.stringify({ action: action, bookingVersion: bookingVersion, serviceId: btn.getAttribute('data-service-id') || '' })
+        body: JSON.stringify(payload)
+      });
+      var data = await res.json().catch(function(){ return {}; });
+      if (action === 'copy_pay' && data.payUrl) {
+        try { await navigator.clipboard.writeText(data.payUrl); setMsg('Payment link copied', true); }
+        catch (e) { setMsg(data.payUrl, true); }
+        return;
+      }
+      if (action === 'list_techs' && data.ok) {
+        var sel = document.getElementById('qo-tech');
+        var techs = data.technicians || [];
+        function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
+        sel.innerHTML = '<option value="">Leave blank to use the phone</option>' + techs.map(function(t){
+          return '<option value="' + esc(t.techId) + '">' + esc(t.fullName) + '</option>';
+        }).join('');
+        setMsg(techs.length ? 'Roster loaded' : 'No active technicians', true);
+        return;
+      }
+      if (!res.ok || data.ok === false) { setMsg(data.message || data.error || 'Could not complete'); return; }
+      if (data.techUrl) {
+        try { await navigator.clipboard.writeText(data.techUrl); } catch (e) {}
+        setMsg((data.message || 'Link ready') + ' ' + data.techUrl, true);
+        return;
+      }
+      setMsg(data.message || 'Done', true);
+      if (data.reload) location.reload();
+    } catch (e) { setMsg('Network error'); }
+    finally { btn.disabled = false; }
+  });
+})();
+</script>`,
+  });
+}
+
+function techQuickOpsPage(view, csrfToken) {
+  const a = view.actions || {};
+  const money = view.money || {};
+  const paidLine = money.remainingCents > 0
+    ? field('Remaining', money.remainingLabel)
+    : `<div class="row"><span class="k">Balance</span><span class="v">Paid / No balance due</span></div>`;
+  const buttons = [
+    a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
+    a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
+    a.payment ? '<button type="button" class="secondary" data-action="copy_pay">Copy payment link</button>' : '',
+    a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link to customer</button>' : '',
+    a.cash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the remaining balance as cash?">Record cash</button>' : '',
+    a.card ? '<button type="button" class="secondary" data-action="record_card" data-confirm="Record the remaining balance as card on site?">Record card</button>' : '',
+    !a.payment && !a.cash && !a.card ? '<p class="sub">Paid / No balance due</p>' : '',
+  ].filter(Boolean).join('');
+  const vehicle = [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label;
+  return chrome({
+    title: 'Technician job',
+    extraHeaders: { 'X-Tq-Csrf': csrfToken },
+    body: `
+<section class="card">
+  <div class="status">${escapeHtml(view.status)}</div>
+  <h1>${escapeHtml(view.customer.name || 'Customer')}</h1>
+  <p class="sub">Address, customer, and payment only. The job closes automatically when the customer pays the link, or when you record cash or card.</p>
+</section>
+<section class="card">
+  <h2>Job</h2>
+  ${field('Address', view.service.address)}
+  ${field('Vehicle', vehicle)}
+  ${field('Package', view.service.package)}
+  ${field('Date', view.service.date)}
+  ${field('Window', view.service.window)}
+  ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
+</section>
+<section class="card">
+  <h2>Money</h2>
+  ${field('Approved', money.approvedLabel)}
+  ${field('Paid', money.paidLabel)}
+  ${paidLine}
+  ${field('Your payout', money.payoutLabel)}
+  <p class="warn">If you lower the job price, your payout drops by the same share.</p>
+</section>
+${a.adjust ? `<section class="card">
+  <h2>Change price</h2>
+  <label for="tq-adj-type">Change</label>
+  <select id="tq-adj-type"><option value="increase">Increase</option><option value="decrease">Decrease</option></select>
+  <label for="tq-adj-amount">Amount ($)</label>
+  <input id="tq-adj-amount" inputmode="decimal" placeholder="20.00">
+  <label for="tq-adj-note">Note (required)</label>
+  <textarea id="tq-adj-note" maxlength="500" placeholder="Why the price is changing"></textarea>
+  <p class="sub" id="tq-adj-preview"></p>
+  <div class="actions"><button type="button" data-action="adjust_price">Apply price change</button></div>
+</section>` : ''}
+<section class="card">
+  <h2>On site</h2>
+  <div class="actions">${buttons}</div>
+  <p class="msg" id="tq-msg"></p>
+</section>
+<script>
+(function(){
+  var csrf = ${JSON.stringify(csrfToken)};
+  var bookingVersion = ${JSON.stringify(view.bookingVersion || 0)};
+  var approvedCents = ${JSON.stringify(money.approvedCents || 0)};
+  var payoutCents = ${JSON.stringify(money.payoutCents)};
+  var msg = document.getElementById('tq-msg');
+  function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
+  function dollars(cents){ return '$' + (Math.max(0, Math.round(cents)) / 100).toFixed(2); }
+  function previewAdjust(){
+    var el = document.getElementById('tq-adj-preview');
+    var amountEl = document.getElementById('tq-adj-amount');
+    var typeEl = document.getElementById('tq-adj-type');
+    if (!el || !amountEl || !typeEl) return;
+    var cents = Math.round(Number(String(amountEl.value || '').replace(/[^0-9.]/g, '')) * 100);
+    if (!cents) { el.textContent = payoutCents == null ? 'Payout is not set yet.' : ('Your payout now ' + dollars(payoutCents) + '.'); return; }
+    var next = typeEl.value === 'decrease' ? approvedCents - cents : approvedCents + cents;
+    if (next < 0) { el.textContent = 'That decrease is larger than the balance.'; return; }
+    var line = 'New total ' + dollars(next) + '.';
+    if (payoutCents != null && approvedCents > 0) {
+      line += ' Your payout becomes ' + dollars(Math.round(payoutCents * next / approvedCents)) + '.';
+      if (typeEl.value === 'decrease') line += ' This also lowers what you earn.';
+    }
+    el.textContent = line;
+  }
+  var amountEl = document.getElementById('tq-adj-amount');
+  var typeEl = document.getElementById('tq-adj-type');
+  if (amountEl) amountEl.addEventListener('input', previewAdjust);
+  if (typeEl) typeEl.addEventListener('change', previewAdjust);
+  previewAdjust();
+  document.addEventListener('click', async function(ev){
+    var btn = ev.target.closest('[data-action]');
+    if (!btn) return;
+    var action = btn.getAttribute('data-action');
+    var confirmText = btn.getAttribute('data-confirm');
+    if (confirmText && !window.confirm(confirmText)) return;
+    var payload = { action: action, bookingVersion: bookingVersion };
+    if (action === 'adjust_price') {
+      payload.type = (document.getElementById('tq-adj-type') || {}).value || '';
+      payload.amountDollars = (document.getElementById('tq-adj-amount') || {}).value || '';
+      payload.reason = (document.getElementById('tq-adj-note') || {}).value || '';
+      if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
+      if (payload.type === 'decrease' && !window.confirm('Lowering the price also lowers your payout by the same share. Continue?')) return;
+    }
+    btn.disabled = true;
+    try {
+      var res = await fetch('/.netlify/functions/tech-quick-ops', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json', 'x-tq-csrf': csrf },
+        body: JSON.stringify(payload)
       });
       var data = await res.json().catch(function(){ return {}; });
       if (action === 'copy_pay' && data.payUrl) {
@@ -260,5 +470,6 @@ module.exports = {
   chrome,
   neutralExpiredPage,
   quickOpsPage,
+  techQuickOpsPage,
   paymentPage,
 };

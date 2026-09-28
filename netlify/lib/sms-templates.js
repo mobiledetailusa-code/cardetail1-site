@@ -32,6 +32,7 @@ const TEMPLATE_KEYS = Object.freeze({
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
   TECH_AUCTION: 'auction.tech_invite',
+  TECH_JOB_LINK: 'ops.tech_job_link',
   ADMIN_BOOKING: 'ops.booking_alert',
   ADMIN_INQUIRY: 'ops.inquiry_alert',
   ADMIN_INBOUND_SMS: 'ops.inbound_sms_alert',
@@ -404,6 +405,13 @@ function renderSmsTemplate(templateKey, data = {}) {
     case TEMPLATE_KEYS.TECH_AUCTION:
       body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');
+      break;
+    case TEMPLATE_KEYS.TECH_JOB_LINK:
+      body = `${smsPrefix(templateKey)} Job assigned`
+        + (data.service ? ` ${text(data.service, 80)}` : '')
+        + (data.date ? ` ${text(data.date, 40)}` : '')
+        + '.'
+        + (url ? ` Open: ${url}` : '');
       break;
     case TEMPLATE_KEYS.ADMIN_BOOKING: {
       const name = asciiSms(data.customerName).slice(0, 32);

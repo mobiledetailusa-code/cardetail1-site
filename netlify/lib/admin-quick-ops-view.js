@@ -147,15 +147,38 @@ function projectQuickOpsBooking(booking, shared = null) {
         internal: booking.ceramic.internal || null,
       }
       : null,
-    money: {
-      approvedLabel: dollarsFromCents(money.approvedCents) || smsPriceLabel(booking),
-      paidLabel: dollarsFromCents(money.settledCents),
-      remainingLabel: dollarsFromCents(money.remainingCents),
-      remainingCents: money.remainingCents,
-      settledCents: money.settledCents,
-      authority: money.authority,
-      methodLabel: onSiteMethodLabel(booking),
-    },
+    money: (() => {
+      const payoutCents = booking.techPayoutAmount != null && Number.isFinite(Number(booking.techPayoutAmount))
+        ? Math.max(0, Math.round(Number(booking.techPayoutAmount) * 100))
+        : null;
+      return {
+        approvedLabel: dollarsFromCents(money.approvedCents) || smsPriceLabel(booking),
+        approvedCents: money.approvedCents,
+        paidLabel: dollarsFromCents(money.settledCents),
+        remainingLabel: dollarsFromCents(money.remainingCents),
+        remainingCents: money.remainingCents,
+        settledCents: money.settledCents,
+        authority: money.authority,
+        methodLabel: onSiteMethodLabel(booking),
+        payoutCents,
+        payoutLabel: payoutCents == null ? '' : dollarsFromCents(payoutCents),
+      };
+    })(),
+    assignment: (() => {
+      const kind = String(booking.assignmentKind || '').toLowerCase();
+      const name = String(booking.assignedTechName || '').trim();
+      const freelancePhone = String(booking.freelancePhone || '').trim();
+      let label = '';
+      if (kind === 'freelance' && freelancePhone) label = `Freelance ${freelancePhone.slice(-4)}`;
+      else if (name) label = name;
+      return {
+        techId: String(booking.assignedTechId || booking.assignedTech || ''),
+        name,
+        kind: kind === 'freelance' || kind === 'registered' ? kind : (name ? 'registered' : ''),
+        freelancePhone,
+        label,
+      };
+    })(),
     request: pending ? {
       requestId: pending.requestId || pending.id || '',
       type: pending.requestType || pending.type || '',
@@ -183,6 +206,8 @@ function projectQuickOpsBooking(booking, shared = null) {
         payment: due,
         cash: due,
         card: due,
+        assign: status !== 'cancelled' && !done,
+        adjust: status !== 'cancelled',
       };
     })(),
     mapUrl: address ? `https://maps.google.com/?q=${encodeURIComponent(address)}` : '',
