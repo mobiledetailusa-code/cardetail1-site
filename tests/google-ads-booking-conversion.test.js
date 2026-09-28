@@ -387,60 +387,104 @@ describe('Ceramic coating Google Ads conversion', () => {
     if (harness && harness.cleanup) harness.cleanup();
   });
 
-  it('does not fire before ceramic payment succeeds', () => {
+  it('does not require paymentSucceeded for a persisted ceramic reservation', () => {
+    const rev = read('assets/revenue-events.js');
+    assert.doesNotMatch(rev, /serviceFamily === 'ceramic_coating' && opts\.paymentSucceeded !== true/);
+  });
+
+  it('fires once for ceramic cash at service using the server total', () => {
     const { ctx, conversions } = harness;
-    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-      id: 'CD1-CER-WAIT',
+    assert.equal(ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(successEvidence({
+      id: 'CD1-CER-CASH',
       approvedFinalAmount: 650,
       amountPaid: 0,
       serviceFamily: 'ceramic_coating',
       paymentSucceeded: false,
+    })), undefined);
+    const booking = conversions.filter((c) => c.send_to === BOOKING_SEND_TO);
+    assert.equal(booking.length, 1);
+    assert.equal(booking[0].transaction_id, 'CD1-CER-CASH');
+    assert.equal(booking[0].value, 650);
+    assert.equal(booking[0].currency, 'USD');
+    assert.equal(booking[0].send_to, BOOKING_SEND_TO);
+  });
+
+  it('fires once for ceramic card at service without a captured payment', () => {
+    const { ctx, conversions } = harness;
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-CER-CARD',
+      approvedFinalAmount: 890,
+      amountPaid: 0,
+      serviceFamily: 'ceramic_coating',
+    })), true);
+    const booking = conversions.filter((c) => c.transaction_id === 'CD1-CER-CARD');
+    assert.equal(booking.length, 1);
+    assert.equal(booking[0].value, 890);
+    assert.equal(booking[0].currency, 'USD');
+  });
+
+  it('does not fire for a ceramic draft, send failure, or occupancy failure', () => {
+    const { ctx, conversions } = harness;
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-CER-DRAFT',
+      approvedFinalAmount: 650,
+      serviceFamily: 'ceramic_coating',
+      isDraft: true,
+    })), false);
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-CER-FAIL',
+      approvedFinalAmount: 650,
+      serviceFamily: 'ceramic_coating',
+      ok: false,
+    })), false);
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-CER-OCC',
+      approvedFinalAmount: 650,
+      serviceFamily: 'ceramic_coating',
+      bookingCreated: false,
     })), false);
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
   });
 
-  it('fires approvedFinalAmount after capture and ignores the deposit', () => {
+  it('does not fire when the confirmation opens without persist evidence', () => {
     const { ctx, conversions } = harness;
-    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-      id: 'CD1-CER-PAID',
-      approvedFinalAmount: 650,
-      amountPaid: 150,
+    ctx.Cardetail1Revenue.initAdapters();
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion({
       serviceFamily: 'ceramic_coating',
-      paymentSucceeded: true,
-    })), true);
-    const booking = conversions.filter((c) => c.transaction_id === 'CD1-CER-PAID');
-    assert.equal(booking.length, 1);
-    assert.equal(booking[0].value, 650);
-    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-      id: 'CD1-CER-PAID',
-      approvedFinalAmount: 650,
-      amountPaid: 650,
-      serviceFamily: 'ceramic_coating',
-      paymentSucceeded: true,
-    })), false);
-    assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-CER-PAID').length, 1);
+      paymentSucceeded: false,
+    }), false);
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
   });
 
-  it('fires the combined approvedFinalAmount once for ceramic plus interior', () => {
+  it('retry, double submit, reopening confirmation, and later payment emit once', () => {
     const { ctx, conversions } = harness;
-    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-      id: 'CD1-CER-INT',
+    const evidence = successEvidence({
+      id: 'CD1-CER-ONCE',
       approvedFinalAmount: 1075,
-      amountPaid: 268.75,
+      amountPaid: 0,
       serviceFamily: 'ceramic_coating',
+      paymentSucceeded: false,
+    });
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(evidence), true);
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(evidence), false);
+    ctx.Cardetail1CheckoutAnalytics.onBookingSubmitted(Object.assign({}, evidence, { idempotent: true }));
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(Object.assign({}, evidence, {
       paymentSucceeded: true,
-    })), true);
-    const booking = conversions.filter((c) => c.transaction_id === 'CD1-CER-INT');
-    assert.equal(booking.length, 1);
-    assert.equal(booking[0].value, 1075);
-    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
-      id: 'CD1-CER-INT',
-      approvedFinalAmount: 1075,
       amountPaid: 1075,
-      serviceFamily: 'ceramic_coating',
-      paymentSucceeded: true,
     })), false);
-    assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-CER-INT').length, 1);
+    assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-CER-ONCE').length, 1);
+    assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-CER-ONCE')[0].value, 1075);
+
+    const stored = ctx.localStorage.getItem('cd1_ads_booking_tx_ids');
+    assert.match(stored, /CD1-CER-ONCE/);
+    const later = loadAnalyticsHarness();
+    later.ctx.localStorage.setItem('cd1_ads_booking_tx_ids', stored);
+    assert.equal(later.ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(Object.assign({}, evidence, {
+      paymentSucceeded: true,
+      amountPaid: 1075,
+    })), false);
+    assert.equal(later.conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+    later.cleanup();
   });
 
   it('leaves non-ceramic cash conversion unchanged', () => {
