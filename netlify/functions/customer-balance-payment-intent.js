@@ -140,6 +140,7 @@ exports.handler = async (event) => {
       stale_quote_version: 'Your quote was updated. Refresh and try again.',
       already_paid: 'This invoice is already paid.',
       zero_balance: 'No balance is due for this appointment.',
+      after_service_charge_in_progress: 'A charge for this balance is already in progress and cannot be collected twice.',
       payment_prepare_failed: 'Payment is temporarily unavailable. Please retry.',
       missing_client_secret: 'Payment is temporarily unavailable. Please retry.',
       postgres_payment_disabled: 'Payment is temporarily unavailable. Please retry.',

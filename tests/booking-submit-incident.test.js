@@ -432,7 +432,7 @@ test('ceramic undercarriage does not add a water fee when water access is no, un
   }
 });
 
-test('a new ceramic booking rejects pay online later and does not save a card', async () => {
+test('a new ceramic booking can choose card online without a charge or deposit', async () => {
   const payload = ceramicBody({
     phone: '2015550193',
     email: 'online-card@example.com',
@@ -441,10 +441,34 @@ test('a new ceramic booking rejects pay online later and does not save a card', 
     acceptedCardOnFilePolicy: true,
   });
   const draft = await post(payload, '203.0.113.41');
-  assert.equal(draft.status, 400, JSON.stringify(draft.body));
-  assert.equal(draft.body.error, 'ceramic_pay_at_service_only');
+  assert.equal(draft.status, 200, JSON.stringify(draft.body));
   assert.notEqual(draft.body.bookingCreated, true);
-  assert.equal(bookings.records().length, 0);
+  const saved = bookings.records().find((item) => item.id === draft.body.id);
+  assert.ok(saved);
+  assert.equal(saved.paymentMethodPreference, 'online_after_service');
+  assert.equal(saved.cardOnFileStatus === 'saved', false);
+  assert.equal(saved.stripePaymentMethodId || null, null);
+  assert.equal(saved.paymentIntentId || null, null);
+  assert.equal(saved.amountPaid || 0, 0);
+  assert.equal(saved.ceramicPaymentPlan || '', '');
+  assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'mobile_water'), false);
+  assert.equal(saved.afterServiceChargeConsentVersion || null, null);
+  assert.equal(saved.afterServiceChargeConsentAt || null, null);
+
+  const consented = await post({
+    ...payload,
+    acceptedAfterServiceChargeConsent: true,
+    afterServiceChargeConsentVersion: 'spoofed-version',
+    afterServiceChargeConsentAt: '2020-01-01T00:00:00.000Z',
+    isDraft: true,
+    draftBookingId: draft.body.id,
+    draftSaveToken: draft.body.draftSaveToken,
+  }, '203.0.113.41');
+  assert.equal(consented.status, 200, JSON.stringify(consented.body));
+  const stamped = bookings.records().find((item) => item.id === draft.body.id);
+  assert.equal(stamped.afterServiceChargeConsentVersion, '2026-09-after-service-charge');
+  assert.ok(Number.isFinite(Date.parse(stamped.afterServiceChargeConsentAt)));
+  assert.notEqual(stamped.afterServiceChargeConsentAt, '2020-01-01T00:00:00.000Z');
 });
 
 test('a stored deposit plan and historical water line survive a later submit', async () => {

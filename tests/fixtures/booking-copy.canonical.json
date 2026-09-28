@@ -207,8 +207,8 @@
         "id": "pay-online-card-required",
         "anchor": "#pc-online",
         "match": "contains",
-        "texts": ["Pay online later"],
-        "why": "Pay online later remains available as a payment preference (without a Recommended badge)."
+        "texts": ["Card online — charged after service"],
+        "why": "Card online — charged after service remains available as a payment preference (without a Recommended badge)."
       },
       {
         "id": "pay-later-options",

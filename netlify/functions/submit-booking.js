@@ -37,6 +37,9 @@ const CLIENT_BLOCKED_FIELDS = [
   'transactionalSmsConsent', 'transactionalSmsConsentTextVersion',
   'acceptedTransactionalSmsConsentAt', 'transactionalSmsConsentSource',
   'marketingSmsConsentAccepted',
+  // After-service charge consent evidence is server-authored. The browser may
+  // only send the boolean acceptedAfterServiceChargeConsent.
+  'afterServiceChargeConsentVersion', 'afterServiceChargeConsentAt',
   'finalizedAt', 'occupancyStatus', 'occupancyPendingAt', 'notificationsClaimedAt',
 ];
 
@@ -55,7 +58,7 @@ function normalizeRequestPreference(value) {
   return PAYMENT_PREFERENCES.has(preference) ? preference : null;
 }
 
-/** Pay online later always requires card-on-file; onsite preferences never do. */
+/** Card online charged after service requires card-on-file; onsite preferences never do. */
 function resolveCardOnFileRequired(preference, requestedFlag) {
   const pref = normalizeRequestPreference(preference) || String(preference || '').trim();
   if (pref === 'online_after_service') return true;
@@ -87,7 +90,7 @@ const {
 } = require('../lib/ceramic-coating');
 const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex, reserveBookedSpan, bookedSpanReady } = require('../lib/slot-index');
-const { TERMS_POLICY_VERSION } = require('../lib/customer-policy');
+const { TERMS_POLICY_VERSION, stampAfterServiceChargeConsent } = require('../lib/customer-policy');
 const { findDuplicateBooking } = require('../lib/booking-history');
 const { validateBookingRouting } = require('../lib/booking-routing-validation');
 const {
@@ -494,6 +497,12 @@ function buildDraftRecord(b, draftId, now, existing = null) {
   const resolvedPreference = cardOnFileRequired
     ? String(preference || '')
     : (incomingPref || '');
+  const chargeConsent = stampAfterServiceChargeConsent({
+    paymentMethodPreference: resolvedPreference,
+    acceptedCardOnFilePolicy: cardOnFileRequired,
+    afterServiceChargeConsentVersion: existing && existing.afterServiceChargeConsentVersion,
+    afterServiceChargeConsentAt: existing && existing.afterServiceChargeConsentAt,
+  }, b, now);
   return {
     id: draftId,
     isDraft: true,
@@ -521,6 +530,8 @@ function buildDraftRecord(b, draftId, now, existing = null) {
       ? ((existing && existing.acceptedCardOnFilePolicyAt) || now)
       : null,
     policyVersion: TERMS_POLICY_VERSION,
+    afterServiceChargeConsentVersion: chargeConsent.afterServiceChargeConsentVersion,
+    afterServiceChargeConsentAt: chargeConsent.afterServiceChargeConsentAt,
     setupIntentId: cardOnFileRequired && existing ? existing.setupIntentId : undefined,
     stripeCustomerId: cardOnFileRequired && existing ? existing.stripeCustomerId : undefined,
     stripePaymentMethodId: cardOnFileRequired && existing ? existing.stripePaymentMethodId : undefined,
@@ -1513,6 +1524,12 @@ exports.handler = async (event) => {
       });
     }
     const finalizedAt = new Date().toISOString();
+    const chargeConsent = stampAfterServiceChargeConsent({
+      paymentMethodPreference: preference,
+      acceptedCardOnFilePolicy: cardOnFileRequired,
+      afterServiceChargeConsentVersion: existing.afterServiceChargeConsentVersion,
+      afterServiceChargeConsentAt: existing.afterServiceChargeConsentAt,
+    }, b, finalizedAt);
     const transactionalSmsConsentAccepted = b.transactionalSmsConsentAccepted === true;
     retainStoredCeramicEligibility(b, existing);
     retainStoredCeramicPayment(b, existing);
@@ -1538,6 +1555,8 @@ exports.handler = async (event) => {
       acceptedCardOnFilePolicy: cardOnFileRequired,
       acceptedCardOnFilePolicyAt: cardOnFileRequired ? existing.acceptedCardOnFilePolicyAt : null,
       policyVersion: TERMS_POLICY_VERSION,
+      afterServiceChargeConsentVersion: chargeConsent.afterServiceChargeConsentVersion,
+      afterServiceChargeConsentAt: chargeConsent.afterServiceChargeConsentAt,
       transactionalSmsConsentAccepted,
       transactionalSmsConsent: canonicalBookingSmsConsent(
         transactionalSmsConsentAccepted,

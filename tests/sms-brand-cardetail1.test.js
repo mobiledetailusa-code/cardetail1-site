@@ -377,11 +377,10 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   it('15. booking/payment behavior unchanged', async () => {
     const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
     const stripeFiles = diff.split(/\r?\n/).filter((file) => /stripe/i.test(file));
-    // Ceramic settlement in stripe-webhook.js is already on master (2b6bbf8).
-    // This branch must not rewrite that file or any other stripe-named path.
-    // Requiring the webhook to stay dirty against origin/master fails master
-    // itself and every later branch that leaves payment files alone.
-    assert.deepEqual(stripeFiles, []);
+    // The after-service charge confirms on payment_intent webhooks. That is the
+    // only stripe-named file this payment work may change. Any other stripe
+    // path, and any SMS-file rewrite of refund or quote authority, still fails.
+    assert.deepEqual(stripeFiles, ['netlify/functions/stripe-webhook.js']);
     // The settlement remains the only stripe-named delta since the commit
     // before it (2b6bbf8^). Another stripe path since that base still fails.
     const sinceSettlement = execSync(

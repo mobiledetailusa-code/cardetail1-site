@@ -1,7 +1,7 @@
 // Conversion-funnel trust copy (P1).
 //
 // The booking flow is a *request*: submitting does not confirm an appointment,
-// and nothing is charged today. Pay online later requires saving a
+// and nothing is charged today. Card online — charged after service requires saving a
 // card; card/cash at service do not. Public copy used to promise the opposite
 // ("card holds your slot" / "Lock Your Slot").
 // These tests pin the honest wording so the contradiction cannot come back —
@@ -45,7 +45,7 @@ test('no public source promises the card holds or locks a slot', () => {
   }
 });
 
-test('the request-only contract keeps $0 today and requires a card only for Pay online later', () => {
+test('the request-only contract keeps $0 today and requires a card only for card online after service', () => {
   for (const page of bookingPages) {
     const html = read(page);
     assert.match(
@@ -56,12 +56,12 @@ test('the request-only contract keeps $0 today and requires a card only for Pay 
     assert.match(
       html,
       /Save a card securely now\. Nothing is charged today\./,
-      `${page} lost the Pay online later help copy`,
+      `${page} lost the card-online help copy`,
     );
     assert.match(
       html,
-      /id="pc-online"[^>]*>\s*<span>Pay online later<\/span>\s*<\/button>/,
-      `${page} lost the Pay online later choice (without Recommended badge)`,
+      /id="pc-online"[^>]*>\s*<span>Card online — charged after service<\/span>\s*<\/button>/,
+      `${page} lost the card online choice (without Recommended badge)`,
     );
     assert.doesNotMatch(
       html,

@@ -233,6 +233,10 @@ async function prepareEmbeddedPaymentInner({
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
+  const { customerRecoveryBlocked } = require('../charge-saved-card-after-service');
+  const inProgress = customerRecoveryBlocked(booking);
+  if (inProgress) return inProgress;
+
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
   }
