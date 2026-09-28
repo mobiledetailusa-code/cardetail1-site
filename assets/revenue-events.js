@@ -506,29 +506,38 @@
 
   /**
    * Google Ads "Booking submitted" conversion — fires only after finalize evidence
-   * that a booking was durably persisted (ok + bookingCreated + durable id +
-   * backend approvedFinalAmount). Cash and Card share this same conversion.
+   * that a booking was durably persisted (ok + bookingCreated + not a draft +
+   * durable id + backend approvedFinalAmount). Cash, card, and Ceramic
+   * pay-at-service share this same conversion. Payment capture is a separate
+   * financial event and is not required to count the reservation.
    *
    * send_to is the Google-provided booking conversion label (not Page view).
-   * transaction_id = durable booking ID so Google dedupes retries / idempotent
-   * finalize. Never awaits network; never throws into checkout.
+   * transaction_id = durable booking ID. The same id is remembered in
+   * sessionStorage and localStorage so a retry, a second click, reopening the
+   * confirmation, or a later payment does not emit again. Never awaits network;
+   * never throws into checkout.
    */
   var ADS_BOOKING_TX_STORAGE_KEY = 'cd1_ads_booking_tx_ids';
+
+  function adsBookingTxReadStore(store, into) {
+    try {
+      if (!store) return;
+      var raw = store.getItem(ADS_BOOKING_TX_STORAGE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) return;
+      arr.forEach(function (id) {
+        if (id) into[String(id)] = true;
+      });
+    } catch (eLoad) { /* ignore storage */ }
+  }
 
   function adsBookingTxSeen(txId) {
     if (!txId) return true;
     try {
       if (!global.__cd1GoogleAdsBookingTxIds) {
         global.__cd1GoogleAdsBookingTxIds = Object.create(null);
-        try {
-          var raw = global.sessionStorage && global.sessionStorage.getItem(ADS_BOOKING_TX_STORAGE_KEY);
-          var arr = raw ? JSON.parse(raw) : [];
-          if (Array.isArray(arr)) {
-            arr.forEach(function (id) {
-              if (id) global.__cd1GoogleAdsBookingTxIds[String(id)] = true;
-            });
-          }
-        } catch (eLoad) { /* ignore storage */ }
+        adsBookingTxReadStore(global.sessionStorage, global.__cd1GoogleAdsBookingTxIds);
+        adsBookingTxReadStore(global.localStorage, global.__cd1GoogleAdsBookingTxIds);
       }
       return !!global.__cd1GoogleAdsBookingTxIds[String(txId)];
     } catch (e) {
@@ -542,11 +551,11 @@
       if (!global.__cd1GoogleAdsBookingTxIds) global.__cd1GoogleAdsBookingTxIds = Object.create(null);
       global.__cd1GoogleAdsBookingTxIds[String(txId)] = true;
       try {
-        if (global.sessionStorage) {
-          var ids = Object.keys(global.__cd1GoogleAdsBookingTxIds);
-          if (ids.length > 40) ids = ids.slice(-40);
-          global.sessionStorage.setItem(ADS_BOOKING_TX_STORAGE_KEY, JSON.stringify(ids));
-        }
+        var ids = Object.keys(global.__cd1GoogleAdsBookingTxIds);
+        if (ids.length > 40) ids = ids.slice(-40);
+        var serialized = JSON.stringify(ids);
+        if (global.sessionStorage) global.sessionStorage.setItem(ADS_BOOKING_TX_STORAGE_KEY, serialized);
+        if (global.localStorage) global.localStorage.setItem(ADS_BOOKING_TX_STORAGE_KEY, serialized);
       } catch (eStore) { /* ignore */ }
     } catch (e) { /* ignore */ }
   }
@@ -581,10 +590,6 @@
 
       var value = resolveAuthoritativeBookingValue(opts);
       if (value == null) return false;
-
-      // Ceramic conversion waits for a confirmed capture. The value is the
-      // approved total, never the deposit or amountPaid.
-      if (opts.serviceFamily === 'ceramic_coating' && opts.paymentSucceeded !== true) return false;
 
       if (adsBookingTxSeen(txId)) return false;
 
