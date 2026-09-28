@@ -153,19 +153,8 @@ async function setTechnicianPay(booking, opts = {}) {
   };
 }
 
-function payoutMessage(type, payout, approvedCents) {
-  const total = dollarsFromCents(approvedCents);
-  if (!payout || payout.beforeCents == null) {
-    return type === 'decrease'
-      ? `Price is now ${total}. No technician payout was on file, so only the job total changed. A later payout based on this total will be lower.`
-      : `Price is now ${total}.`;
-  }
-  const before = dollarsFromCents(payout.beforeCents);
-  const after = dollarsFromCents(payout.afterCents);
-  if (type === 'decrease') {
-    return `Price is now ${total}. Technician payout dropped from ${before} to ${after}.`;
-  }
-  return `Price is now ${total}. Technician payout moved from ${before} to ${after}.`;
+function priceChangeMessage(approvedCents) {
+  return `Price is now ${dollarsFromCents(approvedCents)}. Technician pay was not changed.`;
 }
 
 function samePendingExtra(record, amountCents, reason) {
@@ -549,9 +538,6 @@ async function adjustQuickOpsPrice(booking, opts = {}) {
     quoteVersion = Math.round(Number(pg.quoteVersion) || quoteVersion);
   }
 
-  const payout = opts.payoutMode === 'add'
-    ? addTechPayout(booking, nextApproved, type === 'increase' ? parsed.amountCents : -parsed.amountCents)
-    : scaleTechPayout(booking, approvedCents, nextApproved);
   const creditedCents = Math.max(0, Math.round(Number(booking.ledger && booking.ledger.creditedCents) || 0));
   const remainingCents = Math.max(0, nextApproved - nextSettled - creditedCents);
   const now = new Date().toISOString();
@@ -580,8 +566,6 @@ async function adjustQuickOpsPrice(booking, opts = {}) {
     payLinkAmount: null,
     payLinkInvalidatedAt: now,
     paymentAttempts: supersedeOpenAttempts(booking.paymentAttempts, { quoteVersion }),
-    techPayoutAmount: payout.techPayoutAmount,
-    platformFeeAmount: payout.platformFeeAmount,
     updatedAt: now,
     eventLog: appendEventLog(booking, {
       action: 'quick_ops_price_adjusted',
@@ -589,8 +573,7 @@ async function adjustQuickOpsPrice(booking, opts = {}) {
       type,
       amountCents: parsed.amountCents,
       reason: reason.slice(0, 180),
-      payoutBeforeCents: payout.beforeCents,
-      payoutAfterCents: payout.afterCents,
+      payoutUnchanged: true,
     }),
   };
   const next = buildNextAggregate(booking, patch);
@@ -609,8 +592,8 @@ async function adjustQuickOpsPrice(booking, opts = {}) {
     addedCents: parsed.amountCents,
     approvedCents: nextApproved,
     remainingCents,
-    payout,
-    message: payoutMessage(type, payout, nextApproved),
+    payoutUnchanged: true,
+    message: priceChangeMessage(nextApproved),
   };
 }
 

@@ -48,7 +48,7 @@ const {
   resetQuickOpsTechRoster,
 } = require('../netlify/lib/quick-ops-assign');
 const { suppressPhone, clearSuppression } = require('../netlify/lib/sms-suppression');
-const { adjustQuickOpsPrice, scaleTechPayout, setTechnicianPay } = require('../netlify/lib/quick-ops-price');
+const { adjustQuickOpsPrice, setTechnicianPay } = require('../netlify/lib/quick-ops-price');
 const techHandler = require('../netlify/functions/tech-quick-ops');
 const customerAction = require('../netlify/functions/customer-portal-action');
 const { processSmsOutbox, applyStatusCallback } = require('../netlify/lib/sms-outbox');
@@ -257,7 +257,8 @@ describe('tech quick ops access', () => {
     assert.match(html.body, /Assign technician/);
     assert.match(html.body, /No technician is assigned/);
     assert.match(html.body, /id="qo-unassign"[^>]*hidden/);
-    assert.match(html.body, /lowers the technician payout/);
+    assert.match(html.body, /does not change technician pay/);
+    assert.doesNotMatch(html.body, /lowers the technician payout|payout becomes/);
     assert.match(html.body, /Freelance phone/);
     const assigned = projectQuickOpsBooking(booking({
       assignmentKind: 'freelance',
@@ -353,14 +354,10 @@ describe('tech quick ops access', () => {
     assert.equal(techs[0].phone, undefined);
   });
 
-  it('requires a note and lowers payout by the same share', async () => {
+  it('requires a note and leaves technician pay unchanged', async () => {
     const missing = await adjustQuickOpsPrice(booking(), { type: 'decrease', amountDollars: '20', reason: 'short' });
     assert.equal(missing.ok, false);
     assert.equal(missing.error, 'reason_required');
-
-    const scaled = scaleTechPayout(booking(), 19000, 17000);
-    assert.equal(scaled.afterCents, Math.round(12000 * 17000 / 19000));
-    assert.ok(scaled.afterCents < scaled.beforeCents);
 
     const result = await adjustQuickOpsPrice(booking(), {
       type: 'decrease',
@@ -368,11 +365,22 @@ describe('tech quick ops access', () => {
       reason: 'Customer removed the pet-hair add-on',
     });
     assert.equal(result.ok, true, result.error || result.message);
-    assert.match(result.message, /payout dropped/);
+    assert.match(result.message, /Technician pay was not changed/);
+    assert.doesNotMatch(result.message, /payout dropped|payout moved/);
     const saved = await getBookingRecord('CD1-TQ-01');
     assert.equal(saved.booking.ledger.approvedCents, 17000);
-    assert.equal(saved.booking.techPayoutAmount, scaled.afterCents / 100);
+    assert.equal(saved.booking.techPayoutAmount, 120);
+    assert.equal(saved.booking.platformFeeAmount, undefined);
     assert.ok(saved.booking.quoteVersion > 1);
+
+    const raised = await adjustQuickOpsPrice(saved.booking, {
+      type: 'increase',
+      amountDollars: '20.00',
+      reason: 'Restored the pet-hair add-on',
+    });
+    assert.equal(raised.ok, true, raised.error || raised.message);
+    assert.equal(raised.booking.ledger.approvedCents, 19000);
+    assert.equal(raised.booking.techPayoutAmount, 120);
 
     const tooFar = await adjustQuickOpsPrice(booking({
       ledger: { approvedCents: 19000, settledCents: 15000, creditedCents: 0, entries: [] },

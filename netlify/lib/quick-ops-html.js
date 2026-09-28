@@ -187,7 +187,7 @@ ${a.assign ? `<section class="card">
 </section>` : ''}
 ${a.adjust ? `<section class="card">
   <h2>Change price</h2>
-  <p class="warn">A decrease lowers the technician payout by the same share. A $200 job with a $120 payout, lowered by $20, pays $108.</p>
+  <p class="warn">Changing the customer price does not change technician pay. Save technician pay to change that amount.</p>
   <label for="qo-adj-type">Change</label>
   <select id="qo-adj-type"><option value="increase">Increase</option><option value="decrease">Decrease</option></select>
   <label for="qo-adj-amount">Amount ($)</label>
@@ -220,15 +220,11 @@ ${ceramicStaffCard(view)}
     if (!el || !amountEl || !typeEl) return;
     var raw = String(amountEl.value || '').replace(/[^0-9.]/g, '');
     var cents = Math.round(Number(raw) * 100);
-    if (!cents) { el.textContent = payoutCents == null ? 'Technician payout is not set yet.' : ('Current payout ' + dollars(payoutCents) + '.'); return; }
+    if (!cents) { el.textContent = payoutCents == null ? 'Technician pay is not set yet.' : ('Technician pay stays ' + dollars(payoutCents) + '.'); return; }
     var next = typeEl.value === 'decrease' ? approvedCents - cents : approvedCents + cents;
     if (next < 0) { el.textContent = 'That decrease is larger than the balance.'; return; }
     var line = 'New total ' + dollars(next) + '.';
-    if (payoutCents != null && approvedCents > 0) {
-      var nextPay = Math.round(payoutCents * next / approvedCents);
-      line += ' Technician payout becomes ' + dollars(nextPay) + '.';
-      if (typeEl.value === 'decrease') line += ' Lowering the price lowers the payout.';
-    }
+    line += payoutCents == null ? ' Technician pay stays unset.' : (' Technician pay stays ' + dollars(payoutCents) + '.');
     el.textContent = line;
   }
   var amountEl = document.getElementById('qo-adj-amount');
@@ -257,7 +253,6 @@ ${ceramicStaffCard(view)}
       payload.amountDollars = (document.getElementById('qo-adj-amount') || {}).value || '';
       payload.reason = (document.getElementById('qo-adj-note') || {}).value || '';
       if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
-      if (payload.type === 'decrease' && !window.confirm('Lowering the price also lowers the technician payout by the same share. Continue?')) return;
     }
     btn.disabled = true;
     try {
