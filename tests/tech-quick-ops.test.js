@@ -41,6 +41,21 @@ const {
 } = require('../netlify/lib/admin-quick-ops-token');
 
 const SECRET = 'test-admin-quick-ops-secret-32chars';
+const TEST_FORWARD_CALLS_TO = '+12025550123';
+
+function testForwardCallsDigits() {
+  const digits = TEST_FORWARD_CALLS_TO.replace(/\D/g, '');
+  return digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+}
+
+function testForwardCallsLabel() {
+  const ten = testForwardCallsDigits();
+  return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 function booking(overrides = {}) {
   return {
@@ -190,13 +205,13 @@ describe('tech quick ops access', () => {
     assert.match(html.body, /Freelance phone/);
     const assigned = projectQuickOpsBooking(booking({
       assignmentKind: 'freelance',
-      freelancePhone: '+15513132956',
-      assignedTechName: 'Freelance 2956',
+      freelancePhone: TEST_FORWARD_CALLS_TO,
+      assignedTechName: 'Freelance Tech',
       quickOpsTechClose: true,
     }));
-    assert.equal(assigned.assignment.label, '(551) 313-2956');
+    assert.equal(assigned.assignment.label, testForwardCallsLabel());
     const assignedHtml = quickOpsPage(assigned, 'csrf-token');
-    assert.match(assignedHtml.body, /Assigned to \(551\) 313-2956/);
+    assert.match(assignedHtml.body, new RegExp(`Assigned to ${escapeRegExp(testForwardCallsLabel())}`));
     assert.match(assignedHtml.body, /Remove assignment/);
     assert.doesNotMatch(assignedHtml.body, /id="qo-unassign"[^>]*hidden/);
     const named = projectQuickOpsBooking(booking({
@@ -559,7 +574,7 @@ describe('tech quick ops access', () => {
       techId: 'pat',
       fullName: 'Pat Diaz',
       active: true,
-      phone: '5513132956',
+      phone: testForwardCallsDigits(),
       smsConsent: false,
     }]);
 
@@ -576,7 +591,7 @@ describe('tech quick ops access', () => {
     assert.doesNotMatch(saved.message, /delivered/i);
     assert.match(saved.techUrl, /\/ops\/t\/tqt_/);
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].to, '+15513132956');
+    assert.equal(sent[0].to, TEST_FORWARD_CALLS_TO);
     assert.match(sent[0].body, /Interior Detail/);
     assert.match(sent[0].body, /Open: https:\/\/cardetail1\.com\/ops\/t\/tqt_/);
     assert.doesNotMatch(sent[0].body, /Alex|Rivera|\$|190|120/);
@@ -586,7 +601,7 @@ describe('tech quick ops access', () => {
 
     const afterSaved = await getBookingRecord('CD1-TQ-01');
     const matched = await assignQuickOpsTech(afterSaved.booking, {
-      phone: '5513132956',
+      phone: testForwardCallsDigits(),
       prisma,
       env,
       provider,
@@ -600,7 +615,7 @@ describe('tech quick ops access', () => {
     setQuickOpsTechRoster(async () => []);
     const afterMatch = await getBookingRecord('CD1-TQ-01');
     const typed = await assignQuickOpsTech(afterMatch.booking, {
-      phone: '(551) 313-2956',
+      phone: testForwardCallsLabel(),
       prisma,
       env,
       provider,
@@ -610,22 +625,22 @@ describe('tech quick ops access', () => {
     assert.equal(typed.sms.sent, true, JSON.stringify(typed.sms && (typed.sms.reason || typed.sms.error)));
     assert.equal(typed.message, 'Assigned — notification sent');
     assert.equal(sent.length, 2);
-    assert.equal(sent[1].to, '+15513132956');
+    assert.equal(sent[1].to, TEST_FORWARD_CALLS_TO);
     assert.match(sent[1].body, /\/ops\/t\/tqt_/);
     assert.doesNotMatch(sent[1].body, /Alex|Rivera|\$/);
   });
 
   it('removes the assignment so the job can go to someone else', async () => {
-    const first = await assignQuickOpsTech(booking(), { phone: '5513132956', skipSms: true });
+    const first = await assignQuickOpsTech(booking(), { phone: testForwardCallsDigits(), skipSms: true });
     assert.equal(first.ok, true, first.message || first.error);
     assert.equal(first.kind, 'freelance');
-    assert.equal(first.assignment.label, '(551) 313-2956');
+    assert.equal(first.assignment.label, testForwardCallsLabel());
     const token = first.techUrl.split('/').pop();
     assert.equal((await loadTechQuickOpsToken(decodeURIComponent(token))).ok, true);
 
     const removed = await unassignQuickOpsTech(first.booking);
     assert.equal(removed.ok, true, removed.message || removed.error);
-    assert.match(removed.message, /Removed \(551\) 313-2956/);
+    assert.match(removed.message, new RegExp(`Removed ${escapeRegExp(testForwardCallsLabel())}`));
     assert.equal(removed.assignment.assigned, false);
     const cleared = await getBookingRecord('CD1-TQ-01');
     assert.equal(cleared.booking.assignedTechId, null);

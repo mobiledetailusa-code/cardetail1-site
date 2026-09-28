@@ -11,12 +11,8 @@
 # Public Twilio webhook URLs are not credentials, but Netlify treats any env var
 # marked "Contains secret values" as a scan target. Omit those keys so example
 # files and tests can mention the Production paths without failing the deploy.
-# ADMIN_EMAIL and ADMIN_SMS are the public business contact already printed in
-# the site HTML (Call/Text). They are false positives when marked secret.
-# ADMIN_SESSION_SECRET stays scanned. It is a signing secret and is not baked
-# by scripts/generate-deploy-runtime-env.js (deploy identity only).
 [build.environment]
-  SECRETS_SCAN_OMIT_KEYS = "TWILIO_VOICE_WEBHOOK_URL,TWILIO_INBOUND_WEBHOOK_URL,TWILIO_STATUS_CALLBACK_URL,ADMIN_EMAIL,ADMIN_SMS"
+  SECRETS_SCAN_OMIT_KEYS = "TWILIO_VOICE_WEBHOOK_URL,TWILIO_INBOUND_WEBHOOK_URL,TWILIO_STATUS_CALLBACK_URL"
 
 [functions]
   # Ensure Blobs is available to all Functions (Garage Plan / RevOps store helpers).

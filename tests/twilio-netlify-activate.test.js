@@ -120,8 +120,7 @@ test('production env classification never exposes secret values', () => {
 
 test('Netlify pins the outbox worker schedule in netlify.toml', () => {
   const toml = fs.readFileSync(path.join(__dirname, '..', 'netlify.toml'), 'utf8');
-  assert.match(toml, /SECRETS_SCAN_OMIT_KEYS\s*=\s*"TWILIO_VOICE_WEBHOOK_URL,TWILIO_INBOUND_WEBHOOK_URL,TWILIO_STATUS_CALLBACK_URL,ADMIN_EMAIL,ADMIN_SMS"/);
-  assert.doesNotMatch(toml, /SECRETS_SCAN_OMIT_KEYS[^\n]*ADMIN_SESSION_SECRET/);
+  assert.match(toml, /SECRETS_SCAN_OMIT_KEYS\s*=\s*"TWILIO_VOICE_WEBHOOK_URL,TWILIO_INBOUND_WEBHOOK_URL,TWILIO_STATUS_CALLBACK_URL"/);
   assert.match(toml, /\[functions\."twilio-outbox-worker"\]/);
   assert.match(toml, /schedule\s*=\s*"\*\/2 \* \* \* \*"/);
   const worker = fs.readFileSync(path.join(__dirname, '..', 'netlify/functions/twilio-outbox-worker.js'), 'utf8');
