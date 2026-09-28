@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
+const TEST_FORWARD_CALLS_TO = '+12025550123';
 const {
   projectJobForAdmin,
   projectJobForAdminList,
@@ -163,14 +164,14 @@ describe('Admin Jobs lean projection', () => {
     const row = projectJobForAdminList(heavyBooking({
       assignedTechId: '',
       assignedTech: '',
-      assignedTechName: 'Freelance 2956',
+      assignedTechName: 'Freelance Tech',
       assignmentKind: 'freelance',
-      freelancePhone: '+15513132956',
+      freelancePhone: TEST_FORWARD_CALLS_TO,
     }));
     assert.equal(row.assignmentKind, 'freelance');
-    assert.equal(row.freelancePhone, '+15513132956');
+    assert.equal(row.freelancePhone, TEST_FORWARD_CALLS_TO);
     assert.equal(row.assignedTechId, '');
-    assert.equal(row.assignedTechName, 'Freelance 2956');
+    assert.equal(row.assignedTechName, 'Freelance Tech');
     const failed = projectJobForAdminList(heavyBooking({
       techNotifyStatus: 'failed',
       techNotifyKey: 'jobnotify.secret',
