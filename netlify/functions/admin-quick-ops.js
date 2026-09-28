@@ -273,10 +273,26 @@ async function handlePost(event) {
     });
     return json(result.ok ? 200 : (result.statusCode || 409), {
       ok: !!result.ok,
-      reload: !!result.ok && !result.techUrl && result.sms && result.sms.sent === true,
+      reload: false,
+      bookingVersion: result.bookingVersion || null,
       kind: result.kind || null,
       techUrl: result.techUrl || null,
+      assignment: result.assignment || null,
       message: result.message || result.error || 'Could not assign',
+    });
+  }
+  if (action === 'unassign_tech') {
+    if (!actions.assign) {
+      return json(409, { ok: false, error: 'locked', message: 'This job cannot be reassigned' });
+    }
+    const { unassignQuickOpsTech } = require('../lib/quick-ops-assign');
+    const result = await unassignQuickOpsTech(booking);
+    return json(result.ok ? 200 : (result.statusCode || 409), {
+      ok: !!result.ok,
+      reload: false,
+      bookingVersion: result.bookingVersion || null,
+      assignment: result.assignment || null,
+      message: result.message || result.error || 'Could not remove the assignment',
     });
   }
   if (action === 'set_tech_pay') {
