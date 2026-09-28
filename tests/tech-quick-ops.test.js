@@ -27,7 +27,7 @@ const {
   setQuickOpsTechRoster,
   resetQuickOpsTechRoster,
 } = require('../netlify/lib/quick-ops-assign');
-const { adjustQuickOpsPrice, scaleTechPayout } = require('../netlify/lib/quick-ops-price');
+const { adjustQuickOpsPrice, scaleTechPayout, setTechnicianPay } = require('../netlify/lib/quick-ops-price');
 const techHandler = require('../netlify/functions/tech-quick-ops');
 const adminHandler = require('../netlify/functions/admin-quick-ops');
 const {
@@ -127,7 +127,7 @@ describe('tech quick ops access', () => {
     assert.match(html.body, /Freelance phone/);
   });
 
-  it('limits the freelance page to the job, payout, and payment', () => {
+  it('shows the technician only the office pay, not the customer total', () => {
     const row = booking({
       assignmentKind: 'freelance',
       freelancePhone: '+12015550123',
@@ -138,19 +138,20 @@ describe('tech quick ops access', () => {
     const view = projectTechQuickOpsBooking(row);
     assert.equal(view.customer.name, 'Alex Rivera');
     assert.equal(view.customer.phone, undefined);
-    assert.equal(view.actions.confirm, undefined);
-    assert.equal(view.actions.cash, true);
-    assert.equal(view.money.payoutLabel, '$120');
+    assert.equal(view.money, undefined);
+    assert.equal(view.actions.cash, undefined);
+    assert.equal(view.actions.card, undefined);
+    assert.equal(view.yourPay.label, '$120');
     const html = techQuickOpsPage(view, 'csrf-token');
     assert.match(html.body, /12 Harbor View/);
     assert.match(html.body, /Alex Rivera/);
-    assert.match(html.body, /Record cash/);
+    assert.match(html.body, /Your pay/);
+    assert.match(html.body, /\$120/);
     assert.match(html.body, /Text payment link/);
-    assert.match(html.body, /lowers your payout/);
-    assert.doesNotMatch(html.body, /Confirm appointment/);
-    assert.doesNotMatch(html.body, /SECRET-SKU/);
-    assert.doesNotMatch(html.body, /Hidden product/);
-    assert.doesNotMatch(html.body, /alex\.rivera/);
+    assert.doesNotMatch(html.body, /\$190|Record cash|Record card|Approved|Confirm appointment|SECRET-SKU|Hidden product|alex\.rivera/);
+    const adminHtml = quickOpsPage(projectQuickOpsBooking(row), 'csrf-token');
+    assert.match(adminHtml.body, /Technician pay/);
+    assert.match(adminHtml.body, /\$190/);
   });
 
   it('assigns a roster technician without a magic link', async () => {
@@ -232,6 +233,18 @@ describe('tech quick ops access', () => {
     assert.equal(tooFar.error, 'decrease_below_paid');
   });
 
+  it('stores the office technician pay without changing the customer total', async () => {
+    const result = await setTechnicianPay(booking(), { amountDollars: '80' });
+    assert.equal(result.ok, true, result.error || result.message);
+    assert.match(result.message, /\$80/);
+    const saved = await getBookingRecord('CD1-TQ-01');
+    assert.equal(saved.booking.techPayoutAmount, 80);
+    assert.equal(saved.booking.ledger.approvedCents, 19000);
+    const tooHigh = await setTechnicianPay(saved.booking, { amountDollars: '500' });
+    assert.equal(tooHigh.ok, false);
+    assert.equal(tooHigh.error, 'payout_exceeds_job');
+  });
+
   it('closes a freelance job when the customer payment lands', () => {
     const patch = buildPaymentCompatibilityPatch(booking({
       assignmentKind: 'freelance',
@@ -284,8 +297,10 @@ describe('tech quick ops access', () => {
     const body = JSON.parse(page.body);
     assert.equal(body.view.customer.name, 'Alex Rivera');
     assert.equal(body.view.service.address, '12 Harbor View, Fort Lee, NJ');
-    assert.equal(body.view.actions.cash, true);
+    assert.equal(body.view.actions.cash, undefined);
     assert.equal(body.view.actions.confirm, undefined);
+    assert.equal(body.view.yourPay.label, '$120');
+    assert.doesNotMatch(page.body, /19000|\$190/);
 
     const denied = await techHandler.handler({
       httpMethod: 'POST',
@@ -299,6 +314,45 @@ describe('tech quick ops access', () => {
       body: JSON.stringify({ action: 'confirm' }),
     });
     assert.equal(denied.statusCode, 400);
+
+    const cash = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers: {
+        cookie,
+        host: 'cardetail1.com',
+        'content-type': 'application/json',
+        'x-tq-csrf': body.csrfToken,
+      },
+      body: JSON.stringify({ action: 'record_cash', bookingVersion: body.view.bookingVersion }),
+    });
+    assert.equal(cash.statusCode, 400);
+
+    const added = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers: {
+        cookie,
+        host: 'cardetail1.com',
+        'content-type': 'application/json',
+        'x-tq-csrf': body.csrfToken,
+      },
+      body: JSON.stringify({
+        action: 'adjust_price',
+        type: 'increase',
+        amountDollars: '20',
+        reason: 'Extra pet hair in the cabin',
+        bookingVersion: body.view.bookingVersion,
+      }),
+    });
+    assert.equal(added.statusCode, 200, added.body);
+    const addedBody = JSON.parse(added.body);
+    assert.match(addedBody.message, /\$20/);
+    assert.match(addedBody.message, /\$140/);
+    assert.doesNotMatch(added.body, /190|210|payout dropped/);
+    const after = await getBookingRecord('CD1-TQ-01');
+    assert.equal(after.booking.ledger.approvedCents, 21000);
+    assert.equal(after.booking.techPayoutAmount, 140);
 
     const adminToken = `${ADMIN_PREFIX}${'a'.repeat(40)}`;
     const wrong = await techHandler.handler({

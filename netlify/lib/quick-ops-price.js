@@ -68,6 +68,85 @@ function scaleTechPayout(booking, previousApprovedCents, nextApprovedCents) {
   };
 }
 
+/**
+ * Add a typed extra onto the technician pay the admin already set.
+ * Leaves pay unset when the office has not entered one, so the customer
+ * total is never copied onto the technician screen.
+ */
+function addTechPayout(booking, nextApprovedCents, deltaCents) {
+  const nextApproved = Math.max(0, Math.round(Number(nextApprovedCents) || 0));
+  const current = booking && booking.techPayoutAmount;
+  if (current == null || current === '' || !Number.isFinite(Number(current))) {
+    return {
+      techPayoutAmount: null,
+      platformFeeAmount: booking && booking.platformFeeAmount != null ? booking.platformFeeAmount : null,
+      scaled: false,
+      beforeCents: null,
+      afterCents: null,
+    };
+  }
+  const beforeCents = Math.max(0, Math.round(Number(current) * 100));
+  const afterCents = Math.max(0, Math.min(nextApproved, beforeCents + Math.round(Number(deltaCents) || 0)));
+  return {
+    techPayoutAmount: afterCents / 100,
+    platformFeeAmount: (nextApproved - afterCents) / 100,
+    scaled: afterCents !== beforeCents,
+    beforeCents,
+    afterCents,
+  };
+}
+
+/**
+ * Office-set pay for this job. Does not change what the customer owes.
+ * This is the only amount the technician page is allowed to show.
+ */
+async function setTechnicianPay(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled') {
+    return { ok: false, error: 'cancelled', statusCode: 409, message: 'Canceled jobs cannot be updated' };
+  }
+  const parsed = parseAdjustmentAmount(opts);
+  if (!parsed.ok) {
+    return { ok: false, error: parsed.error, statusCode: 400, message: 'Enter the technician pay' };
+  }
+  const projection = opts.projection || financialProjection(booking);
+  const approvedCents = Math.max(0, Math.round(Number(projection.approvedCents) || 0));
+  if (parsed.amountCents > approvedCents) {
+    return {
+      ok: false,
+      error: 'payout_exceeds_job',
+      statusCode: 400,
+      message: 'Technician pay cannot be higher than the job total',
+    };
+  }
+  const bookingId = booking.id || booking.bookingId;
+  const now = new Date().toISOString();
+  const next = buildNextAggregate(booking, {
+    techPayoutAmount: parsed.amountCents / 100,
+    platformFeeAmount: (approvedCents - parsed.amountCents) / 100,
+    updatedAt: now,
+    eventLog: appendEventLog(booking, {
+      action: 'quick_ops_tech_pay_set',
+      by: 'quick_ops',
+      amountCents: parsed.amountCents,
+    }),
+  });
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: booking.bookingVersion,
+    nextAggregate: next,
+  });
+  if (!committed.ok) return committed;
+  const label = dollarsFromCents(parsed.amountCents);
+  return {
+    ok: true,
+    booking: committed.booking,
+    bookingVersion: committed.bookingVersion,
+    payoutCents: parsed.amountCents,
+    message: `Technician pay set to ${label}. That is the only amount the technician sees.`,
+  };
+}
+
 function payoutMessage(type, payout, approvedCents) {
   const total = dollarsFromCents(approvedCents);
   if (!payout || payout.beforeCents == null) {
@@ -181,7 +260,9 @@ async function adjustQuickOpsPrice(booking, opts = {}) {
     quoteVersion = Math.round(Number(pg.quoteVersion) || quoteVersion);
   }
 
-  const payout = scaleTechPayout(booking, approvedCents, nextApproved);
+  const payout = opts.payoutMode === 'add'
+    ? addTechPayout(booking, nextApproved, type === 'increase' ? parsed.amountCents : -parsed.amountCents)
+    : scaleTechPayout(booking, approvedCents, nextApproved);
   const creditedCents = Math.max(0, Math.round(Number(booking.ledger && booking.ledger.creditedCents) || 0));
   const remainingCents = Math.max(0, nextApproved - nextSettled - creditedCents);
   const now = new Date().toISOString();
@@ -236,6 +317,7 @@ async function adjustQuickOpsPrice(booking, opts = {}) {
     bookingVersion: committed.bookingVersion,
     quoteVersion,
     type,
+    addedCents: parsed.amountCents,
     approvedCents: nextApproved,
     remainingCents,
     payout,
@@ -247,5 +329,7 @@ module.exports = {
   MIN_NOTE,
   parseAdjustmentAmount,
   scaleTechPayout,
+  addTechPayout,
+  setTechnicianPay,
   adjustQuickOpsPrice,
 };

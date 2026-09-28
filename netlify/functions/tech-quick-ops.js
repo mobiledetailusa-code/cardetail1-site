@@ -9,10 +9,10 @@ const {
   isLocalDev,
   verifyTechQuickOpsCsrf,
 } = require('../lib/tech-quick-ops-token');
-const { loadProjectedBooking, mintPaymentLink, textCustomer, recordOnSitePayment } = require('../lib/admin-quick-ops-actions');
+const { loadProjectedBooking, mintPaymentLink, textCustomer } = require('../lib/admin-quick-ops-actions');
 const { projectTechQuickOpsBooking } = require('../lib/tech-quick-ops-view');
 const { neutralExpiredPage, techQuickOpsPage } = require('../lib/quick-ops-html');
-const { ensureFreelanceJobClosed } = require('../lib/quick-ops-tech-close');
+const { dollarsFromCents } = require('../lib/admin-quick-ops-view');
 
 function json(statusCode, payload, extraHeaders = {}) {
   return {
@@ -141,32 +141,6 @@ async function handlePost(event) {
   const view = projectTechQuickOpsBooking(booking, loaded.shared);
   const actions = view.actions || {};
 
-  if (action === 'record_cash' || action === 'record_card') {
-    const allowed = action === 'record_cash' ? actions.cash : actions.card;
-    if (!allowed) {
-      return json(409, { ok: false, error: 'zero_balance', message: 'Paid / No balance due' });
-    }
-    const result = await recordOnSitePayment(booking, {
-      method: action === 'record_cash' ? 'cash' : 'card_on_site',
-      expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
-    });
-    if (!result.ok) {
-      const message = result.error === 'postgres_payment_disabled'
-        ? 'On-site payment recording is unavailable'
-        : result.error === 'zero_balance' || result.error === 'already_paid'
-          ? 'Paid / No balance due'
-          : result.error === 'version_conflict'
-            ? 'Booking changed — reload and try again'
-            : 'Could not record payment';
-      return json(result.statusCode || 409, { ok: false, error: result.error, message });
-    }
-    await ensureFreelanceJobClosed(session.bookingId).catch(() => {});
-    return json(200, {
-      ok: true,
-      reload: true,
-      message: action === 'record_cash' ? 'Cash recorded. Job closed if the balance is paid.' : 'Card recorded. Job closed if the balance is paid.',
-    });
-  }
   if (action === 'copy_pay') {
     const result = await mintPaymentLink(booking);
     if (!result.ok) {
@@ -193,21 +167,52 @@ async function handlePost(event) {
     });
   }
   if (action === 'adjust_price') {
-    if (!actions.adjust) {
-      return json(409, { ok: false, error: 'locked', message: 'This job cannot be repriced' });
+    if (!actions.increase || String(body.type || 'increase') !== 'increase') {
+      return json(400, { ok: false, error: 'increase_only', message: 'You can add an extra to the payment link' });
     }
     const { adjustQuickOpsPrice } = require('../lib/quick-ops-price');
     const result = await adjustQuickOpsPrice(booking, {
-      type: body.type,
+      type: 'increase',
       amountDollars: body.amountDollars,
       amountCents: body.amountCents,
       reason: body.reason,
       actorId: 'tech_quick_ops',
+      payoutMode: 'add',
     });
-    return json(result.ok ? 200 : (result.statusCode || 409), {
-      ok: !!result.ok,
-      reload: !!result.ok,
-      message: result.message || result.error || 'Could not change the price',
+    if (!result.ok) {
+      return json(result.statusCode || 409, {
+        ok: false,
+        error: result.error,
+        message: result.message || 'Could not add the extra',
+      });
+    }
+    let delivery = { ok: false, queued: false, payUrl: null };
+    try {
+      delivery = await textCustomer(result.booking, { kind: 'payment' });
+    } catch {
+      delivery = { ok: false, queued: false, payUrl: null };
+    }
+    if (!delivery.payUrl) {
+      try {
+        const link = await mintPaymentLink(result.booking);
+        if (link && link.ok) delivery.payUrl = link.payUrl;
+      } catch { /* link can be sent again from the page */ }
+    }
+    const extra = dollarsFromCents(result.addedCents);
+    const yourPayLabel = result.payout && result.payout.afterCents != null
+      ? dollarsFromCents(result.payout.afterCents)
+      : '';
+    const payLine = yourPayLabel ? ` Your pay is ${yourPayLabel}.` : ' Your pay has not been set yet.';
+    const sent = delivery.queued
+      ? ' Updated payment link sent.'
+      : (delivery.payUrl ? ' Updated payment link ready to forward.' : ' Send the payment link again in a moment.');
+    return json(200, {
+      ok: true,
+      queued: !!delivery.queued,
+      payUrl: delivery.payUrl || null,
+      bookingVersion: result.bookingVersion,
+      yourPayLabel: yourPayLabel || null,
+      message: `Added ${extra}.${payLine}${sent}`,
     });
   }
   return json(400, { ok: false, error: 'unknown_action' });

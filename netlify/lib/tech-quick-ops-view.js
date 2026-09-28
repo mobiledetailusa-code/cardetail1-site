@@ -7,20 +7,20 @@ const {
 } = require('./admin-quick-ops-view');
 
 /**
- * Basic technician view. Address, customer name, vehicle, balance, and payout.
- * No confirm/cancel, no ceramic internals, no customer email.
+ * Basic technician view. Address, customer name, and vehicle only.
+ * The job total stays off this projection. Payment is a customer link.
+ * No confirm/cancel, no cash/card, no ceramic internals, no customer email.
  */
 function projectTechQuickOpsBooking(booking, shared = null) {
   const full = projectQuickOpsBooking(booking, shared);
+  const due = !!(full.actions && full.actions.payment);
+  const cancelled = bookingStatus(booking) === 'cancelled';
   const payoutCents = booking && booking.techPayoutAmount != null && Number.isFinite(Number(booking.techPayoutAmount))
     ? Math.max(0, Math.round(Number(booking.techPayoutAmount) * 100))
     : null;
-  const due = !!(full.actions && full.actions.payment);
-  const cancelled = bookingStatus(booking) === 'cancelled';
   return {
     bookingId: full.bookingId,
     bookingVersion: full.bookingVersion,
-    quoteVersion: full.quoteVersion,
     status: full.status,
     customer: { name: full.customer.name || 'Customer' },
     vehicle: full.vehicle,
@@ -31,25 +31,16 @@ function projectTechQuickOpsBooking(booking, shared = null) {
       address: full.service.address,
       note: full.service.note,
     },
-    money: {
-      approvedLabel: full.money.approvedLabel,
-      approvedCents: full.money.approvedCents,
-      paidLabel: full.money.paidLabel,
-      remainingLabel: full.money.remainingLabel,
-      remainingCents: full.money.remainingCents,
-      methodLabel: full.money.methodLabel,
-      payoutCents,
-      payoutLabel: payoutCents == null ? 'Not set' : dollarsFromCents(payoutCents),
+    yourPay: {
+      set: payoutCents != null,
+      label: payoutCents == null ? '' : dollarsFromCents(payoutCents),
     },
-    paid: full.paid,
-    completed: full.completed,
+    paymentDue: due,
     actions: {
       call: !!full.telUrl && !cancelled,
       map: !!full.mapUrl,
       payment: due,
-      cash: due,
-      card: due,
-      adjust: !cancelled,
+      increase: !cancelled,
     },
     mapUrl: full.mapUrl,
     telUrl: full.telUrl,

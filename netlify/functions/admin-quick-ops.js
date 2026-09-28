@@ -279,6 +279,21 @@ async function handlePost(event) {
       message: result.message || result.error || 'Could not assign',
     });
   }
+  if (action === 'set_tech_pay') {
+    if (!actions.assign && !actions.adjust) {
+      return json(409, { ok: false, error: 'locked', message: 'This job cannot be updated' });
+    }
+    const { setTechnicianPay } = require('../lib/quick-ops-price');
+    const result = await setTechnicianPay(booking, {
+      amountDollars: body.amountDollars,
+      amountCents: body.amountCents,
+    });
+    return json(result.ok ? 200 : (result.statusCode || 409), {
+      ok: !!result.ok,
+      reload: !!result.ok,
+      message: result.message || result.error || 'Could not save technician pay',
+    });
+  }
   if (action === 'adjust_price') {
     if (!actions.adjust) {
       return json(409, { ok: false, error: 'locked', message: 'This job cannot be repriced' });

@@ -166,14 +166,20 @@ function quickOpsPage(view, csrfToken) {
 </section>
 ${a.assign ? `<section class="card">
   <h2>Assign technician</h2>
-  <p class="sub">Send this job to someone already on the roster, or type a mobile number. A number that is not on the roster gets a basic link: address, customer name, map, cash or card, and a payment link. That job closes automatically when the customer pays.</p>
+  <p class="sub">Send this job to someone already on the roster, or type a mobile number. A number that is not on the roster gets a basic link: address, customer name, and map. The job total stays hidden. They send the customer a payment link, and any amount they add is included in that link. The job closes when the customer pays.</p>
   <label for="qo-tech">Registered technician</label>
   <select id="qo-tech"><option value="">Load the roster, or leave blank</option></select>
   <div class="actions"><button type="button" class="secondary" data-action="list_techs">Load roster</button></div>
   <label for="qo-phone">Freelance phone</label>
   <input id="qo-phone" inputmode="tel" autocomplete="tel" placeholder="(201) 555-0100">
   <p class="sub">If this number already belongs to a technician, the job goes to that account instead of a one-off link.</p>
-  <div class="actions"><button type="button" data-action="assign_tech">Assign job</button></div>
+  <label for="qo-tech-pay">Technician pay ($)</label>
+  <input id="qo-tech-pay" inputmode="decimal" placeholder="80.00" value="">
+  <p class="sub">This is the only amount the technician sees. The customer price stays on this page.</p>
+  <div class="actions">
+    <button type="button" data-action="set_tech_pay">Save technician pay</button>
+    <button type="button" data-action="assign_tech">Assign job</button>
+  </div>
 </section>` : ''}
 ${a.adjust ? `<section class="card">
   <h2>Change price</h2>
@@ -238,6 +244,10 @@ ${ceramicStaffCard(view)}
       payload.phone = (document.getElementById('qo-phone') || {}).value || '';
       if (!payload.techId && !String(payload.phone).trim()) { setMsg('Choose a technician or enter a phone'); return; }
     }
+    if (action === 'set_tech_pay') {
+      payload.amountDollars = (document.getElementById('qo-tech-pay') || {}).value || '';
+      if (!String(payload.amountDollars).trim()) { setMsg('Enter the technician pay'); return; }
+    }
     if (action === 'adjust_price') {
       payload.type = (document.getElementById('qo-adj-type') || {}).value || '';
       payload.amountDollars = (document.getElementById('qo-adj-amount') || {}).value || '';
@@ -287,18 +297,12 @@ ${ceramicStaffCard(view)}
 
 function techQuickOpsPage(view, csrfToken) {
   const a = view.actions || {};
-  const money = view.money || {};
-  const paidLine = money.remainingCents > 0
-    ? field('Remaining', money.remainingLabel)
-    : `<div class="row"><span class="k">Balance</span><span class="v">Paid / No balance due</span></div>`;
   const buttons = [
     a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
     a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
-    a.payment ? '<button type="button" class="secondary" data-action="copy_pay">Copy payment link</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link to customer</button>' : '',
-    a.cash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the remaining balance as cash?">Record cash</button>' : '',
-    a.card ? '<button type="button" class="secondary" data-action="record_card" data-confirm="Record the remaining balance as card on site?">Record card</button>' : '',
-    !a.payment && !a.cash && !a.card ? '<p class="sub">Paid / No balance due</p>' : '',
+    a.payment ? '<button type="button" class="ghost" data-action="copy_pay">Copy payment link</button>' : '',
+    !a.payment ? '<p class="sub">No payment link to send.</p>' : '',
   ].filter(Boolean).join('');
   const vehicle = [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label;
   return chrome({
@@ -308,7 +312,12 @@ function techQuickOpsPage(view, csrfToken) {
 <section class="card">
   <div class="status">${escapeHtml(view.status)}</div>
   <h1>${escapeHtml(view.customer.name || 'Customer')}</h1>
-  <p class="sub">Address, customer, and payment only. The job closes automatically when the customer pays the link, or when you record cash or card.</p>
+  <p class="sub">Your pay is the amount the office entered. The customer price stays off this page. Send them a payment link. The job closes when they pay.</p>
+</section>
+<section class="card">
+  <h2>Your pay</h2>
+  <p id="tq-pay" style="font-size:1.8rem;font-weight:700;margin:4px 0">${view.yourPay && view.yourPay.set ? escapeHtml(view.yourPay.label) : 'Not set yet'}</p>
+  <p class="sub">This is what you receive for this job.</p>
 </section>
 <section class="card">
   <h2>Job</h2>
@@ -319,27 +328,17 @@ function techQuickOpsPage(view, csrfToken) {
   ${field('Window', view.service.window)}
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
-<section class="card">
-  <h2>Money</h2>
-  ${field('Approved', money.approvedLabel)}
-  ${field('Paid', money.paidLabel)}
-  ${paidLine}
-  ${field('Your payout', money.payoutLabel)}
-  <p class="warn">If you lower the job price, your payout drops by the same share.</p>
-</section>
-${a.adjust ? `<section class="card">
-  <h2>Change price</h2>
-  <label for="tq-adj-type">Change</label>
-  <select id="tq-adj-type"><option value="increase">Increase</option><option value="decrease">Decrease</option></select>
-  <label for="tq-adj-amount">Amount ($)</label>
+${a.increase ? `<section class="card">
+  <h2>Add to the payment</h2>
+  <p class="sub">Type only the extra. It is added to your pay and to the customer payment link. You still do not see the original price.</p>
+  <label for="tq-adj-amount">Extra amount ($)</label>
   <input id="tq-adj-amount" inputmode="decimal" placeholder="20.00">
   <label for="tq-adj-note">Note (required)</label>
-  <textarea id="tq-adj-note" maxlength="500" placeholder="Why the price is changing"></textarea>
-  <p class="sub" id="tq-adj-preview"></p>
-  <div class="actions"><button type="button" data-action="adjust_price">Apply price change</button></div>
+  <textarea id="tq-adj-note" maxlength="500" placeholder="What the extra charge is for"></textarea>
+  <div class="actions"><button type="button" data-action="adjust_price">Add and send updated link</button></div>
 </section>` : ''}
 <section class="card">
-  <h2>On site</h2>
+  <h2>Customer payment</h2>
   <div class="actions">${buttons}</div>
   <p class="msg" id="tq-msg"></p>
 </section>
@@ -347,45 +346,20 @@ ${a.adjust ? `<section class="card">
 (function(){
   var csrf = ${JSON.stringify(csrfToken)};
   var bookingVersion = ${JSON.stringify(view.bookingVersion || 0)};
-  var approvedCents = ${JSON.stringify(money.approvedCents || 0)};
-  var payoutCents = ${JSON.stringify(money.payoutCents)};
   var msg = document.getElementById('tq-msg');
   function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
-  function dollars(cents){ return '$' + (Math.max(0, Math.round(cents)) / 100).toFixed(2); }
-  function previewAdjust(){
-    var el = document.getElementById('tq-adj-preview');
-    var amountEl = document.getElementById('tq-adj-amount');
-    var typeEl = document.getElementById('tq-adj-type');
-    if (!el || !amountEl || !typeEl) return;
-    var cents = Math.round(Number(String(amountEl.value || '').replace(/[^0-9.]/g, '')) * 100);
-    if (!cents) { el.textContent = payoutCents == null ? 'Payout is not set yet.' : ('Your payout now ' + dollars(payoutCents) + '.'); return; }
-    var next = typeEl.value === 'decrease' ? approvedCents - cents : approvedCents + cents;
-    if (next < 0) { el.textContent = 'That decrease is larger than the balance.'; return; }
-    var line = 'New total ' + dollars(next) + '.';
-    if (payoutCents != null && approvedCents > 0) {
-      line += ' Your payout becomes ' + dollars(Math.round(payoutCents * next / approvedCents)) + '.';
-      if (typeEl.value === 'decrease') line += ' This also lowers what you earn.';
-    }
-    el.textContent = line;
-  }
-  var amountEl = document.getElementById('tq-adj-amount');
-  var typeEl = document.getElementById('tq-adj-type');
-  if (amountEl) amountEl.addEventListener('input', previewAdjust);
-  if (typeEl) typeEl.addEventListener('change', previewAdjust);
-  previewAdjust();
   document.addEventListener('click', async function(ev){
     var btn = ev.target.closest('[data-action]');
     if (!btn) return;
     var action = btn.getAttribute('data-action');
-    var confirmText = btn.getAttribute('data-confirm');
-    if (confirmText && !window.confirm(confirmText)) return;
     var payload = { action: action, bookingVersion: bookingVersion };
     if (action === 'adjust_price') {
-      payload.type = (document.getElementById('tq-adj-type') || {}).value || '';
+      payload.type = 'increase';
       payload.amountDollars = (document.getElementById('tq-adj-amount') || {}).value || '';
       payload.reason = (document.getElementById('tq-adj-note') || {}).value || '';
+      if (!String(payload.amountDollars).trim()) { setMsg('Enter the extra amount'); return; }
       if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
-      if (payload.type === 'decrease' && !window.confirm('Lowering the price also lowers your payout by the same share. Continue?')) return;
+      if (!window.confirm('Add this amount and send the customer an updated payment link?')) return;
     }
     btn.disabled = true;
     try {
@@ -396,9 +370,14 @@ ${a.adjust ? `<section class="card">
         body: JSON.stringify(payload)
       });
       var data = await res.json().catch(function(){ return {}; });
-      if (action === 'copy_pay' && data.payUrl) {
-        try { await navigator.clipboard.writeText(data.payUrl); setMsg('Payment link copied', true); }
-        catch (e) { setMsg(data.payUrl, true); }
+      if (typeof data.bookingVersion === 'number') bookingVersion = data.bookingVersion;
+      if (data.yourPayLabel) {
+        var payEl = document.getElementById('tq-pay');
+        if (payEl) payEl.textContent = data.yourPayLabel;
+      }
+      if ((action === 'copy_pay' || action === 'adjust_price') && data.payUrl && !data.queued) {
+        try { await navigator.clipboard.writeText(data.payUrl); setMsg(data.message || 'Payment link copied', true); }
+        catch (e) { setMsg(data.message || 'Payment link ready', true); }
         return;
       }
       if (!res.ok || data.ok === false) { setMsg(data.message || data.error || 'Could not complete'); return; }
