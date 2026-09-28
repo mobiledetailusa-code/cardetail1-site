@@ -89,6 +89,36 @@ function moneyFromBooking(booking, shared = null) {
   };
 }
 
+function formatUsPhone(raw) {
+  const digits = String(raw || '').replace(/\D/g, '');
+  const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (ten.length !== 10) return String(raw || '').trim();
+  return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+}
+
+function assignmentFromBooking(booking) {
+  const kind = String(booking && booking.assignmentKind || '').toLowerCase();
+  const name = String(booking && booking.assignedTechName || '').trim();
+  const freelancePhone = String(booking && booking.freelancePhone || '').trim();
+  const techId = String(booking && (booking.assignedTechId || booking.assignedTech) || '').trim();
+  let label = '';
+  if (kind === 'freelance' && freelancePhone) label = formatUsPhone(freelancePhone);
+  else if (name) label = name;
+  else if (techId) label = techId;
+  const resolvedKind = kind === 'freelance' || kind === 'registered'
+    ? kind
+    : (label ? 'registered' : '');
+  return {
+    techId,
+    name,
+    kind: resolvedKind,
+    freelancePhone,
+    phoneLabel: freelancePhone ? formatUsPhone(freelancePhone) : '',
+    label,
+    assigned: !!label,
+  };
+}
+
 function projectQuickOpsBooking(booking, shared = null) {
   const first = Array.isArray(booking.vehicles) ? booking.vehicles[0] || {} : {};
   const status = bookingStatus(booking);
@@ -164,21 +194,7 @@ function projectQuickOpsBooking(booking, shared = null) {
         payoutLabel: payoutCents == null ? '' : dollarsFromCents(payoutCents),
       };
     })(),
-    assignment: (() => {
-      const kind = String(booking.assignmentKind || '').toLowerCase();
-      const name = String(booking.assignedTechName || '').trim();
-      const freelancePhone = String(booking.freelancePhone || '').trim();
-      let label = '';
-      if (kind === 'freelance' && freelancePhone) label = `Freelance ${freelancePhone.slice(-4)}`;
-      else if (name) label = name;
-      return {
-        techId: String(booking.assignedTechId || booking.assignedTech || ''),
-        name,
-        kind: kind === 'freelance' || kind === 'registered' ? kind : (name ? 'registered' : ''),
-        freelancePhone,
-        label,
-      };
-    })(),
+    assignment: assignmentFromBooking(booking),
     request: pending ? {
       requestId: pending.requestId || pending.id || '',
       type: pending.requestType || pending.type || '',
@@ -220,6 +236,7 @@ module.exports = {
   pendingChangeRequest,
   moneyFromBooking,
   projectQuickOpsBooking,
+  assignmentFromBooking,
   dollarsFromCents,
   jobCompleted,
   paidInFull,

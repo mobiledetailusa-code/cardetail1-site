@@ -23,6 +23,7 @@ const {
 const { TOKEN_PREFIX: ADMIN_PREFIX } = require('../netlify/lib/admin-quick-ops-token');
 const {
   assignQuickOpsTech,
+  unassignQuickOpsTech,
   listAssignableTechs,
   setQuickOpsTechRoster,
   resetQuickOpsTechRoster,
@@ -123,8 +124,27 @@ describe('tech quick ops access', () => {
     assert.equal(view.money.payoutLabel, '$120');
     const html = quickOpsPage(view, 'csrf-token');
     assert.match(html.body, /Assign technician/);
+    assert.match(html.body, /No technician is assigned/);
+    assert.match(html.body, /id="qo-unassign"[^>]*hidden/);
     assert.match(html.body, /lowers the technician payout/);
     assert.match(html.body, /Freelance phone/);
+    const assigned = projectQuickOpsBooking(booking({
+      assignmentKind: 'freelance',
+      freelancePhone: '+15513132956',
+      assignedTechName: 'Freelance 2956',
+      quickOpsTechClose: true,
+    }));
+    assert.equal(assigned.assignment.label, '(551) 313-2956');
+    const assignedHtml = quickOpsPage(assigned, 'csrf-token');
+    assert.match(assignedHtml.body, /Assigned to \(551\) 313-2956/);
+    assert.match(assignedHtml.body, /Remove assignment/);
+    assert.doesNotMatch(assignedHtml.body, /id="qo-unassign"[^>]*hidden/);
+    const named = projectQuickOpsBooking(booking({
+      assignmentKind: 'registered',
+      assignedTechId: 'pat',
+      assignedTechName: 'Pat Diaz',
+    }));
+    assert.equal(named.assignment.label, 'Pat Diaz');
   });
 
   it('shows the technician only the office pay, not the customer total', () => {
@@ -381,8 +401,28 @@ describe('tech quick ops access', () => {
     const payload = JSON.parse(res.body);
     assert.equal(payload.kind, 'freelance');
     assert.match(payload.techUrl, /\/ops\/t\/tqt_/);
+    assert.equal(payload.assignment.label, '(201) 555-0123');
     const saved = await getBookingRecord('CD1-TQ-01');
     assert.equal(saved.booking.assignmentKind, 'freelance');
+
+    const removed = await adminHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/q',
+      headers: {
+        cookie: `${ADMIN_COOKIE}=${encodeURIComponent(session.sessionId)}`,
+        host: 'cardetail1.com',
+        'content-type': 'application/json',
+        'x-qo-csrf': session.csrfToken,
+      },
+      body: JSON.stringify({ action: 'unassign_tech' }),
+    });
+    assert.equal(removed.statusCode, 200, removed.body);
+    const removedBody = JSON.parse(removed.body);
+    assert.match(removedBody.message, /Removed \(201\) 555-0123/);
+    assert.equal(removedBody.assignment.assigned, false);
+    const after = await getBookingRecord('CD1-TQ-01');
+    assert.equal(after.booking.freelancePhone, null);
+    assert.equal(after.booking.assignmentKind, null);
   });
 
   it('texts a saved technician and a freelance phone immediately', async () => {
@@ -491,6 +531,39 @@ describe('tech quick ops access', () => {
     assert.match(typed.message, /Freelance link texted/);
     assert.equal(sent[2].to, '+15513132956');
     assert.match(sent[2].body, /\/ops\/t\/tqt_/);
+  });
+
+  it('removes the assignment so the job can go to someone else', async () => {
+    const first = await assignQuickOpsTech(booking(), { phone: '5513132956', skipSms: true });
+    assert.equal(first.ok, true, first.message || first.error);
+    assert.equal(first.kind, 'freelance');
+    assert.equal(first.assignment.label, '(551) 313-2956');
+    const token = first.techUrl.split('/').pop();
+    assert.equal((await loadTechQuickOpsToken(decodeURIComponent(token))).ok, true);
+
+    const removed = await unassignQuickOpsTech(first.booking);
+    assert.equal(removed.ok, true, removed.message || removed.error);
+    assert.match(removed.message, /Removed \(551\) 313-2956/);
+    assert.equal(removed.assignment.assigned, false);
+    const cleared = await getBookingRecord('CD1-TQ-01');
+    assert.equal(cleared.booking.assignedTechId, null);
+    assert.equal(cleared.booking.freelancePhone, null);
+    assert.equal(cleared.booking.assignmentKind, null);
+    assert.equal(cleared.booking.quickOpsTechClose, false);
+    assert.equal(cleared.booking.jobStatus, 'confirmed');
+    assert.equal((await loadTechQuickOpsToken(decodeURIComponent(token))).ok, false);
+
+    const again = await unassignQuickOpsTech(cleared.booking);
+    assert.equal(again.ok, true);
+    assert.equal(again.idempotent, true);
+
+    const next = await assignQuickOpsTech(cleared.booking, { techId: 'sam', skipSms: true });
+    assert.equal(next.ok, true, next.message || next.error);
+    assert.equal(next.kind, 'registered');
+    assert.equal(next.assignment.label, 'Sam Lee');
+    const saved = await getBookingRecord('CD1-TQ-01');
+    assert.equal(saved.booking.assignedTechId, 'sam');
+    assert.equal(saved.booking.quickOpsTechClose, false);
   });
 
   it('renders the technician job text', () => {

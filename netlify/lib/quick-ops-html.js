@@ -160,12 +160,16 @@ function quickOpsPage(view, csrfToken) {
   ${field('Date', view.service.date)}
   ${field('Window', view.service.window)}
   ${field('Address', view.service.address)}
-  ${field('Technician', view.assignment && view.assignment.label)}
+  <div class="row"><span class="k">Technician</span><span class="v" id="qo-tech-label">${escapeHtml((view.assignment && view.assignment.label) || '—')}</span></div>
   ${field('Tech payout', money.payoutLabel)}
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${a.assign ? `<section class="card">
   <h2>Assign technician</h2>
+  <p id="qo-assigned" class="status">${view.assignment && view.assignment.assigned ? `Assigned to ${escapeHtml(view.assignment.label)}` : 'No technician is assigned.'}</p>
+  <div class="actions">
+    <button type="button" class="secondary" id="qo-unassign" data-action="unassign_tech" data-confirm="Remove this job from the assigned technician? You can assign it to someone else after." ${view.assignment && view.assignment.assigned ? '' : 'hidden'}>Remove assignment</button>
+  </div>
   <p class="sub">Send this job to someone already on the roster, or type a mobile number. Assigning sends a text right away: a saved technician gets the portal link on the phone in their account, and a new number gets a one-time job link. The job total stays hidden. They send the customer a payment link, and any amount they add is included in that link. The job closes when the customer pays.</p>
   <label for="qo-tech">Registered technician</label>
   <select id="qo-tech"><option value="">Load the roster, or leave blank</option></select>
@@ -280,6 +284,16 @@ ${ceramicStaffCard(view)}
         return;
       }
       if (!res.ok || data.ok === false) { setMsg(data.message || data.error || 'Could not complete'); return; }
+      if (typeof data.bookingVersion === 'number') bookingVersion = data.bookingVersion;
+      if (data.assignment) {
+        var assignedText = data.assignment.label ? ('Assigned to ' + data.assignment.label) : 'No technician is assigned.';
+        var assignedEl = document.getElementById('qo-assigned');
+        var techLabel = document.getElementById('qo-tech-label');
+        var unassignBtn = document.getElementById('qo-unassign');
+        if (assignedEl) assignedEl.textContent = assignedText;
+        if (techLabel) techLabel.textContent = data.assignment.label || '—';
+        if (unassignBtn) unassignBtn.hidden = !data.assignment.label;
+      }
       if (data.techUrl) {
         try { await navigator.clipboard.writeText(data.techUrl); } catch (e) {}
         setMsg((data.message || 'Link ready') + ' ' + data.techUrl, true);

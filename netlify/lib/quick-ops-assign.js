@@ -4,7 +4,7 @@ const { getBookingRecord, commitBooking } = require('./booking-repository');
 const { buildNextAggregate } = require('./booking-aggregate');
 const { appendEventLog } = require('./ops-workflow');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
-const { bookingStatus, jobCompleted } = require('./admin-quick-ops-view');
+const { assignmentFromBooking, bookingStatus, jobCompleted } = require('./admin-quick-ops-view');
 const { enqueueSms, kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
 const { TEMPLATE_KEYS, smsDateLabel, smsServiceLabel } = require('./sms-templates');
 const {
@@ -215,6 +215,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
       booking: committed.booking,
       bookingVersion: committed.bookingVersion,
       sms,
+      assignment: assignmentFromBooking(committed.booking),
       message: assignmentNotice('registered', name, sms),
     };
   }
@@ -265,7 +266,79 @@ async function assignQuickOpsTech(booking, opts = {}) {
     booking: committed.booking,
     bookingVersion: committed.bookingVersion,
     sms,
+    assignment: assignmentFromBooking(committed.booking),
     message: assignmentNotice('freelance', null, sms),
+  };
+}
+
+const FIELD_JOB_STATUSES = new Set([
+  'assigned', 'accepted', 'en_route', 'arrived', 'in_progress', 'paused', 'issue_reported',
+]);
+
+function hasAssignment(booking) {
+  if (!booking) return false;
+  return !!(
+    booking.assignedTechId
+    || booking.assignedTech
+    || booking.freelancePhone
+    || booking.assignmentKind
+    || booking.techQuickOpsTokenHash
+  );
+}
+
+/**
+ * Take the job off the current technician so it can be assigned again.
+ * Revokes a freelance link. Customer confirmation stays as it is.
+ */
+async function unassignQuickOpsTech(booking) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled' || jobCompleted(booking)) {
+    return { ok: false, error: 'locked', statusCode: 409, message: 'This job cannot be reassigned' };
+  }
+  if (!hasAssignment(booking)) {
+    return {
+      ok: true,
+      idempotent: true,
+      booking,
+      bookingVersion: booking.bookingVersion,
+      assignment: assignmentFromBooking(booking),
+      message: 'No technician is assigned.',
+    };
+  }
+  const previous = assignmentFromBooking(booking);
+  await revokeTechQuickOpsToken(booking.techQuickOpsTokenHash);
+  const now = new Date().toISOString();
+  const jobStatus = String(booking.jobStatus || '').toLowerCase();
+  const committed = await commitAssignment(booking, {
+    assignedTechId: null,
+    assignedTech: null,
+    assignedTechName: null,
+    assignedAt: null,
+    assignmentKind: null,
+    freelancePhone: null,
+    techQuickOpsTokenHash: null,
+    quickOpsTechClose: false,
+    jobStatus: FIELD_JOB_STATUSES.has(jobStatus) ? 'confirmed' : booking.jobStatus,
+    updatedAt: now,
+    eventLog: appendEventLog(booking, {
+      action: 'tech_unassigned',
+      by: 'quick_ops',
+      kind: previous.kind || '',
+      techId: previous.techId || '',
+      techName: previous.name || '',
+      phoneLast4: previous.freelancePhone ? previous.freelancePhone.slice(-4) : '',
+    }),
+  });
+  if (!committed.ok) return committed;
+  const assignment = assignmentFromBooking(committed.booking);
+  return {
+    ok: true,
+    booking: committed.booking,
+    bookingVersion: committed.bookingVersion,
+    assignment,
+    message: previous.label
+      ? `Removed ${previous.label}. You can assign this job to someone else.`
+      : 'Assignment removed. You can assign this job to someone else.',
   };
 }
 
@@ -280,5 +353,6 @@ module.exports = {
   resetQuickOpsTechRoster,
   listAssignableTechs,
   assignQuickOpsTech,
+  unassignQuickOpsTech,
   reloadBooking,
 };
