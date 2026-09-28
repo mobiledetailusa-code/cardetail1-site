@@ -319,6 +319,12 @@ function projectJobForAdminList(b) {
     assignedTechId: techId,
     assignedTech: techId,
     assignedTechName: b.assignedTechName || '',
+    assignmentKind: (String(b.assignmentKind || '').toLowerCase() === 'freelance' && b.freelancePhone)
+      ? 'freelance'
+      : (techId ? 'registered' : ''),
+    freelancePhone: (String(b.assignmentKind || '').toLowerCase() === 'freelance' && b.freelancePhone)
+      ? String(b.freelancePhone).slice(0, 20)
+      : '',
     pendingChangeRequestCount: requests.pendingChangeRequestCount,
     customerChangePending: requests.customerChangePending,
     hasPendingVehicleRemoval: requests.hasPendingVehicleRemoval,

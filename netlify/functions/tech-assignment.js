@@ -1,6 +1,9 @@
 // Admin-only job assignment (assign / unassign / reassign).
-const { blobsStore, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
-const { appendEventLog } = require('../lib/ops-workflow');
+// Saved technicians and one-off phones share the Quick Ops assignment path
+// so the Jobs Board sends the job text and can remove the assignment.
+const { jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
+const { getBookingRecord } = require('../lib/booking-repository');
+const { assignQuickOpsTech, unassignQuickOpsTech } = require('../lib/quick-ops-assign');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
@@ -17,59 +20,51 @@ exports.handler = async (event) => {
   const bookingId = sanitizeText(body.bookingId, 48);
   if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
 
-  const bookingStore = await blobsStore('cd1-bookings');
-  const techStore = await blobsStore('cd1-tech-accounts');
-  const booking = await bookingStore.get(bookingId, { type: 'json' }).catch(() => null);
-  if (!booking || booking.isDraft) return jsonCors(404, { ok: false, error: 'booking_not_found' });
-
-  const now = new Date().toISOString();
+  const rec = await getBookingRecord(bookingId);
+  const booking = rec && rec.booking;
+  if (!rec || !rec.exists || !booking || booking.isDraft) {
+    return jsonCors(404, { ok: false, error: 'booking_not_found' });
+  }
 
   if (action === 'unassign') {
-    const patched = {
-      ...booking,
-      assignedTechId: null,
-      assignedTech: null,
-      assignedTechName: null,
-      assignedAt: null,
-      assignedBy: null,
-      jobStatus: booking.appointmentStatus === 'confirmed' ? 'confirmed' : 'pending_review',
-      updatedAt: now,
-      eventLog: appendEventLog(booking, { action: 'tech_unassigned', by: 'admin', assignedBy: 'admin' }),
-    };
-    await bookingStore.setJSON(bookingId, patched);
-    return jsonCors(200, { ok: true, bookingId, jobStatus: patched.jobStatus });
+    const result = await unassignQuickOpsTech(booking, { by: 'admin' });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 409, {
+        ok: false,
+        error: result.error || 'unassign_failed',
+        message: result.message || 'This job cannot be reassigned',
+      });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      jobStatus: result.booking && result.booking.jobStatus,
+      assignment: result.assignment || null,
+      message: result.message,
+    });
   }
 
   const techId = sanitizeText(body.techId, 48);
-  if (!techId) return jsonCors(400, { ok: false, error: 'techId_required' });
-  const tech = await techStore.get('tech-' + techId, { type: 'json' }).catch(() => null);
-  if (!tech || !tech.active) return jsonCors(404, { ok: false, error: 'technician_not_found_or_inactive' });
-
-  const isReassign = !!(booking.assignedTechId || booking.assignedTech);
-  const patched = {
-    ...booking,
-    assignedTechId: tech.techId || tech.id,
-    assignedTech: tech.techId || tech.id,
-    assignedTechName: tech.fullName || tech.name,
-    assignedAt: now,
-    assignedBy: 'admin',
-    jobStatus: 'assigned',
-    appointmentStatus: booking.appointmentStatus === 'pending_review' ? 'confirmed' : (booking.appointmentStatus || 'confirmed'),
-    status: 'Confirmed',
-    updatedAt: now,
-    eventLog: appendEventLog(booking, {
-      action: isReassign ? 'tech_reassigned' : 'tech_assigned',
-      by: 'admin',
-      techId: tech.techId || tech.id,
-      techName: tech.fullName || tech.name,
-    }),
-  };
-  await bookingStore.setJSON(bookingId, patched);
+  const phone = sanitizeText(body.phone, 32);
+  if (techId === '__freelance__') return jsonCors(400, { ok: false, error: 'techId_required' });
+  const result = await assignQuickOpsTech(booking, { techId, phone, by: 'admin' });
+  if (!result.ok) {
+    return jsonCors(result.statusCode || 400, {
+      ok: false,
+      error: result.error || 'assign_failed',
+      message: result.message || 'Assignment failed',
+    });
+  }
   return jsonCors(200, {
     ok: true,
     bookingId,
-    assignedTechId: patched.assignedTechId,
-    assignedTechName: patched.assignedTechName,
-    jobStatus: patched.jobStatus,
+    assignedTechId: result.assignedTechId || null,
+    assignedTechName: result.assignedTechName || (result.assignment && result.assignment.label) || null,
+    assignmentKind: result.kind || null,
+    freelancePhone: result.freelancePhone || null,
+    jobStatus: result.booking && result.booking.jobStatus,
+    assignment: result.assignment || null,
+    techUrl: result.techUrl || null,
+    message: result.message,
   });
 };

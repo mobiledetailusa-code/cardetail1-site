@@ -167,6 +167,11 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 .assign-tech-status{display:block;margin-top:6px;font-size:12px;color:var(--mu);line-height:1.35;max-width:100%;overflow-wrap:anywhere}
 .assign-tech-status.is-error{color:#fecaca}
 .assign-tech-status .assignRetry{margin-top:6px;min-height:44px}
+.assign-stack{display:flex;flex-direction:column;gap:6px;min-width:200px}
+.assign-stack select,.assign-phone-row input{width:100%;min-height:44px}
+.assign-current{font-size:12px;line-height:1.35;font-weight:650}
+.assign-phone-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.assign-phone-row .btn,.assign-stack .assignRemove{min-height:44px}
 @media(max-width:960px){.job-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){
   .form-grid{grid-template-columns:1fr}.job-detail-grid{grid-template-columns:1fr}.job-detail-grid .sec.span-2{grid-column:1/-1}
@@ -355,7 +360,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   </section>
 
   <section class="panel" id="p-assign">
-    <p style="color:var(--mu);font-size:13px;margin-bottom:12px">Jobs without an assigned technician.</p>
+    <p style="color:var(--mu);font-size:13px;margin-bottom:12px">Jobs without an assigned technician. Choose a saved technician or type any phone. The phone receives a one-time job link.</p>
     <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="assignTable"><thead><tr>
       <th>Customer</th><th>Package</th><th>Status</th><th>Assign</th>
     </tr></thead><tbody></tbody></table></div>
@@ -491,7 +496,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     </div>
     <div class="card">
       <h3 style="margin-bottom:8px">Quick tips</h3>
-      <p class="hint">Open any job from Jobs Board to confirm, reschedule, change address, cancel, or archive a single test booking. Assign technicians from the row or job drawer.</p>
+      <p class="hint">Open any job from Jobs Board to confirm, reschedule, change address, cancel, or archive a single test booking. Assign a saved technician or any phone from the row or job drawer. The assigned name or phone stays on that job, and Remove assignment frees it for someone else.</p>
     </div>
   </section>
 
@@ -1408,6 +1413,8 @@ async function loadJobs(extra, fetchOpts) {
                 assignedTechId: lean.assignedTechId,
                 assignedTech: lean.assignedTech,
                 assignedTechName: lean.assignedTechName,
+                assignmentKind: lean.assignmentKind,
+                freelancePhone: lean.freelancePhone,
                 pendingChangeRequestCount: lean.pendingChangeRequestCount,
                 customerChangePending: lean.customerChangePending,
                 hasPendingVehicleRemoval: lean.hasPendingVehicleRemoval,
@@ -2009,9 +2016,36 @@ async function loadTechs(fetchOpts, loadOpts) {
     });
   }
 
-  function techOptions(sel) {
+  function formatUsPhone(raw) {
+    const digits = String(raw || '').replace(/\D/g, '');
+    const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    if (ten.length !== 10) return String(raw || '').trim();
+    return '(' + ten.slice(0, 3) + ') ' + ten.slice(3, 6) + '-' + ten.slice(6);
+  }
+
+  function jobIsFreelance(j) {
+    return !!(j && String(j.assignmentKind || '').toLowerCase() === 'freelance' && String(j.freelancePhone || '').trim() && !(j.assignedTechId || j.assignedTech));
+  }
+
+  function jobAssignmentLabel(j) {
+    if (!j) return '';
+    if (String(j.assignmentKind || '').toLowerCase() === 'freelance' && j.freelancePhone) return formatUsPhone(j.freelancePhone);
+    return String(j.assignedTechName || '').trim();
+  }
+
+  function jobIsAssigned(j) {
+    if (!j) return false;
+    if (j.assignedTechId || j.assignedTech) return true;
+    return jobIsFreelance(j);
+  }
+
+  function techOptions(sel, job) {
     const selected = String(sel || '');
+    const freelanceSelected = !selected && jobIsFreelance(job);
     let html = '<option value="">— Unassigned —</option>';
+    if (freelanceSelected) {
+      html += '<option value="__freelance__" selected>'+esc(jobAssignmentLabel(job))+'</option>';
+    }
     if (techsMeta.hasLoaded && Array.isArray(techs)) {
       const active = techs.filter((t) => t && t.active !== false);
       html += active.map((t) =>
@@ -2052,8 +2086,56 @@ async function loadTechs(fetchOpts, loadOpts) {
     sel.addEventListener('mousedown', kick);
     sel.addEventListener('focus', kick);
     sel.addEventListener('touchstart', kick, { passive: true });
-    sel.onchange = () => onAssign(sel.dataset.id, sel.value);
+    sel.onchange = () => {
+      if (sel.value === '__freelance__') return;
+      onAssign(sel.dataset.id, sel.value);
+    };
     sel.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  function assignControlsHtml(j, selectClass) {
+    const id = esc(j.id);
+    const label = jobAssignmentLabel(j);
+    const assigned = jobIsAssigned(j);
+    const selectedId = jobIsFreelance(j) ? '' : (j.assignedTechId || j.assignedTech || '');
+    return '<div class="assign-stack">'+
+      '<div class="assign-current">'+(assigned ? ('Assigned to '+esc(label)) : 'No technician assigned')+'</div>'+
+      '<select class="'+selectClass+'" data-id="'+id+'">'+techOptions(selectedId, j)+'</select>'+
+      '<div class="assign-phone-row">'+
+        '<input type="tel" class="assignPhone" data-id="'+id+'" inputmode="tel" autocomplete="tel" placeholder="Any phone" aria-label="Assign phone">'+
+        '<button type="button" class="btn ghost sm assignPhoneBtn" data-id="'+id+'">Assign phone</button>'+
+      '</div>'+
+      (assigned ? '<button type="button" class="btn ghost sm assignRemove" data-id="'+id+'">Remove assignment</button>' : '')+
+      assignStatusHtml()+
+    '</div>';
+  }
+
+  function bindAssignExtras(root) {
+    if (!root) return;
+    root.querySelectorAll('.assignPhoneBtn').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const input = btn.parentElement && btn.parentElement.querySelector('.assignPhone');
+        onAssignPhone(btn.dataset.id, input && input.value);
+      };
+    });
+    root.querySelectorAll('.assignPhone').forEach((input) => {
+      input.addEventListener('click', (e) => e.stopPropagation());
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          onAssignPhone(input.dataset.id, input.value);
+        }
+      });
+    });
+    root.querySelectorAll('.assignRemove').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (!confirm('Remove this job from the assigned technician? You can assign it to someone else after.')) return;
+        onAssign(btn.dataset.id, '');
+      };
+    });
   }
 
   async function ensureAssignOptionsLoaded(selEl) {
@@ -2104,9 +2186,12 @@ async function loadTechs(fetchOpts, loadOpts) {
       const cur = sel.value;
       const bookingId = sel.dataset.id;
       const job = jobs.find((j) => j && j.id === bookingId);
-      const preferred = cur || (job && (job.assignedTechId || job.assignedTech)) || '';
-      sel.innerHTML = techOptions(preferred);
-      sel.value = preferred;
+      const freelance = jobIsFreelance(job) && (!cur || cur === '__freelance__');
+      const preferredId = (cur && cur !== '__freelance__')
+        ? cur
+        : ((job && (job.assignedTechId || job.assignedTech)) || '');
+      sel.innerHTML = techOptions(preferredId, freelance ? job : null);
+      sel.value = freelance && !preferredId ? '__freelance__' : preferredId;
       const cell = sel.parentElement;
       if (cell) {
         cell.querySelectorAll('.assign-tech-status').forEach((n) => n.remove());
@@ -2122,9 +2207,13 @@ async function loadTechs(fetchOpts, loadOpts) {
     });
     const da = $('#dAssign');
     if (da && activeJob) {
-      const preferred = activeJob.assignedTechId || activeJob.assignedTech || da.value || '';
-      da.innerHTML = techOptions(preferred);
-      da.value = preferred;
+      const cur = da.value;
+      const freelance = jobIsFreelance(activeJob) && (!cur || cur === '__freelance__');
+      const preferredId = (cur && cur !== '__freelance__')
+        ? cur
+        : (activeJob.assignedTechId || activeJob.assignedTech || '');
+      da.innerHTML = techOptions(preferredId, freelance ? activeJob : null);
+      da.value = freelance && !preferredId ? '__freelance__' : preferredId;
     }
   }
 
@@ -2137,7 +2226,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       if (['en_route','arrived','in_progress'].includes(s)) c.active++;
       if (s==='completed_pending_admin_review') c.review++;
       if (s==='issue_reported') c.issues++;
-      if (!j.assignedTechId && !j.assignedTech) c.unassigned++;
+      if (!jobIsAssigned(j)) c.unassigned++;
     });
     const techStat = techsMeta.hasLoaded ? techs.length : '—';
     $('#overviewStats').innerHTML = [
@@ -2234,7 +2323,7 @@ async function loadTechs(fetchOpts, loadOpts) {
 
   function isInteractiveToggleTarget(el) {
     if (!el || !el.closest) return false;
-    return !!el.closest('button, a, input, textarea, select, label, .assignSel, .job-detail-row');
+    return !!el.closest('button, a, input, textarea, select, label, .assignSel, .assign-stack, .job-detail-row');
   }
 
   function collapseJobDetail() {
@@ -2324,7 +2413,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     if (status) list = list.filter(j => j.jobStatus === status);
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(j => [j.id,j.firstName,j.lastName,j.phone,j.email,j.assignedTechName,vehicleSearchHaystack(j)].join(' ').toLowerCase().includes(q));
+      list = list.filter(j => [j.id,j.firstName,j.lastName,j.phone,j.email,j.assignedTechName,j.freelancePhone,jobAssignmentLabel(j),vehicleSearchHaystack(j)].join(' ').toLowerCase().includes(q));
     }
     return list;
   }
@@ -2455,11 +2544,12 @@ async function loadTechs(fetchOpts, loadOpts) {
         '<td data-label="When">'+esc(jobsDateTimeLabel(j))+'</td>'+
         '<td data-label="Status">'+jobBadge(j.jobStatus)+'</td><td data-label="Payment">'+payBadge(j.paymentWorkflowStatus)+'</td>'+
         '<td data-label="Balance">'+esc(jobsBalanceLabel(j))+'</td>'+
-        '<td data-label="Tech">'+esc(j.assignedTechName||'—')+'</td>'+
-        '<td class="job-assign-cell"><select class="assignSel" data-id="'+esc(j.id)+'">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+assignStatusHtml()+'</td>'+
+        '<td data-label="Tech">'+esc(jobAssignmentLabel(j)||'—')+'</td>'+
+        '<td class="job-assign-cell" data-label="Assign">'+assignControlsHtml(j, 'assignSel')+'</td>'+
       '</tr>';
     }).join('');
     tb.querySelectorAll('.assignSel').forEach(sel => bindAssignSelect(sel));
+    bindAssignExtras(tb);
     tb.querySelectorAll('.assignRetry').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -2493,13 +2583,14 @@ async function loadTechs(fetchOpts, loadOpts) {
   }
 
   function renderAssign() {
-    const list = jobs.filter(j => !j.assignedTechId && !j.assignedTech && !['cancelled','completed_paid','archived_test'].includes(j.jobStatus));
+    const list = jobs.filter(j => !jobIsAssigned(j) && !['cancelled','completed_paid','archived_test'].includes(j.jobStatus));
     const tb = $('#assignTable tbody');
     if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">All jobs assigned</td></tr>'; return; }
     tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
       '<td>'+esc(cust(j))+'</td><td>'+esc(j.package||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td>'+
-      '<td><select class="assignSel2" data-id="'+esc(j.id)+'">'+techOptions('')+'</select>'+assignStatusHtml()+'</td></tr>').join('');
+      '<td>'+assignControlsHtml(j, 'assignSel2')+'</td></tr>').join('');
     tb.querySelectorAll('.assignSel2').forEach(sel => bindAssignSelect(sel));
+    bindAssignExtras(tb);
     tb.querySelectorAll('.assignRetry').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -2507,7 +2598,10 @@ async function loadTechs(fetchOpts, loadOpts) {
         ensureAssignOptionsLoaded(btn.closest('td') && btn.closest('td').querySelector('select'));
       };
     });
-    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(e.target.tagName!=='SELECT' && !e.target.closest('button')) openDrawer(tr.dataset.id); });
+    tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => {
+      if (e.target.tagName === 'SELECT' || e.target.closest('button, input, .assign-stack')) return;
+      openDrawer(tr.dataset.id);
+    });
   }
 
   function renderCompleted() {
@@ -2515,7 +2609,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     const tb = $('#completedTable tbody');
     if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">No jobs pending review</td></tr>'; return; }
     tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
-      '<td>'+esc(cust(j))+'</td><td>'+dt(j.completedAt)+'</td><td>'+esc(j.assignedTechName||'—')+'</td>'+
+      '<td>'+esc(cust(j))+'</td><td>'+dt(j.completedAt)+'</td><td>'+esc(jobAssignmentLabel(j)||'—')+'</td>'+
       '<td onclick="event.stopPropagation()"><div class="actions">'+
       '<button type="button" class="btn sm approve" data-id="'+esc(j.id)+'">'+esc(completionActionLabel(j, true))+'</button>'+
       '<button type="button" class="btn ghost sm reopen" data-id="'+esc(j.id)+'">Reopen</button>'+
@@ -2808,7 +2902,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">No issues</td></tr>'; return; }
     tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
       '<td>'+esc(cust(j))+'</td><td>'+esc(j.vehicleLabel||j.vehicle||'—')+'</td>'+
-      '<td>'+esc(j.assignedTechName||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td></tr>').join('');
+      '<td>'+esc(jobAssignmentLabel(j)||'—')+'</td><td>'+jobBadge(j.jobStatus)+'</td></tr>').join('');
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openDrawer(tr.dataset.id));
   }
 
@@ -3030,13 +3124,34 @@ async function loadTechs(fetchOpts, loadOpts) {
     } catch (e) { toast('Failed: ' + e.message); }
   }
 
+  function assignFailureText(e) {
+    return (e && e.data && (e.data.message || e.data.error)) || (e && e.message) || 'Assignment failed';
+  }
+
+  async function finishAssignment(bookingId) {
+    await refreshAll();
+    if (expandedJobId === bookingId) await openDrawer(bookingId);
+  }
+
   async function onAssign(bookingId, techId) {
+    if (techId === '__freelance__') return;
     try {
-      if (!techId) await api('/.netlify/functions/tech-assignment','POST',{action:'unassign',bookingId});
-      else await api('/.netlify/functions/tech-assignment','POST',{action:'assign',bookingId,techId});
-      toast(techId ? 'Assigned' : 'Unassigned');
-      await refreshAll();
-    } catch(e) { toast('Assign failed: '+e.message); }
+      const data = !techId
+        ? await api('/.netlify/functions/tech-assignment','POST',{action:'unassign',bookingId})
+        : await api('/.netlify/functions/tech-assignment','POST',{action:'assign',bookingId,techId});
+      toast((data && data.message) || (techId ? 'Assigned' : 'Unassigned'));
+      await finishAssignment(bookingId);
+    } catch(e) { toast('Assign failed: '+assignFailureText(e)); }
+  }
+
+  async function onAssignPhone(bookingId, phone) {
+    const value = String(phone || '').trim();
+    if (!value) { toast('Enter a phone number'); return; }
+    try {
+      const data = await api('/.netlify/functions/tech-assignment','POST',{action:'assign',bookingId,phone:value});
+      toast((data && data.message) || 'Assigned');
+      await finishAssignment(bookingId);
+    } catch(e) { toast('Assign failed: '+assignFailureText(e)); }
   }
 
   // Confirmation is idempotent server-side (CAS on bookingVersion), but a
@@ -3559,7 +3674,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       ))+'</strong></div>'+
       '<div><span>Approved</span><strong>$'+esc(approvedEarly.toFixed(2))+'</strong></div>'+
       '<div><span>Paid / balance</span><strong>$'+esc(paidAmtEarly.toFixed(2))+' / $'+esc(Math.max(0,balDueEarly).toFixed(2))+'</strong></div>'+
-      '<div><span>Technician</span><strong>'+esc(j.assignedTechName||'Unassigned')+'</strong></div>'+
+      '<div><span>Technician</span><strong>'+esc(jobAssignmentLabel(j)||'Unassigned')+'</strong></div>'+
       '</div>'+
       '<div class="actions" style="margin-top:10px">'+
       '<button type="button" class="btn ghost sm" id="dEnableEdit" style="min-height:44px">Edit details</button>'+
@@ -3699,9 +3814,14 @@ async function loadTechs(fetchOpts, loadOpts) {
         '<div class="kv"><span>Operational slot</span><strong>' + esc(j.preferredTime || '—') + '</strong></div>' +
         '</div></div>';
     }
-    html += '<div class="sec"><h4>Assignment and schedule</h4><div class="kv"><div><b>Tech:</b> '+esc(j.assignedTechName||'Unassigned')+'</div>'+
+    html += '<div class="sec"><h4>Assignment and schedule</h4><div class="kv"><div><b>Tech:</b> '+esc(jobAssignmentLabel(j)||'Unassigned')+'</div>'+
       '<div><b>Assigned:</b> '+dt(j.assignedAt)+'</div></div>'+
-      '<select id="dAssign" style="margin-top:8px">'+techOptions(j.assignedTechId||j.assignedTech)+'</select>'+
+      '<select id="dAssign" style="margin-top:8px">'+techOptions(jobIsFreelance(j) ? '' : (j.assignedTechId||j.assignedTech), j)+'</select>'+
+      '<div class="assign-phone-row" style="margin-top:8px">'+
+      '<input type="tel" id="dAssignPhone" inputmode="tel" autocomplete="tel" placeholder="Any technician phone" aria-label="Assign phone">'+
+      '<button type="button" class="btn ghost sm" id="dAssignPhoneBtn">Assign phone</button></div>'+
+      (jobIsAssigned(j) ? '<button type="button" class="btn ghost sm" id="dUnassign" style="margin-top:8px;min-height:44px">Remove assignment</button>' : '')+
+      '<p class="hint">A saved technician gets the portal text. Any other phone gets a one-time job link. Remove the assignment to give this job to someone else.</p>'+
       '<div class="actions" style="margin:10px 0">';
     if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm" style="min-height:44px">Confirm booking</button>';
     html += '<button type="button" class="btn ghost sm" id="dCancel" style="min-height:44px">Cancel job</button>';
@@ -3882,12 +4002,22 @@ async function loadTechs(fetchOpts, loadOpts) {
     bindVehicleMutationSection(j);
     const da = $('#dAssign');
     if (da) {
-      da.onchange = () => onAssign(j.id, da.value);
+      da.onchange = () => {
+        if (da.value === '__freelance__') return;
+        onAssign(j.id, da.value);
+      };
       const kick = () => { ensureAssignOptionsLoaded(da); };
       da.addEventListener('mousedown', kick);
       da.addEventListener('focus', kick);
       da.addEventListener('touchstart', kick, { passive: true });
     }
+    const dPhoneBtn = $('#dAssignPhoneBtn');
+    if (dPhoneBtn) dPhoneBtn.onclick = () => onAssignPhone(j.id, ($('#dAssignPhone') || {}).value);
+    const dUn = $('#dUnassign');
+    if (dUn) dUn.onclick = () => {
+      if (!confirm('Remove this job from the assigned technician? You can assign it to someone else after.')) return;
+      onAssign(j.id, '');
+    };
     const ap = $('#dApprove'); if(ap) ap.onclick = () => requestCompletion(j);
     const chargeSaved = $('#dChargeSaved'); if(chargeSaved) chargeSaved.onclick = () => requestCompletion(j);
     const ro = $('#dReopen');

@@ -197,6 +197,9 @@
       issueNotes: pickStr(job.issueNotes || job.notes, 240),
       jobStatus: pickStr(job.jobStatus, 64),
       assignedTechName: pickStr(job.assignedTechName, 80),
+      assignedTechId: pickStr(job.assignedTechId || job.assignedTech, 80),
+      assignmentKind: pickStr(job.assignmentKind, 20),
+      freelancePhone: pickStr(job.freelancePhone, 20),
       _projection: 'admin_snapshot',
     };
   }
