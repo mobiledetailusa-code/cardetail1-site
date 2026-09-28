@@ -54,17 +54,45 @@ async function listAssignableTechs() {
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 }
 
-function technicianPortalUrl() {
-  const { trustedSiteOrigin } = require('./trusted-site-origin');
-  return `${trustedSiteOrigin()}/technician`;
+function jobWindowRaw(booking) {
+  return String(
+    booking.confirmedTimeWindow
+    || booking.confirmedWindow
+    || booking.preferredArrivalWindow
+    || booking.preferredTime
+    || ''
+  ).trim();
 }
 
-function smsHandedOff(kick) {
+function jobPlaceLabel(booking) {
+  const address = String(booking.address || booking.serviceAddress || '').replace(/\s+/g, ' ').trim();
+  if (address) return address.slice(0, 48);
+  return String(booking.city || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+}
+
+function notificationFromKick(kick, queued) {
   const results = kick && Array.isArray(kick.results) ? kick.results : [];
-  return results.some((row) => {
-    const status = row && row.outbox && row.outbox.status;
-    return row && row.ok && ['accepted', 'sent', 'delivered'].includes(status);
-  });
+  const hit = results.find((row) => row && row.outbox);
+  const outbox = hit && hit.outbox;
+  const status = outbox && outbox.status;
+  const sid = outbox && outbox.providerMessageSid;
+  if (sid && ['accepted', 'sent', 'delivered'].includes(status)) {
+    return { notification: 'sent', reason: null };
+  }
+  const suppressed = (hit && hit.reason === 'suppressed')
+    || (outbox && outbox.lastErrorCode === 'suppressed');
+  if (suppressed) return { notification: 'failed', reason: 'suppressed' };
+  const reason = (hit && (hit.reason || hit.error))
+    || (kick && (kick.reason || kick.error))
+    || (queued && (queued.reason || queued.error))
+    || 'not_sent';
+  return { notification: 'failed', reason };
+}
+
+function notifyMessage(notification) {
+  return notification === 'sent'
+    ? 'Assigned — notification sent'
+    : 'Assigned — notification failed';
 }
 
 /**
@@ -72,7 +100,9 @@ function smsHandedOff(kick) {
  * Auction invites still require the technician SMS checkbox; this dispatch does not.
  */
 async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, provider }) {
-  if (!toE164) return { ok: true, queued: false, sent: false, skipped: true, reason: 'invalid_sms_recipient' };
+  if (!toE164) {
+    return { ok: true, queued: false, sent: false, skipped: true, notification: 'failed', reason: 'invalid_sms_recipient' };
+  }
   let queued;
   try {
     queued = await enqueueSms({
@@ -85,6 +115,8 @@ async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, pro
       templateData: {
         service: smsServiceLabel(booking),
         date: smsDateLabel(booking.confirmedDate || booking.preferredDate || ''),
+        window: jobWindowRaw(booking),
+        place: jobPlaceLabel(booking),
         url,
       },
     }, { prisma, env });
@@ -93,7 +125,7 @@ async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, pro
   }
   const outboxId = queued && queued.outbox && queued.outbox.id;
   if (!queued || !queued.queued || !outboxId) {
-    return { ...queued, sent: false };
+    return { ...queued, sent: false, notification: 'failed', reason: (queued && (queued.reason || queued.error)) || 'not_queued' };
   }
   let kick = null;
   try {
@@ -101,13 +133,13 @@ async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, pro
   } catch (err) {
     kick = { ok: false, error: 'kick_failed', reason: String(err && err.message || err).slice(0, 80) };
   }
-  const sent = smsHandedOff(kick);
-  const kickReason = !sent && kick && (kick.reason || (kick.results && kick.results[0] && (kick.results[0].reason || kick.results[0].error)));
+  const outcome = notificationFromKick(kick, queued);
   return {
     ...queued,
     kick,
-    sent,
-    reason: sent ? null : (kickReason || queued.reason || null),
+    sent: outcome.notification === 'sent',
+    notification: outcome.notification,
+    reason: outcome.reason,
   };
 }
 
@@ -116,19 +148,8 @@ function assignmentActor(opts) {
   return value || 'quick_ops';
 }
 
-function assignmentNotice(kind, name, sms) {
-  const sent = sms && sms.sent === true;
-  if (kind === 'freelance') {
-    if (sent) return 'Freelance link texted. The job closes when the customer pays.';
-    const why = (sms && (sms.reason || sms.error)) || 'not_sent';
-    return `Link created, but the text was not sent (${why}). Copy the link below. The job closes when the customer pays.`;
-  }
-  if (sent) return `Assigned to ${name}. Job text sent.`;
-  if (sms && sms.reason === 'invalid_sms_recipient') {
-    return `Assigned to ${name}. No phone is saved on that account, so no text was sent.`;
-  }
-  const why = (sms && (sms.reason || sms.error)) || 'not_sent';
-  return `Assigned to ${name}. The text was not sent (${why}).`;
+function assignmentNotice(notification) {
+  return notifyMessage(notification);
 }
 
 async function commitAssignment(booking, patch) {
@@ -141,10 +162,50 @@ async function commitAssignment(booking, patch) {
   });
 }
 
+function sameActiveAssignee(booking, tech, phoneE164) {
+  if (!booking || !booking.techQuickOpsTokenHash) return false;
+  if (tech) {
+    return booking.assignmentKind === 'registered'
+      && techIdOf(tech) === String(booking.assignedTechId || '');
+  }
+  return booking.assignmentKind === 'freelance'
+    && String(booking.freelancePhone || '') === String(phoneE164 || '');
+}
+
+function notifyKeyFor(bookingId, tokenHash) {
+  return `jobnotify.${String(bookingId)}.${String(tokenHash).slice(0, 20)}`;
+}
+
+async function recordNotify(booking, status, key) {
+  const committed = await commitAssignment(booking, {
+    techNotifyStatus: status,
+    techNotifyKey: key || booking.techNotifyKey || null,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!committed.ok) return { booking, bookingVersion: booking.bookingVersion };
+  return { booking: committed.booking, bookingVersion: committed.bookingVersion };
+}
+
+function assignResult(booking, extra) {
+  const notification = extra.notification || 'failed';
+  return {
+    ok: true,
+    booking,
+    bookingVersion: extra.bookingVersion != null ? extra.bookingVersion : booking.bookingVersion,
+    assignment: assignmentFromBooking(booking),
+    notification,
+    message: assignmentNotice(notification),
+    ...extra,
+    notification,
+    message: assignmentNotice(notification),
+  };
+}
+
 /**
  * Assign the job to a roster technician, or to a freelance phone.
  * A phone that already belongs to an active technician uses that account.
- * Freelance phones receive a basic magic link and the job auto-closes when paid.
+ * Both paths mint one booking-scoped link and queue one job text.
+ * Repeating the same assignee does not mint another link or another text.
  */
 async function assignQuickOpsTech(booking, opts = {}) {
   if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
@@ -171,110 +232,195 @@ async function assignQuickOpsTech(booking, opts = {}) {
     tech = records.find((row) => normalizeUsPhoneE164(row.phone || row.mobile || '') === phoneE164) || null;
   }
 
+  const assigneePhone = tech
+    ? normalizeUsPhoneE164(tech.phone || tech.mobile || tech.phoneE164 || '')
+    : phoneE164;
+  if (sameActiveAssignee(booking, tech, assigneePhone)) {
+    const notification = booking.techNotifyStatus === 'sent' ? 'sent' : 'failed';
+    return assignResult(booking, {
+      idempotent: true,
+      kind: booking.assignmentKind,
+      notification,
+      sms: { sent: notification === 'sent', reason: notification === 'sent' ? null : 'already_assigned' },
+    });
+  }
+
   const now = new Date().toISOString();
   const bookingId = booking.id || booking.bookingId;
   await revokeTechQuickOpsToken(booking.techQuickOpsTokenHash);
 
-  if (tech) {
-    const id = techIdOf(tech);
-    const name = techNameOf(tech);
-    const committed = await commitAssignment(booking, {
-      assignedTechId: id,
-      assignedTech: id,
-      assignedTechName: name,
-      assignedAt: now,
-      assignedBy: actor,
-      assignmentKind: 'registered',
-      freelancePhone: null,
-      techQuickOpsTokenHash: null,
-      quickOpsTechClose: false,
-      jobStatus: 'assigned',
-      appointmentStatus: booking.appointmentStatus === 'pending_review' ? 'confirmed' : (booking.appointmentStatus || 'confirmed'),
-      status: booking.status === 'Pending Review' ? 'Confirmed' : (booking.status || 'Confirmed'),
-      updatedAt: now,
-      eventLog: appendEventLog(booking, {
-        action: booking.assignedTechId ? 'tech_reassigned' : 'tech_assigned',
-        by: actor,
-        techId: id,
-        techName: name,
-        kind: 'registered',
-      }),
-    });
-    if (!committed.ok) return committed;
-    const techPhone = normalizeUsPhoneE164(tech.phone || tech.mobile || tech.phoneE164 || '');
-    const sms = opts.skipSms
-      ? { ok: true, queued: false, sent: false, skipped: true, reason: 'skipped' }
-      : await textTech({
-        booking,
-        toE164: techPhone,
-        url: technicianPortalUrl(),
-        idempotencyKey: `qo.assign:${bookingId}:${id}:${booking.bookingVersion}`,
-        prisma: opts.prisma,
-        env: opts.env,
-        provider: opts.provider,
-      });
-    return {
-      ok: true,
-      kind: 'registered',
-      assignedTechId: id,
-      assignedTechName: name,
-      booking: committed.booking,
-      bookingVersion: committed.bookingVersion,
-      sms,
-      assignment: assignmentFromBooking(committed.booking),
-      message: assignmentNotice('registered', name, sms),
-    };
+  let minted = null;
+  if (assigneePhone) {
+    minted = await createTechQuickOpsToken({ bookingId, phoneE164: assigneePhone });
+    if (!minted.ok) return minted;
   }
-
-  const minted = await createTechQuickOpsToken({ bookingId, phoneE164 });
-  if (!minted.ok) return minted;
-  const committed = await commitAssignment(booking, {
-    assignedTechId: null,
-    assignedTech: null,
-    assignedTechName: `Freelance ${phoneE164.slice(-4)}`,
+  const notifyKey = minted ? notifyKeyFor(bookingId, minted.tokenHash) : null;
+  const basePatch = {
     assignedAt: now,
     assignedBy: actor,
-    assignmentKind: 'freelance',
-    freelancePhone: phoneE164,
-    techQuickOpsTokenHash: minted.tokenHash,
-    quickOpsTechClose: true,
+    techQuickOpsTokenHash: minted ? minted.tokenHash : null,
+    techNotifyKey: notifyKey,
+    techNotifyStatus: 'pending',
     jobStatus: 'assigned',
     appointmentStatus: booking.appointmentStatus === 'pending_review' ? 'confirmed' : (booking.appointmentStatus || 'confirmed'),
     status: booking.status === 'Pending Review' ? 'Confirmed' : (booking.status || 'Confirmed'),
     updatedAt: now,
-    eventLog: appendEventLog(booking, {
-      action: 'tech_assigned',
-      by: actor,
-      kind: 'freelance',
-      phoneLast4: phoneE164.slice(-4),
-    }),
-  });
+  };
+  const patch = tech
+    ? {
+      ...basePatch,
+      assignedTechId: techIdOf(tech),
+      assignedTech: techIdOf(tech),
+      assignedTechName: techNameOf(tech),
+      assignmentKind: 'registered',
+      freelancePhone: null,
+      techLinkPhone: assigneePhone || null,
+      quickOpsTechClose: false,
+      eventLog: appendEventLog(booking, {
+        action: booking.assignedTechId ? 'tech_reassigned' : 'tech_assigned',
+        by: actor,
+        techId: techIdOf(tech),
+        techName: techNameOf(tech),
+        kind: 'registered',
+      }),
+    }
+    : {
+      ...basePatch,
+      assignedTechId: null,
+      assignedTech: null,
+      assignedTechName: `Freelance ${phoneE164.slice(-4)}`,
+      assignmentKind: 'freelance',
+      freelancePhone: phoneE164,
+      techLinkPhone: null,
+      quickOpsTechClose: true,
+      eventLog: appendEventLog(booking, {
+        action: 'tech_assigned',
+        by: actor,
+        kind: 'freelance',
+        phoneLast4: phoneE164.slice(-4),
+      }),
+    };
+  const committed = await commitAssignment(booking, patch);
   if (!committed.ok) {
-    await revokeTechQuickOpsToken(minted.tokenHash);
+    if (minted) await revokeTechQuickOpsToken(minted.tokenHash);
     return committed;
   }
-  const sms = opts.skipSms
-    ? { ok: true, queued: false, sent: false, skipped: true, reason: 'skipped' }
-    : await textTech({
-      booking,
-      toE164: phoneE164,
-      url: minted.opsUrl,
-      idempotencyKey: `qo.assign:${bookingId}:${phoneE164}:${booking.bookingVersion}`,
-      prisma: opts.prisma,
-      env: opts.env,
-      provider: opts.provider,
+  if (!minted) {
+    const recorded = await recordNotify(committed.booking, 'failed', null);
+    return assignResult(recorded.booking, {
+      bookingVersion: recorded.bookingVersion,
+      kind: tech ? 'registered' : 'freelance',
+      assignedTechId: tech ? techIdOf(tech) : null,
+      assignedTechName: tech ? techNameOf(tech) : null,
+      notification: 'failed',
+      sms: { sent: false, queued: false, reason: 'invalid_sms_recipient' },
     });
-  return {
-    ok: true,
-    kind: 'freelance',
-    freelancePhone: phoneE164,
+  }
+  if (opts.skipSms) {
+    const recorded = await recordNotify(committed.booking, 'skipped', notifyKey);
+    return assignResult(recorded.booking, {
+      bookingVersion: recorded.bookingVersion,
+      kind: tech ? 'registered' : 'freelance',
+      assignedTechId: tech ? techIdOf(tech) : null,
+      assignedTechName: tech ? techNameOf(tech) : null,
+      freelancePhone: tech ? null : phoneE164,
+      techUrl: minted.opsUrl,
+      notification: 'failed',
+      sms: { sent: false, queued: false, skipped: true, reason: 'skipped' },
+    });
+  }
+  const sms = await textTech({
+    booking,
+    toE164: assigneePhone,
+    url: minted.opsUrl,
+    idempotencyKey: notifyKey,
+    prisma: opts.prisma,
+    env: opts.env,
+    provider: opts.provider,
+  });
+  const notification = sms && sms.sent === true ? 'sent' : 'failed';
+  const recorded = await recordNotify(committed.booking, notification, notifyKey);
+  return assignResult(recorded.booking, {
+    bookingVersion: recorded.bookingVersion,
+    kind: tech ? 'registered' : 'freelance',
+    assignedTechId: tech ? techIdOf(tech) : null,
+    assignedTechName: tech ? techNameOf(tech) : null,
+    freelancePhone: tech ? null : phoneE164,
     techUrl: minted.opsUrl,
-    booking: committed.booking,
-    bookingVersion: committed.bookingVersion,
+    notification,
     sms,
-    assignment: assignmentFromBooking(committed.booking),
-    message: assignmentNotice('freelance', null, sms),
-  };
+  });
+}
+
+/**
+ * Resend the existing job text. Does not mint a second link or a second outbox row.
+ */
+async function retryQuickOpsTechNotification(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (!hasAssignment(booking) || !booking.techQuickOpsTokenHash) {
+    return { ok: false, error: 'not_assigned', statusCode: 409, message: 'Assigned — notification failed' };
+  }
+  if (booking.techNotifyStatus === 'sent') {
+    return assignResult(booking, {
+      idempotent: true,
+      kind: booking.assignmentKind,
+      notification: 'sent',
+      sms: { sent: true, reason: null },
+    });
+  }
+  const key = smsSafeIdempotencyKey(booking.techNotifyKey || '');
+  const prisma = opts.prisma || require('./prisma').tryGetPrisma();
+  if (!key || !prisma || !prisma.smsOutbox) {
+    return assignResult(booking, {
+      kind: booking.assignmentKind,
+      notification: 'failed',
+      sms: { sent: false, reason: 'not_queued' },
+    });
+  }
+  const row = await prisma.smsOutbox.findUnique({ where: { idempotencyKey: key } });
+  if (!row) {
+    return assignResult(booking, {
+      kind: booking.assignmentKind,
+      notification: 'failed',
+      sms: { sent: false, reason: 'not_queued' },
+    });
+  }
+  if (['sent', 'delivered'].includes(row.status) && row.providerMessageSid) {
+    const recorded = await recordNotify(booking, 'sent', key);
+    return assignResult(recorded.booking, {
+      bookingVersion: recorded.bookingVersion,
+      idempotent: true,
+      kind: booking.assignmentKind,
+      notification: 'sent',
+      sms: { sent: true, reason: null },
+    });
+  }
+  if (row.status !== 'accepted' || row.providerMessageSid) {
+    await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: {
+        status: 'accepted',
+        providerMessageSid: null,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        availableAt: new Date(),
+      },
+    });
+  }
+  let kick = null;
+  try {
+    kick = await kickSmsOutboxByIds([row.id], { prisma, env: opts.env, provider: opts.provider });
+  } catch (err) {
+    kick = { ok: false, error: 'kick_failed', reason: String(err && err.message || err).slice(0, 80) };
+  }
+  const outcome = notificationFromKick(kick, { reason: 'not_sent' });
+  const recorded = await recordNotify(booking, outcome.notification, key);
+  return assignResult(recorded.booking, {
+    bookingVersion: recorded.bookingVersion,
+    kind: booking.assignmentKind,
+    notification: outcome.notification,
+    sms: { sent: outcome.notification === 'sent', reason: outcome.reason },
+  });
 }
 
 const FIELD_JOB_STATUSES = new Set([
@@ -294,7 +440,7 @@ function hasAssignment(booking) {
 
 /**
  * Take the job off the current technician so it can be assigned again.
- * Revokes a freelance link. Customer confirmation stays as it is.
+ * Revokes the unused job link. Customer confirmation stays as it is.
  */
 async function unassignQuickOpsTech(booking, opts = {}) {
   if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
@@ -323,7 +469,10 @@ async function unassignQuickOpsTech(booking, opts = {}) {
     assignedAt: null,
     assignmentKind: null,
     freelancePhone: null,
+    techLinkPhone: null,
     techQuickOpsTokenHash: null,
+    techNotifyStatus: null,
+    techNotifyKey: null,
     quickOpsTechClose: false,
     jobStatus: FIELD_JOB_STATUSES.has(jobStatus) ? 'confirmed' : booking.jobStatus,
     updatedAt: now,
@@ -361,5 +510,6 @@ module.exports = {
   listAssignableTechs,
   assignQuickOpsTech,
   unassignQuickOpsTech,
+  retryQuickOpsTechNotification,
   reloadBooking,
 };

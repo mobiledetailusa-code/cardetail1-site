@@ -130,8 +130,14 @@ test('jobs board shows the assigned technician or phone and can remove it', () =
   assert.match(adminOps, /Remove assignment/);
   assert.match(adminOps, /__freelance__/);
   assert.match(adminOps, /function onAssignPhone/);
+  assert.match(adminOps, /function onRetryNotification/);
+  assert.match(adminOps, /Retry notification/);
+  assert.match(adminOps, /Assigned — notification failed/);
+  assert.match(adminOps, /retry_notification/);
   assert.match(adminOps, /freelancePhone/);
   assert.match(adminOps, /jobAssignmentLabel/);
+  assert.match(techAssign, /retry_notification/);
+  assert.match(techAssign, /retryQuickOpsTechNotification/);
 });
 
 test('admin ops jobs strips stripe fields from response', () => {

@@ -325,6 +325,9 @@ function projectJobForAdminList(b) {
     freelancePhone: (String(b.assignmentKind || '').toLowerCase() === 'freelance' && b.freelancePhone)
       ? String(b.freelancePhone).slice(0, 20)
       : '',
+    techNotifyStatus: ['sent', 'failed', 'pending', 'skipped'].includes(String(b.techNotifyStatus || '').toLowerCase())
+      ? String(b.techNotifyStatus).toLowerCase()
+      : '',
     pendingChangeRequestCount: requests.pendingChangeRequestCount,
     customerChangePending: requests.customerChangePending,
     hasPendingVehicleRemoval: requests.hasPendingVehicleRemoval,

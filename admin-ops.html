@@ -1415,6 +1415,7 @@ async function loadJobs(extra, fetchOpts) {
                 assignedTechName: lean.assignedTechName,
                 assignmentKind: lean.assignmentKind,
                 freelancePhone: lean.freelancePhone,
+                techNotifyStatus: lean.techNotifyStatus,
                 pendingChangeRequestCount: lean.pendingChangeRequestCount,
                 customerChangePending: lean.customerChangePending,
                 hasPendingVehicleRemoval: lean.hasPendingVehicleRemoval,
@@ -2093,6 +2094,17 @@ async function loadTechs(fetchOpts, loadOpts) {
     sel.addEventListener('click', (e) => e.stopPropagation());
   }
 
+  function notifyStatusHtml(j) {
+    if (!jobIsAssigned(j)) return '';
+    const status = String(j.techNotifyStatus || '');
+    if (status === 'sent') return '<div class="assign-current">Assigned — notification sent</div>';
+    if (status === 'failed') {
+      return '<div class="assign-current">Assigned — notification failed</div>'+
+        '<button type="button" class="btn ghost sm assignNotifyRetry" data-id="'+esc(j.id)+'">Retry notification</button>';
+    }
+    return '';
+  }
+
   function assignControlsHtml(j, selectClass) {
     const id = esc(j.id);
     const label = jobAssignmentLabel(j);
@@ -2100,6 +2112,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     const selectedId = jobIsFreelance(j) ? '' : (j.assignedTechId || j.assignedTech || '');
     return '<div class="assign-stack">'+
       '<div class="assign-current">'+(assigned ? ('Assigned to '+esc(label)) : 'No technician assigned')+'</div>'+
+      notifyStatusHtml(j)+
       '<select class="'+selectClass+'" data-id="'+id+'">'+techOptions(selectedId, j)+'</select>'+
       '<div class="assign-phone-row">'+
         '<input type="tel" class="assignPhone" data-id="'+id+'" inputmode="tel" autocomplete="tel" placeholder="Any phone" aria-label="Assign phone">'+
@@ -2134,6 +2147,12 @@ async function loadTechs(fetchOpts, loadOpts) {
         e.stopPropagation();
         if (!confirm('Remove this job from the assigned technician? You can assign it to someone else after.')) return;
         onAssign(btn.dataset.id, '');
+      };
+    });
+    root.querySelectorAll('.assignNotifyRetry').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        onRetryNotification(btn.dataset.id);
       };
     });
   }
@@ -3154,6 +3173,14 @@ async function loadTechs(fetchOpts, loadOpts) {
     } catch(e) { toast('Assign failed: '+assignFailureText(e)); }
   }
 
+  async function onRetryNotification(bookingId) {
+    try {
+      const data = await api('/.netlify/functions/tech-assignment','POST',{action:'retry_notification',bookingId});
+      toast((data && data.message) || 'Assigned — notification failed');
+      await finishAssignment(bookingId);
+    } catch(e) { toast(assignFailureText(e)); }
+  }
+
   // Confirmation is idempotent server-side (CAS on bookingVersion), but a
   // double tap still costs a round trip and can look like two confirmations.
   let confirmInFlight = null;
@@ -3821,7 +3848,12 @@ async function loadTechs(fetchOpts, loadOpts) {
       '<input type="tel" id="dAssignPhone" inputmode="tel" autocomplete="tel" placeholder="Any technician phone" aria-label="Assign phone">'+
       '<button type="button" class="btn ghost sm" id="dAssignPhoneBtn">Assign phone</button></div>'+
       (jobIsAssigned(j) ? '<button type="button" class="btn ghost sm" id="dUnassign" style="margin-top:8px;min-height:44px">Remove assignment</button>' : '')+
-      '<p class="hint">A saved technician gets the portal text. Any other phone gets a one-time job link. Remove the assignment to give this job to someone else.</p>'+
+      (jobIsAssigned(j) && String(j.techNotifyStatus || '') === 'failed'
+        ? '<div class="assign-current">Assigned — notification failed</div><button type="button" class="btn ghost sm" id="dRetryNotify" style="margin-top:8px;min-height:44px">Retry notification</button>'
+        : (jobIsAssigned(j) && String(j.techNotifyStatus || '') === 'sent'
+          ? '<div class="assign-current">Assigned — notification sent</div>'
+          : ''))+
+      '<p class="hint">The technician gets one job text with a secure link. If the text fails, retry the notification without assigning the job again.</p>'+
       '<div class="actions" style="margin:10px 0">';
     if (j.jobStatus === 'pending_review') html += '<button type="button" class="btn sm" id="dConfirm" style="min-height:44px">Confirm booking</button>';
     html += '<button type="button" class="btn ghost sm" id="dCancel" style="min-height:44px">Cancel job</button>';
@@ -4013,6 +4045,8 @@ async function loadTechs(fetchOpts, loadOpts) {
     }
     const dPhoneBtn = $('#dAssignPhoneBtn');
     if (dPhoneBtn) dPhoneBtn.onclick = () => onAssignPhone(j.id, ($('#dAssignPhone') || {}).value);
+    const dRetry = $('#dRetryNotify');
+    if (dRetry) dRetry.onclick = () => onRetryNotification(j.id);
     const dUn = $('#dUnassign');
     if (dUn) dUn.onclick = () => {
       if (!confirm('Remove this job from the assigned technician? You can assign it to someone else after.')) return;
