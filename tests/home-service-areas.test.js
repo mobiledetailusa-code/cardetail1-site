@@ -214,6 +214,7 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/welcome-lead-capture.js',
     // PR B — booking-scoped Quick Ops + payment resume
     'netlify/functions/admin-quick-ops.js',
+    'netlify/functions/tech-assignment.js',
     'netlify/functions/payment-resume.js',
     // Ceramic coating checkout prices the deposit on the server.
     'netlify/functions/ceramic-checkout-intent.js',

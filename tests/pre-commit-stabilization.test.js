@@ -419,6 +419,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // PR B — booking-scoped Quick Ops + payment resume
     'netlify/functions/admin-quick-ops.js',
     'netlify/functions/tech-quick-ops.js',
+    'netlify/functions/tech-assignment.js',
     'netlify/lib/quick-ops-assign.js',
     'netlify/lib/quick-ops-price.js',
     'netlify/lib/quick-ops-tech-close.js',

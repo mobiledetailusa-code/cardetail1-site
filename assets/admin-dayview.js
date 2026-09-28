@@ -127,8 +127,24 @@
     return st === 'cancelled' || st === 'archived_test';
   }
 
+  function formatUsPhone(raw) {
+    const digits = String(raw || '').replace(/\D/g, '');
+    const ten = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+    if (ten.length !== 10) return String(raw || '').trim();
+    return '(' + ten.slice(0, 3) + ') ' + ten.slice(3, 6) + '-' + ten.slice(6);
+  }
+
+  function techLabel(j) {
+    if (!j) return '';
+    if (String(j.assignmentKind || '').toLowerCase() === 'freelance' && j.freelancePhone) return formatUsPhone(j.freelancePhone);
+    return String(j.assignedTechName || '').trim();
+  }
+
   function isUnassigned(j) {
-    return !(j && (j.assignedTechId || j.assignedTech || j.assignedTechName));
+    if (!j) return true;
+    if (j.assignedTechId || j.assignedTech || j.assignedTechName) return false;
+    if (String(j.assignmentKind || '').toLowerCase() === 'freelance' && j.freelancePhone) return false;
+    return true;
   }
 
   function isPaid(j) {
@@ -166,7 +182,7 @@
   function jobHaystack(j) {
     return [
       j && j.id, j && j.bookingId, j && j.firstName, j && j.lastName, j && j.email, j && j.phone,
-      j && j.package, j && j.vehicleLabel, j && j.vehicle, j && j.assignedTechName,
+      j && j.package, j && j.vehicleLabel, j && j.vehicle, techLabel(j), j && j.freelancePhone,
       api && api.customerName ? api.customerName(j) : '',
     ].filter(Boolean).join(' ').toLowerCase();
   }
@@ -612,7 +628,8 @@
       const warn = needsAttention(j) ? ' warn' : '';
       const un = isUnassigned(j) ? ' unassigned' : '';
       const active = j.id === heroJobId ? ' active' : '';
-      const tech = (j.assignedTechName || '').split(' ')[0] || '—';
+      const label = techLabel(j);
+      const tech = label.indexOf('(') === 0 ? label : ((label.split(' ')[0]) || '—');
       return '<button type="button" class="dv-tl-block' + warn + un + active + '" data-dv-job="' + esc(j.id) + '" title="' + esc(api.customerName(j)) + '">' +
         '<div class="dv-tl-time">' + esc(tw.start) + '</div>' +
         '<div class="dv-tl-name">' + esc(api.customerName(j)) + '</div>' +
@@ -625,7 +642,7 @@
     if (!el) return;
     const byTech = new Map();
     dayOps(selectedDate).jobs.forEach((j) => {
-      const key = j.assignedTechName || (isUnassigned(j) ? 'Unassigned' : 'Unknown');
+      const key = techLabel(j) || (isUnassigned(j) ? 'Unassigned' : 'Unknown');
       if (!byTech.has(key)) byTech.set(key, { name: key, jobs: [], revenue: 0 });
       const row = byTech.get(key);
       row.jobs.push(j);
@@ -721,7 +738,7 @@
       '<div class="dv-meta-item"><span class="ico">🕐</span><div><div class="lbl">Schedule</div><div class="val">' + esc(dtLabel) + '</div></div></div>' +
       '<div class="dv-meta-item"><span class="ico">📦</span><div><div class="lbl">Package</div><div class="val">' + esc(job.package || job.packageId || '—') + '</div></div></div>' +
       '<div class="dv-meta-item"><span class="ico">🚗</span><div><div class="lbl">Vehicle</div><div class="val">' + esc(vehicle) + '</div></div></div>' +
-      '<div class="dv-meta-item"><span class="ico">👤</span><div><div class="lbl">Technician</div><div class="val">' + esc(job.assignedTechName || 'Unassigned') + '</div></div></div>' +
+      '<div class="dv-meta-item"><span class="ico">👤</span><div><div class="lbl">Technician</div><div class="val">' + esc(techLabel(job) || 'Unassigned') + '</div></div></div>' +
       '<div class="dv-meta-item"><span class="ico">📞</span><div><div class="lbl">Phone</div><div class="val">' + esc(job.phone || '—') + '</div></div></div>' +
       '<div class="dv-meta-item"><span class="ico">✉️</span><div><div class="lbl">Email</div><div class="val">' + esc(job.email || '—') + '</div></div></div>' +
       '<div class="dv-meta-item"><span class="ico">📍</span><div><div class="lbl">Location</div><div class="val">' + esc(jobAddress(job) || '—') + '</div></div></div>' +
@@ -758,7 +775,7 @@
         '<div class="si-time">' + esc(tw.start) + '<br>– ' + esc(end) + '</div>' +
         '<div class="si-body"><div class="si-name">' + warn + un + esc(api.customerName(j)) +
         '<span class="si-badges">' + statusBadge + payBadge + '</span></div>' +
-        '<div class="si-loc">' + esc(loc) + ' · ' + esc(j.assignedTechName || 'Unassigned') + '</div></div>' +
+        '<div class="si-loc">' + esc(loc) + ' · ' + esc(techLabel(j) || 'Unassigned') + '</div></div>' +
         '<div class="si-price">' + money(total) + '</div></div>';
     }).join('') + '</div>';
   }

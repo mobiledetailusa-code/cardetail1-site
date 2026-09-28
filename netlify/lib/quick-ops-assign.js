@@ -111,6 +111,11 @@ async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, pro
   };
 }
 
+function assignmentActor(opts) {
+  const value = String(opts && opts.by || 'quick_ops').replace(/[^\w.-]/g, '').slice(0, 24);
+  return value || 'quick_ops';
+}
+
 function assignmentNotice(kind, name, sms) {
   const sent = sms && sms.sent === true;
   if (kind === 'freelance') {
@@ -146,6 +151,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
   if (bookingStatus(booking) === 'cancelled' || jobCompleted(booking)) {
     return { ok: false, error: 'locked', statusCode: 409, message: 'This job cannot be assigned' };
   }
+  const actor = assignmentActor(opts);
   const requestedId = String(opts.techId || '').trim().slice(0, 48);
   const requestedPhone = String(opts.phone || '').trim();
   if (!requestedId && !requestedPhone) {
@@ -177,7 +183,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
       assignedTech: id,
       assignedTechName: name,
       assignedAt: now,
-      assignedBy: 'quick_ops',
+      assignedBy: actor,
       assignmentKind: 'registered',
       freelancePhone: null,
       techQuickOpsTokenHash: null,
@@ -188,7 +194,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
       updatedAt: now,
       eventLog: appendEventLog(booking, {
         action: booking.assignedTechId ? 'tech_reassigned' : 'tech_assigned',
-        by: 'quick_ops',
+        by: actor,
         techId: id,
         techName: name,
         kind: 'registered',
@@ -227,7 +233,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
     assignedTech: null,
     assignedTechName: `Freelance ${phoneE164.slice(-4)}`,
     assignedAt: now,
-    assignedBy: 'quick_ops',
+    assignedBy: actor,
     assignmentKind: 'freelance',
     freelancePhone: phoneE164,
     techQuickOpsTokenHash: minted.tokenHash,
@@ -238,7 +244,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
     updatedAt: now,
     eventLog: appendEventLog(booking, {
       action: 'tech_assigned',
-      by: 'quick_ops',
+      by: actor,
       kind: 'freelance',
       phoneLast4: phoneE164.slice(-4),
     }),
@@ -290,8 +296,9 @@ function hasAssignment(booking) {
  * Take the job off the current technician so it can be assigned again.
  * Revokes a freelance link. Customer confirmation stays as it is.
  */
-async function unassignQuickOpsTech(booking) {
+async function unassignQuickOpsTech(booking, opts = {}) {
   if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  const actor = assignmentActor(opts);
   if (bookingStatus(booking) === 'cancelled' || jobCompleted(booking)) {
     return { ok: false, error: 'locked', statusCode: 409, message: 'This job cannot be reassigned' };
   }
@@ -322,7 +329,7 @@ async function unassignQuickOpsTech(booking) {
     updatedAt: now,
     eventLog: appendEventLog(booking, {
       action: 'tech_unassigned',
-      by: 'quick_ops',
+      by: actor,
       kind: previous.kind || '',
       techId: previous.techId || '',
       techName: previous.name || '',

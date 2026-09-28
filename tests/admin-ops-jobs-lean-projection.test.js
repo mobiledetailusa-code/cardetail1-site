@@ -145,6 +145,8 @@ describe('Admin Jobs lean projection', () => {
     assert.match(String(row.vehicleLabel), /2 vehicles|Honda|Tesla/i);
     assert.equal(row.assignedTechId, 'tech_9');
     assert.equal(row.assignedTechName, 'Jordan Tech');
+    assert.equal(row.assignmentKind, 'registered');
+    assert.equal(row.freelancePhone, '');
     assert.equal(row.pendingChangeRequestCount, 1);
     assert.equal(row.customerChangePending, true);
     assert.equal(row.hasPendingVehicleRemoval, true);
@@ -152,6 +154,20 @@ describe('Admin Jobs lean projection', () => {
     assert.equal(row.approvedCents, 68800);
     assert.equal(row.settledCents, 20000);
     assert.equal(row.confirmedDate, '2026-08-10');
+  });
+
+  it('list projector keeps a freelance phone so the jobs board can show it', () => {
+    const row = projectJobForAdminList(heavyBooking({
+      assignedTechId: '',
+      assignedTech: '',
+      assignedTechName: 'Freelance 2956',
+      assignmentKind: 'freelance',
+      freelancePhone: '+15513132956',
+    }));
+    assert.equal(row.assignmentKind, 'freelance');
+    assert.equal(row.freelancePhone, '+15513132956');
+    assert.equal(row.assignedTechId, '');
+    assert.equal(row.assignedTechName, 'Freelance 2956');
   });
 
   it('list projector excludes heavy payloads', () => {

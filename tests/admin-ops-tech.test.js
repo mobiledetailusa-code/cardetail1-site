@@ -116,9 +116,22 @@ test('tech accounts use invite expiry and hide password hash', () => {
 });
 
 test('assignment writes assignedTechId and eventLog', () => {
-  assert.match(techAssign, /assignedTechId/);
-  assert.match(techAssign, /jobStatus:\s*'assigned'/);
-  assert.match(techAssign, /appendEventLog/);
+  assert.match(techAssign, /assignQuickOpsTech/);
+  assert.match(techAssign, /unassignQuickOpsTech/);
+  assert.match(techAssign, /phone/);
+  const assignLib = read('netlify/lib/quick-ops-assign.js');
+  assert.match(assignLib, /assignedTechId/);
+  assert.match(assignLib, /jobStatus:\s*'assigned'/);
+  assert.match(assignLib, /appendEventLog/);
+});
+
+test('jobs board shows the assigned technician or phone and can remove it', () => {
+  assert.match(adminOps, /Assign phone/);
+  assert.match(adminOps, /Remove assignment/);
+  assert.match(adminOps, /__freelance__/);
+  assert.match(adminOps, /function onAssignPhone/);
+  assert.match(adminOps, /freelancePhone/);
+  assert.match(adminOps, /jobAssignmentLabel/);
 });
 
 test('admin ops jobs strips stripe fields from response', () => {
