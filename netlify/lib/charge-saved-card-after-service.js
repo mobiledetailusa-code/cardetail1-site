@@ -177,6 +177,36 @@ function customerRecoveryBlocked(booking) {
   return null;
 }
 
+function reviewCompletionCharge(booking, projection, body, env = process.env) {
+  if (!body || body.confirmSavedCardCharge !== true) return { ok: true };
+  const gate = chargeEligibility(booking, projection);
+  if (gate.error === 'after_service_consent_required') {
+    return { ok: true, consentRequired: gate };
+  }
+  if (!gate.ok && gate.error !== 'nothing_to_charge') {
+    return {
+      ok: false,
+      statusCode: gate.statusCode || 409,
+      error: gate.error,
+      message: gate.message || null,
+      reason: gate.reason || null,
+    };
+  }
+  if (!gate.ok) return { ok: true };
+  const amountGate = confirmedAmountGate(body.expectedChargeCents, gate.amountCents);
+  if (!amountGate.ok) return { ok: false, ...amountGate };
+  if (openCustomerBalanceAttempt(booking)) {
+    return {
+      ok: false,
+      statusCode: 409,
+      error: 'balance_charge_already_open',
+      message: 'A payment link for this balance is already open.',
+      recoveryUrl: recoveryUrlFor(booking, env),
+    };
+  }
+  return { ok: true };
+}
+
 function confirmedAmountGate(expectedChargeCents, amountCents) {
   if (expectedChargeCents == null || expectedChargeCents === '') {
     return {
@@ -628,6 +658,7 @@ module.exports = {
   idempotencyKeyFor,
   recoveryUrlFor,
   chargeEligibility,
+  reviewCompletionCharge,
   customerRecoveryBlocked,
   chargeSavedCardAfterService,
   applyAfterServiceStripeEvent,

@@ -422,6 +422,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/ceramic-checkout-intent.js',
     'netlify/lib/ceramic-coating.js',
     'netlify/lib/ceramic-payment.js',
+    // Off-session charge of the approved balance after the appointment is completed.
+    'netlify/lib/charge-saved-card-after-service.js',
     'netlify/lib/admin-quick-ops-token.js',
     'netlify/lib/admin-quick-ops-actions.js',
     'netlify/lib/admin-quick-ops-view.js',

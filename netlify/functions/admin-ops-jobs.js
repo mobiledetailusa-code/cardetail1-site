@@ -1888,7 +1888,7 @@ async function handleAdminAction(body, testOpts = {}) {
     const { postServiceState } = require('../lib/post-service-experience');
     const { financialProjection } = require('../lib/payment-service');
     const {
-      chargeEligibility,
+      reviewCompletionCharge,
       chargeSavedCardAfterService,
       recoveryUrlFor,
     } = require('../lib/charge-saved-card-after-service');
@@ -1905,46 +1905,19 @@ async function handleAdminAction(body, testOpts = {}) {
       }
     } catch (_) { /* fall through to blob */ }
     if (!money) money = financialProjection(booking);
-    let consentBlock = null;
-    if (charging) {
-      const gate = chargeEligibility(booking, money);
-      if (gate.error === 'after_service_consent_required') {
-        consentBlock = gate;
-      } else if (!gate.ok && gate.error !== 'nothing_to_charge') {
-        return jsonCors(gate.statusCode || 409, {
-          ok: false,
-          error: gate.error,
-          message: gate.message || null,
-          reason: gate.reason || null,
-        });
-      } else if (gate.ok) {
-        const expected = body.expectedChargeCents;
-        const expectedCents = Math.round(Number(expected));
-        if (expected == null || expected === '' || !Number.isFinite(expectedCents) || expectedCents !== gate.amountCents) {
-          return jsonCors(409, {
-            ok: false,
-            error: (expected == null || expected === '' || !Number.isFinite(expectedCents))
-              ? 'charge_amount_unconfirmed'
-              : 'charge_amount_changed',
-            amountCents: gate.amountCents,
-            expectedChargeCents: Number.isFinite(expectedCents) ? expectedCents : null,
-            message: 'The unpaid balance changed. Confirm the new amount before charging.',
-          });
-        }
-        const attempts = Array.isArray(booking.paymentAttempts) ? booking.paymentAttempts : [];
-        const openRecovery = attempts.some((row) => row
-          && (row.status === 'open' || row.status === 'creating')
-          && String(row.type || row.purpose || '') === 'customer_balance');
-        if (openRecovery) {
-          return jsonCors(409, {
-            ok: false,
-            error: 'balance_charge_already_open',
-            message: 'A payment link for this balance is already open.',
-            recoveryUrl: recoveryUrlFor(booking, testOpts.env || process.env),
-          });
-        }
-      }
+    const reviewed = reviewCompletionCharge(booking, money, body, testOpts.env || process.env);
+    if (!reviewed.ok) {
+      return jsonCors(reviewed.statusCode || 409, {
+        ok: false,
+        error: reviewed.error,
+        message: reviewed.message || null,
+        reason: reviewed.reason || null,
+        amountCents: reviewed.amountCents || null,
+        expectedChargeCents: reviewed.expectedChargeCents ?? null,
+        recoveryUrl: reviewed.recoveryUrl || null,
+      });
     }
+    const consentBlock = reviewed.consentRequired || null;
     const alreadyPaid = String(money.paymentStatus || '').toLowerCase() === 'paid'
       || Math.max(0, Math.round(Number(money.remainingCents) || 0)) === 0;
     let patched = booking;
