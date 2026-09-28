@@ -10,8 +10,11 @@ const { financialProjection } = require('../netlify/lib/payment-service');
 const {
   chargeSavedCardAfterService,
   applyAfterServiceStripeEvent,
+  customerRecoveryBlocked,
   PURPOSE,
+  AFTER_SERVICE_CHARGE_CONSENT_VERSION,
 } = require('../netlify/lib/charge-saved-card-after-service');
+const { stampAfterServiceChargeConsent } = require('../netlify/lib/customer-policy');
 
 const ENV = {
   STRIPE_SECRET_KEY: 'sk_test_after_service_isolated',
@@ -38,6 +41,8 @@ function booking(extra = {}) {
     paymentMethod: 'online_after_service',
     cardOnFileStatus: 'saved',
     acceptedCardOnFilePolicy: true,
+    afterServiceChargeConsentVersion: '2026-09-after-service-charge',
+    afterServiceChargeConsentAt: '2026-09-27T15:00:00.000Z',
     stripeCustomerId: 'cus_test_saved',
     stripePaymentMethodId: 'pm_test_saved',
     setupIntentId: 'seti_test_saved',
@@ -93,6 +98,7 @@ test('success charges only the unpaid approved balance and marks paid after Stri
     env: ENV,
     fetchImpl,
     confirmCharge: true,
+    expectedChargeCents: 15000,
   });
   assert.equal(result.charged, true);
   assert.equal(result.stripeCalled, true);
@@ -134,6 +140,7 @@ test('a declined card leaves the appointment completed and the balance pending w
     env: ENV,
     fetchImpl,
     confirmCharge: true,
+    expectedChargeCents: 15000,
   });
   assert.equal(result.charged, false);
   assert.equal(result.paymentPending, true);
@@ -159,6 +166,7 @@ test('additional authentication does not mark the booking paid', async () => {
     env: ENV,
     fetchImpl,
     confirmCharge: true,
+    expectedChargeCents: 15000,
   });
   assert.equal(result.charged, false);
   assert.equal(result.stripeStatus, 'requires_action');
@@ -176,6 +184,7 @@ test('repeating the charge and the webhook does not settle twice', async () => {
     env: ENV,
     fetchImpl,
     confirmCharge: true,
+    expectedChargeCents: 15000,
   });
   const second = await chargeSavedCardAfterService({
     booking: first.booking,
@@ -278,6 +287,7 @@ test('admin completion charges a saved card, and a service line does not', async
       action: 'approve_completion',
       bookingId: fresh.id,
       confirmSavedCardCharge: true,
+      expectedChargeCents: 15000,
     }, { env: ENV, fetch: fetchImpl });
     const chargedBody = JSON.parse(charged.body);
     assert.equal(charged.statusCode, 200, charged.body);
@@ -365,6 +375,7 @@ test('admin cash completion and a declined retry do not create a second charge',
       action: 'approve_completion',
       bookingId: online.id,
       confirmSavedCardCharge: true,
+      expectedChargeCents: 15000,
     }, { env: ENV, fetch: fetchImpl });
     const declinedBody = JSON.parse(declined.body);
     assert.equal(declined.statusCode, 200, declined.body);
@@ -378,6 +389,7 @@ test('admin cash completion and a declined retry do not create a second charge',
       action: 'approve_completion',
       bookingId: online.id,
       confirmSavedCardCharge: true,
+      expectedChargeCents: 15000,
     }, { env: ENV, fetch: fetchImpl });
     const retryBody = JSON.parse(retry.body);
     assert.equal(retry.statusCode, 200, retry.body);
@@ -400,8 +412,302 @@ test('the admin label says it will charge, and a service line cannot', () => {
   const portal = fs.readFileSync(path.join(__dirname, '..', 'netlify/functions/customer-portal-action.js'), 'utf8');
   assert.match(admin, /Complete and charge saved card/);
   assert.match(admin, /charges the saved card/);
+  assert.match(admin, /expectedChargeCents/);
   assert.match(jobs, /confirmSavedCardCharge/);
+  assert.match(jobs, /expectedChargeCents/);
+  const runtime = fs.readFileSync(path.join(__dirname, '..', 'assets/booking-review-runtime.js'), 'utf8');
+  assert.match(runtime, /acceptedAfterServiceChargeConsent/);
   const line = jobs.slice(jobs.indexOf("action === 'complete_service_line'"), jobs.indexOf("action === 'assign_internal_coating'"));
   assert.doesNotMatch(line, /chargeSavedCardAfterService|confirmSavedCardCharge/);
   assert.doesNotMatch(portal, /chargeSavedCardAfterService|confirmSavedCardCharge/);
+});
+
+test('a cancellation-only card is not charged and keeps a payment link', async () => {
+  const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
+  process.env.CD1_POSTGRES_PAYMENT = '0';
+  const fetchImpl = stripeFetch(200, succeededIntent(15000));
+  const oldCard = booking({
+    id: 'CD1-OLD-CARD',
+    policyVersion: '2026-06-card-on-file',
+    afterServiceChargeConsentVersion: '2026-06-card-on-file',
+    afterServiceChargeConsentAt: '2026-06-01T12:00:00.000Z',
+  });
+  const termsOnly = booking({
+    id: 'CD1-TERMS-ONLY',
+    policyVersion: '2026-09-dba-booking-request',
+    afterServiceChargeConsentVersion: null,
+    afterServiceChargeConsentAt: null,
+  });
+  const store = createCasMemoryStore({ [oldCard.id]: oldCard, [termsOnly.id]: termsOnly });
+  setBookingStoreOverride(store);
+  const { handleAdminAction } = require('../netlify/functions/admin-ops-jobs');
+  try {
+    for (const current of [oldCard, termsOnly]) {
+      const result = await handleAdminAction({
+        action: 'approve_completion',
+        bookingId: current.id,
+        confirmSavedCardCharge: true,
+        expectedChargeCents: 15000,
+      }, { env: ENV, fetch: fetchImpl });
+      const body = JSON.parse(result.body);
+      assert.equal(result.statusCode, 200, result.body);
+      assert.equal(body.jobStatus, 'completed_pending_payment');
+      assert.equal(body.charge.charged, false);
+      assert.equal(body.charge.error, 'after_service_consent_required');
+      assert.match(body.charge.recoveryUrl, /pay=balance/);
+      assert.notEqual(body.paymentStatus, 'paid');
+      const saved = JSON.parse(store._data.get(current.id).value);
+      assert.equal(saved.ledger.settledCents, 3000);
+    }
+    assert.equal(fetchImpl.calls.length, 0);
+    const spoofed = stampAfterServiceChargeConsent({
+      paymentMethodPreference: 'online_after_service',
+      acceptedCardOnFilePolicy: true,
+    }, {
+      acceptedAfterServiceChargeConsent: true,
+      acceptedCardOnFilePolicy: true,
+      afterServiceChargeConsentVersion: 'spoofed-version',
+      afterServiceChargeConsentAt: '2020-01-01T00:00:00.000Z',
+    }, '2026-09-28T12:00:00.000Z');
+    assert.equal(spoofed.afterServiceChargeConsentVersion, AFTER_SERVICE_CHARGE_CONSENT_VERSION);
+    assert.equal(spoofed.afterServiceChargeConsentAt, '2026-09-28T12:00:00.000Z');
+    const missing = stampAfterServiceChargeConsent({
+      paymentMethodPreference: 'online_after_service',
+      acceptedCardOnFilePolicy: true,
+      policyVersion: '2026-06-card-on-file',
+    }, { acceptedCardOnFilePolicy: true, policyVersion: '2026-06-card-on-file' }, '2026-09-28T12:00:00.000Z');
+    assert.equal(missing.afterServiceChargeConsentVersion, null);
+  } finally {
+    setBookingStoreOverride(null);
+    if (previousPostgres == null) delete process.env.CD1_POSTGRES_PAYMENT;
+    else process.env.CD1_POSTGRES_PAYMENT = previousPostgres;
+  }
+});
+
+test('two simultaneous completions create at most one charge', async () => {
+  const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
+  process.env.CD1_POSTGRES_PAYMENT = '0';
+  let release;
+  const hold = new Promise((resolve) => { release = resolve; });
+  const calls = [];
+  const fetchImpl = async (url, opts) => {
+    calls.push({ url, headers: opts.headers });
+    if (calls.length === 1) await hold;
+    return { status: 200, json: async () => succeededIntent(15000) };
+  };
+  fetchImpl.calls = calls;
+  const seed = booking({ id: 'CD1-RACE-1' });
+  const store = createCasMemoryStore({ [seed.id]: seed });
+  setBookingStoreOverride(store);
+  const { handleAdminAction } = require('../netlify/functions/admin-ops-jobs');
+  try {
+    const pending = Promise.all([
+      handleAdminAction({
+        action: 'approve_completion',
+        bookingId: seed.id,
+        confirmSavedCardCharge: true,
+        expectedChargeCents: 15000,
+      }, { env: ENV, fetch: fetchImpl }),
+      handleAdminAction({
+        action: 'approve_completion',
+        bookingId: seed.id,
+        confirmSavedCardCharge: true,
+        expectedChargeCents: 15000,
+      }, { env: ENV, fetch: fetchImpl }),
+    ]);
+    setTimeout(release, 40);
+    const results = await pending;
+    const bodies = results.map((res) => JSON.parse(res.body));
+    const saved = JSON.parse(store._data.get(seed.id).value);
+    const settlements = saved.ledger.entries.filter((entry) => entry.providerEventId === 'pi_after_ok');
+    const keys = calls.map((call) => call.headers['Idempotency-Key']);
+    assert.ok(calls.length >= 1);
+    assert.equal(new Set(keys).size, 1);
+    assert.equal(settlements.length, 1);
+    assert.equal(saved.ledger.settledCents, 18000);
+    assert.equal(bodies.filter((body) => body.ok && body.charge && body.charge.charged).length, 1);
+  } finally {
+    setBookingStoreOverride(null);
+    if (previousPostgres == null) delete process.env.CD1_POSTGRES_PAYMENT;
+    else process.env.CD1_POSTGRES_PAYMENT = previousPostgres;
+  }
+});
+
+test('a lost Stripe response retries the same operation', async () => {
+  const byKey = new Map();
+  const calls = [];
+  const fetchImpl = async (url, opts) => {
+    const key = opts.headers['Idempotency-Key'];
+    calls.push(key);
+    if (!byKey.has(key)) byKey.set(key, succeededIntent(15000));
+    return { status: 200, json: async () => byKey.get(key) };
+  };
+  const current = booking({ id: 'CD1-LOST-1' });
+  const store = { booking: current };
+  let dropResult = true;
+  const persistBooking = async (next) => {
+    if (next.afterServiceCharge && next.afterServiceCharge.status === 'charging') {
+      store.booking = next;
+      return { ok: true, booking: next };
+    }
+    if (dropResult) return { ok: false, error: 'lost_response' };
+    store.booking = next;
+    return { ok: true, booking: next };
+  };
+  const first = await chargeSavedCardAfterService({
+    booking: store.booking,
+    projection: financialProjection(store.booking),
+    env: ENV,
+    fetchImpl,
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+    persistBooking,
+  });
+  assert.equal(first.stripeCalled, true);
+  assert.equal(first.persisted, false);
+  assert.equal(store.booking.afterServiceCharge.status, 'charging');
+  assert.equal(store.booking.ledger.settledCents, 3000);
+  dropResult = false;
+  const second = await chargeSavedCardAfterService({
+    booking: store.booking,
+    projection: financialProjection(store.booking),
+    env: ENV,
+    fetchImpl,
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+    persistBooking,
+  });
+  assert.equal(second.charged, true);
+  assert.equal(second.paymentIntentId, 'pi_after_ok');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0], calls[1]);
+  assert.equal(second.booking.ledger.entries.filter((entry) => entry.providerEventId === 'pi_after_ok').length, 1);
+  assert.equal(second.booking.ledger.settledCents, 18000);
+});
+
+test('the recovery link and the admin charge cannot collect the same balance twice', async () => {
+  const fetchImpl = stripeFetch(200, succeededIntent(15000));
+  const openRecovery = booking({
+    paymentAttempts: [{
+      attemptId: 'pa_open',
+      type: 'customer_balance',
+      status: 'open',
+      amountCents: 15000,
+      providerObjectId: 'pi_customer_open',
+    }],
+  });
+  const admin = await chargeSavedCardAfterService({
+    booking: openRecovery,
+    projection: financialProjection(openRecovery),
+    env: ENV,
+    fetchImpl,
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+  });
+  assert.equal(admin.error, 'balance_charge_already_open');
+  assert.equal(admin.stripeCalled, false);
+  assert.equal(fetchImpl.calls.length, 0);
+
+  const charging = booking({
+    afterServiceCharge: {
+      purpose: PURPOSE,
+      status: 'charging',
+      idempotencyKey: 'after_service_CD1-CHARGE-1_2_15000',
+      amountCents: 15000,
+    },
+  });
+  const blocked = customerRecoveryBlocked(charging);
+  assert.equal(blocked.error, 'after_service_charge_in_progress');
+  const { prepareEmbeddedPayment } = require('../netlify/lib/db/operational-payment');
+  const prepared = await prepareEmbeddedPayment({
+    booking: charging,
+    env: ENV,
+    fetchImpl,
+  });
+  assert.equal(prepared.error, 'after_service_charge_in_progress');
+  assert.equal(fetchImpl.calls.length, 0);
+
+  const declined = booking({
+    afterServiceCharge: {
+      purpose: PURPOSE,
+      status: 'declined',
+      paymentIntentId: 'pi_after_declined',
+      idempotencyKey: 'after_service_CD1-CHARGE-1_2_15000',
+      amountCents: 15000,
+      recoveryUrl: 'https://cardetail1.com/my-garage.html?bookingId=CD1-CHARGE-1&pay=balance',
+    },
+  });
+  assert.equal(customerRecoveryBlocked(declined), null);
+  const adminRetry = await chargeSavedCardAfterService({
+    booking: declined,
+    projection: financialProjection(declined),
+    env: ENV,
+    fetchImpl,
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+  });
+  assert.equal(adminRetry.duplicate, true);
+  assert.equal(adminRetry.stripeCalled, false);
+  assert.equal(fetchImpl.calls.length, 0);
+});
+
+test('the confirmed amount is rechecked when the balance or an add-on changes', async () => {
+  const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
+  process.env.CD1_POSTGRES_PAYMENT = '0';
+  const fetchImpl = stripeFetch(200, succeededIntent(17000));
+  const raised = booking({
+    id: 'CD1-RAISED-1',
+    approvedFinalAmount: 200,
+    totalPrice: 200,
+    balanceDue: 170,
+    ledger: {
+      currency: 'usd',
+      approvedCents: 20000,
+      settledCents: 3000,
+      creditedCents: 0,
+      entries: [{
+        entryId: 'le_prior',
+        kind: 'settlement',
+        amountCents: 3000,
+        providerEventId: 'cs_prior',
+        currency: 'usd',
+      }],
+    },
+  });
+  const pendingAddon = booking({
+    id: 'CD1-ADDON-1',
+    adjustmentStatus: 'pending_admin',
+    changeRequests: [{ id: 'cr_add', type: 'addon_request', status: 'pending_approval' }],
+  });
+  const store = createCasMemoryStore({ [raised.id]: raised, [pendingAddon.id]: pendingAddon });
+  setBookingStoreOverride(store);
+  const { handleAdminAction } = require('../netlify/functions/admin-ops-jobs');
+  try {
+    const amount = await handleAdminAction({
+      action: 'approve_completion',
+      bookingId: raised.id,
+      confirmSavedCardCharge: true,
+      expectedChargeCents: 15000,
+    }, { env: ENV, fetch: fetchImpl });
+    const amountBody = JSON.parse(amount.body);
+    assert.equal(amount.statusCode, 409);
+    assert.equal(amountBody.error, 'charge_amount_changed');
+    assert.equal(JSON.parse(store._data.get(raised.id).value).jobStatus, 'completed_pending_admin_review');
+
+    const addon = await handleAdminAction({
+      action: 'approve_completion',
+      bookingId: pendingAddon.id,
+      confirmSavedCardCharge: true,
+      expectedChargeCents: 15000,
+    }, { env: ENV, fetch: fetchImpl });
+    const addonBody = JSON.parse(addon.body);
+    assert.equal(addon.statusCode, 409);
+    assert.equal(addonBody.error, 'addon_approval_required');
+    assert.equal(JSON.parse(store._data.get(pendingAddon.id).value).jobStatus, 'completed_pending_admin_review');
+    assert.equal(fetchImpl.calls.length, 0);
+  } finally {
+    setBookingStoreOverride(null);
+    if (previousPostgres == null) delete process.env.CD1_POSTGRES_PAYMENT;
+    else process.env.CD1_POSTGRES_PAYMENT = previousPostgres;
+  }
 });

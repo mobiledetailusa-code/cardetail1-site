@@ -452,6 +452,23 @@ test('a new ceramic booking can choose card online without a charge or deposit',
   assert.equal(saved.amountPaid || 0, 0);
   assert.equal(saved.ceramicPaymentPlan || '', '');
   assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'mobile_water'), false);
+  assert.equal(saved.afterServiceChargeConsentVersion || null, null);
+  assert.equal(saved.afterServiceChargeConsentAt || null, null);
+
+  const consented = await post({
+    ...payload,
+    acceptedAfterServiceChargeConsent: true,
+    afterServiceChargeConsentVersion: 'spoofed-version',
+    afterServiceChargeConsentAt: '2020-01-01T00:00:00.000Z',
+    isDraft: true,
+    draftBookingId: draft.body.id,
+    draftSaveToken: draft.body.draftSaveToken,
+  }, '203.0.113.41');
+  assert.equal(consented.status, 200, JSON.stringify(consented.body));
+  const stamped = bookings.records().find((item) => item.id === draft.body.id);
+  assert.equal(stamped.afterServiceChargeConsentVersion, '2026-09-after-service-charge');
+  assert.ok(Number.isFinite(Date.parse(stamped.afterServiceChargeConsentAt)));
+  assert.notEqual(stamped.afterServiceChargeConsentAt, '2020-01-01T00:00:00.000Z');
 });
 
 test('a stored deposit plan and historical water line survive a later submit', async () => {

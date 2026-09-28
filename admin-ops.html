@@ -3109,6 +3109,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       var ok = window.confirm('This completes the appointment and charges the saved card ' + amount + '. Only the unpaid approved balance is charged. Add-ons still waiting for approval are not included. Cash and card at service are not charged online. Continue?');
       if (!ok) return;
       extra.confirmSavedCardCharge = true;
+      extra.expectedChargeCents = Math.round(cents);
     }
     jobAction(j.id, 'approve_completion', extra);
   }

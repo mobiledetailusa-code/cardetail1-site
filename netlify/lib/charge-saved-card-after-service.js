@@ -14,7 +14,9 @@
  */
 
 const { remainingCents, deriveMoneyCompatibility } = require('./booking-aggregate');
+const { financialProjection } = require('./payment-service');
 const { guardStripeOrReject } = require('./stripe-mode');
+const { AFTER_SERVICE_CHARGE_CONSENT_VERSION } = require('./customer-policy');
 
 const PURPOSE = 'approved_balance_after_service';
 const ONSITE = new Set(['cash_onsite', 'cash_on_site', 'card_onsite', 'card_on_site']);
@@ -104,7 +106,6 @@ function chargeEligibility(booking, projection) {
     return { ok: false, error: 'nothing_to_charge', statusCode: 200, remainingCents: 0 };
   }
   if (booking.cardOnFileStatus !== 'saved'
-    || booking.acceptedCardOnFilePolicy !== true
     || !booking.stripeCustomerId
     || !booking.stripePaymentMethodId) {
     return {
@@ -114,7 +115,90 @@ function chargeEligibility(booking, projection) {
       message: 'No saved card is on file for this appointment.',
     };
   }
+  if (!hasAfterServiceChargeConsent(booking)) {
+    return {
+      ok: false,
+      error: 'after_service_consent_required',
+      statusCode: 409,
+      completeWithoutCharge: true,
+      recoveryUrl: recoveryUrlFor(booking),
+      message: 'This card was not authorized for a charge after service. Collect a new authorization or send a payment link.',
+    };
+  }
   return { ok: true, amountCents: remaining, preference: pref };
+}
+
+function hasAfterServiceChargeConsent(booking) {
+  if (booking?.acceptedCardOnFilePolicy !== true) return false;
+  if (String(booking.afterServiceChargeConsentVersion || '') !== AFTER_SERVICE_CHARGE_CONSENT_VERSION) {
+    return false;
+  }
+  return Number.isFinite(Date.parse(String(booking.afterServiceChargeConsentAt || '')));
+}
+
+function openCustomerBalanceAttempt(booking) {
+  const attempts = Array.isArray(booking?.paymentAttempts) ? booking.paymentAttempts : [];
+  return attempts.find((row) => {
+    if (!row) return false;
+    const status = String(row.status || '');
+    if (status !== 'open' && status !== 'creating') return false;
+    const type = String(row.type || row.purpose || '');
+    if (type !== 'customer_balance') return false;
+    if (row.providerObjectId && hasSettlement(booking, row.providerObjectId)) return false;
+    return true;
+  }) || null;
+}
+
+/**
+ * The My Garage recovery link must not open a second PaymentIntent while an
+ * off-session after-service charge is in flight, waiting for authentication,
+ * or succeeded but not yet in the ledger. A decline is the recovery path.
+ */
+function customerRecoveryBlocked(booking) {
+  const prior = booking && booking.afterServiceCharge;
+  if (!prior || typeof prior !== 'object') return null;
+  const status = String(prior.status || '');
+  if (status === 'charging' || status === 'requires_action') {
+    return {
+      ok: false,
+      error: 'after_service_charge_in_progress',
+      statusCode: 409,
+      paymentIntentId: prior.paymentIntentId || null,
+    };
+  }
+  if (status === 'succeeded' && prior.paymentIntentId && !hasSettlement(booking, prior.paymentIntentId)) {
+    return {
+      ok: false,
+      error: 'after_service_charge_in_progress',
+      statusCode: 409,
+      paymentIntentId: prior.paymentIntentId,
+    };
+  }
+  return null;
+}
+
+function confirmedAmountGate(expectedChargeCents, amountCents) {
+  if (expectedChargeCents == null || expectedChargeCents === '') {
+    return {
+      ok: false,
+      error: 'charge_amount_unconfirmed',
+      statusCode: 409,
+      amountCents,
+      message: 'Confirm the amount to charge before completing the appointment.',
+    };
+  }
+  const expected = Math.round(Number(expectedChargeCents));
+  if (!Number.isFinite(expected) || expected !== amountCents) {
+    return {
+      ok: false,
+      error: 'charge_amount_changed',
+      statusCode: 409,
+      expectedChargeCents: Number.isFinite(expected) ? expected : null,
+      amountCents,
+      message: 'The unpaid balance changed. Confirm the new amount before charging.',
+    };
+  }
+  return { ok: true, amountCents };
 }
 
 function ledgerEntries(booking) {
@@ -344,6 +428,8 @@ async function chargeSavedCardAfterService({
   env = process.env,
   fetchImpl = globalThis.fetch,
   confirmCharge = false,
+  expectedChargeCents = null,
+  persistBooking = null,
 } = {}) {
   if (confirmCharge !== true) {
     return {
@@ -355,9 +441,26 @@ async function chargeSavedCardAfterService({
       message: 'Confirm that this action charges the saved card.',
     };
   }
-  const gate = chargeEligibility(booking, projection);
+  const liveProjection = projection || financialProjection(booking);
+  const gate = chargeEligibility(booking, liveProjection);
   if (!gate.ok) {
     return { ...gate, charged: false, stripeCalled: false };
+  }
+  const amountGate = confirmedAmountGate(expectedChargeCents, gate.amountCents);
+  if (!amountGate.ok) {
+    return { ...amountGate, charged: false, stripeCalled: false };
+  }
+  if (openCustomerBalanceAttempt(booking)) {
+    return {
+      ok: false,
+      error: 'balance_charge_already_open',
+      statusCode: 409,
+      charged: false,
+      stripeCalled: false,
+      recoveryUrl: recoveryUrlFor(booking, env),
+      amountCents: gate.amountCents,
+      message: 'A payment link for this balance is already open.',
+    };
   }
 
   const key = idempotencyKeyFor(bookingIdOf(booking), quoteVersionOf(booking), gate.amountCents);
@@ -375,7 +478,7 @@ async function chargeSavedCardAfterService({
       amountCents: gate.amountCents,
     };
   }
-  if (prior && prior.idempotencyKey === key && prior.status === 'succeeded') {
+  if (prior && prior.idempotencyKey === key && prior.status === 'succeeded' && hasSettlement(booking, prior.paymentIntentId)) {
     return {
       ok: true,
       duplicate: true,
@@ -385,6 +488,41 @@ async function chargeSavedCardAfterService({
       paymentIntentId: prior.paymentIntentId,
       amountCents: gate.amountCents,
     };
+  }
+  if (prior && prior.status === 'charging' && (prior.idempotencyKey !== key || prior.amountCents !== gate.amountCents)) {
+    return {
+      ok: false,
+      error: 'charge_amount_changed',
+      statusCode: 409,
+      charged: false,
+      stripeCalled: false,
+      amountCents: gate.amountCents,
+      message: 'The unpaid balance changed while a charge was already in progress.',
+    };
+  }
+
+  const recovering = !!(prior && prior.status === 'charging' && prior.idempotencyKey === key);
+  if (!recovering && typeof persistBooking === 'function') {
+    const claimed = cloneBooking(booking);
+    rememberCharge(claimed, {
+      idempotencyKey: key,
+      status: 'charging',
+      amountCents: gate.amountCents,
+      quoteVersion: quoteVersionOf(booking),
+      startedAt: new Date().toISOString(),
+    });
+    const saved = await persistBooking(claimed, booking);
+    if (!saved || saved.ok !== true) {
+      return {
+        ok: false,
+        error: (saved && saved.error) || 'version_conflict',
+        statusCode: 409,
+        charged: false,
+        stripeCalled: false,
+        persisted: false,
+      };
+    }
+    booking = saved.booking || claimed;
   }
 
   const guard = guardStripeOrReject(env, { purpose: 'after_service_charge' });
@@ -420,7 +558,7 @@ async function chargeSavedCardAfterService({
     if (String(next.paymentStatus || '').toLowerCase() !== 'paid') {
       next.paymentWorkflowStatus = 'payment_action_required';
     }
-    return {
+    return commitChargeResult(next, booking, persistBooking, {
       ok: true,
       charged: false,
       stripeCalled: true,
@@ -428,9 +566,8 @@ async function chargeSavedCardAfterService({
       stripeStatus: 'declined',
       recoveryUrl,
       amountCents: gate.amountCents,
-      booking: next,
       error: stripe.body?.error?.code || stripe.body?.error?.message || 'stripe_charge_failed',
-    };
+    });
   }
 
   const outcome = outcomeFor(paymentIntent, stripe.httpStatus);
@@ -451,7 +588,7 @@ async function chargeSavedCardAfterService({
     applied.recoveryUrl = recoveryUrlFor(booking, env);
     if (next.afterServiceCharge) next.afterServiceCharge.recoveryUrl = applied.recoveryUrl;
   }
-  return {
+  return commitChargeResult(next, booking, persistBooking, {
     ok: applied.ok !== false,
     charged: applied.settled === true && applied.paid === true,
     duplicate: !!applied.duplicate,
@@ -461,17 +598,37 @@ async function chargeSavedCardAfterService({
     paymentIntentId: paymentIntent.id,
     amountCents: gate.amountCents,
     recoveryUrl: outcome === 'succeeded' ? null : (applied.recoveryUrl || recoveryUrlFor(booking, env)),
-    booking: next,
     error: applied.ok === false ? applied.error : null,
-  };
+  });
+}
+
+async function commitChargeResult(next, claimed, persistBooking, result) {
+  if (typeof persistBooking !== 'function') {
+    return { ...result, booking: next, persisted: false };
+  }
+  const saved = await persistBooking(next, claimed);
+  if (!saved || saved.ok !== true) {
+    return {
+      ...result,
+      ok: false,
+      charged: false,
+      persisted: false,
+      booking: claimed,
+      statusCode: 409,
+      error: (saved && saved.error) || 'charge_result_not_persisted',
+    };
+  }
+  return { ...result, booking: saved.booking || next, persisted: true };
 }
 
 module.exports = {
   PURPOSE,
+  AFTER_SERVICE_CHARGE_CONSENT_VERSION,
   preferenceOf,
   idempotencyKeyFor,
   recoveryUrlFor,
   chargeEligibility,
+  customerRecoveryBlocked,
   chargeSavedCardAfterService,
   applyAfterServiceStripeEvent,
 };

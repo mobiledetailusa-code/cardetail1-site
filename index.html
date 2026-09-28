@@ -7240,6 +7240,7 @@ async function initCardOnFile(){
       const draftPayload=buildBookingPayload({cardFlow:true});
       draftPayload.isDraft=true;
       draftPayload.acceptedCardOnFilePolicy=true;
+      if(ST.payMethod==='online_after_service') draftPayload.acceptedAfterServiceChargeConsent=true;
       const draftRes=await fetch(BACKEND_BASE+'/submit-booking',{method:'POST',headers:bookingRequestHeaders(),body:JSON.stringify(draftPayload)});
       const draftCt=(draftRes.headers.get('content-type')||'').toLowerCase();
       if(!draftCt.includes('json')) throw new Error(isLocalPreview?LOCAL_DEV_FUNCTIONS_HINT:'Booking backend returned an invalid response. Try again.');
@@ -7628,6 +7629,7 @@ function buildBookingPayload(options={}){
     acceptedCardOnFilePolicy: cofAccepted,
     acceptedCardOnFilePolicyAt: cofAccepted ? new Date().toISOString() : null,
     policyVersion: cardFlow ? '2026-06-card-on-file' : '2026-08-booking-request',
+    acceptedAfterServiceChargeConsent: !!(cardFlow && cofAccepted && ST.payMethod === 'online_after_service'),
     source:'Cardetail1 static booking flow',
     zipCode:document.getElementById('bk-zip')?.value.trim()||'',
     zone:activeZone?activeZone.label:'',

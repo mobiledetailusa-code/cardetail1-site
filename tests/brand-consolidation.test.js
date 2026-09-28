@@ -83,7 +83,7 @@ const FROZEN_SHA256 = {
   'netlify/lib/sms-program.js': '70f2b9307e09b673998423792ee5e9a56859b7fd1aed8f8084197343754d0950',
   'netlify/lib/sms-templates.js': 'ab527c1618187c89d16c52b72e8fc8ca82564ef381b70950fda3d5e9155acdc6',
   // Updated when the online choice became “Card online — charged after service”.
-  'assets/booking-review-runtime.js': '56df74e70604b2c967933ee2ae4544366ffd36fffbec358ec75d7aa878fa018d',
+  'assets/booking-review-runtime.js': '87d2af67469d729e3a58f42b5d5cd30d356a4bd93e17cb9c03045e8c48b9050d',
   'netlify/lib/first-party-reviews.js': 'c9d36c5212eb193b7fb26beedb3ba470f301ab96211f57e42fc19416ff5458f6',
   'netlify/functions/public-reviews.js': '2f79b256236a00f5ba7b1ff6752aebd9566a543a3a0189b26c0d75905b7847c5',
   'netlify/functions/admin-reviews.js': '8fedcd09f08c145aabfab7b98f7298759be1d14ea95d738b3cd466f726da5f60',

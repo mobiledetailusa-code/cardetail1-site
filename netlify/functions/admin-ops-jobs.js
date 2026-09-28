@@ -1890,6 +1890,7 @@ async function handleAdminAction(body, testOpts = {}) {
     const {
       chargeEligibility,
       chargeSavedCardAfterService,
+      recoveryUrlFor,
     } = require('../lib/charge-saved-card-after-service');
     let money = null;
     try {
@@ -1904,15 +1905,44 @@ async function handleAdminAction(body, testOpts = {}) {
       }
     } catch (_) { /* fall through to blob */ }
     if (!money) money = financialProjection(booking);
+    let consentBlock = null;
     if (charging) {
       const gate = chargeEligibility(booking, money);
-      if (!gate.ok && gate.error !== 'nothing_to_charge') {
+      if (gate.error === 'after_service_consent_required') {
+        consentBlock = gate;
+      } else if (!gate.ok && gate.error !== 'nothing_to_charge') {
         return jsonCors(gate.statusCode || 409, {
           ok: false,
           error: gate.error,
           message: gate.message || null,
           reason: gate.reason || null,
         });
+      } else if (gate.ok) {
+        const expected = body.expectedChargeCents;
+        const expectedCents = Math.round(Number(expected));
+        if (expected == null || expected === '' || !Number.isFinite(expectedCents) || expectedCents !== gate.amountCents) {
+          return jsonCors(409, {
+            ok: false,
+            error: (expected == null || expected === '' || !Number.isFinite(expectedCents))
+              ? 'charge_amount_unconfirmed'
+              : 'charge_amount_changed',
+            amountCents: gate.amountCents,
+            expectedChargeCents: Number.isFinite(expectedCents) ? expectedCents : null,
+            message: 'The unpaid balance changed. Confirm the new amount before charging.',
+          });
+        }
+        const attempts = Array.isArray(booking.paymentAttempts) ? booking.paymentAttempts : [];
+        const openRecovery = attempts.some((row) => row
+          && (row.status === 'open' || row.status === 'creating')
+          && String(row.type || row.purpose || '') === 'customer_balance');
+        if (openRecovery) {
+          return jsonCors(409, {
+            ok: false,
+            error: 'balance_charge_already_open',
+            message: 'A payment link for this balance is already open.',
+            recoveryUrl: recoveryUrlFor(booking, testOpts.env || process.env),
+          });
+        }
       }
     }
     const alreadyPaid = String(money.paymentStatus || '').toLowerCase() === 'paid'
@@ -1980,14 +2010,48 @@ async function handleAdminAction(body, testOpts = {}) {
     }
 
     let charge = null;
-    if (charging && !alreadyPaid) {
+    if (consentBlock) {
+      charge = {
+        attempted: false,
+        charged: false,
+        duplicate: false,
+        stripeStatus: null,
+        paymentIntentId: null,
+        amountCents: null,
+        recoveryUrl: consentBlock.recoveryUrl || recoveryUrlFor(patched, testOpts.env || process.env),
+        paymentPending: true,
+        error: 'after_service_consent_required',
+      };
+    } else if (charging && !alreadyPaid) {
       const attempt = await chargeSavedCardAfterService({
         booking: patched,
-        projection: money,
+        projection: financialProjection(patched),
         env: testOpts.env || process.env,
         fetchImpl: testOpts.fetch || fetch,
         confirmCharge: true,
+        expectedChargeCents: body.expectedChargeCents,
+        persistBooking: async (next, previous) => {
+          const withLog = next.afterServiceCharge && next.afterServiceCharge.status !== 'charging'
+            ? {
+              ...next,
+              eventLog: appendEventLog(previous, {
+                action: 'saved_card_after_service',
+                by: 'admin',
+                status: next.afterServiceCharge.status || '',
+                amountCents: next.afterServiceCharge.amountCents || 0,
+              }),
+            }
+            : next;
+          const saved = await persistMutation(
+            store, bookingId, withLog, previous, 'after_service_card_charge', 'saved_card'
+          );
+          if (!saved.ok) return { ok: false, error: saved.error || 'version_conflict' };
+          return { ok: true, booking: saved.booking };
+        },
       });
+      if (attempt.error === 'version_conflict') {
+        return jsonCors(409, { ok: false, error: 'version_conflict' });
+      }
       charge = {
         attempted: true,
         charged: attempt.charged === true,
@@ -1999,21 +2063,7 @@ async function handleAdminAction(body, testOpts = {}) {
         paymentPending: attempt.paymentPending === true,
         error: attempt.error || null,
       };
-      if (attempt.booking) {
-        const chargedBooking = {
-          ...attempt.booking,
-          eventLog: appendEventLog(patched, {
-            action: 'saved_card_after_service',
-            by: 'admin',
-            status: attempt.stripeStatus || attempt.error || '',
-            amountCents: attempt.amountCents || 0,
-          }),
-        };
-        const saved = await persistMutation(
-          store, bookingId, chargedBooking, patched, 'after_service_card_charge', 'saved_card'
-        );
-        if (saved.ok) patched = saved.booking;
-      }
+      if (attempt.persisted && attempt.booking) patched = attempt.booking;
     }
     return jsonCors(200, {
       ok: true,

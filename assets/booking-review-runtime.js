@@ -681,10 +681,12 @@
       payload.acceptedCardOnFilePolicyAt = accepted ? new Date().toISOString() : null;
       payload.cofPolicyAccepted = accepted;
       payload.policyVersion = '2026-06-card-on-file';
+      payload.acceptedAfterServiceChargeConsent = accepted && pref === 'online_after_service';
     } else {
       payload.acceptedCardOnFilePolicy = false;
       payload.acceptedCardOnFilePolicyAt = null;
       payload.cofPolicyAccepted = false;
+      payload.acceptedAfterServiceChargeConsent = false;
       payload.policyVersion = payload.policyVersion || '2026-08-booking-request';
     }
     return payload;
