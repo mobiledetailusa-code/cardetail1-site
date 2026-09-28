@@ -166,7 +166,7 @@ function quickOpsPage(view, csrfToken) {
 </section>
 ${a.assign ? `<section class="card">
   <h2>Assign technician</h2>
-  <p class="sub">Send this job to someone already on the roster, or type a mobile number. A number that is not on the roster gets a basic link: address, customer name, and map. The job total stays hidden. They send the customer a payment link, and any amount they add is included in that link. The job closes when the customer pays.</p>
+  <p class="sub">Send this job to someone already on the roster, or type a mobile number. Assigning sends a text right away: a saved technician gets the portal link on the phone in their account, and a new number gets a one-time job link. The job total stays hidden. They send the customer a payment link, and any amount they add is included in that link. The job closes when the customer pays.</p>
   <label for="qo-tech">Registered technician</label>
   <select id="qo-tech"><option value="">Load the roster, or leave blank</option></select>
   <div class="actions"><button type="button" class="secondary" data-action="list_techs">Load roster</button></div>
