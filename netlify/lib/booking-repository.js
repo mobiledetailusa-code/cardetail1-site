@@ -76,6 +76,7 @@ async function commitBooking({
   nextAggregate,
   createIfMissing = false,
   storeOverride = null,
+  syncSlots = true,
 }) {
   const store = storeOverride || await getStore();
   const id = String(bookingId || nextAggregate?.id || '').trim();
@@ -104,10 +105,12 @@ async function commitBooking({
       const { scheduleBookingMirror } = require('./booking-prisma-mirror');
       scheduleBookingMirror(toWrite);
     } catch { /* never block Blob authority */ }
-    try {
-      const { syncSlotIndex } = require('./slot-index');
-      await syncSlotIndex(toWrite);
-    } catch { /* never block Blob authority */ }
+    if (syncSlots) {
+      try {
+        const { syncSlotIndex } = require('./slot-index');
+        await syncSlotIndex(toWrite);
+      } catch { /* never block Blob authority */ }
+    }
     return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
   }
 
@@ -167,12 +170,15 @@ async function commitBooking({
   } catch { /* never block Blob authority */ }
 
   // Slot index (fail-open, awaited): this is the choke point every Admin/portal
-  // reschedule and cancellation goes through, so keeping it here is what stops
-  // the index from drifting. syncSlotIndex never throws.
-  try {
-    const { syncSlotIndex } = require('./slot-index');
-    await syncSlotIndex(toWrite, { previous: current.booking });
-  } catch { /* never block Blob authority */ }
+  // cancellation and non-span edit goes through. Reschedule passes syncSlots
+  // false and moves occupancy itself, so a failed date change cannot release
+  // the old span before the new one is stored.
+  if (syncSlots) {
+    try {
+      const { syncSlotIndex } = require('./slot-index');
+      await syncSlotIndex(toWrite, { previous: current.booking });
+    } catch { /* never block Blob authority */ }
+  }
 
   return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
 }

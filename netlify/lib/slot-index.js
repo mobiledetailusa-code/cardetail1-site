@@ -535,6 +535,188 @@ async function reserveBookedSpan(booking, nowMs = Date.now()) {
   });
 }
 
+function slotIdentity(slot) {
+  const parts = isoDateParts(slot && slot.slotDate);
+  const time = normalizePreferredTime(slot && slot.slotTime);
+  if (!parts || !time) return '';
+  return `${parts.iso}|${time}`;
+}
+
+/**
+ * Move booked occupancy onto the next span before the booking record changes.
+ * Old keys stay until releaseBookedSlots. Overlap is not rewritten. A failed
+ * write deletes only the keys this attempt added. An unconfigured index is
+ * not success: reschedule must fail closed when the index cannot answer.
+ */
+async function relocateBookedSpan({ previous, next, nowMs = Date.now() } = {}) {
+  if (!slotIndexReadsEnabled()) {
+    return { ok: false, error: 'booking_verification_unavailable' };
+  }
+  const bookingId = String(
+    (next && (next.id || next.bookingId))
+    || (previous && (previous.id || previous.bookingId))
+    || ''
+  ).trim();
+  if (!bookingId) return { ok: false, error: 'missing_booking_id' };
+
+  const previousWrites = spanWritesFor(previous || {}).writes;
+  const planned = spanWritesFor(next || {});
+  if (!planned.next.active || !planned.writes.length) {
+    return { ok: false, error: 'missing_span' };
+  }
+  const nextWrites = planned.writes;
+
+  return withSpanGate([...previousWrites, ...nextWrites], async () => {
+    let claim = { ok: true, owned: [] };
+    const added = [];
+    try {
+      const store = await slotIndexStore();
+      const missing = [];
+      for (const slot of nextWrites) {
+        const holds = await readSlotHolds(slot.slotDate, slot.slotTime, { nowMs });
+        const mine = holds.some((hold) => (
+          String(hold.bookingId) === bookingId && hold.state === STATE_BOOKED
+        ));
+        if (!mine) missing.push(slot);
+      }
+
+      for (const slot of nextWrites) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+          return { ok: false, error: 'booking_slot_unavailable', added: [] };
+        }
+      }
+
+      claim = await claimSpan(store, nextWrites, bookingId);
+      if (!claim.ok) return { ok: false, error: 'booking_slot_unavailable', added: [] };
+
+      try {
+        for (const slot of missing) {
+          const key = slotIndexKey({
+            ...planned.next,
+            slotDate: slot.slotDate,
+            slotTime: slot.slotTime,
+            bookingId,
+          });
+          await store.setJSON(key, 1);
+          added.push(key);
+        }
+      } catch (writeErr) {
+        try { await deleteKeys(store, added); } catch { /* old keys and other bookings stay */ }
+        const message = writeErr && writeErr.message ? writeErr.message : String(writeErr);
+        console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message, rolledBack: true });
+        return { ok: false, error: 'partial_reservation_rejected', message, added: [] };
+      }
+
+      for (const slot of nextWrites) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+          try { await deleteKeys(store, added); } catch { /* keep overlap and other bookings */ }
+          return { ok: false, error: 'booking_slot_unavailable', added: [] };
+        }
+      }
+
+      const nextIds = new Set(nextWrites.map(slotIdentity));
+      const seen = new Set();
+      const obsolete = [];
+      for (const slot of previousWrites) {
+        const id = slotIdentity(slot);
+        if (!id || nextIds.has(id) || seen.has(id)) continue;
+        seen.add(id);
+        const [slotDate, slotTime] = id.split('|');
+        obsolete.push({ slotDate, slotTime });
+      }
+      return { ok: true, added, obsolete, writes: nextWrites };
+    } catch (err) {
+      try {
+        const store = await slotIndexStore();
+        if (added.length) await deleteKeys(store, added);
+      } catch { /* fail closed: do not drop the previous occupancy */ }
+      const message = err && err.message ? err.message : String(err);
+      console.warn('[slot-index] sync_failed', { bookingRef: bookingRef(bookingId), message });
+      return { ok: false, error: 'booking_verification_unavailable', message, added: [] };
+    } finally {
+      if (claim.owned && claim.owned.length) {
+        try {
+          const store = await slotIndexStore();
+          await deleteKeys(store, claim.owned);
+        } catch { /* booked keys remain the occupancy lock */ }
+      }
+    }
+  });
+}
+
+/**
+ * Delete only this booking's keys on the listed slots. Missing keys are
+ * already released. Another customer's key on the same slot stays.
+ */
+async function releaseBookedSlots(bookingId, slots) {
+  const id = String(bookingId || '').trim();
+  if (!id) return { ok: false, error: 'missing_booking_id' };
+  if (!slotIndexReadsEnabled()) return { ok: false, error: 'booking_verification_unavailable' };
+
+  const wanted = new Map();
+  for (const slot of slots || []) {
+    const ident = slotIdentity(slot);
+    if (!ident) continue;
+    const [date, time] = ident.split('|');
+    if (!wanted.has(date)) wanted.set(date, new Set());
+    wanted.get(date).add(time);
+  }
+  if (!wanted.size) return { ok: true, released: 0 };
+
+  try {
+    const store = await slotIndexStore();
+    for (const [date, times] of wanted) {
+      const entries = await listSlotEntries(store, `${date}/`);
+      for (const entry of entries) {
+        if (String(entry.bookingId) !== id) continue;
+        if (!times.has(entry.slotTime)) continue;
+        await store.delete(entry.key);
+      }
+    }
+    for (const [date, times] of wanted) {
+      const entries = await listSlotEntries(store, `${date}/`);
+      for (const entry of entries) {
+        if (String(entry.bookingId) !== id) continue;
+        if (times.has(entry.slotTime)) return { ok: false, error: 'occupancy_incomplete' };
+      }
+    }
+    return { ok: true, released: slots.length };
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    return { ok: false, error: 'booking_verification_unavailable', message };
+  }
+}
+
+/** Drop keys from a failed attempt unless the stored booking still occupies them. */
+async function dropSpanKeysUnlessNeeded(addedKeys, booking) {
+  const keys = (Array.isArray(addedKeys) ? addedKeys : []).filter(Boolean);
+  if (!keys.length) return { ok: true, dropped: [] };
+  const bookingId = String(booking && (booking.id || booking.bookingId) || '').trim();
+  const needed = new Set();
+  if (bookingId) {
+    const planned = spanWritesFor(booking);
+    if (planned.next.active) {
+      for (const slot of planned.writes) {
+        needed.add(slotIndexKey({
+          ...planned.next,
+          slotDate: slot.slotDate,
+          slotTime: slot.slotTime,
+          bookingId,
+        }));
+      }
+    }
+  }
+  const drop = keys.filter((key) => !needed.has(key));
+  try {
+    const store = await slotIndexStore();
+    await deleteKeys(store, drop);
+    return { ok: true, dropped: drop };
+  } catch (err) {
+    const message = err && err.message ? err.message : String(err);
+    return { ok: false, error: 'occupancy_incomplete', message };
+  }
+}
+
 /** Fire-and-forget sync for paths that must not be blocked by the index. */
 function scheduleSlotIndexSync(booking, opts) {
   Promise.resolve().then(() => syncSlotIndex(booking, opts)).catch(() => {});
@@ -557,5 +739,8 @@ module.exports = {
   syncSlotIndex,
   reserveBookedSpan,
   bookedSpanReady,
+  relocateBookedSpan,
+  releaseBookedSlots,
+  dropSpanKeysUnlessNeeded,
   scheduleSlotIndexSync,
 };
