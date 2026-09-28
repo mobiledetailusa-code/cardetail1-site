@@ -12,6 +12,7 @@ const {
   bookingStatus,
   paidInFull,
   jobCompleted,
+  dollarsFromCents,
 } = require('./admin-quick-ops-view');
 const { createPaymentResumeToken } = require('./payment-resume-token');
 const { enqueueSms, kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
@@ -324,6 +325,23 @@ function paymentLinkMessage(result = {}) {
   return reason ? `Payment link was not sent. ${reason}` : 'Payment link was not sent.';
 }
 
+function extraProposalMessage(result = {}, amountLabel) {
+  const saved = `Extra of ${amountLabel} saved for customer approval. Your pay is unchanged.`;
+  if (result.reason === 'booking_sms_consent_required') {
+    return `${saved} Customer SMS consent required.`;
+  }
+  if (result.delivery === 'suppressed' || result.reason === 'sms_suppressed') {
+    return `${saved} The approval text was not sent. This number opted out.`;
+  }
+  if (result.delivery === 'delivered') return `${saved} Approval text delivered.`;
+  if (result.delivery === 'accepted') return `${saved} Approval text accepted by the provider.`;
+  if (result.delivery === 'pending') return `${saved} Approval text send is pending.`;
+  const reason = safeDeliveryReason(result.reason || result.error);
+  return reason
+    ? `${saved} The approval text was not sent. ${reason}`
+    : `${saved} The approval text was not sent.`;
+}
+
 function arrivalMessage(result = {}, repeat) {
   if (repeat && (result.delivery === 'delivered' || result.delivery === 'accepted')) {
     return 'Arrival already recorded.';
@@ -486,6 +504,75 @@ async function textCustomer(booking, { kind, prisma, env, provider } = {}) {
   };
 }
 
+async function offerExtraToCustomer(booking, adjustment) {
+  if (!booking || !adjustment || !adjustment.adjustmentId) {
+    return { ok: false, delivery: 'failed', reason: 'missing_adjustment' };
+  }
+  const bookingId = booking.id || booking.bookingId;
+  const adjustmentId = String(adjustment.adjustmentId);
+  let current = booking;
+  let token = String(adjustment.proposalToken || '');
+  if (!token) {
+    const { createCompletionLink } = require('./customer-completion-link');
+    let minted;
+    try {
+      minted = await createCompletionLink(bookingId, 'extra_approval', { adjustmentId });
+    } catch {
+      return {
+        ok: false,
+        delivery: 'failed',
+        reason: 'proposal_unavailable',
+        booking: current,
+        bookingVersion: current.bookingVersion,
+        message: extraProposalMessage({ delivery: 'failed', reason: 'proposal_unavailable' }, dollarsFromCents(adjustment.amountCents)),
+      };
+    }
+    token = minted.token;
+    const { listAdjustments } = require('./price-adjustments');
+    const priceAdjustments = listAdjustments(current).map((row) => (
+      String(row.adjustmentId) === adjustmentId ? { ...row, proposalToken: token } : row
+    ));
+    const next = buildNextAggregate(current, {
+      priceAdjustments,
+      updatedAt: new Date().toISOString(),
+    });
+    const committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: current.bookingVersion,
+      nextAggregate: next,
+    });
+    if (!committed.ok) {
+      return {
+        ok: false,
+        delivery: 'failed',
+        reason: committed.error || 'version_conflict',
+        booking: current,
+        bookingVersion: current.bookingVersion,
+      };
+    }
+    current = committed.booking;
+  }
+  const amountLabel = dollarsFromCents(adjustment.amountCents);
+  const base = String(process.env.PUBLIC_SITE_URL || process.env.URL || 'https://cardetail1.com').replace(/\/$/, '');
+  const url = `${base}/.netlify/functions/customer-portal-action?token=${encodeURIComponent(token)}`;
+  const sent = await dispatchCustomerTemplate({
+    booking: current,
+    idempotencyKey: `qo.extra:${bookingId}:${adjustmentId}`,
+    templateKey: TEMPLATE_KEYS.EXTRA_APPROVAL,
+    templateData: { url, amount: amountLabel },
+    ...smsOpts({}),
+  });
+  return {
+    ok: true,
+    booking: current,
+    bookingVersion: current.bookingVersion,
+    delivery: sent.delivery,
+    reason: sent.reason || null,
+    idempotent: !!sent.idempotent,
+    message: extraProposalMessage(sent, amountLabel),
+  };
+}
+
 async function commitArrival(booking, patch) {
   const next = buildNextAggregate(booking, patch);
   return commitBooking({
@@ -570,6 +657,7 @@ module.exports = {
   mintPaymentLink,
   textCustomer,
   paymentLinkMessage,
+  offerExtraToCustomer,
   recordTechnicianArrival,
   recordOnSitePayment,
   completeServiceLineQuickOps,

@@ -35,7 +35,7 @@ function projectTechQuickOpsBooking(booking, shared = null) {
   const due = !!(full.actions && full.actions.payment);
   const cancelled = bookingStatus(booking) === 'cancelled';
   const completed = jobCompleted(booking);
-  const contactRestricted = paidInFull(booking, money);
+  const contactRestricted = completed && paidInFull(booking, money);
   const payoutRaw = booking && booking.techPayoutAmount;
   const payoutCents = payoutRaw != null && payoutRaw !== '' && Number.isFinite(Number(payoutRaw))
     ? Math.max(0, Math.round(Number(payoutRaw) * 100))

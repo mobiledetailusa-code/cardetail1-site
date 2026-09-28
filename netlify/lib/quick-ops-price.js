@@ -4,7 +4,13 @@ const { commitBooking } = require('./booking-repository');
 const { buildNextAggregate } = require('./booking-aggregate');
 const { appendEventLog } = require('./ops-workflow');
 const { financialProjection, supersedeOpenAttempts } = require('./payment-service');
-const { createAdjustment, applyAdjustment, listAdjustments } = require('./price-adjustments');
+const {
+  createAdjustment,
+  applyAdjustment,
+  listAdjustments,
+  findAdjustment,
+  decideAdjustment,
+} = require('./price-adjustments');
 const { bookingStatus, dollarsFromCents } = require('./admin-quick-ops-view');
 
 const MIN_NOTE = 8;
@@ -372,6 +378,80 @@ async function applyCustomerApprovedExtra(booking, opts = {}) {
 }
 
 /**
+ * Customer decision on one pending extra.
+ * Approve applies the amount onto the approved total once and leaves the
+ * technician pay the office entered. Decline does not change the total.
+ * A repeated approve is a no-op.
+ */
+async function respondToCustomerExtra(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  const decision = String(opts.decision || '').trim().toLowerCase();
+  if (decision !== 'approve' && decision !== 'decline') {
+    return { ok: false, error: 'invalid_decision', statusCode: 400 };
+  }
+  const adjustmentId = opts.adjustmentId;
+  const actorId = String(opts.actorId || 'customer').slice(0, 80);
+  const decided = decideAdjustment(booking, {
+    adjustmentId,
+    decision,
+    actorId,
+    reason: opts.reason || '',
+    expectedBookingVersion: booking.bookingVersion,
+  });
+  if (!decided.ok) {
+    const existing = findAdjustment(booking, adjustmentId);
+    if (decision === 'decline' && existing && existing.status === 'declined') {
+      const projection = financialProjection(booking);
+      return {
+        ok: true,
+        idempotent: true,
+        declined: true,
+        booking,
+        bookingVersion: booking.bookingVersion,
+        approvedCents: Math.max(0, Math.round(Number(projection.approvedCents) || 0)),
+        remainingCents: Math.max(0, Math.round(Number(projection.remainingCents) || 0)),
+      };
+    }
+    if (decision === 'approve') {
+      return applyCustomerApprovedExtra(booking, { adjustmentId, actorId });
+    }
+    return decided;
+  }
+  const staged = {
+    ...booking,
+    priceAdjustments: decided.patch.priceAdjustments,
+  };
+  if (decision === 'decline') {
+    const next = buildNextAggregate(booking, {
+      priceAdjustments: decided.patch.priceAdjustments,
+      updatedAt: new Date().toISOString(),
+      eventLog: appendEventLog(booking, {
+        action: 'quick_ops_extra_declined',
+        by: actorId,
+        adjustmentId: String(adjustmentId || ''),
+      }),
+    });
+    const committed = await commitBooking({
+      bookingId: booking.id || booking.bookingId,
+      expectedBookingVersion: booking.bookingVersion,
+      nextAggregate: next,
+    });
+    if (!committed.ok) return committed;
+    const projection = financialProjection(committed.booking);
+    return {
+      ok: true,
+      declined: true,
+      booking: committed.booking,
+      bookingVersion: committed.bookingVersion,
+      approvedCents: Math.max(0, Math.round(Number(projection.approvedCents) || 0)),
+      remainingCents: Math.max(0, Math.round(Number(projection.remainingCents) || 0)),
+      payoutUnchanged: true,
+    };
+  }
+  return applyCustomerApprovedExtra(staged, { adjustmentId, actorId });
+}
+
+/**
  * Apply an immediate price increase or decrease with a required note.
  * Decreases cannot go below money already collected. The technician payout
  * moves by the same share as the approved total.
@@ -542,5 +622,6 @@ module.exports = {
   setTechnicianPay,
   recordTechExtra,
   applyCustomerApprovedExtra,
+  respondToCustomerExtra,
   adjustQuickOpsPrice,
 };

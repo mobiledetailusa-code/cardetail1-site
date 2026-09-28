@@ -16,6 +16,7 @@ const {
   textCustomer,
   paymentLinkMessage,
   recordTechnicianArrival,
+  offerExtraToCustomer,
 } = require('../lib/admin-quick-ops-actions');
 const { projectTechQuickOpsBooking } = require('../lib/tech-quick-ops-view');
 const { neutralExpiredPage, techQuickOpsPage } = require('../lib/quick-ops-html');
@@ -174,7 +175,7 @@ async function handlePost(event) {
     return json(200, {
       ok: true,
       payUrl: result.payUrl,
-      message: 'Payment link ready. The job closes when the customer pays.',
+      message: 'Payment link ready. Paying does not complete the job.',
     });
   }
   if (action === 'text_pay') {
@@ -226,13 +227,15 @@ async function handlePost(event) {
         message: result.message || 'Could not add the extra',
       });
     }
+    const offer = await offerExtraToCustomer(result.booking, result.adjustment);
     return json(200, {
       ok: true,
       pending: true,
       idempotent: !!result.idempotent,
-      bookingVersion: result.bookingVersion,
+      bookingVersion: offer.bookingVersion || result.bookingVersion,
+      delivery: offer.delivery || 'failed',
       yourPayLabel: view.yourPay && view.yourPay.set ? view.yourPay.label : null,
-      message: result.message,
+      message: offer.message || result.message,
     });
   }
   return json(400, { ok: false, error: 'unknown_action' });

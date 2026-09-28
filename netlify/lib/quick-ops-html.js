@@ -326,7 +326,7 @@ function techQuickOpsPage(view, csrfToken) {
   ].filter(Boolean).join('');
   const vehicle = [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label;
   const contact = view.contactRestricted
-    ? '<p class="sub">Customer contact is hidden after payment.</p>'
+    ? '<p class="sub">Customer contact is hidden after the job is complete and paid.</p>'
     : `${view.service.address ? field('Address', view.service.address) : ''}${view.service.note ? `<p class="note" data-contact="note">${escapeHtml(view.service.note)}</p>` : ''}`;
   return chrome({
     title: 'Technician job',
@@ -371,21 +371,22 @@ ${a.increase ? `<section class="card">
   var msg = document.getElementById('tq-msg');
   function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
+  function clearContact(message) {
+    var box = document.getElementById('tq-contact');
+    if (box) {
+      box.textContent = '';
+      var hidden = document.createElement('p');
+      hidden.className = 'sub';
+      hidden.textContent = message || 'Customer contact is hidden after the job is complete and paid.';
+      box.appendChild(hidden);
+    }
+    document.querySelectorAll('[data-contact]').forEach(function(el){ el.remove(); });
+  }
   function applyView(view){
     if (!view) return;
     var payEl = document.getElementById('tq-pay');
     if (payEl) payEl.textContent = (view.yourPay && view.yourPay.set) ? view.yourPay.label : 'Not set yet';
-    var box = document.getElementById('tq-contact');
-    if (box && view.contactRestricted) {
-      box.textContent = '';
-      var hidden = document.createElement('p');
-      hidden.className = 'sub';
-      hidden.textContent = 'Customer contact is hidden after payment.';
-      box.appendChild(hidden);
-    }
-    if (view.contactRestricted) {
-      document.querySelectorAll('[data-contact]').forEach(function(el){ el.remove(); });
-    }
+    if (view.contactRestricted) clearContact();
     var arrive = document.getElementById('tq-arrive');
     if (arrive && view.actions && view.actions.arrive === false) arrive.hidden = true;
   }
@@ -397,6 +398,10 @@ ${a.increase ? `<section class="card">
         cache: 'no-store',
         headers: { accept: 'application/json' }
       });
+      if (res.status === 401 || res.status === 403) {
+        clearContact('This assignment is no longer available.');
+        return;
+      }
       var data = await res.json().catch(function(){ return {}; });
       if (data && data.view) applyView(data.view);
     } catch (e) {}
@@ -503,6 +508,82 @@ function paymentPage({ amountLabel, clientConfigUrl, csrf }) {
   });
 }
 
+function extraProposalPage({ amountLabel, reason, status, token } = {}) {
+  if (!status || status === 'missing') {
+    return chrome({
+      title: 'Proposal unavailable',
+      statusCode: 404,
+      body: '<section class="card"><h1>This proposal link is not valid.</h1></section>',
+    });
+  }
+  const pending = status === 'pending_customer';
+  const decided = status === 'applied'
+    ? 'This extra is already approved and was added to your total once.'
+    : status === 'declined'
+      ? 'This extra was declined. Your total did not change.'
+      : status === 'approved'
+        ? 'This extra is approved.'
+        : '';
+  const actions = pending
+    ? `<div class="actions">
+    <button type="button" id="extra-approve" data-decision="approve">Approve extra</button>
+    <button type="button" class="secondary" id="extra-decline" data-decision="decline">Decline extra</button>
+  </div>`
+    : '';
+  return chrome({
+    title: 'Review extra',
+    body: `
+<section class="card">
+  <h1>Review this extra</h1>
+  <p class="sub">Approving adds this amount to your total once. Declining leaves the total unchanged.</p>
+  <div class="row"><span class="k">Extra</span><span class="v" id="extra-amount">${escapeHtml(amountLabel || '')}</span></div>
+  <p class="note" id="extra-reason">${escapeHtml(reason || '')}</p>
+  ${decided ? `<p class="sub" id="extra-state">${escapeHtml(decided)}</p>` : ''}
+  ${actions}
+  <p class="msg" id="extra-msg"></p>
+</section>
+<script>
+(function(){
+  var token = ${JSON.stringify(token || '')};
+  var msg = document.getElementById('extra-msg');
+  function setMsg(text, ok){ if (!msg) return; msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
+  document.addEventListener('click', async function(ev){
+    var btn = ev.target.closest('[data-decision]');
+    if (!btn) return;
+    var decision = btn.getAttribute('data-decision');
+    btn.disabled = true;
+    try {
+      var res = await fetch('/.netlify/functions/customer-portal-action', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: decision === 'approve' ? 'approve_extra' : 'decline_extra',
+          token: token
+        })
+      });
+      var data = await res.json().catch(function(){ return {}; });
+      if (!res.ok || data.ok === false) {
+        setMsg(data.message || 'Could not save your decision');
+        btn.disabled = false;
+        return;
+      }
+      document.querySelectorAll('[data-decision]').forEach(function(el){ el.hidden = true; });
+      if (decision === 'approve') {
+        setMsg(data.idempotent ? 'Already approved. The total was updated once.' : 'Approved. This extra was added to your total once.', true);
+      } else {
+        setMsg('Declined. Your total did not change.', true);
+      }
+    } catch (e) {
+      setMsg('Network error');
+      btn.disabled = false;
+    }
+  });
+})();
+</script>`,
+  });
+}
+
 module.exports = {
   escapeHtml,
   chrome,
@@ -510,4 +591,5 @@ module.exports = {
   quickOpsPage,
   techQuickOpsPage,
   paymentPage,
+  extraProposalPage,
 };

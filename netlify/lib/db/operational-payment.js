@@ -13,8 +13,6 @@ const authority = require('./payment-authority-service');
 const { getBookingRecord, commitBooking } = require('../booking-repository');
 const { buildNextAggregate, normalizeAggregate } = require('../booking-aggregate');
 const { isDraftRecord, portalReleasePatch } = require('../booking-visibility');
-const { freelancePaidCloseFields } = require('../quick-ops-tech-close');
-
 function postgresPaymentEnabled(env = process.env) {
   if (env.CD1_POSTGRES_PAYMENT === '0' || env.CD1_POSTGRES_PAYMENT === 'false') return false;
   return prismaConfigured();
@@ -106,20 +104,14 @@ function buildPaymentCompatibilityPatch(base, projection) {
       ? projection.paidAt
       : new Date(projection.paidAt).toISOString();
   }
-  // Close the payment-waiting completion state once money is actually settled.
+  // A service already executed and waiting on the invoice can close.
+  // Payment before the visit only marks the invoice paid and leaves jobStatus.
   if (
     projection.paymentStatus === 'paid'
     && Math.max(0, Math.round(Number(projection.remainingCents) || 0)) === 0
     && String(base.jobStatus || '').toLowerCase() === 'completed_pending_payment'
   ) {
     patch.jobStatus = 'completed_paid';
-  }
-  if (
-    projection.paymentStatus === 'paid'
-    && Math.max(0, Math.round(Number(projection.remainingCents) || 0)) === 0
-  ) {
-    const freelanceClose = freelancePaidCloseFields(base, patch.capturedAt || new Date().toISOString());
-    if (freelanceClose) Object.assign(patch, freelanceClose);
   }
   return patch;
 }
@@ -388,14 +380,12 @@ async function applyOnSitePaymentCompatibility({
         cardOnSiteAmount: amountDollars,
         cardOnSiteReference: reference || base.cardOnSiteReference || null,
       };
-  const freelanceClose = freelancePaidCloseFields(base, now);
   const next = buildNextAggregate(base, {
     ...paymentPatch,
     ...(isDraftRecord(base) ? portalReleasePatch(now) : {}),
     ...(String(base.jobStatus || '').toLowerCase() === 'completed_pending_payment'
       ? { jobStatus: 'completed_paid' }
       : {}),
-    ...(freelanceClose || {}),
     updatedAt: now,
   });
 
@@ -422,14 +412,12 @@ async function applyOnSitePaymentCompatibility({
           cardOnSiteAmount: amountDollars,
           cardOnSiteReference: reference || again.booking.cardOnSiteReference || null,
         };
-    const freelanceCloseRetry = freelancePaidCloseFields(again.booking, now);
     const next2 = buildNextAggregate(again.booking, {
       ...retryPatch,
       ...(isDraftRecord(again.booking) ? portalReleasePatch(now) : {}),
       ...(String(again.booking.jobStatus || '').toLowerCase() === 'completed_pending_payment'
         ? { jobStatus: 'completed_paid' }
         : {}),
-      ...(freelanceCloseRetry || {}),
       updatedAt: now,
     });
     return commitBooking({

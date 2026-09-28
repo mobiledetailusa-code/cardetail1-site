@@ -2,6 +2,8 @@
 
 const { describe, it, before, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
@@ -48,6 +50,13 @@ const {
 const { suppressPhone, clearSuppression } = require('../netlify/lib/sms-suppression');
 const { adjustQuickOpsPrice, scaleTechPayout, setTechnicianPay } = require('../netlify/lib/quick-ops-price');
 const techHandler = require('../netlify/functions/tech-quick-ops');
+const customerAction = require('../netlify/functions/customer-portal-action');
+const { processSmsOutbox, applyStatusCallback } = require('../netlify/lib/sms-outbox');
+const {
+  createCompletionLink,
+  setCustomerActionTokenStoreFactory,
+  resetCustomerActionTokenStoreFactory,
+} = require('../netlify/lib/customer-completion-link');
 const adminHandler = require('../netlify/functions/admin-quick-ops');
 const {
   createQuickOpsSession,
@@ -134,6 +143,7 @@ function memorySmsOutbox() {
         for (const row of rows.values()) {
           if (where && where.id && row.id === where.id) return row;
           if (where && where.idempotencyKey && row.idempotencyKey === where.idempotencyKey) return row;
+          if (where && where.providerMessageSid && row.providerMessageSid === where.providerMessageSid) return row;
         }
         return null;
       },
@@ -157,12 +167,35 @@ function memorySmsOutbox() {
       },
       async updateMany({ where, data }) {
         const row = rows.get(where.id);
-        if (!row || row.status !== where.status || row.providerMessageSid) return { count: 0 };
-        row.attemptCount = (row.attemptCount || 0) + (data.attemptCount && data.attemptCount.increment || 1);
-        row.leaseToken = data.leaseToken;
-        row.leaseExpiresAt = data.leaseExpiresAt;
+        if (!row) return { count: 0 };
+        if (where.status && row.status !== where.status) return { count: 0 };
+        if (Object.prototype.hasOwnProperty.call(where, 'providerMessageSid')
+          && where.providerMessageSid == null
+          && row.providerMessageSid) {
+          return { count: 0 };
+        }
+        if (data.attemptCount && data.attemptCount.increment) {
+          row.attemptCount = (row.attemptCount || 0) + data.attemptCount.increment;
+        }
+        const rest = { ...data };
+        delete rest.attemptCount;
+        Object.assign(row, rest);
         return { count: 1 };
       },
+      async findMany({ where } = {}) {
+        return [...rows.values()].filter((row) => {
+          if (where && where.status && row.status !== where.status) return false;
+          if (where && Object.prototype.hasOwnProperty.call(where, 'providerMessageSid')
+            && where.providerMessageSid == null
+            && row.providerMessageSid) return false;
+          if (where && where.availableAt && where.availableAt.lte && row.availableAt
+            && row.availableAt > where.availableAt.lte) return false;
+          return true;
+        });
+      },
+    },
+    async $transaction(fn) {
+      return fn(prisma);
     },
   };
   return { rows, prisma };
@@ -173,6 +206,7 @@ before(() => {
   process.env.CONTEXT = 'production';
   process.env.ADMIN_QUICK_OPS_SECRET = SECRET;
   process.env.PAYMENT_RESUME_SECRET = 'test-payment-resume-secret-32';
+  process.env.DRAFT_TOKEN_SECRET = 'test-draft-token-secret-32chars';
   process.env.CD1_POSTGRES_PAYMENT = 'false';
 });
 
@@ -192,6 +226,8 @@ beforeEach(() => {
   setQuickOpsTechRoster(async () => roster());
   setBookingStoreOverride(createCasMemoryStore({ 'CD1-TQ-01': booking() }));
   setSlotIndexStoreOverride(createCasMemoryStore());
+  const actionTokens = createCasMemoryStore();
+  setCustomerActionTokenStoreFactory(() => actionTokens);
 });
 
 afterEach(() => {
@@ -200,6 +236,7 @@ afterEach(() => {
   resetQuickOpsTechRoster();
   resetQuickOpsSmsRuntime();
   resetPaymentResumeStoreFactory();
+  resetCustomerActionTokenStoreFactory();
   setBookingStoreOverride(null);
   setSlotIndexStoreOverride(null);
 });
@@ -361,11 +398,12 @@ describe('tech quick ops access', () => {
     assert.equal(tooHigh.error, 'payout_exceeds_job');
   });
 
-  it('closes a freelance job when the customer payment lands', () => {
+  it('marks a prepaid visit paid without completing the service', () => {
     const patch = buildPaymentCompatibilityPatch(booking({
       assignmentKind: 'freelance',
       quickOpsTechClose: true,
       jobStatus: 'assigned',
+      status: 'Assigned',
     }), {
       quoteVersion: 1,
       approvedCents: 19000,
@@ -375,21 +413,23 @@ describe('tech quick ops access', () => {
       paymentStatus: 'paid',
       paidAt: '2026-09-19T18:00:00.000Z',
     });
-    assert.equal(patch.jobStatus, 'completed_paid');
-    assert.equal(patch.completionSource, 'tech_quick_ops_payment');
-    assert.equal(patch.serviceStatus, 'completed');
+    assert.equal(patch.paymentStatus, 'paid');
+    assert.equal(patch.jobStatus, undefined);
+    assert.equal(patch.completionSource, undefined);
+    assert.equal(patch.serviceStatus, undefined);
+    assert.equal(patch.status, undefined);
 
-    const registered = buildPaymentCompatibilityPatch(booking({
-      assignmentKind: 'registered',
-      quickOpsTechClose: false,
-      jobStatus: 'assigned',
+    const waiting = buildPaymentCompatibilityPatch(booking({
+      jobStatus: 'completed_pending_payment',
+      completedAt: '2026-09-19T17:00:00.000Z',
     }), {
       approvedCents: 19000,
       settledCents: 19000,
       remainingCents: 0,
       paymentStatus: 'paid',
     });
-    assert.equal(registered.jobStatus, undefined);
+    assert.equal(waiting.jobStatus, 'completed_paid');
+    assert.equal(waiting.completionSource, undefined);
   });
 
   it('opens the freelance link and refuses admin actions', async () => {
@@ -473,8 +513,10 @@ describe('tech quick ops access', () => {
     assert.equal(added.statusCode, 200, added.body);
     const addedBody = JSON.parse(added.body);
     assert.match(addedBody.message, /\$20/);
-    assert.match(addedBody.message, /waiting for customer approval/);
-    assert.doesNotMatch(addedBody.message, /\$140|payment link sent|Payment link texted/);
+    assert.match(addedBody.message, /saved for customer approval/);
+    assert.match(addedBody.message, /Your pay is unchanged/);
+    assert.doesNotMatch(addedBody.message, /\$140|payment link sent|Payment link texted|delivered/i);
+    assert.doesNotMatch(added.body, /cat_|customer-portal-action/);
     assert.doesNotMatch(added.body, /19000|21000|payout dropped/);
     const after = await getBookingRecord('CD1-TQ-01');
     assert.equal(after.booking.ledger.approvedCents, 19000);
@@ -988,7 +1030,7 @@ function fakeProvider(sent, mode) {
       }
       return {
         sid: `SM${String(sent.length).padStart(32, 'b')}`,
-        status: mode === 'delivered' ? 'delivered' : 'accepted',
+        status: mode === 'delivered' ? 'delivered' : mode === 'sent' ? 'sent' : 'accepted',
       };
     },
   };
@@ -1456,7 +1498,7 @@ describe('technician payment, arrival, and contact', () => {
     const declined = booking({ paymentStatus: 'failed' });
     assert.equal(projectTechQuickOpsBooking(declined).service.address, '12 Harbor View, Fort Lee, NJ');
 
-    const paid = booking({
+    const paidEarly = booking({
       ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0, entries: [{ kind: 'settlement', amountCents: 19000 }] },
       paymentStatus: 'paid',
       jobStatus: 'assigned',
@@ -1466,6 +1508,21 @@ describe('technician payment, arrival, and contact', () => {
       techLinkPhone: '+12015550199',
       techQuickOpsTokenHash: 'hash',
     });
+    const earlyView = projectTechQuickOpsBooking(paidEarly);
+    assert.equal(earlyView.contactRestricted, false);
+    assert.equal(earlyView.service.address, '12 Harbor View, Fort Lee, NJ');
+    assert.match(earlyView.service.note, /Harbor/);
+    assert.equal(earlyView.telUrl, 'tel:+12015550177');
+    assert.equal(earlyView.actions.call, true);
+    assert.equal(earlyView.actions.map, true);
+    assert.equal(earlyView.actions.arrive, true);
+
+    const paid = booking({
+      ...paidEarly,
+      jobStatus: 'completed_paid',
+      status: 'Completed',
+      completedAt: '2026-09-20T18:00:00.000Z',
+    });
     const paidView = projectTechQuickOpsBooking(paid);
     assert.equal(paidView.contactRestricted, true);
     assert.equal(paidView.service.address, '');
@@ -1474,19 +1531,33 @@ describe('technician payment, arrival, and contact', () => {
     assert.equal(paidView.mapUrl, '');
     assert.equal(paidView.actions.call, false);
     assert.equal(paidView.actions.map, false);
+    assert.equal(paidView.actions.arrive, false);
     assert.equal(paidView.yourPay.label, '$120');
     assert.equal(paidView.money, undefined);
     const html = techQuickOpsPage(paidView, 'csrf-token');
     assert.doesNotMatch(html.body, /Harbor|201-555-0177|Call customer|Open map|tel:|maps\.google|localStorage/);
-    assert.match(html.body, /Customer contact is hidden after payment/);
-    assert.match(html.body, /I've arrived/);
+    assert.match(html.body, /Customer contact is hidden after the job is complete and paid/);
+    assert.match(html.body, /status === 401/);
+    const earlyHtml = techQuickOpsPage(earlyView, 'csrf-token');
+    assert.match(earlyHtml.body, /Harbor/);
+    assert.match(earlyHtml.body, /Call customer/);
     const admin = projectQuickOpsBooking(paid);
     assert.match(admin.service.address, /Harbor/);
     assert.equal(admin.customer.phone, '+12015550177');
 
+    const doneUnpaid = booking({
+      jobStatus: 'completed',
+      completedAt: '2026-09-20T18:00:00.000Z',
+      paymentStatus: 'due',
+    });
+    assert.equal(projectTechQuickOpsBooking(doneUnpaid).contactRestricted, false);
+    assert.equal(projectTechQuickOpsBooking(doneUnpaid).service.address, '12 Harbor View, Fort Lee, NJ');
+
     const safeNote = booking({
       ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0, entries: [] },
       paymentStatus: 'paid',
+      jobStatus: 'completed_paid',
+      completedAt: '2026-09-20T18:00:00.000Z',
       notes: 'Gate code 12',
     });
     assert.equal(projectTechQuickOpsBooking(safeNote).service.note, 'Gate code 12');
@@ -1499,5 +1570,245 @@ describe('technician payment, arrival, and contact', () => {
     assert.doesNotMatch(unsetHtml.body, /\$190/);
     const adminUnset = quickOpsPage(projectQuickOpsBooking(booking({ techPayoutAmount: null })), 'csrf-token');
     assert.match(adminUnset.body, /Technician pay is not set/);
+  });
+
+  it('shows the office technician pay on the tech page and does not pass an extra through', async () => {
+    const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin-ops.html'), 'utf8');
+    assert.match(adminHtml, /Tech payout \(\$\)/);
+    assert.match(adminHtml, /id="dTechPay"/);
+    const quick = quickOpsPage(projectQuickOpsBooking(booking({ techPayoutAmount: null })), 'csrf-token');
+    assert.match(quick.body, /id="qo-tech-pay"/);
+    assert.match(quick.body, /Save technician pay/);
+
+    const admin = await createQuickOpsSession({ bookingId: 'CD1-TQ-01' });
+    const savedPay = await adminHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/q',
+      headers: {
+        cookie: `${ADMIN_COOKIE}=${encodeURIComponent(admin.sessionId)}`,
+        host: 'cardetail1.com',
+        'content-type': 'application/json',
+        'x-qo-csrf': admin.csrfToken,
+      },
+      body: JSON.stringify({ action: 'set_tech_pay', amountDollars: '95' }),
+    });
+    assert.equal(savedPay.statusCode, 200, savedPay.body);
+    const stored = await getBookingRecord('CD1-TQ-01');
+    assert.equal(stored.booking.techPayoutAmount, 95);
+    assert.equal(stored.booking.ledger.approvedCents, 19000);
+    const session = await openAssignedTech(stored.booking);
+    assert.equal(session.view.yourPay.label, '$95');
+    const page = techQuickOpsPage(session.view, 'csrf-token');
+    assert.match(page.body, /\$95/);
+    assert.doesNotMatch(page.body, /\$190/);
+  });
+
+  it('lets the customer approve or decline an extra once, without a second SMS', async () => {
+    const sent = [];
+    const { prisma } = memorySmsOutbox();
+    const row = consentedBooking({
+      approvedFinalAmount: 300,
+      totalPrice: 300,
+      techPayoutAmount: 95,
+      ledger: { currency: 'usd', approvedCents: 30000, settledCents: 0, creditedCents: 0, entries: [] },
+    });
+    const session = await openAssignedTech(row);
+    setQuickOpsSmsRuntime({ prisma, env: smsDispatchEnv(), provider: fakeProvider(sent, 'fail') });
+    const headers = {
+      cookie: session.cookie,
+      host: 'cardetail1.com',
+      'content-type': 'application/json',
+      'x-tq-csrf': session.csrf,
+    };
+    const failed = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({
+        action: 'adjust_price',
+        type: 'increase',
+        amountDollars: '152.00',
+        reason: 'Paint correction add-on',
+      }),
+    });
+    assert.equal(failed.statusCode, 200, failed.body);
+    const failedBody = JSON.parse(failed.body);
+    assert.equal(failedBody.delivery, 'failed');
+    assert.match(failedBody.message, /saved for customer approval/);
+    assert.match(failedBody.message, /was not sent/);
+    assert.doesNotMatch(failedBody.message, /delivered/i);
+    assert.doesNotMatch(failed.body, /cat_|customer-portal-action/);
+    const pending = await getBookingRecord('CD1-TQ-01');
+    assert.equal(pending.booking.ledger.approvedCents, 30000);
+    assert.equal(pending.booking.techPayoutAmount, 95);
+    assert.equal(pending.booking.priceAdjustments.length, 1);
+    assert.equal(sent.length, 1);
+
+    setQuickOpsSmsRuntime({ prisma, env: smsDispatchEnv(), provider: fakeProvider(sent, 'sent') });
+    const retried = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({
+        action: 'adjust_price',
+        type: 'increase',
+        amountDollars: '152.00',
+        reason: 'Paint correction add-on',
+      }),
+    });
+    const retriedBody = JSON.parse(retried.body);
+    assert.equal(retriedBody.idempotent, true);
+    assert.equal(retriedBody.delivery, 'accepted');
+    assert.equal(retriedBody.message, 'Extra of $152 saved for customer approval. Your pay is unchanged. Approval text accepted by the provider.');
+    assert.doesNotMatch(retriedBody.message, /delivered/i);
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1].body, sent[0].body);
+    assert.match(sent[1].body, /An extra of \$152 is waiting for your approval/);
+    assert.match(sent[1].body, /Review: https:\/\/cardetail1\.com\/\.netlify\/functions\/customer-portal-action\?token=cat_/);
+    assert.doesNotMatch(sent[1].body, /Harbor|2015550177|Paint correction/);
+    const stillPending = await getBookingRecord('CD1-TQ-01');
+    assert.equal(stillPending.booking.priceAdjustments.length, 1);
+    assert.equal(stillPending.booking.ledger.approvedCents, 30000);
+
+    const worker = await processSmsOutbox({ prisma, env: smsDispatchEnv(), provider: fakeProvider(sent, 'sent'), limit: 5 });
+    assert.equal(worker.processed, 0);
+    assert.equal(sent.length, 2);
+
+    const url = sent[1].body.match(/https:\/\/cardetail1\.com\/\S+/)[0];
+    const token = new URL(url).searchParams.get('token');
+    const page = await customerAction.handler({
+      httpMethod: 'GET',
+      rawUrl: url,
+      queryStringParameters: { token },
+      headers: { host: 'cardetail1.com' },
+    });
+    assert.equal(page.statusCode, 200, page.body);
+    assert.match(page.body, /\$152/);
+    assert.match(page.body, /Paint correction add-on/);
+    assert.match(page.body, /data-decision="approve"/);
+    assert.match(page.body, /data-decision="decline"/);
+    assert.doesNotMatch(page.body, /Harbor|2015550177|\$300|\$95/);
+
+    const viewed = await customerAction.handler({
+      httpMethod: 'POST',
+      headers: { host: 'cardetail1.com', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'view_extra', token }),
+    });
+    const viewedBody = JSON.parse(viewed.body);
+    assert.equal(viewed.statusCode, 200, viewed.body);
+    assert.equal(viewedBody.proposal.amountCents, 15200);
+    assert.equal(viewedBody.proposal.description, 'Paint correction add-on');
+    assert.equal(viewedBody.proposal.status, 'pending_customer');
+
+    const outbox = await prisma.smsOutbox.findUnique({
+      where: { idempotencyKey: `qo.extra:CD1-TQ-01:${stillPending.booking.priceAdjustments[0].adjustmentId}` },
+    });
+    assert.ok(outbox && outbox.providerMessageSid);
+    assert.equal(outbox.status, 'sent');
+    const delivered = await applyStatusCallback({
+      providerMessageSid: outbox.providerMessageSid,
+      providerStatus: 'delivered',
+    }, { prisma });
+    assert.equal(delivered.outbox.status, 'delivered');
+    const afterDelivery = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({
+        action: 'adjust_price',
+        type: 'increase',
+        amountDollars: '152.00',
+        reason: 'Paint correction add-on',
+      }),
+    });
+    const afterBody = JSON.parse(afterDelivery.body);
+    assert.match(afterBody.message, /Approval text delivered\./);
+    assert.equal(sent.length, 2);
+    assert.equal((await getBookingRecord('CD1-TQ-01')).booking.ledger.approvedCents, 30000);
+    assert.equal((await getBookingRecord('CD1-TQ-01')).booking.priceAdjustments.length, 1);
+
+    const approved = await customerAction.handler({
+      httpMethod: 'POST',
+      headers: { host: 'cardetail1.com', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve_extra', token }),
+    });
+    const approvedBody = JSON.parse(approved.body);
+    assert.equal(approved.statusCode, 200, approved.body);
+    assert.equal(approvedBody.approvedCents, 45200);
+    assert.equal(approvedBody.remainingCents, 45200);
+    assert.equal(approvedBody.idempotent, false);
+    const again = await customerAction.handler({
+      httpMethod: 'POST',
+      headers: { host: 'cardetail1.com', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve_extra', token }),
+    });
+    const againBody = JSON.parse(again.body);
+    assert.equal(againBody.idempotent, true);
+    assert.equal(againBody.approvedCents, 45200);
+    const applied = await getBookingRecord('CD1-TQ-01');
+    assert.equal(applied.booking.ledger.approvedCents, 45200);
+    assert.equal(applied.booking.techPayoutAmount, 95);
+    assert.equal(applied.booking.priceAdjustments.filter((item) => item.status === 'applied').length, 1);
+    assert.equal(applied.booking.jobStatus, 'assigned');
+    const quoteVersion = applied.booking.quoteVersion;
+    assert.equal(againBody.approvedCents, 45200);
+    assert.equal(applied.booking.quoteVersion, quoteVersion);
+
+    const completion = await createCompletionLink('CD1-TQ-01', 'completion_review');
+    const blocked = await customerAction.handler({
+      httpMethod: 'POST',
+      headers: { host: 'cardetail1.com', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'approve_extra', token: completion.token }),
+    });
+    assert.equal(blocked.statusCode, 401);
+    assert.equal((await getBookingRecord('CD1-TQ-01')).booking.ledger.approvedCents, 45200);
+
+    const declineRow = consentedBooking({
+      id: 'CD1-DEC',
+      approvedFinalAmount: 300,
+      totalPrice: 300,
+      techPayoutAmount: 95,
+      ledger: { currency: 'usd', approvedCents: 30000, settledCents: 0, creditedCents: 0, entries: [] },
+    });
+    setBookingStoreOverride(createCasMemoryStore({ 'CD1-DEC': declineRow, 'CD1-TQ-01': applied.booking }));
+    const declinedPending = await recordTechExtra(declineRow, {
+      amountDollars: '152',
+      reason: 'Paint correction add-on',
+    });
+    const declineLink = await createCompletionLink('CD1-DEC', 'extra_approval', {
+      adjustmentId: declinedPending.adjustment.adjustmentId,
+    });
+    const declinedHttp = await customerAction.handler({
+      httpMethod: 'POST',
+      headers: { host: 'cardetail1.com', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'decline_extra', token: declineLink.token }),
+    });
+    const declined = JSON.parse(declinedHttp.body);
+    assert.equal(declinedHttp.statusCode, 200, declinedHttp.body);
+    assert.equal(declined.declined, true);
+    assert.equal(declined.approvedCents, 30000);
+    const declinedSaved = await getBookingRecord('CD1-DEC');
+    assert.equal(declinedSaved.booking.ledger.approvedCents, 30000);
+    assert.equal(declinedSaved.booking.techPayoutAmount, 95);
+    assert.equal(declinedSaved.booking.priceAdjustments[0].status, 'declined');
+    const declinedAgainHttp = await customerAction.handler({
+      httpMethod: 'POST',
+      headers: { host: 'cardetail1.com', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'decline_extra', token: declineLink.token }),
+    });
+    const declinedAgain = JSON.parse(declinedAgainHttp.body);
+    assert.equal(declinedAgain.idempotent, true);
+    assert.equal(declinedAgain.approvedCents, 30000);
+  });
+
+  it('records the missing Stripe test-mode credential without using a live key', () => {
+    const names = ['STRIPE_SECRET_KEY', 'STRIPE_TEST_SECRET_KEY', 'STRIPE_SECRET', 'STRIPE_API_KEY'];
+    const live = names.filter((name) => String(process.env[name] || '').startsWith('sk_live_'));
+    const testKeys = names.filter((name) => {
+      const value = String(process.env[name] || '');
+      return value.startsWith('sk_test_') && value.length >= 24;
+    });
+    assert.equal(live.length, 0);
+    assert.equal(testKeys.length, 0);
   });
 });
