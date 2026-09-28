@@ -4,7 +4,7 @@ const { commitBooking } = require('./booking-repository');
 const { buildNextAggregate } = require('./booking-aggregate');
 const { appendEventLog } = require('./ops-workflow');
 const { financialProjection, supersedeOpenAttempts } = require('./payment-service');
-const { createAdjustment, applyAdjustment } = require('./price-adjustments');
+const { createAdjustment, applyAdjustment, listAdjustments } = require('./price-adjustments');
 const { bookingStatus, dollarsFromCents } = require('./admin-quick-ops-view');
 
 const MIN_NOTE = 8;
@@ -160,6 +160,215 @@ function payoutMessage(type, payout, approvedCents) {
     return `Price is now ${total}. Technician payout dropped from ${before} to ${after}.`;
   }
   return `Price is now ${total}. Technician payout moved from ${before} to ${after}.`;
+}
+
+function samePendingExtra(record, amountCents, reason) {
+  return record
+    && record.type === 'increase'
+    && record.status === 'pending_customer'
+    && Math.round(Number(record.amountCents) || 0) === amountCents
+    && String(record.reason || '') === reason;
+}
+
+/**
+ * Technician extra. Stored in cents with the note and author, and left
+ * pending until the customer approves it. It does not change the approved
+ * total, the technician pay, or any open payment.
+ */
+async function recordTechExtra(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled') {
+    return { ok: false, error: 'cancelled', statusCode: 409, message: 'Canceled jobs cannot be updated' };
+  }
+  const reason = String(opts.reason || opts.note || '').replace(/\s+/g, ' ').trim();
+  if (reason.length < MIN_NOTE) {
+    return {
+      ok: false,
+      error: 'reason_required',
+      statusCode: 400,
+      message: 'A note of at least 8 characters is required',
+    };
+  }
+  const parsed = parseAdjustmentAmount(opts);
+  if (!parsed.ok) {
+    return { ok: false, error: parsed.error, statusCode: 400, message: 'Enter a valid amount' };
+  }
+  if (parsed.amountCents > MAX_INCREASE_CENTS) {
+    return { ok: false, error: 'increase_too_large', statusCode: 400, message: 'Increase is limited to $5,000 at a time' };
+  }
+  const existing = listAdjustments(booking).find((row) => samePendingExtra(row, parsed.amountCents, reason));
+  if (existing) {
+    return {
+      ok: true,
+      idempotent: true,
+      pending: true,
+      booking,
+      bookingVersion: booking.bookingVersion,
+      adjustment: existing,
+      addedCents: parsed.amountCents,
+      message: `Extra of ${dollarsFromCents(parsed.amountCents)} is already waiting for customer approval. It is not charged yet, and your pay is unchanged.`,
+    };
+  }
+  const projection = opts.projection || financialProjection(booking);
+  const actorId = String(opts.actorId || 'tech_quick_ops').slice(0, 80);
+  const created = createAdjustment(booking, {
+    type: 'increase',
+    amountCents: parsed.amountCents,
+    reason,
+    actorId,
+    expectedBookingVersion: booking.bookingVersion,
+  }, { authoritativeProjection: projection });
+  if (!created.ok) return created;
+  const now = new Date().toISOString();
+  const next = buildNextAggregate(booking, {
+    ...created.patch,
+    updatedAt: now,
+    eventLog: appendEventLog(booking, {
+      action: 'quick_ops_extra_pending',
+      by: actorId,
+      amountCents: parsed.amountCents,
+      reason: reason.slice(0, 180),
+    }),
+  });
+  const committed = await commitBooking({
+    bookingId: booking.id || booking.bookingId,
+    expectedBookingVersion: booking.bookingVersion,
+    nextAggregate: next,
+  });
+  if (!committed.ok) return committed;
+  return {
+    ok: true,
+    pending: true,
+    booking: committed.booking,
+    bookingVersion: committed.bookingVersion,
+    adjustment: created.adjustment,
+    addedCents: parsed.amountCents,
+    approvedCents: Math.max(0, Math.round(Number(projection.approvedCents) || 0)),
+    remainingCents: Math.max(0, Math.round(Number(projection.remainingCents) || 0)),
+    message: `Extra of ${dollarsFromCents(parsed.amountCents)} recorded. It is waiting for customer approval and is not charged yet. Your pay is unchanged.`,
+  };
+}
+
+/**
+ * Apply one customer-approved extra onto the approved total.
+ * Technician pay is left as the office set it. Open payment links and
+ * attempts for the previous total are superseded. A second apply is a no-op.
+ */
+async function applyCustomerApprovedExtra(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled') {
+    return { ok: false, error: 'cancelled', statusCode: 409, message: 'Canceled jobs cannot be updated' };
+  }
+  const projection = opts.projection || financialProjection(booking);
+  const actorId = String(opts.actorId || 'customer').slice(0, 80);
+  const applied = applyAdjustment(booking, {
+    adjustmentId: opts.adjustmentId,
+    expectedBookingVersion: booking.bookingVersion,
+    actorId,
+  }, { authoritativeProjection: projection });
+  if (!applied.ok) return applied;
+  if (applied.alreadyApplied) {
+    return {
+      ok: true,
+      idempotent: true,
+      booking,
+      bookingVersion: booking.bookingVersion,
+      approvedCents: Math.max(0, Math.round(Number(projection.approvedCents) || 0)),
+      remainingCents: Math.max(0, Math.round(Number(projection.remainingCents) || 0)),
+      payoutUnchanged: true,
+    };
+  }
+
+  let nextApproved = applied.approvedCents;
+  let nextSettled = Math.max(0, Math.round(Number(projection.settledCents) || 0));
+  let quoteVersion = Math.round(Number(booking.quoteVersion) || 0) + 1;
+  const env = opts.env || process.env;
+  const { postgresPaymentEnabled } = require('./db/operational-payment');
+  if (postgresPaymentEnabled(env)) {
+    const { ensureBookingFinancial } = require('./db/ensure-booking-financial');
+    const authority = require('./db/payment-authority-service');
+    const bookingId = booking.id || booking.bookingId;
+    const ensured = await ensureBookingFinancial(booking);
+    if (!ensured.ok) {
+      return { ok: false, error: ensured.error || 'ensure_failed', statusCode: 503, message: 'Price change is unavailable' };
+    }
+    const authoritative = await authority.createAdjustment({
+      bookingId,
+      newApprovedCents: nextApproved,
+      reason: applied.adjustment.reason,
+      adjustmentId: applied.adjustment.adjustmentId,
+      expectedQuoteVersion: Math.round(Number(booking.quoteVersion) || 0),
+      approvedBy: actorId,
+    });
+    if (!authoritative.ok) {
+      return {
+        ok: false,
+        error: authoritative.error || 'adjustment_failed',
+        statusCode: authoritative.statusCode || 409,
+        message: 'Price change was not saved',
+      };
+    }
+    const pg = authoritative.after || {};
+    nextApproved = Math.max(0, Math.round(Number(pg.approvedCents) || nextApproved));
+    nextSettled = Math.max(0, Math.round(Number(pg.settledCents) || nextSettled));
+    quoteVersion = Math.round(Number(pg.quoteVersion) || quoteVersion);
+  }
+
+  const creditedCents = Math.max(0, Math.round(Number(booking.ledger && booking.ledger.creditedCents) || 0));
+  const remainingCents = Math.max(0, nextApproved - nextSettled - creditedCents);
+  const now = new Date().toISOString();
+  const next = buildNextAggregate(booking, {
+    ...applied.patch,
+    quoteVersion,
+    quote: {
+      ...(booking.quote || {}),
+      quoteVersion,
+      approvedCents: nextApproved,
+      currency: 'usd',
+      adjustmentId: applied.adjustment.adjustmentId,
+      adjustmentReason: applied.adjustment.reason,
+    },
+    ledger: {
+      ...(booking.ledger || {}),
+      currency: 'usd',
+      approvedCents: nextApproved,
+      settledCents: nextSettled,
+      creditedCents,
+      pendingCents: 0,
+      entries: Array.isArray(booking.ledger && booking.ledger.entries) ? booking.ledger.entries : [],
+    },
+    approvedFinalAmount: nextApproved / 100,
+    finalAmount: nextApproved / 100,
+    totalPrice: nextApproved / 100,
+    payLink: '',
+    stripeCheckoutSessionId: '',
+    payLinkAmount: null,
+    payLinkInvalidatedAt: now,
+    paymentAttempts: supersedeOpenAttempts(booking.paymentAttempts, { quoteVersion }),
+    updatedAt: now,
+    eventLog: appendEventLog(booking, {
+      action: 'quick_ops_extra_applied',
+      by: actorId,
+      amountCents: applied.adjustment.amountCents,
+      payoutUnchanged: true,
+    }),
+  });
+  const committed = await commitBooking({
+    bookingId: booking.id || booking.bookingId,
+    expectedBookingVersion: booking.bookingVersion,
+    nextAggregate: next,
+  });
+  if (!committed.ok) return committed;
+  return {
+    ok: true,
+    booking: committed.booking,
+    bookingVersion: committed.bookingVersion,
+    quoteVersion,
+    approvedCents: nextApproved,
+    settledCents: nextSettled,
+    remainingCents,
+    payoutUnchanged: true,
+  };
 }
 
 /**
@@ -331,5 +540,7 @@ module.exports = {
   scaleTechPayout,
   addTechPayout,
   setTechnicianPay,
+  recordTechExtra,
+  applyCustomerApprovedExtra,
   adjustQuickOpsPrice,
 };

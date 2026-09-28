@@ -17,6 +17,7 @@ const {
   decideQuickOps,
   mintPaymentLink,
   textCustomer,
+  paymentLinkMessage,
   recordOnSitePayment,
   completeServiceLineQuickOps,
 } = require('../lib/admin-quick-ops-actions');
@@ -216,14 +217,12 @@ async function handlePost(event) {
   }
   if (action === 'text_pay') {
     const result = await textCustomer(booking, { kind: 'payment' });
-    return json(result.ok ? 200 : (result.statusCode || 400), {
-      ok: !!result.ok,
-      queued: !!result.queued,
+    const failed = !result.ok || result.delivery === 'failed' || result.delivery === 'suppressed';
+    return json(failed ? (result.statusCode || 409) : 200, {
+      ok: !failed,
+      delivery: result.delivery || (failed ? 'failed' : 'pending'),
       idempotent: !!result.idempotent,
-      payUrl: result.payUrl || null,
-      message: result.queued || result.idempotent
-        ? 'Payment link texted'
-        : (result.reason === 'booking_sms_consent_required' ? 'Customer SMS consent required' : (result.reason || result.error || 'not sent')),
+      message: paymentLinkMessage(result),
     });
   }
   if (action === 'complete_service_line') {

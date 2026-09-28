@@ -149,6 +149,11 @@ describe('Admin Jobs lean projection', () => {
     assert.equal(row.assignmentKind, 'registered');
     assert.equal(row.freelancePhone, '');
     assert.equal(row.techNotifyStatus, '');
+    assert.equal(row.techPayoutAmount, null);
+    assert.equal(row.techPayUnset, true);
+    const paidTech = projectJobForAdminList(heavyBooking({ techPayoutAmount: 120 }));
+    assert.equal(paidTech.techPayoutAmount, 120);
+    assert.equal(paidTech.techPayUnset, false);
     assert.equal(row.techNotifyKey, undefined);
     assert.equal(row.techLinkPhone, undefined);
     assert.equal(row.pendingChangeRequestCount, 1);
