@@ -60,6 +60,29 @@
   .model-b .finish{max-width:480px;margin:0 auto}
   .model-c .group img{width:100%}
   .model-d .group img{width:min(100%,520px)}
+  .compact-note{max-width:1100px;margin:8px auto 18px;color:var(--gold);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+  .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .tile{height:220px;border-radius:14px;overflow:hidden;background:#0c1116;position:relative}
+  .tile img.cover{width:100%;height:100%;object-fit:cover;display:block}
+  .tile img.contain{width:100%;height:100%;object-fit:contain;display:block;background:#0c1116}
+  .tile .compare{height:100%;max-height:none;aspect-ratio:auto;border-radius:0}
+  .tile-cap{position:absolute;left:8px;bottom:8px;font-size:12px;background:rgba(8,12,16,.72);padding:3px 8px;border-radius:999px}
+  .tabs{display:flex;gap:8px;margin-bottom:10px}
+  .tabs button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .tabs button.on{color:var(--ink);border-color:var(--gold);background:rgba(212,184,150,.08)}
+  .panel{display:none}
+  .panel.on{display:block}
+  .strip{display:flex;gap:8px;overflow:hidden}
+  .strip figure{margin:0;flex:0 0 168px}
+  .strip .tile{height:148px;border-radius:12px}
+  .strip figcaption{margin-top:4px;font-size:11px;color:var(--muted);text-align:center}
+  .viewer{height:250px;border-radius:16px;overflow:hidden;background:#0c1116;position:relative}
+  .viewer img{width:100%;height:100%;display:block}
+  .viewer img.contain{object-fit:contain}
+  .viewer img.cover{object-fit:cover}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .pills button{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
+  .pills button.on{color:var(--ink);border-color:#4d8fd9}
   @media(max-width:760px){
     .sheet{padding:16px 12px 18px;border-radius:16px}
     .compare-row,.split{grid-template-columns:1fr}
@@ -70,13 +93,22 @@
     .model-b .stage img{width:100%;max-height:none}
     .model-a .finish,.model-b .finish{max-width:none}
     .thumb span{font-size:10px}
+    .row3{display:flex;overflow:hidden}
+    .row3 > *{flex:0 0 100%}
+    .model-e .row3{display:grid;grid-template-columns:repeat(3,1fr);overflow:visible}
+    .model-e .row3 > *{display:block}
+    .model-e .tile{height:132px}
+    .model-f .row3 > *:nth-child(n+2){display:none}
+    .strip figure{flex-basis:132px}
+    .strip .tile{height:120px}
+    .viewer{height:210px}
   }
 </style>
 </head>
 <body>
   <div class="intro">
-    <h1>Quatro modelos de galeria</h1>
-    <p>A homepage não muda com esta prévia. Os quatro usam as mesmas fotos: comparador compacto, a foto de grupo inteira (Urus branco e dois Porsches — não há um Land Rover nesse arquivo) e os outros trabalhos, sem repetir o grupo.</p>
+    <h1>Modelos de galeria</h1>
+    <p>A homepage não muda com esta prévia. A–D exploram a foto de grupo em tamanho maior. E–H mantêm a mesma informação numa faixa baixa, para a página continuar fácil de rolar. A foto de grupo é o Urus branco com dois Porsches; nos modelos compactos ela entra inteira, sem esticar.</p>
   </div>
 
   <section class="sheet model-a" id="modelo-a">
@@ -181,5 +213,100 @@
       <div class="thumb"><img src="../assets/showcase/gator-exterior-hero.webp" alt=""><span>Gator</span></div>
     </div>
   </section>
+
+  <p class="compact-note">Mais compactos — uma faixa, não uma página</p>
+
+  <section class="sheet model-e" id="modelo-e">
+    <p class="sheet-kicker">Modelo E</p>
+    <h2>Uma linha só</h2>
+    <p class="why">Comparador, grupo e um trabalho finalizado na mesma altura. No celular aparece um cartão por vez, com os botões. A página ganha cerca de 250px, não uma tela.</p>
+    <div class="row3">
+      <div>
+        <div class="tile"><div class="compare" style="--pos:58%"><img src="../assets/before-after/subaru-exterior-after.webp" alt=""><div class="before-wrap"><img src="../assets/before-after/subaru-exterior-before.webp" alt=""></div><span class="tag before">Before</span><span class="tag after">After</span><span class="handle"></span></div></div>
+        <div class="cap">Subaru</div>
+      </div>
+      <div>
+        <div class="tile"><img class="contain" src="../assets/showcase/luxury-fleet-lineup.webp" alt="Urus e dois Porsches"><span class="tile-cap">Grupo</span></div>
+        <div class="cap">Três veículos</div>
+      </div>
+      <div>
+        <div class="tile"><img class="cover" src="../assets/showcase/luxury-porsche-1.webp" alt="Porsche"></div>
+        <div class="cap">Porsche</div>
+      </div>
+    </div>
+    <div class="nav"><button type="button" aria-label="Anterior">‹</button><span class="dots"><i class="on"></i><i></i><i></i><i></i></span><button type="button" aria-label="Próximo">›</button></div>
+  </section>
+
+  <section class="sheet model-f" id="modelo-f">
+    <p class="sheet-kicker">Modelo F</p>
+    <h2>Abas</h2>
+    <p class="why">Só um painel fica aberto. Alternar entre antes/depois e trabalhos não aumenta a rolagem.</p>
+    <div class="tabs">
+      <button type="button" class="on" data-tab="ba">Antes e depois</button>
+      <button type="button" data-tab="work">Trabalhos</button>
+    </div>
+    <div class="panel on" data-panel="ba">
+      <div class="row3">
+        <div class="tile"><div class="compare" style="--pos:58%"><img src="../assets/before-after/subaru-exterior-after.webp" alt=""><div class="before-wrap"><img src="../assets/before-after/subaru-exterior-before.webp" alt=""></div><span class="tag before">Before</span><span class="tag after">After</span><span class="handle"></span></div></div>
+        <div class="tile"><div class="compare" style="--pos:46%"><img src="../assets/before-after/gmc-exterior-after.webp" alt=""><div class="before-wrap"><img src="../assets/before-after/gmc-exterior-before.webp" alt=""></div><span class="tag before">Before</span><span class="tag after">After</span><span class="handle"></span></div></div>
+        <div class="tile"><div class="compare" style="--pos:52%"><img src="../assets/before-after/volvo-exterior-after.webp" alt=""><div class="before-wrap"><img src="../assets/before-after/volvo-exterior-before.webp" alt=""></div><span class="tag before">Before</span><span class="tag after">After</span><span class="handle"></span></div></div>
+      </div>
+    </div>
+    <div class="panel" data-panel="work">
+      <div class="row3">
+        <div class="tile"><img class="contain" src="../assets/showcase/luxury-fleet-lineup.webp" alt=""><span class="tile-cap">Grupo</span></div>
+        <div class="tile"><img class="cover" src="../assets/showcase/luxury-porsche-1.webp" alt=""></div>
+        <div class="tile"><img class="cover" src="../assets/showcase/luxury-urus.webp" alt=""></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sheet model-g" id="modelo-g">
+    <p class="sheet-kicker">Modelo G</p>
+    <h2>Faixa baixa</h2>
+    <p class="why">Tudo numa fita de menos de 180px. As setas movem a faixa; a página em si quase não cresce.</p>
+    <div class="strip">
+      <figure><div class="tile"><div class="compare" style="--pos:58%"><img src="../assets/before-after/subaru-exterior-after.webp" alt=""><div class="before-wrap"><img src="../assets/before-after/subaru-exterior-before.webp" alt=""></div><span class="handle"></span></div></div><figcaption>Antes / depois</figcaption></figure>
+      <figure><div class="tile"><img class="contain" src="../assets/showcase/luxury-fleet-lineup.webp" alt=""></div><figcaption>Grupo</figcaption></figure>
+      <figure><div class="tile"><img class="cover" src="../assets/showcase/luxury-porsche-1.webp" alt=""></div><figcaption>Porsche</figcaption></figure>
+      <figure><div class="tile"><img class="cover" src="../assets/showcase/luxury-urus.webp" alt=""></div><figcaption>Urus</figcaption></figure>
+      <figure><div class="tile"><img class="cover" src="../assets/showcase/luxury-porsche-2.webp" alt=""></div><figcaption>Porsche</figcaption></figure>
+      <figure><div class="tile"><img class="cover" src="../assets/showcase/jayco-dolly-front.webp" alt=""></div><figcaption>Jayco</figcaption></figure>
+    </div>
+    <div class="nav"><button type="button" aria-label="Anterior">‹</button><span class="dots"><i class="on"></i><i></i><i></i></span><button type="button" aria-label="Próximo">›</button></div>
+  </section>
+
+  <section class="sheet model-h" id="modelo-h">
+    <p class="sheet-kicker">Modelo H</p>
+    <h2>Um quadro</h2>
+    <p class="why">Uma imagem por vez, altura fixa. Os botões trocam entre comparar, o grupo e os trabalhos. Nada fica empilhado.</p>
+    <div class="viewer" id="viewer-h">
+      <img class="contain" data-fit="contain" src="../assets/showcase/luxury-fleet-lineup.webp" alt="Urus e dois Porsches">
+    </div>
+    <div class="pills" id="pills-h">
+      <button type="button" data-src="../assets/before-after/subaru-exterior-after.webp" data-fit="cover">Comparar</button>
+      <button type="button" class="on" data-src="../assets/showcase/luxury-fleet-lineup.webp" data-fit="contain">Grupo</button>
+      <button type="button" data-src="../assets/showcase/luxury-porsche-1.webp" data-fit="cover">Porsche</button>
+      <button type="button" data-src="../assets/showcase/luxury-urus.webp" data-fit="cover">Urus</button>
+      <button type="button" data-src="../assets/showcase/gator-exterior-hero.webp" data-fit="cover">Outros</button>
+    </div>
+  </section>
+<script>
+document.querySelectorAll('#modelo-f .tabs button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const sheet = btn.closest('.sheet');
+    sheet.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b === btn));
+    sheet.querySelectorAll('.panel').forEach((p) => p.classList.toggle('on', p.dataset.panel === btn.dataset.tab));
+  });
+});
+document.querySelectorAll('#pills-h button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const img = document.querySelector('#viewer-h img');
+    img.src = btn.dataset.src;
+    img.className = btn.dataset.fit;
+    document.querySelectorAll('#pills-h button').forEach((b) => b.classList.toggle('on', b === btn));
+  });
+});
+</script>
 </body>
 </html>
