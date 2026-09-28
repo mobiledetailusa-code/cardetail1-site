@@ -556,10 +556,22 @@ describe('quick ops page + actions', () => {
       }],
     });
     setBookingStoreOverride(createCasMemoryStore({ [approveBooking.id]: approveBooking }));
+    const indexKeys = new Set();
     setSlotIndexStoreOverride({
-      list() { return Promise.resolve({ blobs: [] }); },
-      setJSON() { return Promise.resolve({ modified: true }); },
-      delete() { return Promise.resolve(); },
+      list(opts = {}) {
+        const prefix = opts.prefix || '';
+        const blobs = [...indexKeys].filter((key) => key.startsWith(prefix)).map((key) => ({ key }));
+        if (opts.paginate) return (async function* pages() { yield { blobs }; })();
+        return Promise.resolve({ blobs });
+      },
+      setJSON(key) {
+        indexKeys.add(key);
+        return Promise.resolve({ modified: true });
+      },
+      delete(key) {
+        indexKeys.delete(key);
+        return Promise.resolve();
+      },
     });
     const approved = await decideQuickOps(approveBooking, 'approve', {
       prisma: createMemoryOutboxPrisma(),

@@ -325,6 +325,106 @@ function pickEligibleStart(dateIso, eligible, opts = {}) {
   return { slot: null, durationFailure: null };
 }
 
+function occupancyVehicles(booking) {
+  const nested = booking && booking.service && Array.isArray(booking.service.vehicles)
+    ? booking.service.vehicles
+    : [];
+  if (nested.length) return nested;
+  return Array.isArray(booking && booking.vehicles) ? booking.vehicles : [];
+}
+
+function storedDurationMinutes(booking) {
+  const explicit = Number(booking && booking.appointmentDurationMinutes);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  let sum = 0;
+  const vehicles = occupancyVehicles(booking);
+  const lines = [];
+  for (const vehicle of vehicles) {
+    if (vehicle && Array.isArray(vehicle.serviceLineItems)) lines.push(...vehicle.serviceLineItems);
+  }
+  if (booking && Array.isArray(booking.serviceLineItems)) lines.push(...booking.serviceLineItems);
+  for (const line of lines) {
+    const minutes = Number(line && line.durationMinutes);
+    if (Number.isFinite(minutes) && minutes > 0) sum += minutes;
+  }
+  return sum;
+}
+
+/**
+ * Same duration and span submit-booking persists.
+ * Ceramic minutes come from the current vehicles and add-ons. Every other
+ * booking keeps its stored duration, then service-line minutes. Interior
+ * companion spills onto the next open day; anything else stays on
+ * spannedSlotTimes. appointmentSchedule is stored only for a multi-day or
+ * extended span, matching checkout.
+ */
+function planCheckoutOccupancy(booking, dateIso, startTime, config) {
+  const vehicles = occupancyVehicles(booking);
+  let ceramic = null;
+  try {
+    ceramic = require('./ceramic-coating');
+  } catch {
+    ceramic = null;
+  }
+
+  let minutes = 0;
+  let companionInterior = false;
+  let anyCeramic = false;
+  if (ceramic) {
+    for (const vehicle of vehicles) {
+      const packageId = vehicle && (vehicle.pkgId || vehicle.packageId);
+      if (!ceramic.isCeramicPackage(packageId)) continue;
+      anyCeramic = true;
+      const duration = ceramic.durationForVehicle(vehicle);
+      minutes += Number(duration && duration.minutes) || 0;
+      if (duration && duration.companionInterior) companionInterior = true;
+    }
+  }
+  if (!anyCeramic) {
+    minutes = storedDurationMinutes(booking);
+    companionInterior = bookingHasInteriorCompanion({ ...booking, vehicles })
+      || vehicles.some((vehicle) => (
+        vehicle && (
+          vehicle.companionInterior === true
+          || vehicle.companionInterior === 'true'
+          || vehicle.companionInterior === 1
+        )
+      ));
+  }
+
+  const span = companionInterior
+    ? planCombinedAppointment(dateIso, startTime, minutes, config)
+    : spannedSlotTimes(dateIso, startTime, minutes, config);
+  if (!span.ok) {
+    return {
+      ok: false,
+      error: span.error || 'ceramic_duration_exceeds_day',
+      message: span.message || null,
+      nextValidStart: span.nextValidStart || null,
+      minutes,
+      companionInterior,
+      span,
+    };
+  }
+
+  const appointmentSchedule = (span.multiDay || span.extendedAppointment)
+    ? {
+      multiDay: !!span.multiDay,
+      extendedAppointment: !!span.extendedAppointment,
+      days: Array.isArray(span.days) ? span.days : [],
+      message: span.message || null,
+    }
+    : null;
+
+  return {
+    ok: true,
+    minutes,
+    companionInterior,
+    appointmentSchedule,
+    span,
+  };
+}
+
 function buildOccupancyMap(bookings, nowMs = Date.now(), config) {
   const map = {};
   for (const b of bookings || []) {
@@ -377,5 +477,6 @@ module.exports = {
   capacityForSlot,
   startFitsDemand,
   pickEligibleStart,
+  planCheckoutOccupancy,
   buildOccupancyMap,
 };

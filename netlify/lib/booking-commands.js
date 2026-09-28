@@ -394,6 +394,269 @@ async function submitChangeRequestCommand({
  * Admin decide — apply or reject; stale versions → 409 or requote.
  * Applied status and next booking version commit atomically.
  */
+const RESCHEDULE_CONFLICTS = new Set([
+  'booking_slot_unavailable',
+  'booking_date_unavailable',
+  'booking_time_unavailable',
+  'ceramic_duration_exceeds_day',
+  'missing_span',
+]);
+
+function isRescheduleRequest(cr) {
+  return String((cr && (cr.type || cr.requestType)) || '') === 'reschedule_request';
+}
+
+function rescheduleIndexFailure(result) {
+  const error = result && result.error ? result.error : 'booking_verification_unavailable';
+  if (RESCHEDULE_CONFLICTS.has(error)) {
+    return { ok: false, error, statusCode: 409 };
+  }
+  if (error === 'partial_reservation_rejected' || error === 'occupancy_incomplete') {
+    return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+  }
+  return { ok: false, error: 'booking_verification_unavailable', statusCode: 503 };
+}
+
+function spanReadyForReschedule(ready) {
+  return !!(ready && ready.ok && !ready.skipped && ready.complete);
+}
+
+async function clearSlotReleasePending(aggregate) {
+  const bookingId = aggregate.id || aggregate.bookingId;
+  const current = await getBookingRecord(bookingId);
+  if (!current.exists) return { ok: false, error: 'not_found', statusCode: 404 };
+  const fresh = current.booking;
+  const pending = Array.isArray(fresh.slotReleasePending) ? fresh.slotReleasePending : [];
+  const { releaseBookedSlots, bookedSpanReady } = require('./slot-index');
+  if (!pending.length) {
+    const ready = await bookedSpanReady(fresh);
+    if (!spanReadyForReschedule(ready)) {
+      return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+    }
+    return { ok: true, booking: fresh };
+  }
+  const released = await releaseBookedSlots(bookingId, pending);
+  if (!released.ok) return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+  const next = buildNextAggregate(fresh, { slotReleasePending: [] });
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: fresh.bookingVersion,
+    nextAggregate: next,
+    syncSlots: false,
+  });
+  if (!committed.ok) {
+    const again = await getBookingRecord(bookingId);
+    const still = Array.isArray(again.booking && again.booking.slotReleasePending)
+      ? again.booking.slotReleasePending
+      : [];
+    if (!still.length) {
+      const ready = await bookedSpanReady(again.booking);
+      if (spanReadyForReschedule(ready)) return { ok: true, booking: again.booking };
+    }
+    return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+  }
+  const ready = await bookedSpanReady(committed.booking);
+  if (!spanReadyForReschedule(ready)) {
+    return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+  }
+  return { ok: true, booking: committed.booking };
+}
+
+async function settleStoredReschedule(aggregate) {
+  const {
+    slotIndexReadsEnabled,
+    bookedSpanReady,
+    relocateBookedSpan,
+  } = require('./slot-index');
+  if (!slotIndexReadsEnabled()) {
+    return { ok: false, error: 'booking_verification_unavailable', statusCode: 503 };
+  }
+  let ready = await bookedSpanReady(aggregate);
+  if (!ready.ok || ready.skipped) {
+    return { ok: false, error: 'booking_verification_unavailable', statusCode: 503 };
+  }
+  if (!ready.complete) {
+    const relocated = await relocateBookedSpan({ previous: aggregate, next: aggregate });
+    // The record already names this span. A conflict here is an unfinished
+    // move, not a clean rejection of the original reservation.
+    if (!relocated.ok) return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+    ready = await bookedSpanReady(aggregate);
+    if (!spanReadyForReschedule(ready)) {
+      return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+    }
+  }
+  const pending = Array.isArray(aggregate.slotReleasePending) ? aggregate.slotReleasePending : [];
+  if (!pending.length) return { ok: true, booking: aggregate, completedWork: false };
+  const cleared = await clearSlotReleasePending(aggregate);
+  if (!cleared.ok) return cleared;
+  return { ok: true, booking: cleared.booking, completedWork: true };
+}
+
+async function prepareRescheduleMove(aggregate, cr) {
+  const requestedDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
+  const requestedTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
+  const { getOperationalAvailability } = require('./ops-config');
+  const { validateBookingSchedule, normalizePreferredTime } = require('./operational-availability');
+  const { planCheckoutOccupancy } = require('./booking-schedule');
+  const { relocateBookedSpan, slotIndexReadsEnabled } = require('./slot-index');
+
+  const config = await getOperationalAvailability();
+  const schedule = validateBookingSchedule(requestedDate, requestedTime, { config });
+  if (!schedule.ok) {
+    return { ok: false, error: schedule.error || 'booking_date_unavailable', statusCode: 409 };
+  }
+  if (!slotIndexReadsEnabled()) {
+    return { ok: false, error: 'booking_verification_unavailable', statusCode: 503 };
+  }
+
+  const plan = planCheckoutOccupancy(
+    aggregate,
+    schedule.preferredDate,
+    schedule.preferredTime,
+    config
+  );
+  if (!plan.ok) {
+    return { ok: false, error: plan.error || 'booking_date_unavailable', statusCode: 409 };
+  }
+
+  const bookingId = aggregate.id || aggregate.bookingId;
+  const jobStatus = ['cancelled', 'archived_test', 'completed_paid'].includes(String(aggregate.jobStatus || ''))
+    ? aggregate.jobStatus
+    : 'confirmed';
+  const nextBooking = {
+    ...aggregate,
+    id: bookingId,
+    preferredDate: schedule.preferredDate,
+    preferredTime: schedule.preferredTime,
+    appointmentDurationMinutes: plan.minutes,
+    companionInterior: !!plan.companionInterior,
+    appointmentSchedule: plan.appointmentSchedule,
+    isDraft: false,
+    kind: 'booking',
+    status: 'Rescheduled',
+    appointmentStatus: 'confirmed',
+    jobStatus,
+  };
+  const moved = await relocateBookedSpan({ previous: aggregate, next: nextBooking });
+  if (!moved.ok) return rescheduleIndexFailure(moved);
+
+  const fieldPatches = {
+    preferredDate: schedule.preferredDate,
+    preferredTime: normalizePreferredTime(schedule.preferredTime) || schedule.preferredTime,
+    confirmedDate: schedule.preferredDate,
+    confirmedTime: normalizePreferredTime(schedule.preferredTime) || schedule.preferredTime,
+    status: 'Rescheduled',
+    appointmentStatus: 'confirmed',
+    jobStatus,
+    rescheduledByClient: false,
+    previousConfirmedDate: aggregate.confirmedDate || aggregate.preferredDate || '',
+    rescheduleEventId: buildRescheduleEventId(
+      bookingId,
+      schedule.preferredDate,
+      schedule.preferredTime
+    ),
+    appointmentSchedule: plan.appointmentSchedule,
+    appointmentDurationMinutes: plan.minutes,
+    companionInterior: !!plan.companionInterior,
+    slotReleasePending: moved.obsolete,
+  };
+  return { ok: true, fieldPatches, added: moved.added || [] };
+}
+
+function rescheduleLanded(booking, fieldPatches, requestId) {
+  if (!booking || !fieldPatches) return false;
+  const { normalizePreferredTime } = require('./operational-availability');
+  if (booking.preferredDate !== fieldPatches.preferredDate) return false;
+  if (normalizePreferredTime(booking.preferredTime) !== fieldPatches.preferredTime) return false;
+  return asArray(booking.changeRequests).some((row) => {
+    const id = row.requestId || row.id;
+    const status = String(row.status || '').toLowerCase();
+    return id === requestId && (status === 'applied' || status === 'approved');
+  });
+}
+
+async function publishRescheduleDecision(cr, bookingId, adminNote, appliedBookingVersion, paymentAttempts) {
+  await rebuildRequestIndex({
+    ...cr,
+    id: cr.requestId || cr.id,
+    bookingId,
+    status: 'applied',
+    adminDecision: 'approve',
+    adminNote,
+    decidedAt: new Date().toISOString(),
+    appliedBookingVersion,
+    appliedAutomatically: true,
+    customerVisibleResult: 'Approved — your appointment details and totals were updated.',
+  });
+  const expiredAttemptIds = asArray(paymentAttempts)
+    .filter((attempt) => attempt.status === 'superseded')
+    .map((attempt) => attempt.providerObjectId)
+    .filter(Boolean);
+  const expireResult = await expireSupersededAttempts(paymentAttempts, process.env);
+  return { expiredAttemptIds, expireResult };
+}
+
+async function finishRescheduleApproval({
+  bookingId,
+  expected,
+  next,
+  prepared,
+  cr,
+  adminNote,
+  paymentAttempts,
+  appliedBookingVersion,
+}) {
+  const committed = await commitBooking({
+    bookingId,
+    expectedBookingVersion: expected,
+    nextAggregate: next,
+    syncSlots: false,
+  });
+  if (!committed.ok) {
+    const fresh = await getBookingRecord(bookingId);
+    const { dropSpanKeysUnlessNeeded } = require('./slot-index');
+    const dropped = await dropSpanKeysUnlessNeeded(prepared.added, fresh.booking);
+    if (!dropped.ok) return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+    if (fresh.booking && rescheduleLanded(fresh.booking, prepared.fieldPatches, cr.requestId || cr.id)) {
+      const settled = await settleStoredReschedule(fresh.booking);
+      if (!settled.ok) return settled;
+      const published = await publishRescheduleDecision(
+        cr,
+        bookingId,
+        adminNote,
+        appliedBookingVersion,
+        (fresh.booking && fresh.booking.paymentAttempts) || paymentAttempts
+      );
+      return {
+        ok: true,
+        idempotent: true,
+        booking: settled.booking,
+        projection: materialProjection(settled.booking),
+        expiredAttemptIds: published.expiredAttemptIds,
+        providerExpire: published.expireResult,
+      };
+    }
+    return committed;
+  }
+
+  const settled = await settleStoredReschedule(committed.booking);
+  if (!settled.ok) return settled;
+  const published = await publishRescheduleDecision(
+    cr,
+    bookingId,
+    adminNote,
+    appliedBookingVersion,
+    paymentAttempts
+  );
+  return {
+    ok: true,
+    booking: settled.booking,
+    projection: materialProjection(settled.booking),
+    expiredAttemptIds: published.expiredAttemptIds,
+    providerExpire: published.expireResult,
+  };
+}
+
 async function decideChangeRequestCommand({
   bookingId,
   requestId: reqId,
@@ -460,6 +723,25 @@ async function decideChangeRequestCommand({
     if (cr.decisionFingerprint !== decisionFingerprint) {
       return { ok: false, error: 'idempotency_conflict', statusCode: 409 };
     }
+    if (decision === 'approve' && isRescheduleRequest(cr)) {
+      const settled = await settleStoredReschedule(aggregate);
+      if (!settled.ok) return settled;
+      if (settled.completedWork) {
+        await publishRescheduleDecision(
+          cr,
+          bookingId,
+          adminNote,
+          cr.appliedBookingVersion,
+          aggregate.paymentAttempts
+        );
+      }
+      return {
+        ok: true,
+        idempotent: true,
+        booking: settled.booking,
+        projection: materialProjection(settled.booking),
+      };
+    }
     return {
       ok: true,
       idempotent: true,
@@ -473,6 +755,25 @@ async function decideChangeRequestCommand({
     const sameDecision = (decision === 'approve' && ['applied', 'approved'].includes(terminalStatus))
       || (decision === 'reject' && ['rejected', 'declined'].includes(terminalStatus));
     if (sameDecision) {
+      if (decision === 'approve' && isRescheduleRequest(cr)) {
+        const settled = await settleStoredReschedule(aggregate);
+        if (!settled.ok) return settled;
+        if (settled.completedWork) {
+          await publishRescheduleDecision(
+            cr,
+            bookingId,
+            adminNote,
+            cr.appliedBookingVersion,
+            aggregate.paymentAttempts
+          );
+        }
+        return {
+          ok: true,
+          idempotent: true,
+          booking: settled.booking,
+          projection: materialProjection(settled.booking),
+        };
+      }
       return { ok: true, idempotent: true, booking: aggregate, projection: materialProjection(aggregate) };
     }
     return { ok: false, error: 'request_already_decided', statusCode: 409 };
@@ -919,40 +1220,11 @@ async function decideChangeRequestCommand({
 
   const fieldPatches = {};
   const rt = rtDecide;
+  let rescheduleMove = null;
   if (rt === 'reschedule_request') {
-    const requestedDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
-    const requestedTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
-    const { validateBookingSchedule } = require('./operational-availability');
-    const schedule = validateBookingSchedule(requestedDate, requestedTime);
-    if (!schedule.ok) {
-      return { ok: false, error: schedule.error || 'booking_date_unavailable', statusCode: 409 };
-    }
-    const { indexedSlotConflict } = require('./slot-index');
-    const conflict = await indexedSlotConflict(schedule.preferredDate, schedule.preferredTime, {
-      excludeId: aggregate.id || aggregate.bookingId,
-    });
-    if (!conflict.ok) {
-      return { ok: false, error: 'booking_verification_unavailable', statusCode: 503 };
-    }
-    if (conflict.conflict) {
-      return { ok: false, error: 'booking_slot_unavailable', statusCode: 409 };
-    }
-    fieldPatches.preferredDate = schedule.preferredDate;
-    fieldPatches.preferredTime = schedule.preferredTime;
-    fieldPatches.confirmedDate = fieldPatches.preferredDate;
-    fieldPatches.confirmedTime = fieldPatches.preferredTime;
-    fieldPatches.status = 'Rescheduled';
-    fieldPatches.appointmentStatus = 'confirmed';
-    if (!['cancelled', 'archived_test', 'completed_paid'].includes(String(aggregate.jobStatus || ''))) {
-      fieldPatches.jobStatus = 'confirmed';
-    }
-    fieldPatches.rescheduledByClient = false;
-    fieldPatches.previousConfirmedDate = aggregate.confirmedDate || aggregate.preferredDate || '';
-    fieldPatches.rescheduleEventId = buildRescheduleEventId(
-      aggregate.id || aggregate.bookingId,
-      fieldPatches.confirmedDate,
-      fieldPatches.confirmedTime
-    );
+    rescheduleMove = await prepareRescheduleMove(aggregate, cr);
+    if (!rescheduleMove.ok) return rescheduleMove;
+    Object.assign(fieldPatches, rescheduleMove.fieldPatches);
   }
   if (rt === 'address_update') {
     const newAddr = String(cr.delta?.serviceAddress || cr.delta?.address || aggregate.address || '').trim();
@@ -1006,6 +1278,19 @@ async function decideChangeRequestCommand({
     payLinkAmount: null,
     ...fieldPatches,
   });
+
+  if (rescheduleMove) {
+    return finishRescheduleApproval({
+      bookingId,
+      expected,
+      next,
+      prepared: rescheduleMove,
+      cr,
+      adminNote,
+      paymentAttempts,
+      appliedBookingVersion,
+    });
+  }
 
   const committed = await commitBooking({
     bookingId,
