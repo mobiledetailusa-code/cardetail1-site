@@ -24,10 +24,12 @@ const { TOKEN_PREFIX: ADMIN_PREFIX } = require('../netlify/lib/admin-quick-ops-t
 const {
   assignQuickOpsTech,
   unassignQuickOpsTech,
+  retryQuickOpsTechNotification,
   listAssignableTechs,
   setQuickOpsTechRoster,
   resetQuickOpsTechRoster,
 } = require('../netlify/lib/quick-ops-assign');
+const { suppressPhone, clearSuppression } = require('../netlify/lib/sms-suppression');
 const { adjustQuickOpsPrice, scaleTechPayout, setTechnicianPay } = require('../netlify/lib/quick-ops-price');
 const techHandler = require('../netlify/functions/tech-quick-ops');
 const adminHandler = require('../netlify/functions/admin-quick-ops');
@@ -75,6 +77,64 @@ function roster() {
     { techId: 'sam', fullName: 'Sam Lee', active: true, phone: '2015550199', smsConsent: true },
     { techId: 'inactive', fullName: 'Idle Tech', active: false, phone: '2015550100' },
   ];
+}
+
+function smsDispatchEnv() {
+  return {
+    CONTEXT: 'production',
+    BRANCH: 'master',
+    URL: 'https://cardetail1.com',
+    TWILIO_OUTBOX_ENABLED: 'true',
+    TWILIO_ENABLED: 'true',
+    TWILIO_PRODUCTION_SENDS_ENABLED: 'true',
+    TWILIO_ACCOUNT_SID: 'AC0000000000',
+    TWILIO_API_KEY: 'SK0000000000',
+    TWILIO_API_SECRET: 'test-secret',
+    TWILIO_MESSAGING_SERVICE_SID: 'MG0000000000',
+    TWILIO_STATUS_CALLBACK_URL: 'https://cardetail1.com/.netlify/functions/twilio-status-callback',
+  };
+}
+
+function memorySmsOutbox() {
+  const rows = new Map();
+  const prisma = {
+    smsOutbox: {
+      async findUnique({ where }) {
+        for (const row of rows.values()) {
+          if (where && where.id && row.id === where.id) return row;
+          if (where && where.idempotencyKey && row.idempotencyKey === where.idempotencyKey) return row;
+        }
+        return null;
+      },
+      async create({ data }) {
+        const row = {
+          id: `sms_${rows.size + 1}`,
+          attemptCount: 0,
+          providerMessageSid: null,
+          createdAt: new Date(),
+          availableAt: new Date(),
+          ...data,
+        };
+        rows.set(row.id, row);
+        return row;
+      },
+      async update({ where, data }) {
+        const row = [...rows.values()].find((item) => item.id === where.id);
+        if (!row) throw new Error('missing');
+        Object.assign(row, data);
+        return row;
+      },
+      async updateMany({ where, data }) {
+        const row = rows.get(where.id);
+        if (!row || row.status !== where.status || row.providerMessageSid) return { count: 0 };
+        row.attemptCount = (row.attemptCount || 0) + (data.attemptCount && data.attemptCount.increment || 1);
+        row.leaseToken = data.leaseToken;
+        row.leaseExpiresAt = data.leaseExpiresAt;
+        return { count: 1 };
+      },
+    },
+  };
+  return { rows, prisma };
 }
 
 before(() => {
@@ -174,15 +234,17 @@ describe('tech quick ops access', () => {
     assert.match(adminHtml.body, /\$190/);
   });
 
-  it('assigns a roster technician without a magic link', async () => {
+  it('assigns a roster technician a booking-scoped link', async () => {
     const result = await assignQuickOpsTech(booking(), { techId: 'sam', skipSms: true });
     assert.equal(result.ok, true);
     assert.equal(result.kind, 'registered');
-    assert.equal(result.techUrl, undefined);
+    assert.match(result.techUrl, /^https:\/\/cardetail1\.com\/ops\/t\/tqt_/);
     const saved = await getBookingRecord('CD1-TQ-01');
     assert.equal(saved.booking.assignedTechId, 'sam');
     assert.equal(saved.booking.assignmentKind, 'registered');
     assert.equal(saved.booking.quickOpsTechClose, false);
+    assert.equal(saved.booking.techLinkPhone, '+12015550199');
+    assert.ok(saved.booking.techQuickOpsTokenHash);
     assert.equal(saved.booking.jobStatus, 'assigned');
   });
 
@@ -321,6 +383,15 @@ describe('tech quick ops access', () => {
     assert.equal(body.view.actions.confirm, undefined);
     assert.equal(body.view.yourPay.label, '$120');
     assert.doesNotMatch(page.body, /19000|\$190/);
+
+    const used = await techHandler.handler({
+      httpMethod: 'GET',
+      path: `/ops/t/${token}`,
+      rawUrl: `https://cardetail1.com/ops/t/${token}`,
+      headers: { host: 'cardetail1.com', accept: 'application/json' },
+    });
+    assert.equal(used.statusCode, 400);
+    assert.doesNotMatch(used.body, /Alex|Harbor/);
 
     const denied = await techHandler.handler({
       httpMethod: 'POST',
@@ -501,10 +572,17 @@ describe('tech quick ops access', () => {
     assert.equal(saved.ok, true, saved.message);
     assert.equal(saved.kind, 'registered');
     assert.equal(saved.sms.sent, true, JSON.stringify(saved.sms && (saved.sms.reason || saved.sms.error)));
-    assert.match(saved.message, /Job text sent/);
+    assert.equal(saved.message, 'Assigned — notification sent');
+    assert.doesNotMatch(saved.message, /delivered/i);
+    assert.match(saved.techUrl, /\/ops\/t\/tqt_/);
+    assert.equal(sent.length, 1);
     assert.equal(sent[0].to, '+15513132956');
-    assert.match(sent[0].body, /Job assigned/);
-    assert.match(sent[0].body, /\/technician/);
+    assert.match(sent[0].body, /Interior Detail/);
+    assert.match(sent[0].body, /Open: https:\/\/cardetail1\.com\/ops\/t\/tqt_/);
+    assert.doesNotMatch(sent[0].body, /Alex|Rivera|\$|190|120/);
+    const queuedSaved = await getBookingRecord('CD1-TQ-01');
+    assert.equal(queuedSaved.booking.techNotifyStatus, 'sent');
+    assert.equal(queuedSaved.booking.assignmentKind, 'registered');
 
     const afterSaved = await getBookingRecord('CD1-TQ-01');
     const matched = await assignQuickOpsTech(afterSaved.booking, {
@@ -514,8 +592,10 @@ describe('tech quick ops access', () => {
       provider,
     });
     assert.equal(matched.ok, true, matched.message);
+    assert.equal(matched.idempotent, true);
     assert.equal(matched.kind, 'registered');
     assert.equal(matched.sms.sent, true);
+    assert.equal(sent.length, 1);
 
     setQuickOpsTechRoster(async () => []);
     const afterMatch = await getBookingRecord('CD1-TQ-01');
@@ -528,9 +608,11 @@ describe('tech quick ops access', () => {
     assert.equal(typed.ok, true, typed.message);
     assert.equal(typed.kind, 'freelance');
     assert.equal(typed.sms.sent, true, JSON.stringify(typed.sms && (typed.sms.reason || typed.sms.error)));
-    assert.match(typed.message, /Freelance link texted/);
-    assert.equal(sent[2].to, '+15513132956');
-    assert.match(sent[2].body, /\/ops\/t\/tqt_/);
+    assert.equal(typed.message, 'Assigned — notification sent');
+    assert.equal(sent.length, 2);
+    assert.equal(sent[1].to, '+15513132956');
+    assert.match(sent[1].body, /\/ops\/t\/tqt_/);
+    assert.doesNotMatch(sent[1].body, /Alex|Rivera|\$/);
   });
 
   it('removes the assignment so the job can go to someone else', async () => {
@@ -551,6 +633,10 @@ describe('tech quick ops access', () => {
     assert.equal(cleared.booking.assignmentKind, null);
     assert.equal(cleared.booking.quickOpsTechClose, false);
     assert.equal(cleared.booking.jobStatus, 'confirmed');
+    assert.equal(cleared.booking.techLinkPhone, null);
+    assert.equal(cleared.booking.techNotifyStatus, null);
+    assert.equal(cleared.booking.techNotifyKey, null);
+    assert.equal(cleared.booking.techQuickOpsTokenHash, null);
     assert.equal((await loadTechQuickOpsToken(decodeURIComponent(token))).ok, false);
 
     const again = await unassignQuickOpsTech(cleared.booking);
@@ -561,19 +647,282 @@ describe('tech quick ops access', () => {
     assert.equal(next.ok, true, next.message || next.error);
     assert.equal(next.kind, 'registered');
     assert.equal(next.assignment.label, 'Sam Lee');
+    assert.match(next.techUrl, /\/ops\/t\/tqt_/);
     const saved = await getBookingRecord('CD1-TQ-01');
     assert.equal(saved.booking.assignedTechId, 'sam');
     assert.equal(saved.booking.quickOpsTechClose, false);
+    assert.equal(saved.booking.techLinkPhone, '+12015550199');
+    const reopened = await techHandler.handler({
+      httpMethod: 'GET',
+      path: `/ops/t/${decodeURIComponent(next.techUrl.split('/').pop())}`,
+      headers: { host: 'cardetail1.com', accept: 'application/json' },
+    });
+    assert.equal(reopened.statusCode, 302);
   });
 
   it('renders the technician job text', () => {
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.TECH_JOB_LINK, {
       service: 'Interior Detail',
       date: '2026-09-19',
+      window: '9:00 AM - 10:00 AM',
+      place: '12 Harbor View, Fort Lee, NJ',
       url: 'https://cardetail1.com/ops/t/tqt_example',
     });
     assert.equal(rendered.ok, true);
-    assert.match(rendered.body, /Job assigned/);
-    assert.match(rendered.body, /\/ops\/t\/tqt_example/);
+    assert.match(rendered.body, /Sep 19, 2026/);
+    assert.match(rendered.body, /Interior Detail/);
+    assert.match(rendered.body, /12 Harbor View, Fort Lee, NJ/);
+    assert.match(rendered.body, /Open: https:\/\/cardetail1\.com\/ops\/t\/tqt_example/);
+    assert.match(rendered.body, /Reply STOP/);
+    assert.doesNotMatch(rendered.body, /Alex|Rivera|\$|Job assigned/);
+  });
+
+  it('rejects an invalid freelance number before saving an assignment', async () => {
+    const result = await assignQuickOpsTech(booking(), { phone: '123', skipSms: true });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'invalid_phone');
+    const saved = await getBookingRecord('CD1-TQ-01');
+    assert.equal(saved.booking.bookingVersion, 1);
+    assert.equal(saved.booking.assignedTechId, undefined);
+    assert.equal(saved.booking.techQuickOpsTokenHash, undefined);
+  });
+
+  it('keeps a registered assignment when the account has no phone', async () => {
+    setQuickOpsTechRoster(async () => [{ techId: 'nope', fullName: 'No Phone', active: true }]);
+    const result = await assignQuickOpsTech(booking(), { techId: 'nope' });
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.notification, 'failed');
+    assert.equal(result.message, 'Assigned — notification failed');
+    assert.equal(result.techUrl, undefined);
+    const saved = await getBookingRecord('CD1-TQ-01');
+    assert.equal(saved.booking.assignedTechId, 'nope');
+    assert.equal(saved.booking.techQuickOpsTokenHash, null);
+    assert.equal(saved.booking.techNotifyStatus, 'failed');
+  });
+
+  it('opens only the job assigned to that technician', async () => {
+    setBookingStoreOverride(createCasMemoryStore({
+      'CD1-TQ-01': booking(),
+      'CD1-TQ-02': booking({
+        id: 'CD1-TQ-02',
+        address: '99 Other Road, Newark, NJ',
+        firstName: 'Blair',
+        lastName: 'Chen',
+      }),
+    }));
+    const first = await assignQuickOpsTech(booking(), { techId: 'sam', skipSms: true });
+    const second = await assignQuickOpsTech(booking({ id: 'CD1-TQ-02', address: '99 Other Road, Newark, NJ' }), {
+      phone: '2015550123',
+      skipSms: true,
+    });
+    assert.equal(first.ok, true, first.error);
+    assert.equal(second.ok, true, second.error);
+    const token = decodeURIComponent(first.techUrl.split('/').pop());
+    const opened = await techHandler.handler({
+      httpMethod: 'GET',
+      path: `/ops/t/${token}`,
+      headers: { host: 'cardetail1.com', accept: 'application/json' },
+    });
+    assert.equal(opened.statusCode, 302);
+    const cookie = String(opened.headers['Set-Cookie']).split(';')[0];
+    const page = await techHandler.handler({
+      httpMethod: 'GET',
+      path: '/ops/t',
+      headers: { cookie, host: 'cardetail1.com', accept: 'application/json' },
+    });
+    assert.equal(page.statusCode, 200);
+    const body = JSON.parse(page.body);
+    assert.equal(body.view.bookingId, 'CD1-TQ-01');
+    assert.equal(body.view.service.address, '12 Harbor View, Fort Lee, NJ');
+    assert.doesNotMatch(page.body, /Newark|Blair/);
+
+    const reused = await techHandler.handler({
+      httpMethod: 'GET',
+      path: `/ops/t/${token}`,
+      headers: { host: 'cardetail1.com', accept: 'application/json' },
+    });
+    assert.equal(reused.statusCode, 400);
+
+    const foreign = await createTechQuickOpsToken({
+      bookingId: 'CD1-TQ-01',
+      phoneE164: '+12015550123',
+    });
+    const otherTech = await techHandler.handler({
+      httpMethod: 'GET',
+      path: `/ops/t/${foreign.token}`,
+      headers: { host: 'cardetail1.com', accept: 'application/json' },
+    });
+    assert.equal(otherTech.statusCode, 401);
+    assert.doesNotMatch(otherTech.body, /Harbor|Alex/);
+
+    const expired = await createTechQuickOpsToken({
+      bookingId: 'CD1-TQ-01',
+      phoneE164: '+12015550199',
+      ttlMs: -1000,
+    });
+    const stale = await techHandler.handler({
+      httpMethod: 'GET',
+      path: `/ops/t/${expired.token}`,
+      headers: { host: 'cardetail1.com', accept: 'text/html' },
+    });
+    assert.equal(stale.statusCode, 400);
+    assert.match(stale.body, /no longer valid/);
+    assert.doesNotMatch(stale.body, /Harbor|Alex/);
+  });
+
+  it('records suppression and a provider failure without calling the text delivered', async () => {
+    const { rows, prisma } = memorySmsOutbox();
+    const sent = [];
+    const provider = {
+      ok: true,
+      async send({ to, body }) {
+        sent.push({ to, body });
+        return { sid: `SM${String(sent.length).padStart(32, 'c')}`, status: 'sent' };
+      },
+    };
+    const env = smsDispatchEnv();
+    await suppressPhone('+12015550123');
+    try {
+      const blocked = await assignQuickOpsTech(booking(), {
+        phone: '2015550123',
+        prisma,
+        env,
+        provider,
+      });
+      assert.equal(blocked.ok, true, blocked.error);
+      assert.equal(blocked.kind, 'freelance');
+      assert.equal(blocked.notification, 'failed');
+      assert.equal(blocked.message, 'Assigned — notification failed');
+      assert.equal(blocked.sms.reason, 'suppressed');
+      assert.equal(sent.length, 0);
+      assert.equal(rows.size, 1);
+      const blockedRow = [...rows.values()][0];
+      assert.equal(blockedRow.status, 'failed');
+      assert.equal(blockedRow.lastErrorCode, 'suppressed');
+      const blockedSaved = await getBookingRecord('CD1-TQ-01');
+      assert.equal(blockedSaved.booking.techNotifyStatus, 'failed');
+      assert.equal(blockedSaved.booking.assignmentKind, 'freelance');
+      const hash = blockedSaved.booking.techQuickOpsTokenHash;
+      const link = blockedRow.templateData && blockedRow.templateData.url;
+
+      const stillBlocked = await retryQuickOpsTechNotification(blockedSaved.booking, { prisma, env, provider });
+      assert.equal(stillBlocked.notification, 'failed');
+      assert.equal(stillBlocked.message, 'Assigned — notification failed');
+      assert.equal(sent.length, 0);
+      assert.equal(rows.size, 1);
+
+      await clearSuppression('+12015550123');
+      const retried = await retryQuickOpsTechNotification((await getBookingRecord('CD1-TQ-01')).booking, {
+        prisma,
+        env,
+        provider,
+      });
+      assert.equal(retried.notification, 'sent');
+      assert.equal(retried.message, 'Assigned — notification sent');
+      assert.doesNotMatch(retried.message, /delivered/i);
+      assert.equal(sent.length, 1);
+      assert.equal(rows.size, 1);
+      assert.equal([...rows.values()][0].templateData.url, link);
+      assert.match(link, /\/ops\/t\/tqt_/);
+      const afterRetry = await getBookingRecord('CD1-TQ-01');
+      assert.equal(afterRetry.booking.techQuickOpsTokenHash, hash);
+      assert.equal(afterRetry.booking.techNotifyStatus, 'sent');
+
+      const again = await retryQuickOpsTechNotification(afterRetry.booking, { prisma, env, provider });
+      assert.equal(again.idempotent, true);
+      assert.equal(again.notification, 'sent');
+      assert.equal(sent.length, 1);
+      assert.equal(rows.size, 1);
+    } finally {
+      await clearSuppression('+12015550123');
+    }
+  });
+
+  it('retries a provider failure on the same queued text', async () => {
+    const { rows, prisma } = memorySmsOutbox();
+    const sent = [];
+    let failOnce = true;
+    const provider = {
+      ok: true,
+      async send({ to, body }) {
+        if (failOnce) {
+          failOnce = false;
+          const err = new Error('provider_down');
+          err.status = 400;
+          throw err;
+        }
+        sent.push({ to, body });
+        return { sid: `SM${'d'.repeat(32)}`, status: 'queued' };
+      },
+    };
+    const env = smsDispatchEnv();
+    const failed = await assignQuickOpsTech(booking(), {
+      techId: 'sam',
+      prisma,
+      env,
+      provider,
+    });
+    assert.equal(failed.ok, true, failed.error);
+    assert.equal(failed.notification, 'failed');
+    assert.equal(failed.message, 'Assigned — notification failed');
+    assert.doesNotMatch(failed.message, /delivered/i);
+    assert.equal(sent.length, 0);
+    assert.equal(rows.size, 1);
+    const saved = await getBookingRecord('CD1-TQ-01');
+    const hash = saved.booking.techQuickOpsTokenHash;
+    const link = [...rows.values()][0].templateData.url;
+    const retried = await retryQuickOpsTechNotification(saved.booking, { prisma, env, provider });
+    assert.equal(retried.notification, 'sent');
+    assert.equal(retried.message, 'Assigned — notification sent');
+    assert.doesNotMatch(retried.message, /delivered/i);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].body, /Open: /);
+    assert.doesNotMatch(sent[0].body, /Alex|Rivera|\$/);
+    assert.equal(rows.size, 1);
+    assert.equal([...rows.values()][0].templateData.url, link);
+    const after = await getBookingRecord('CD1-TQ-01');
+    assert.equal(after.booking.techQuickOpsTokenHash, hash);
+    assert.equal(after.booking.assignedTechId, 'sam');
+
+    const repeat = await assignQuickOpsTech(after.booking, {
+      techId: 'sam',
+      prisma,
+      env,
+      provider,
+    });
+    assert.equal(repeat.idempotent, true);
+    assert.equal(repeat.notification, 'sent');
+    assert.equal(sent.length, 1);
+    assert.equal(rows.size, 1);
+    assert.equal((await getBookingRecord('CD1-TQ-01')).booking.techQuickOpsTokenHash, hash);
+  });
+
+  it('lets only one of two concurrent assignments stay active', async () => {
+    const tokenStore = createCasMemoryStore();
+    setTechQuickOpsStoreFactories({
+      tokenStore: () => tokenStore,
+      sessionStore: () => createCasMemoryStore(),
+    });
+    const [left, right] = await Promise.all([
+      assignQuickOpsTech(booking(), { techId: 'sam', skipSms: true }),
+      assignQuickOpsTech(booking(), { phone: '2015550123', skipSms: true }),
+    ]);
+    const results = [left, right];
+    assert.equal(results.filter((row) => row.ok).length, 1);
+    assert.equal(results.filter((row) => row.error === 'version_conflict').length, 1);
+    const saved = await getBookingRecord('CD1-TQ-01');
+    const records = [...tokenStore._data.values()].map((entry) => JSON.parse(entry.value));
+    const live = records.filter((row) => row && !row.revokedAt);
+    assert.equal(live.length, 1);
+    assert.equal(live[0].tokenHash, saved.booking.techQuickOpsTokenHash);
+    assert.equal(records.filter((row) => row && row.revokedAt).length, 1);
+    if (saved.booking.assignmentKind === 'registered') {
+      assert.equal(saved.booking.assignedTechId, 'sam');
+      assert.equal(saved.booking.freelancePhone, null);
+    } else {
+      assert.equal(saved.booking.assignmentKind, 'freelance');
+      assert.equal(saved.booking.assignedTechId, null);
+      assert.equal(saved.booking.freelancePhone, '+12015550123');
+    }
   });
 });

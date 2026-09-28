@@ -3,7 +3,7 @@
 // so the Jobs Board sends the job text and can remove the assignment.
 const { jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const { getBookingRecord } = require('../lib/booking-repository');
-const { assignQuickOpsTech, unassignQuickOpsTech } = require('../lib/quick-ops-assign');
+const { assignQuickOpsTech, unassignQuickOpsTech, retryQuickOpsTechNotification } = require('../lib/quick-ops-assign');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
@@ -44,6 +44,26 @@ exports.handler = async (event) => {
     });
   }
 
+  if (action === 'retry_notification') {
+    const result = await retryQuickOpsTechNotification(booking, { by: 'admin' });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 409, {
+        ok: false,
+        error: result.error || 'retry_failed',
+        notification: 'failed',
+        message: result.message || 'Assigned — notification failed',
+      });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      jobStatus: result.booking && result.booking.jobStatus,
+      assignment: result.assignment || null,
+      notification: result.notification || 'failed',
+      message: result.message,
+    });
+  }
+
   const techId = sanitizeText(body.techId, 48);
   const phone = sanitizeText(body.phone, 32);
   if (techId === '__freelance__') return jsonCors(400, { ok: false, error: 'techId_required' });
@@ -65,6 +85,7 @@ exports.handler = async (event) => {
     jobStatus: result.booking && result.booking.jobStatus,
     assignment: result.assignment || null,
     techUrl: result.techUrl || null,
+    notification: result.notification || 'failed',
     message: result.message,
   });
 };

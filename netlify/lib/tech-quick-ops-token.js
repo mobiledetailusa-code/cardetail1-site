@@ -122,7 +122,9 @@ async function createTechQuickOpsToken({ bookingId, phoneE164, ttlMs = TOKEN_TTL
   const tokenHash = hashToken(token);
   const store = await resolveTokenStore();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + Math.max(60_000, Number(ttlMs) || TOKEN_TTL_MS)).toISOString();
+  const requestedTtl = Number(ttlMs);
+  const ttl = Number.isFinite(requestedTtl) ? requestedTtl : TOKEN_TTL_MS;
+  const expiresAt = new Date(now.getTime() + ttl).toISOString();
   const record = {
     tokenHash,
     purpose: PURPOSE_TECH_QUICK_OPS,
@@ -134,7 +136,7 @@ async function createTechQuickOpsToken({ bookingId, phoneE164, ttlMs = TOKEN_TTL
     expiresAt,
     revokedAt: null,
   };
-  const ttlSec = Math.ceil((Date.parse(expiresAt) - Date.now()) / 1000);
+  const ttlSec = Math.max(1, Math.ceil((Date.parse(expiresAt) - Date.now()) / 1000));
   await store.setJSON(tokenKey(tokenHash), record, { ttl: ttlSec });
   return {
     ok: true,
@@ -145,6 +147,24 @@ async function createTechQuickOpsToken({ bookingId, phoneE164, ttlMs = TOKEN_TTL
     bookingId: id,
     phoneE164: phone,
   };
+}
+
+async function consumeTechQuickOpsToken(rawToken) {
+  const token = String(rawToken || '').trim();
+  if (!looksLikeTechToken(token)) return { ok: false, error: 'invalid' };
+  let hash = '';
+  try { hash = hashToken(token); }
+  catch { return { ok: false, error: 'invalid' }; }
+  const store = await resolveTokenStore();
+  const record = await readJson(store, tokenKey(hash));
+  if (!record || record.purpose !== PURPOSE_TECH_QUICK_OPS || record.revokedAt) {
+    return { ok: false, error: 'invalid' };
+  }
+  if (!envBindingMatches(record) || Date.parse(record.expiresAt) <= Date.now()) {
+    return { ok: false, error: 'invalid' };
+  }
+  await store.setJSON(tokenKey(hash), { ...record, revokedAt: new Date().toISOString() });
+  return { ok: true, consumed: true };
 }
 
 async function revokeTechQuickOpsToken(tokenHash) {
@@ -292,6 +312,7 @@ module.exports = {
   looksLikeTechToken,
   buildTechOpsUrl,
   createTechQuickOpsToken,
+  consumeTechQuickOpsToken,
   revokeTechQuickOpsToken,
   loadTechQuickOpsToken,
   createTechQuickOpsSession,

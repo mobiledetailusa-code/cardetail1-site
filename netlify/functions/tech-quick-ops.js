@@ -3,6 +3,7 @@
 const {
   looksLikeTechToken,
   loadTechQuickOpsToken,
+  consumeTechQuickOpsToken,
   createTechQuickOpsSession,
   loadTechQuickOpsSession,
   sessionCookieHeader,
@@ -61,8 +62,17 @@ function wantsJson(event) {
 }
 
 function sessionMatchesBooking(session, booking) {
-  if (!booking || booking.assignmentKind !== 'freelance' || booking.quickOpsTechClose !== true) return false;
-  return String(booking.freelancePhone || '') === String(session.phoneE164 || '');
+  if (!booking || !booking.techQuickOpsTokenHash) return false;
+  const phone = String(session && session.phoneE164 || '');
+  if (!phone) return false;
+  const kind = String(booking.assignmentKind || '');
+  if (kind === 'freelance') {
+    return booking.quickOpsTechClose === true && String(booking.freelancePhone || '') === phone;
+  }
+  if (kind === 'registered') {
+    return !!booking.assignedTechId && String(booking.techLinkPhone || '') === phone;
+  }
+  return false;
 }
 
 async function present(session, event) {
@@ -90,6 +100,12 @@ async function handleGet(event) {
     }
     const projected = await loadProjectedBooking(loaded.bookingId);
     if (!projected.ok || !sessionMatchesBooking(loaded, projected.booking)) {
+      return wantsJson(event)
+        ? json(401, { ok: false, error: 'invalid' })
+        : neutralExpiredPage('ops');
+    }
+    const consumed = await consumeTechQuickOpsToken(token);
+    if (!consumed.ok) {
       return wantsJson(event)
         ? json(401, { ok: false, error: 'invalid' })
         : neutralExpiredPage('ops');

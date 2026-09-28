@@ -147,6 +147,9 @@ describe('Admin Jobs lean projection', () => {
     assert.equal(row.assignedTechName, 'Jordan Tech');
     assert.equal(row.assignmentKind, 'registered');
     assert.equal(row.freelancePhone, '');
+    assert.equal(row.techNotifyStatus, '');
+    assert.equal(row.techNotifyKey, undefined);
+    assert.equal(row.techLinkPhone, undefined);
     assert.equal(row.pendingChangeRequestCount, 1);
     assert.equal(row.customerChangePending, true);
     assert.equal(row.hasPendingVehicleRemoval, true);
@@ -168,6 +171,15 @@ describe('Admin Jobs lean projection', () => {
     assert.equal(row.freelancePhone, '+15513132956');
     assert.equal(row.assignedTechId, '');
     assert.equal(row.assignedTechName, 'Freelance 2956');
+    const failed = projectJobForAdminList(heavyBooking({
+      techNotifyStatus: 'failed',
+      techNotifyKey: 'jobnotify.secret',
+      techLinkPhone: '+12015550199',
+    }));
+    assert.equal(failed.techNotifyStatus, 'failed');
+    assert.equal(failed.techNotifyKey, undefined);
+    assert.equal(failed.techLinkPhone, undefined);
+    assert.equal(projectJobForAdminList(heavyBooking({ techNotifyStatus: 'https://secret' })).techNotifyStatus, '');
   });
 
   it('list projector excludes heavy payloads', () => {

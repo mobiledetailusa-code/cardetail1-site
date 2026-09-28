@@ -406,13 +406,18 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} Job ${text(data.service, 100)} - ${text(data.date, 40)} - ${text(data.area, 40)}.`
         + (url ? ` Bid: ${url}` : '');
       break;
-    case TEMPLATE_KEYS.TECH_JOB_LINK:
-      body = `${smsPrefix(templateKey)} Job assigned`
-        + (data.service ? ` ${text(data.service, 80)}` : '')
-        + (data.date ? ` ${text(data.date, 40)}` : '')
+    case TEMPLATE_KEYS.TECH_JOB_LINK: {
+      const when = [smsDateLabel(data.date), smsWindowLabel(data.window)].filter(Boolean).join(' ');
+      const service = asciiSms(data.service).slice(0, 40);
+      const place = asciiSms(data.place).slice(0, 48);
+      body = `${smsPrefix(templateKey)} Job`
+        + (when ? ` ${when}` : '')
+        + (service ? `. ${service}` : '')
+        + (place ? `. ${place}` : '')
         + '.'
         + (url ? ` Open: ${url}` : '');
       break;
+    }
     case TEMPLATE_KEYS.ADMIN_BOOKING: {
       const name = asciiSms(data.customerName).slice(0, 32);
       const vehicle = asciiSms(data.vehicle).slice(0, 28);
