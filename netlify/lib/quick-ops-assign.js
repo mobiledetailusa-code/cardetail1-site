@@ -5,7 +5,7 @@ const { buildNextAggregate } = require('./booking-aggregate');
 const { appendEventLog } = require('./ops-workflow');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
 const { bookingStatus, jobCompleted } = require('./admin-quick-ops-view');
-const { enqueueSms, smsSafeIdempotencyKey } = require('./sms-outbox');
+const { enqueueSms, kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
 const { TEMPLATE_KEYS, smsDateLabel, smsServiceLabel } = require('./sms-templates');
 const {
   createTechQuickOpsToken,
@@ -59,13 +59,26 @@ function technicianPortalUrl() {
   return `${trustedSiteOrigin()}/technician`;
 }
 
-async function textTech({ booking, toE164, url, idempotencyKey, consentGranted, prisma, env }) {
-  if (!toE164) return { ok: true, queued: false, skipped: true, reason: 'invalid_sms_recipient' };
+function smsHandedOff(kick) {
+  const results = kick && Array.isArray(kick.results) ? kick.results : [];
+  return results.some((row) => {
+    const status = row && row.outbox && row.outbox.status;
+    return row && row.ok && ['accepted', 'sent', 'delivered'].includes(status);
+  });
+}
+
+/**
+ * Admin assignment is one transactional job text. It is sent in this request.
+ * Auction invites still require the technician SMS checkbox; this dispatch does not.
+ */
+async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, provider }) {
+  if (!toE164) return { ok: true, queued: false, sent: false, skipped: true, reason: 'invalid_sms_recipient' };
+  let queued;
   try {
-    return await enqueueSms({
+    queued = await enqueueSms({
       idempotencyKey: smsSafeIdempotencyKey(idempotencyKey),
       audience: 'technician',
-      consentGranted: consentGranted === true,
+      consentGranted: true,
       toE164,
       bookingId: booking.id || booking.bookingId,
       templateKey: TEMPLATE_KEYS.TECH_JOB_LINK,
@@ -76,8 +89,41 @@ async function textTech({ booking, toE164, url, idempotencyKey, consentGranted, 
       },
     }, { prisma, env });
   } catch (err) {
-    return { ok: false, queued: false, error: 'sms_failed', reason: String(err && err.message || err).slice(0, 80) };
+    return { ok: false, queued: false, sent: false, error: 'sms_failed', reason: String(err && err.message || err).slice(0, 80) };
   }
+  const outboxId = queued && queued.outbox && queued.outbox.id;
+  if (!queued || !queued.queued || !outboxId) {
+    return { ...queued, sent: false };
+  }
+  let kick = null;
+  try {
+    kick = await kickSmsOutboxByIds([outboxId], { prisma, env, provider });
+  } catch (err) {
+    kick = { ok: false, error: 'kick_failed', reason: String(err && err.message || err).slice(0, 80) };
+  }
+  const sent = smsHandedOff(kick);
+  const kickReason = !sent && kick && (kick.reason || (kick.results && kick.results[0] && (kick.results[0].reason || kick.results[0].error)));
+  return {
+    ...queued,
+    kick,
+    sent,
+    reason: sent ? null : (kickReason || queued.reason || null),
+  };
+}
+
+function assignmentNotice(kind, name, sms) {
+  const sent = sms && sms.sent === true;
+  if (kind === 'freelance') {
+    if (sent) return 'Freelance link texted. The job closes when the customer pays.';
+    const why = (sms && (sms.reason || sms.error)) || 'not_sent';
+    return `Link created, but the text was not sent (${why}). Copy the link below. The job closes when the customer pays.`;
+  }
+  if (sent) return `Assigned to ${name}. Job text sent.`;
+  if (sms && sms.reason === 'invalid_sms_recipient') {
+    return `Assigned to ${name}. No phone is saved on that account, so no text was sent.`;
+  }
+  const why = (sms && (sms.reason || sms.error)) || 'not_sent';
+  return `Assigned to ${name}. The text was not sent (${why}).`;
 }
 
 async function commitAssignment(booking, patch) {
@@ -149,17 +195,17 @@ async function assignQuickOpsTech(booking, opts = {}) {
       }),
     });
     if (!committed.ok) return committed;
-    const techPhone = normalizeUsPhoneE164(tech.phone || tech.mobile || '');
+    const techPhone = normalizeUsPhoneE164(tech.phone || tech.mobile || tech.phoneE164 || '');
     const sms = opts.skipSms
-      ? { ok: true, queued: false, skipped: true, reason: 'skipped' }
+      ? { ok: true, queued: false, sent: false, skipped: true, reason: 'skipped' }
       : await textTech({
         booking,
         toE164: techPhone,
         url: technicianPortalUrl(),
         idempotencyKey: `qo.assign:${bookingId}:${id}:${booking.bookingVersion}`,
-        consentGranted: tech.smsConsent === true,
         prisma: opts.prisma,
         env: opts.env,
+        provider: opts.provider,
       });
     return {
       ok: true,
@@ -169,9 +215,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
       booking: committed.booking,
       bookingVersion: committed.bookingVersion,
       sms,
-      message: sms.queued
-        ? `Assigned to ${name}. Portal link texted.`
-        : `Assigned to ${name}.`,
+      message: assignmentNotice('registered', name, sms),
     };
   }
 
@@ -203,16 +247,15 @@ async function assignQuickOpsTech(booking, opts = {}) {
     return committed;
   }
   const sms = opts.skipSms
-    ? { ok: true, queued: false, skipped: true, reason: 'skipped' }
+    ? { ok: true, queued: false, sent: false, skipped: true, reason: 'skipped' }
     : await textTech({
       booking,
       toE164: phoneE164,
       url: minted.opsUrl,
       idempotencyKey: `qo.assign:${bookingId}:${phoneE164}:${booking.bookingVersion}`,
-      // Admin typed this number and is dispatching one transactional job link.
-      consentGranted: true,
       prisma: opts.prisma,
       env: opts.env,
+      provider: opts.provider,
     });
   return {
     ok: true,
@@ -222,9 +265,7 @@ async function assignQuickOpsTech(booking, opts = {}) {
     booking: committed.booking,
     bookingVersion: committed.bookingVersion,
     sms,
-    message: sms.queued
-      ? 'Freelance link texted. The job closes when the customer pays.'
-      : 'Freelance link ready. Text it or copy it below. The job closes when the customer pays.',
+    message: assignmentNotice('freelance', null, sms),
   };
 }
 

@@ -273,7 +273,7 @@ async function handlePost(event) {
     });
     return json(result.ok ? 200 : (result.statusCode || 409), {
       ok: !!result.ok,
-      reload: !!result.ok && !result.techUrl,
+      reload: !!result.ok && !result.techUrl && result.sms && result.sms.sent === true,
       kind: result.kind || null,
       techUrl: result.techUrl || null,
       message: result.message || result.error || 'Could not assign',

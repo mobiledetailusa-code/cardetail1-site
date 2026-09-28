@@ -385,6 +385,114 @@ describe('tech quick ops access', () => {
     assert.equal(saved.booking.assignmentKind, 'freelance');
   });
 
+  it('texts a saved technician and a freelance phone immediately', async () => {
+    const rows = new Map();
+    const prisma = {
+      smsOutbox: {
+        async findUnique({ where }) {
+          for (const row of rows.values()) {
+            if (where && where.id && row.id === where.id) return row;
+            if (where && where.idempotencyKey && row.idempotencyKey === where.idempotencyKey) return row;
+          }
+          return null;
+        },
+        async create({ data }) {
+          const row = {
+            id: `sms_${rows.size + 1}`,
+            attemptCount: 0,
+            providerMessageSid: null,
+            createdAt: new Date(),
+            ...data,
+          };
+          rows.set(row.id, row);
+          return row;
+        },
+        async update({ where, data }) {
+          const row = [...rows.values()].find((item) => item.id === where.id);
+          if (!row) throw new Error('missing');
+          Object.assign(row, data);
+          return row;
+        },
+        async updateMany({ where, data }) {
+          const row = rows.get(where.id);
+          if (!row || row.status !== where.status || row.providerMessageSid) return { count: 0 };
+          row.attemptCount = (row.attemptCount || 0) + (data.attemptCount && data.attemptCount.increment || 1);
+          row.leaseToken = data.leaseToken;
+          row.leaseExpiresAt = data.leaseExpiresAt;
+          return { count: 1 };
+        },
+      },
+    };
+    const sent = [];
+    const provider = {
+      ok: true,
+      async send({ to, body }) {
+        sent.push({ to, body });
+        return { sid: `SM${'a'.repeat(32)}`, status: 'sent' };
+      },
+    };
+    const env = {
+      CONTEXT: 'production',
+      BRANCH: 'master',
+      URL: 'https://cardetail1.com',
+      TWILIO_OUTBOX_ENABLED: 'true',
+      TWILIO_ENABLED: 'true',
+      TWILIO_PRODUCTION_SENDS_ENABLED: 'true',
+      TWILIO_ACCOUNT_SID: 'AC0000000000',
+      TWILIO_API_KEY: 'SK0000000000',
+      TWILIO_API_SECRET: 'test-secret',
+      TWILIO_MESSAGING_SERVICE_SID: 'MG0000000000',
+      TWILIO_STATUS_CALLBACK_URL: 'https://cardetail1.com/.netlify/functions/twilio-status-callback',
+    };
+    setQuickOpsTechRoster(async () => [{
+      techId: 'pat',
+      fullName: 'Pat Diaz',
+      active: true,
+      phone: '5513132956',
+      smsConsent: false,
+    }]);
+
+    const saved = await assignQuickOpsTech(booking(), {
+      techId: 'pat',
+      prisma,
+      env,
+      provider,
+    });
+    assert.equal(saved.ok, true, saved.message);
+    assert.equal(saved.kind, 'registered');
+    assert.equal(saved.sms.sent, true, JSON.stringify(saved.sms && (saved.sms.reason || saved.sms.error)));
+    assert.match(saved.message, /Job text sent/);
+    assert.equal(sent[0].to, '+15513132956');
+    assert.match(sent[0].body, /Job assigned/);
+    assert.match(sent[0].body, /\/technician/);
+
+    const afterSaved = await getBookingRecord('CD1-TQ-01');
+    const matched = await assignQuickOpsTech(afterSaved.booking, {
+      phone: '5513132956',
+      prisma,
+      env,
+      provider,
+    });
+    assert.equal(matched.ok, true, matched.message);
+    assert.equal(matched.kind, 'registered');
+    assert.equal(matched.sms.sent, true);
+
+    setQuickOpsTechRoster(async () => []);
+    const afterMatch = await getBookingRecord('CD1-TQ-01');
+    const typed = await assignQuickOpsTech(afterMatch.booking, {
+      phone: '(551) 313-2956',
+      prisma,
+      env,
+      provider,
+    });
+    assert.equal(typed.ok, true, typed.message);
+    assert.equal(typed.kind, 'freelance');
+    assert.equal(typed.sms.sent, true, JSON.stringify(typed.sms && (typed.sms.reason || typed.sms.error)));
+    assert.match(typed.message, /Freelance link texted/);
+    assert.equal(sent[2].to, '+15513132956');
+    assert.match(sent[2].body, /\/ops\/t\/tqt_/);
+  });
+
   it('renders the technician job text', () => {
     const rendered = renderSmsTemplate(TEMPLATE_KEYS.TECH_JOB_LINK, {
       service: 'Interior Detail',
