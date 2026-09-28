@@ -29,6 +29,7 @@ async function loadProjectedBooking(bookingId) {
   return {
     ok: true,
     booking: rec.booking,
+    shared,
     view: projectQuickOpsBooking(rec.booking, shared),
     reads: 1,
     paymentAuthority: shared && shared.ok ? 'postgres' : 'blob',

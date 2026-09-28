@@ -84,6 +84,16 @@
   status = 200
   force = true
 [[redirects]]
+  from = "/ops/t"
+  to = "/.netlify/functions/tech-quick-ops"
+  status = 200
+  force = true
+[[redirects]]
+  from = "/ops/t/*"
+  to = "/.netlify/functions/tech-quick-ops"
+  status = 200
+  force = true
+[[redirects]]
   from = "/pay"
   to = "/.netlify/functions/payment-resume"
   status = 200
