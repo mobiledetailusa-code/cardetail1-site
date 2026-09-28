@@ -11,7 +11,24 @@ const { DRAFT_SLOT_HOLD_MS } = require('../netlify/lib/booking-schedule');
 const { projectBookingForCustomer } = require('../netlify/lib/ops-schema');
 const { projectQuickOpsBooking } = require('../netlify/lib/admin-quick-ops-view');
 
-const WEEKDAY = '2026-09-28';
+function isoUtcDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+/** Monday far enough ahead that morning arrival windows are still in the future. */
+function upcomingMonday(minDaysAhead = 14) {
+  const now = new Date();
+  const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  utc.setUTCDate(utc.getUTCDate() + minDaysAhead);
+  const add = (8 - utc.getUTCDay()) % 7;
+  utc.setUTCDate(utc.getUTCDate() + add);
+  return utc;
+}
+
+const WEEKDAY_DATE = upcomingMonday(14);
+const WEEKDAY = isoUtcDate(WEEKDAY_DATE);
+const NEXT_DAY = isoUtcDate(new Date(WEEKDAY_DATE.getTime() + 24 * 60 * 60 * 1000));
+const DAY_AFTER = isoUtcDate(new Date(WEEKDAY_DATE.getTime() + 2 * 24 * 60 * 60 * 1000));
 const GENERIC_CARD_FALLBACK = 'Could not register booking. Please try again.';
 
 function createMemoryStore() {
@@ -232,7 +249,7 @@ test('12-hour ceramic interior draft reserves every required day before payment'
   const keys = indexKeys();
   assert.ok(keys.some((key) => key.startsWith(`${WEEKDAY}/8:00 AM/`)), keys.join(','));
   assert.ok(keys.some((key) => key.startsWith(`${WEEKDAY}/2:00 PM/`)), keys.join(','));
-  assert.ok(keys.some((key) => key.startsWith('2026-09-29/8:00 AM/')), keys.join(','));
+  assert.ok(keys.some((key) => key.startsWith(`${NEXT_DAY}/8:00 AM/`)), keys.join(','));
   assert.equal(keys.length, 6);
 
   const spill = await post(ordinary('cash_onsite', {
@@ -254,10 +271,10 @@ test('confirmed 12-hour appointment keeps every span after the draft hold expire
   assert.equal(draftKeys.length, 6);
   assert.ok(draftKeys.every((entry) => entry && entry.state === 'draft' && entry.expiresAtMs > Date.now()));
   const afterDraftTtl = Date.now() + DRAFT_SLOT_HOLD_MS + 60 * 1000;
-  const expiredDraft = await indexedOccupancyForDates([WEEKDAY, '2026-09-29'], { nowMs: afterDraftTtl });
+  const expiredDraft = await indexedOccupancyForDates([WEEKDAY, NEXT_DAY], { nowMs: afterDraftTtl });
   assert.equal(expiredDraft.ok, true);
   assert.equal(expiredDraft.occupancy[`${WEEKDAY}|8:00 AM`] || 0, 0);
-  assert.equal(expiredDraft.occupancy['2026-09-29|8:00 AM'] || 0, 0);
+  assert.equal(expiredDraft.occupancy[`${NEXT_DAY}|8:00 AM`] || 0, 0);
 
   const fin = await finalize(payload, draft.body);
   assert.equal(fin.status, 200, JSON.stringify(fin.body));
@@ -270,22 +287,22 @@ test('confirmed 12-hour appointment keeps every span after the draft hold expire
   assert.equal(saved.appointmentDurationMinutes, 720);
   assert.equal(saved.totalPrice, 1530);
   assert.equal(saved.appointmentSchedule.multiDay, true);
-  assert.deepEqual(saved.appointmentSchedule.days.map((day) => day.date), [WEEKDAY, '2026-09-29']);
+  assert.deepEqual(saved.appointmentSchedule.days.map((day) => day.date), [WEEKDAY, NEXT_DAY]);
   assert.ok(saved.vehicles.some((vehicle) => vehicle.companionInterior === true));
 
   const bookedKeys = indexKeys().map(parseSlotIndexKey);
   assert.equal(bookedKeys.length, 6);
   assert.ok(bookedKeys.every((entry) => entry && entry.state === 'booked' && entry.bookingId === saved.id));
-  const stillHeld = await indexedOccupancyForDates([WEEKDAY, '2026-09-29', '2026-09-30'], { nowMs: afterDraftTtl });
+  const stillHeld = await indexedOccupancyForDates([WEEKDAY, NEXT_DAY, DAY_AFTER], { nowMs: afterDraftTtl });
   assert.equal(stillHeld.occupancy[`${WEEKDAY}|8:00 AM`], 1);
   assert.equal(stillHeld.occupancy[`${WEEKDAY}|2:00 PM`], 1);
-  assert.equal(stillHeld.occupancy['2026-09-29|8:00 AM'], 1);
-  assert.equal(stillHeld.occupancy['2026-09-29|10:00 AM'], 1);
-  assert.equal(stillHeld.occupancy['2026-09-29|12:00 PM'] || 0, 0);
+  assert.equal(stillHeld.occupancy[`${NEXT_DAY}|8:00 AM`], 1);
+  assert.equal(stillHeld.occupancy[`${NEXT_DAY}|10:00 AM`], 1);
+  assert.equal(stillHeld.occupancy[`${NEXT_DAY}|12:00 PM`] || 0, 0);
 
   const conflict = await post(ordinary('cash_onsite', {
     phone: '2015550167',
-    preferredDate: '2026-09-29',
+    preferredDate: NEXT_DAY,
     preferredTime: '8:00 AM',
     preferredArrivalWindow: '08:00-11:00',
   }), '203.0.113.42');
@@ -311,7 +328,7 @@ test('confirmed 12-hour appointment keeps every span after the draft hold expire
     assert.equal(opening.preferredTime, '8:00 AM');
     assert.equal(opening.preferredArrivalWindow, '08:00-11:00');
     assert.notEqual(opening.preferredDate, WEEKDAY);
-    assert.notEqual(opening.preferredDate, '2026-09-29');
+    assert.notEqual(opening.preferredDate, NEXT_DAY);
   }
 });
 
@@ -370,7 +387,7 @@ test('ceramic cash and card at service stay unpaid with the full balance and no 
       assert.equal(stripeCalls.length, 0);
       assert.equal(saved.appointmentDurationMinutes, 720);
       assert.equal(saved.appointmentSchedule.multiDay, true);
-      assert.equal(saved.appointmentSchedule.days[1].date, '2026-09-29');
+      assert.equal(saved.appointmentSchedule.days[1].date, NEXT_DAY);
       const again = await finalize(payload, draft.body);
       assert.equal(again.body.idempotent, true);
       assert.equal(bookings.records().length, 1);
@@ -385,7 +402,7 @@ test('ceramic cash and card at service stay unpaid with the full balance and no 
       assert.equal(saved.ceramic.eligibility, null);
       const occupied = indexKeys().map(parseSlotIndexKey).filter((entry) => entry && entry.bookingId === saved.id && entry.state === 'booked');
       assert.equal(occupied.length, 6);
-      assert.ok(occupied.some((entry) => entry.slotDate === '2026-09-29'));
+      assert.ok(occupied.some((entry) => entry.slotDate === NEXT_DAY));
     }
   } finally {
     global.fetch = originalFetch;
