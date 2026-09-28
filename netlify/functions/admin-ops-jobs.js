@@ -1879,89 +1879,151 @@ async function handleAdminAction(body, testOpts = {}) {
   }
 
   if (action === 'approve_completion') {
-    if (booking.jobStatus !== 'completed_pending_admin_review') {
+    const charging = body.confirmSavedCardCharge === true;
+    const js = String(booking.jobStatus || '');
+    const retryCharge = charging && (js === 'completed_pending_payment' || js === 'completed_paid');
+    if (js !== 'completed_pending_admin_review' && !retryCharge) {
       return jsonCors(409, { ok: false, error: 'not_pending_admin_review' });
     }
     const { postServiceState } = require('../lib/post-service-experience');
     const { financialProjection } = require('../lib/payment-service');
+    const {
+      chargeEligibility,
+      chargeSavedCardAfterService,
+    } = require('../lib/charge-saved-card-after-service');
     let money = null;
     try {
       const {
         postgresPaymentEnabled,
         getSharedFinancialProjection,
       } = require('../lib/db/operational-payment');
-      if (postgresPaymentEnabled()) {
+      const payEnv = testOpts.env || process.env;
+      if (postgresPaymentEnabled(payEnv)) {
         const shared = await getSharedFinancialProjection(booking, { reconcileUncertain: false });
         if (shared.ok && shared.projection) money = shared.projection;
       }
     } catch (_) { /* fall through to blob */ }
     if (!money) money = financialProjection(booking);
+    if (charging) {
+      const gate = chargeEligibility(booking, money);
+      if (!gate.ok && gate.error !== 'nothing_to_charge') {
+        return jsonCors(gate.statusCode || 409, {
+          ok: false,
+          error: gate.error,
+          message: gate.message || null,
+          reason: gate.reason || null,
+        });
+      }
+    }
     const alreadyPaid = String(money.paymentStatus || '').toLowerCase() === 'paid'
       || Math.max(0, Math.round(Number(money.remainingCents) || 0)) === 0;
-    let patched = {
-      ...booking,
-      adminReviewRequired: false,
-      adminReviewedAt: now,
-      adminReviewed: true,
-      jobStatus: alreadyPaid ? 'completed_paid' : 'completed_pending_payment',
-      paymentWorkflowStatus: alreadyPaid
-        ? (String(booking.paymentWorkflowStatus || '').toLowerCase() === 'cash_paid'
-          ? 'cash_paid'
-          : 'payment_succeeded')
-        : 'payment_action_required',
-      // Write-once. This is the anchor for the review action and the 48-hour
-      // service-issue window, so re-approving a completion cannot restart it.
-      completedAt: booking.completedAt || booking.techCompletedAt || now,
-      updatedAt: now,
-      eventLog: appendEventLog(booking, {
-        action: 'completion_approved',
-        by: 'admin',
-        alreadyPaid: !!alreadyPaid,
-      }),
-    };
-    let persisted = await persistMutation(store, bookingId, patched, booking, 'approve_completion', 'admin_review');
-    if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
-    }
-    patched = persisted.booking;
-    // Idempotent by the notification ledger: a second approve_completion for the
-    // same state key does not send a second completion email.
-    // Skip pay-required notify when the invoice is already settled.
-    if (!alreadyPaid) {
+    let patched = booking;
+    if (js === 'completed_pending_admin_review') {
+      patched = {
+        ...booking,
+        adminReviewRequired: false,
+        adminReviewedAt: now,
+        adminReviewed: true,
+        jobStatus: alreadyPaid ? 'completed_paid' : 'completed_pending_payment',
+        paymentWorkflowStatus: alreadyPaid
+          ? (String(booking.paymentWorkflowStatus || '').toLowerCase() === 'cash_paid'
+            ? 'cash_paid'
+            : 'payment_succeeded')
+          : 'payment_action_required',
+        // Write-once. This is the anchor for the review action and the 48-hour
+        // service-issue window, so re-approving a completion cannot restart it.
+        completedAt: booking.completedAt || booking.techCompletedAt || now,
+        updatedAt: now,
+        eventLog: appendEventLog(booking, {
+          action: 'completion_approved',
+          by: 'admin',
+          alreadyPaid: !!alreadyPaid,
+          chargeSavedCard: charging,
+        }),
+      };
+      let persisted = await persistMutation(store, bookingId, patched, booking, 'approve_completion', 'admin_review');
+      if (!persisted.ok) {
+        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      }
+      patched = persisted.booking;
+      // Idempotent by the notification ledger: a second approve_completion for the
+      // same state key does not send a second completion email.
+      // Skip pay-required notify when the invoice is already settled.
+      if (!alreadyPaid) {
+        try {
+          const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
+          const txn = await emitCustomerActionRequired(patched, {
+            event: testOpts.event,
+            prisma: testOpts.prisma,
+            env: testOpts.env,
+          });
+          if (txn && txn.booking) {
+            const after = await persistMutation(
+              store, bookingId, txn.booking, patched, 'completion_notification', 'completion_notify'
+            ).catch(() => null);
+            if (after && after.ok) patched = after.booking;
+          }
+        } catch (e) {
+          console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
+        }
+      }
       try {
-        const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
-        const txn = await emitCustomerActionRequired(patched, {
+        const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
+        await notifyReviewRequestedQuietly(patched, {
           event: testOpts.event,
           prisma: testOpts.prisma,
           env: testOpts.env,
         });
-        if (txn && txn.booking) {
-          const after = await persistMutation(
-            store, bookingId, txn.booking, patched, 'completion_notification', 'completion_notify'
-          ).catch(() => null);
-          if (after && after.ok) patched = after.booking;
-        }
       } catch (e) {
-        console.warn('[admin-ops-jobs] action-required notify failed:', e.message);
+        console.warn('[admin-ops-jobs] review-request notify failed:', e.message);
       }
     }
-    try {
-      const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
-      await notifyReviewRequestedQuietly(patched, {
-        event: testOpts.event,
-        prisma: testOpts.prisma,
-        env: testOpts.env,
+
+    let charge = null;
+    if (charging && !alreadyPaid) {
+      const attempt = await chargeSavedCardAfterService({
+        booking: patched,
+        projection: money,
+        env: testOpts.env || process.env,
+        fetchImpl: testOpts.fetch || fetch,
+        confirmCharge: true,
       });
-    } catch (e) {
-      console.warn('[admin-ops-jobs] review-request notify failed:', e.message);
+      charge = {
+        attempted: true,
+        charged: attempt.charged === true,
+        duplicate: attempt.duplicate === true,
+        stripeStatus: attempt.stripeStatus || null,
+        paymentIntentId: attempt.paymentIntentId || null,
+        amountCents: attempt.amountCents || null,
+        recoveryUrl: attempt.recoveryUrl || null,
+        paymentPending: attempt.paymentPending === true,
+        error: attempt.error || null,
+      };
+      if (attempt.booking) {
+        const chargedBooking = {
+          ...attempt.booking,
+          eventLog: appendEventLog(patched, {
+            action: 'saved_card_after_service',
+            by: 'admin',
+            status: attempt.stripeStatus || attempt.error || '',
+            amountCents: attempt.amountCents || 0,
+          }),
+        };
+        const saved = await persistMutation(
+          store, bookingId, chargedBooking, patched, 'after_service_card_charge', 'saved_card'
+        );
+        if (saved.ok) patched = saved.booking;
+      }
     }
     return jsonCors(200, {
       ok: true,
       bookingId,
       jobStatus: patched.jobStatus,
+      paymentStatus: patched.paymentStatus,
       completedAt: patched.completedAt,
       bookingVersion: patched.bookingVersion,
       postService: postServiceState(patched),
+      charge,
     });
   }
 

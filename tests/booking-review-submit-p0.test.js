@@ -568,7 +568,7 @@ describe('payment preference metadata', () => {
       'cash_onsite',
       'online_after_service',
     ]);
-    assert.equal(Review.preferenceLabel('online_after_service'), 'Pay online later');
+    assert.equal(Review.preferenceLabel('online_after_service'), 'Card online — charged after service');
     assert.equal(Review.preferenceLabel('card_onsite'), 'Card at service');
     assert.equal(Review.preferenceLabel('cash_onsite'), 'Cash at service');
   });

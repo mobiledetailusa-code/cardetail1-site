@@ -6,8 +6,8 @@
  *   - estimated totals use the same cart + travel-fee total that the payload sends
  *   - a persisted booking never renders as "not submitted"
  *   - payment preference selects how the customer wants to pay later
- *   - Pay online later requires a saved card on file; other preferences stay
- *     no-card at request time
+ *   - Card online — charged after service requires a saved card; other
+ *     preferences stay no-card at request time
  *   - this module never talks to Stripe directly (page JS owns SetupIntent)
  *
  * This module NEVER prices a package and NEVER creates Stripe/ledger/receipt objects.
@@ -33,8 +33,8 @@
     online_after_service: {
       id: 'pc-online',
       value: 'online_after_service',
-      label: 'Pay online later',
-      button: 'Pay online later',
+      label: 'Card online — charged after service',
+      button: 'Card online — charged after service',
       recommended: false,
       requiresCard: true,
     },
@@ -78,8 +78,8 @@
     rate_limited: 'Too many attempts. Please wait a few minutes and try again.',
     payment_preference_required: 'Please choose a preferred payment method.',
     invalid_payment_preference: 'Please choose a preferred payment method.',
-    card_on_file_required: 'Pay online later requires a saved card. Save your card securely above, then submit.',
-    card_on_file_policy_required: 'Accept the card-on-file authorization to continue with Pay online later.',
+    card_on_file_required: 'Card online — charged after service requires a saved card. Save your card securely above, then submit.',
+    card_on_file_policy_required: 'Accept the card authorization to continue with card online charged after service.',
     card_on_file_not_saved: 'Your card is still being verified. Please wait a few seconds and try again.',
     offer_application_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',
     offer_redemption_lookup_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',

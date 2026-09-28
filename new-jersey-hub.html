@@ -3781,19 +3781,19 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="oc-t">Preferred payment method</div>
             <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
               <div class="bk-pay-pref-row">
-                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Pay online later</span></button>
+                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Card online — charged after service</span></button>
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
               <p class="bk-pay-pref-help" id="bk-onsite-card-copy" hidden>Card at service — no card needed to submit. Pay by card when we finish the job.</p>
               <p class="bk-pay-pref-help" id="bk-onsite-cash-copy" hidden>Cash at service — no card needed to submit. Pay with cash when we finish the job.</p>
               <div class="bk-online-card-wrap" id="bk-online-card-wrap" hidden>
-                <p class="bk-online-rec-msg" id="bk-online-rec-msg" data-standard="Save a card securely now. Nothing is charged today. Payment is requested online after the service is approved.">Save a card securely now. Nothing is charged today. Payment is requested online after the service is approved.</p>
+                <p class="bk-online-rec-msg" id="bk-online-rec-msg" data-standard="Save a card securely now. Nothing is charged today. The approved balance is charged to this card after the service is completed.">Save a card securely now. Nothing is charged today. The approved balance is charged to this card after the service is completed.</p>
                 <div id="cof-wrap">
                   <div id="card-container"></div>
                   <label class="terms-check" id="cof-policy-label">
                     <input type="checkbox" id="cof-policy-ok" onchange="cofCheckboxChanged()">
-                    <span>I authorize Cardetail1 to securely save my card with Stripe and charge applicable cancellation, no-show, access, or approved service charges according to the <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">booking policy</a>.</span>
+                    <span>I authorize Cardetail1 to save this card with Stripe and to charge the approved total after the service is completed. Add-ons are charged only after I approve them. Nothing is charged today. <a href="/terms-conditions" target="_blank" rel="noopener noreferrer">Booking policy</a>.</span>
                   </label>
                   <button type="button" class="btn-n" id="stripe-auth-btn" style="width:100%;opacity:0.5;cursor:not-allowed" disabled onclick="confirmSetupIntent()">Save my card securely</button>
                   <div class="pay-err" id="pay-err" role="alert"></div>
@@ -3802,9 +3802,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
                     <div class="bk-online-card-body bk-cof-policy-copy" id="bk-pay-details-body">
                       <strong>Before saving your card, please note:</strong>
                       <ul>
-                        <li>No charge is made today for saving your card.</li>
+                        <li>No charge is made today. Saving a card is not a hold and not a prepayment.</li>
+                        <li>When the appointment is completed, Cardetail1 charges only the approved balance that is still unpaid.</li>
+                        <li>Add-ons and other price changes are included only after they are approved.</li>
                         <li>Late cancellation, no-show, inaccessible vehicle, unsafe location, or denied access may result in a fee per the posted policy.</li>
-                        <li>Final service payment is collected online after service when approved, or on-site if you change your preference later.</li>
                       </ul>
                     </div>
                   </details>

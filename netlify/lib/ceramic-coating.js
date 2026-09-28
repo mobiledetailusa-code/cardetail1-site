@@ -825,10 +825,11 @@ function stampStoredCeramicChargePlan(booking, plan, env = process.env) {
   return { ok: true, booking };
 }
 
-const CERAMIC_PAY_AT_SERVICE = new Set(['cash_onsite', 'card_onsite']);
+const CERAMIC_NEW_BOOKING_METHODS = new Set(['cash_onsite', 'card_onsite', 'online_after_service']);
 
 /**
- * New Ceramic reservations offer card or cash at the appointment only.
+ * New Ceramic reservations offer card online charged after service, card at
+ * service, or cash at service. None of those collects a deposit or prepay.
  * A stored deposit or prepay plan keeps the payment path it already had.
  */
 function ceramicPayAtServiceViolation(booking, existing, { finalize = false } = {}) {
@@ -841,11 +842,11 @@ function ceramicPayAtServiceViolation(booking, existing, { finalize = false } = 
     booking.paymentMethodPreference || (existing && existing.paymentMethodPreference) || ''
   ).trim();
   if (!preference && !finalize) return null;
-  if (CERAMIC_PAY_AT_SERVICE.has(preference)) return null;
+  if (CERAMIC_NEW_BOOKING_METHODS.has(preference)) return null;
   return {
     ok: false,
-    error: preference ? 'ceramic_pay_at_service_only' : 'ceramic_payment_preference_required',
-    message: 'Ceramic Coating is reserved for payment at the appointment. Choose card at service or cash at service. Nothing is charged to reserve.',
+    error: preference ? 'ceramic_payment_method_unavailable' : 'ceramic_payment_preference_required',
+    message: 'Choose card online charged after service, card at service, or cash at service. Nothing is charged to reserve.',
   };
 }
 

@@ -2517,12 +2517,15 @@ async function loadTechs(fetchOpts, loadOpts) {
     tb.innerHTML = list.map(j => '<tr data-id="'+esc(j.id)+'">'+
       '<td>'+esc(cust(j))+'</td><td>'+dt(j.completedAt)+'</td><td>'+esc(j.assignedTechName||'—')+'</td>'+
       '<td onclick="event.stopPropagation()"><div class="actions">'+
-      '<button type="button" class="btn sm approve" data-id="'+esc(j.id)+'">Approve</button>'+
+      '<button type="button" class="btn sm approve" data-id="'+esc(j.id)+'">'+esc(completionActionLabel(j, true))+'</button>'+
       '<button type="button" class="btn ghost sm reopen" data-id="'+esc(j.id)+'">Reopen</button>'+
       '<button type="button" class="btn ghost sm correct" data-id="'+esc(j.id)+'">Request fix</button>'+
       '</div></td></tr>').join('');
     tb.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => { if(!e.target.closest('button')) openDrawer(tr.dataset.id); });
-    tb.querySelectorAll('.approve').forEach(b => b.onclick = () => jobAction(b.dataset.id,'approve_completion'));
+    tb.querySelectorAll('.approve').forEach(b => b.onclick = () => {
+      const row = jobs.find(x => x.id === b.dataset.id) || { id: b.dataset.id };
+      requestCompletion(row);
+    });
     tb.querySelectorAll('.reopen').forEach(b => b.onclick = () => {
       const r = prompt('Reopen reason (required):');
       if (!r || !r.trim()) { if (r !== null) toast('A reopen reason is required'); return; }
@@ -3088,6 +3091,27 @@ async function loadTechs(fetchOpts, loadOpts) {
     }
   }
 
+  function savedCardCompletion(j) {
+    var pref = String((j && (j.paymentMethodPreference || j.paymentMethod)) || '');
+    return pref === 'online_after_service' && !!(j && (j.cardOnFileSaved || j.cardOnFileStatus === 'saved'));
+  }
+  function completionActionLabel(j, compact) {
+    if (savedCardCompletion(j)) return 'Complete and charge saved card';
+    return compact ? 'Approve' : 'Approve completion';
+  }
+  function requestCompletion(j) {
+    if (!j || !j.id) return;
+    var extra = {};
+    if (savedCardCompletion(j)) {
+      var cents = Number(j.remainingCents);
+      if (!Number.isFinite(cents)) cents = Math.round((Number(j.balanceDue) || Number(j.amountDueApproved) || 0) * 100);
+      var amount = cents > 0 ? ('$' + (cents / 100).toFixed(2)) : 'the remaining approved balance';
+      var ok = window.confirm('This completes the appointment and charges the saved card ' + amount + '. Only the unpaid approved balance is charged. Add-ons still waiting for approval are not included. Cash and card at service are not charged online. Continue?');
+      if (!ok) return;
+      extra.confirmSavedCardCharge = true;
+    }
+    jobAction(j.id, 'approve_completion', extra);
+  }
   async function jobAction(bookingId, action, extra) {
     try {
       const data = await api('/.netlify/functions/admin-ops-jobs','POST',{action,bookingId,...extra});
@@ -3107,6 +3131,10 @@ async function loadTechs(fetchOpts, loadOpts) {
         toast(action === 'mark_cash_received'
           ? 'Cash recorded — balance $0'
           : 'Payment recorded — balance $0');
+      } else if (data && data.charge && data.charge.charged) {
+        toast('Saved card charged for the approved balance');
+      } else if (data && data.charge && data.charge.recoveryUrl) {
+        toast('Service stays completed. The card was not charged. Use the recovery link.');
       } else {
         toast('Saved');
       }
@@ -3829,7 +3857,8 @@ async function loadTechs(fetchOpts, loadOpts) {
       if (j.technicianPrintedName) html += '<div style="margin-top:8px"><b>Technician:</b> '+esc(j.technicianPrintedName)+
         (j.technicianSignature&&j.technicianSignature.startsWith('data:')?'<img class="sig" src="'+j.technicianSignature+'" alt="Tech signature">':'')+'</div>';
       html += '<div class="actions" style="margin-top:12px">'+
-        (j.jobStatus==='completed_pending_admin_review'?'<button type="button" class="btn sm" id="dApprove" style="min-height:44px">Approve completion</button>':'')+
+        (j.jobStatus==='completed_pending_admin_review'?'<button type="button" class="btn sm" id="dApprove" style="min-height:44px">'+esc(completionActionLabel(j))+'</button>':'')+
+        (j.jobStatus==='completed_pending_payment' && savedCardCompletion(j)?'<button type="button" class="btn sm" id="dChargeSaved" style="min-height:44px">Charge saved card for approved balance</button>':'')+
         '<button type="button" class="btn ghost sm" id="dReopen" style="min-height:44px">Reopen job</button>'+
         '<button type="button" class="btn ghost sm" id="dCorrect" style="min-height:44px">Request correction</button></div></div>';
     }
@@ -3858,7 +3887,8 @@ async function loadTechs(fetchOpts, loadOpts) {
       da.addEventListener('focus', kick);
       da.addEventListener('touchstart', kick, { passive: true });
     }
-    const ap = $('#dApprove'); if(ap) ap.onclick = () => jobAction(j.id,'approve_completion');
+    const ap = $('#dApprove'); if(ap) ap.onclick = () => requestCompletion(j);
+    const chargeSaved = $('#dChargeSaved'); if(chargeSaved) chargeSaved.onclick = () => requestCompletion(j);
     const ro = $('#dReopen');
     if (ro) {
       const canReopen = !drawerControls || (drawerControls.reopen && drawerControls.reopen.enabled);

@@ -328,6 +328,8 @@ function projectJobForAdminList(b) {
     requestedAddress: b.requestedAddress ? String(b.requestedAddress).slice(0, 200) : '',
     issueNotes: b.issueNotes ? String(b.issueNotes).slice(0, 240) : '',
     completedAt: b.completedAt || '',
+    paymentMethodPreference: b.paymentMethodPreference || b.paymentMethod || '',
+    cardOnFileSaved: b.cardOnFileStatus === 'saved',
     isTest: !!b.isTest,
     archived: !!b.archived,
     _projection: 'admin_list',

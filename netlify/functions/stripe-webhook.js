@@ -164,6 +164,11 @@ function classifyPaymentIntentRoute(evt, paymentIntent) {
       ? { route: 'legacy_operational', purpose }
       : { route: 'unsupported_legacy_event', purpose };
   }
+  if (purpose === 'approved_balance_after_service') {
+    return CUSTOMER_BALANCE_PAYMENT_INTENT_EVENTS.has(type)
+      ? { route: 'after_service_charge', purpose }
+      : { route: 'unsupported_customer_balance_event', purpose };
+  }
   // PaymentIntents created before purpose metadata existed remain eligible for
   // the preexisting operational handler. This compatibility path is explicit,
   // bounded to the known legacy event set, and never touches PostgreSQL money.
@@ -289,6 +294,41 @@ async function reconcilePostgresRefund(evt, refund) {
     };
   } catch {
     return { handled: false, error: 'refund_reconcile_failed', retryable: true, bookingId };
+  }
+}
+
+async function settleAfterServiceBlobPayment(evt, paymentIntent) {
+  const { applyAfterServiceStripeEvent } = require('../lib/charge-saved-card-after-service');
+  const meta = paymentIntent && paymentIntent.metadata ? paymentIntent.metadata : {};
+  const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
+  if (!bookingId) return { handled: false, error: 'missing_booking_id' };
+  try {
+    const store = await blobsStore('cd1-bookings');
+    const booking = await store.get(bookingId, { type: 'json' });
+    if (!booking) return { handled: false, error: 'booking_not_found' };
+    const applied = applyAfterServiceStripeEvent(booking, paymentIntent, {
+      stripeEventId: evt && evt.id,
+      eventType: evt && evt.type,
+    });
+    if (!applied.ok) {
+      if (applied.error === 'amount_exceeds_remaining') {
+        return { handled: true, settled: false, duplicate: false, paymentPending: true };
+      }
+      return { handled: false, error: applied.error };
+    }
+    if (!applied.ignored && !applied.duplicate) {
+      booking.updatedAt = new Date().toISOString();
+      await store.setJSON(bookingId, booking);
+    }
+    return {
+      handled: true,
+      settled: !!applied.settled,
+      duplicate: !!applied.duplicate,
+      paymentPending: !!applied.paymentPending,
+      paymentStatus: booking.paymentStatus || null,
+    };
+  } catch (err) {
+    return { handled: false, error: err && err.message ? err.message : 'after_service_settle_failed' };
   }
 }
 
@@ -540,6 +580,30 @@ exports.handler = async (event) => {
         body: JSON.stringify({ received: true, ignored: true, reason: paymentRoute.route }),
       };
     }
+    if (paymentRoute.route === 'after_service_charge') {
+      const settled = await settleAfterServiceBlobPayment(evt, pi);
+      if (!settled.handled) {
+        return {
+          statusCode: 500,
+          body: JSON.stringify({
+            received: false,
+            retryable: true,
+            error: settled.error || 'after_service_settle_failed',
+          }),
+        };
+      }
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          received: true,
+          type: evt.type,
+          route: paymentRoute.route,
+          duplicate: !!settled.duplicate,
+          settled: !!settled.settled,
+          paymentPending: !!settled.paymentPending,
+        }),
+      };
+    }
     if (paymentRoute.route === 'ceramic_payment') {
       const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
       if (postgresPaymentEnabled()) {
@@ -741,8 +805,8 @@ exports.handler = async (event) => {
 
     case 'setup_intent.succeeded': {
       // Customer saved card on file. Update booking with cardOnFileStatus.
-      // This does NOT set paymentStatus — card-on-file is tracked separately.
-      // Admin may charge the saved card only according to the cancellation/no-show policy.
+      // This does NOT set paymentStatus and does NOT place a hold.
+      // An explicit admin completion may later charge the approved balance.
       const si = evt.data.object;
       const siBookingId = (si.metadata && (si.metadata.bookingId || si.metadata.booking_id)) || '—';
       console.log('[stripe-webhook] setup_intent.succeeded received');
@@ -756,8 +820,8 @@ exports.handler = async (event) => {
       await notifyAdmin(
         `Cardetail1 — card on file saved · ${siBookingId}`,
         `Customer saved card on file for booking ${siBookingId}.\n` +
-        `Payment method reference stored. No charge applied.\n` +
-        `Admin may only charge per the posted cancellation/no-show policy.`
+        `Payment method reference stored. No charge applied and no hold was placed.\n` +
+        `If the customer chose card online, admin completion can charge the approved unpaid balance.`
       );
       break;
     }

@@ -17,7 +17,7 @@ const stripeConfig = read('netlify/functions/stripe-config.js');
 const webhook = read('netlify/functions/stripe-webhook.js');
 const lookup = read('netlify/functions/lookup-booking.js');
 
-test('Step 5 offers Pay online later and requires a card only for that option', () => {
+test('Step 5 offers card online charged after service and requires a card only for that option', () => {
   assert.match(index, /Step 05 — Review &amp; Submit/);
   assert.match(index, /No payment is collected when you submit this booking request\./);
   assert.match(index, /Save a card securely now\. Nothing is charged today\./);

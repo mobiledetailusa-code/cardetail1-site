@@ -219,7 +219,9 @@ function ceramicNotice(booking) {
       ? `Deposit: $${Number(booking.depositAmount).toFixed(2)}`
       : '',
     !booking.ceramicPaymentPlan
-      ? 'Payment: collected at the appointment. Nothing is charged to reserve.'
+      ? (String(booking.paymentMethodPreference || '') === 'online_after_service'
+        ? 'Payment: card saved now. The approved balance is charged after the service is completed. Nothing is charged to reserve.'
+        : 'Payment: collected at the appointment. Nothing is charged to reserve.')
       : '',
     booking.balanceDue != null ? `Remaining balance: $${Number(booking.balanceDue).toFixed(2)}` : '',
     booking.paymentStatus ? `Payment status: ${booking.paymentStatus}` : '',
@@ -884,7 +886,11 @@ function buildSmsBody(eventType, booking, accessUrl) {
   if (!ceramic) return rendered.body;
   const extra = [
     booking.ceramic?.packageName,
-    !booking.ceramicPaymentPlan ? 'Pay at the appointment.' : '',
+    !booking.ceramicPaymentPlan
+      ? (String(booking.paymentMethodPreference || '') === 'online_after_service'
+        ? 'Card charged after service.'
+        : 'Pay at the appointment.')
+      : '',
     booking.balanceDue != null ? `Balance due $${Number(booking.balanceDue).toFixed(2)}` : '',
     'Keep dry 12h. No wash for 7 days. Coating does not repair paint.',
   ].filter(Boolean).join(' ');

@@ -6,7 +6,8 @@
  * approvedFinalAmount, amountPaid, and balanceDue are derived from the
  * booking ledger. depositAmount is the greater of 25% of the approved total
  * and the package minimum, calculated on the server. It is not a second copy
- * of amount paid. The remaining balance is never charged automatically.
+ * of amount paid. Saving a card does not charge this balance. An explicit
+ * admin completion may charge the unpaid approved balance later.
  *
  * Invariant: approvedFinalAmount = amountPaid + balanceDue
  * (dollar amounts rounded to cents).

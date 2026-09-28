@@ -55,7 +55,7 @@ function normalizeRequestPreference(value) {
   return PAYMENT_PREFERENCES.has(preference) ? preference : null;
 }
 
-/** Pay online later always requires card-on-file; onsite preferences never do. */
+/** Card online charged after service requires card-on-file; onsite preferences never do. */
 function resolveCardOnFileRequired(preference, requestedFlag) {
   const pref = normalizeRequestPreference(preference) || String(preference || '').trim();
   if (pref === 'online_after_service') return true;

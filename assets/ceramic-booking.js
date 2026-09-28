@@ -312,20 +312,7 @@
 
   function syncCeramicPaymentChoices() {
     var online = document.getElementById('pc-online');
-    var ceramic = !!(global.ST && isCeramicPackage(global.ST.pkgId));
-    if (online) online.hidden = ceramic;
-    if (!ceramic) return;
-    var wrap = document.getElementById('bk-online-card-wrap');
-    if (wrap) wrap.hidden = true;
-    if (global.ST && global.ST.payMethod === 'online_after_service') {
-      global.ST.payMethod = '';
-      ['pc-online', 'pc-onsite', 'pc-cash'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.classList.remove('sel');
-        el.setAttribute('aria-pressed', 'false');
-      });
-    }
+    if (online) online.hidden = false;
   }
 
   function syncPanel() {
@@ -354,9 +341,10 @@
     var online = document.getElementById('bk-online-rec-msg');
     var details = document.getElementById('bk-pay-details-body');
     var ceramic = !!(global.ST && isCeramicPackage(global.ST.pkgId));
+    var onlinePay = !!(ceramic && global.ST && global.ST.payMethod === 'online_after_service');
     function mark(el) { if (el) el.setAttribute('data-cd1-charge', 'ceramic'); }
     function clearMark(el) { if (el) el.removeAttribute('data-cd1-charge'); }
-    if (!ceramic) {
+    if (!ceramic || onlinePay) {
       if (amt && amt.getAttribute('data-cd1-charge') === 'ceramic') {
         amt.textContent = '$0.00';
         clearMark(amt);
@@ -1082,15 +1070,19 @@
       });
     });
     if (travel) rows.push(moneyLine('Travel', travel));
+    var onlinePay = global.ST.payMethod === 'online_after_service';
     rows.push(moneyLine('Approved final total', approved));
     rows.push(moneyLine('Due today', 0));
-    rows.push(moneyLine('Balance due at service', approved));
+    rows.push(moneyLine(onlinePay ? 'Balance charged after service' : 'Balance due at service', approved));
     syncChargePresentation();
     var extended = extendedCopy()
       ? ('<p class="bk-addr-hint">' + extendedCopy() + '</p>')
       : '';
+    var payHint = onlinePay
+      ? 'A card is saved now. Nothing is charged today. The approved balance is charged after the service is completed.'
+      : 'Payment is collected at the appointment by card or cash. Nothing is charged to reserve.';
     box.innerHTML = '<div class="fl">Appointment summary</div>' + rows.join('')
-      + '<p class="bk-addr-hint">Payment is collected at the appointment by card or cash. Nothing is charged to reserve.</p>'
+      + '<p class="bk-addr-hint">' + payHint + '</p>'
       + extended;
   }
 
@@ -1184,12 +1176,8 @@
       && !global.Cardetail1BookingReview.selectRequestPaymentPreference._ceramicPay) {
       var origPay = global.Cardetail1BookingReview.selectRequestPaymentPreference;
       var wrappedPay = function (preference) {
-        if (global.ST && isCeramicPackage(global.ST.pkgId) && preference === 'online_after_service') {
-          syncCeramicPaymentChoices();
-          return;
-        }
         var result = origPay.apply(this, arguments);
-        try { syncCeramicPaymentChoices(); } catch (err) { /* display only */ }
+        try { syncCeramicPaymentChoices(); syncChargePresentation(); } catch (err) { /* display only */ }
         return result;
       };
       wrappedPay._ceramicPay = true;

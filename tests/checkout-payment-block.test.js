@@ -77,7 +77,8 @@ test('only the selected payment option is shown', () => {
   assert.match(p.rec.textContent, /Save a card securely now\. Nothing is charged today\./);
   assert.equal(p.btn.textContent, 'Save my card securely');
   assert.match(p.details.querySelector('summary').textContent, /Payment & cancellation details/);
-  assert.match(p.cof.parentElement.textContent, /booking policy/);
+  assert.match(p.cof.parentElement.textContent, /Booking policy/);
+  assert.match(p.cof.parentElement.textContent, /approved total after the service is completed/);
   assert.match(p.cof.parentElement.innerHTML, /href="\/terms-conditions"/);
 });
 
@@ -113,7 +114,7 @@ test('ceramic pay at service offers card or cash and does not charge to reserve'
   w.CD1CeramicBooking.boot();
   assert.equal(w.document.querySelector('input[name="ceramic-plan"]'), null);
   assert.equal(w.document.querySelector('input[name="ceramic-water"]'), null);
-  assert.equal(w.document.getElementById('pc-online').hidden, true);
+  assert.equal(w.document.getElementById('pc-online').hidden, false);
   assert.equal(w.document.getElementById('pc-onsite').hidden, false);
   assert.equal(w.document.getElementById('pc-cash').hidden, false);
   const charged = w.document.getElementById('bk-charged-copy').textContent;
@@ -128,8 +129,11 @@ test('ceramic pay at service offers card or cash and does not charge to reserve'
   w.Cardetail1BookingReview.selectRequestPaymentPreference('card_onsite');
   assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
   w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');
-  assert.notEqual(w.ST.payMethod, 'online_after_service');
-  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
+  assert.equal(w.ST.payMethod, 'online_after_service');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, false);
+  assert.match(w.document.getElementById('bk-online-rec-msg').textContent, /Nothing is charged today/);
+  assert.match(w.document.getElementById('cof-policy-ok').parentElement.textContent, /approved total after the service is completed/i);
+  assert.equal(w.document.querySelector('.bk-charged-stack .bk-charged-amt').textContent, '$0.00');
 
   w.ST.pkgId = 'full';
   w.CD1CeramicBooking.boot();
