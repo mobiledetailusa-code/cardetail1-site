@@ -502,10 +502,13 @@ test('submit-booking draft response includes token fields via issue helper', () 
   }, 'CD1-D', new Date().toISOString());
   const issued = __test.issueDraftSaveResponse(draft);
   assert.equal(issued.ok, true);
-  assert.match(issued.body.draftSaveToken, /^v1\./);
+  assert.match(issued.body.draftSaveToken, /^v1\.\d+\.[A-Za-z0-9_-]+$/);
   assert.ok(issued.body.draftSaveTokenExp > 0);
   assert.equal(issued.body.isDraft, true);
-  assert.equal(issued.body.draftSaveToken.includes('551'), false);
+  // Token is HMAC(bookingId|last-10-phone|exp), not the phone itself.
+  // Checking a random '551' substring is flaky: base64url signatures can
+  // contain those digits (master full-test ae65176).
+  assert.doesNotMatch(issued.body.draftSaveToken, /2015550177|5550177/);
 });
 
 test('submit-booking issueDraftSaveResponse maps invalid phone inputs to invalid_phone', () => {
