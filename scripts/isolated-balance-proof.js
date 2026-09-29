@@ -238,7 +238,7 @@ async function main() {
     quoteVersion: afterApproval.quoteVersion,
   });
   assert.equal(replay.ok, true, replay.error || 'payment_link_replay_failed');
-  assert.equal(replay.stripePaymentIntentId, paymentIntentId);
+  assert.equal(replay.paymentAttempt.providerObjectId, paymentIntentId);
 
   let confirmed;
   try {
