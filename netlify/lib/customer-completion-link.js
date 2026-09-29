@@ -5,6 +5,16 @@ const TOKEN_STORE = 'cd1-customer-action-tokens';
 const TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 const TOKEN_PREFIX = 'cat_';
 
+let tokenStoreFactory = null;
+
+function setCustomerActionTokenStoreFactory(factory) {
+  tokenStoreFactory = typeof factory === 'function' ? factory : null;
+}
+
+function resetCustomerActionTokenStoreFactory() {
+  tokenStoreFactory = null;
+}
+
 function hashToken(token) {
   const secret = String(process.env.DRAFT_TOKEN_SECRET || process.env.CUSTOMER_SESSION_SECRET || process.env.ADMIN_SESSION_SECRET || '').trim();
   if (!secret || secret.length < 16) throw new Error('missing_token_secret');
@@ -12,6 +22,7 @@ function hashToken(token) {
 }
 
 async function blobsStore(name) {
+  if (tokenStoreFactory) return tokenStoreFactory(name);
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
@@ -22,13 +33,15 @@ function generateActionToken() {
   return TOKEN_PREFIX + crypto.randomBytes(32).toString('base64url');
 }
 
-async function createCompletionLink(bookingId, purpose = 'completion_review') {
+async function createCompletionLink(bookingId, purpose = 'completion_review', meta = {}) {
   const token = generateActionToken();
   const tokenHash = hashToken(token);
   const now = Date.now();
+  const adjustmentId = meta && meta.adjustmentId ? String(meta.adjustmentId) : null;
   const record = {
     bookingId,
     purpose,
+    adjustmentId,
     tokenHash,
     createdAt: new Date(now).toISOString(),
     expiresAt: new Date(now + TOKEN_TTL_MS).toISOString(),
@@ -76,4 +89,6 @@ module.exports = {
   revokeActionToken,
   buildCompletionUrl,
   hashToken,
+  setCustomerActionTokenStoreFactory,
+  resetCustomerActionTokenStoreFactory,
 };

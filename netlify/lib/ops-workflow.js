@@ -328,6 +328,10 @@ function projectJobForAdminList(b) {
     techNotifyStatus: ['sent', 'failed', 'pending', 'skipped'].includes(String(b.techNotifyStatus || '').toLowerCase())
       ? String(b.techNotifyStatus).toLowerCase()
       : '',
+    techPayoutAmount: (b.techPayoutAmount != null && b.techPayoutAmount !== '' && Number.isFinite(Number(b.techPayoutAmount)))
+      ? Number(b.techPayoutAmount)
+      : null,
+    techPayUnset: !(b.techPayoutAmount != null && b.techPayoutAmount !== '' && Number.isFinite(Number(b.techPayoutAmount))),
     pendingChangeRequestCount: requests.pendingChangeRequestCount,
     customerChangePending: requests.customerChangePending,
     hasPendingVehicleRemoval: requests.hasPendingVehicleRemoval,

@@ -64,9 +64,7 @@ function jobWindowRaw(booking) {
   ).trim();
 }
 
-function jobPlaceLabel(booking) {
-  const address = String(booking.address || booking.serviceAddress || '').replace(/\s+/g, ' ').trim();
-  if (address) return address.slice(0, 48);
+function jobCityLabel(booking) {
   return String(booking.city || '').replace(/\s+/g, ' ').trim().slice(0, 32);
 }
 
@@ -116,7 +114,7 @@ async function textTech({ booking, toE164, url, idempotencyKey, prisma, env, pro
         service: smsServiceLabel(booking),
         date: smsDateLabel(booking.confirmedDate || booking.preferredDate || ''),
         window: jobWindowRaw(booking),
-        place: jobPlaceLabel(booking),
+        city: jobCityLabel(booking),
         url,
       },
     }, { prisma, env });

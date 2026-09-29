@@ -12,6 +12,10 @@ const { verifyActionToken } = require('../lib/customer-completion-link');
 const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 const { getBooking } = require('../lib/ops-db');
+const { extraProposalPage } = require('../lib/quick-ops-html');
+const { findAdjustment } = require('../lib/price-adjustments');
+const { dollarsFromCents } = require('../lib/admin-quick-ops-view');
+const { respondToCustomerExtra } = require('../lib/quick-ops-price');
 
 async function resolveContext(event, body, action) {
   const token = String(body.token || '').trim();
@@ -51,18 +55,100 @@ async function resolveContext(event, body, action) {
   };
 }
 
+function proposalTokenFromEvent(event) {
+  const query = event && event.queryStringParameters;
+  if (query && query.token) return String(query.token).trim();
+  try {
+    if (event && event.rawUrl) return new URL(event.rawUrl).searchParams.get('token') || '';
+  } catch { /* ignore */ }
+  return '';
+}
+
+function extraPublicFields(booking, adjustment) {
+  return {
+    adjustmentId: adjustment.adjustmentId,
+    amountCents: adjustment.amountCents,
+    amountLabel: dollarsFromCents(adjustment.amountCents),
+    description: String(adjustment.reason || ''),
+    status: adjustment.status,
+    approvedCents: Math.max(0, Math.round(Number(booking.ledger && booking.ledger.approvedCents) || 0)),
+  };
+}
+
+async function loadExtraProposal(token) {
+  const record = await verifyActionToken(token);
+  if (!record || record.purpose !== 'extra_approval' || !record.adjustmentId) return null;
+  const rec = await getBookingRecord(record.bookingId);
+  if (!rec.exists || !rec.booking) return { missing: true };
+  const adjustment = findAdjustment(rec.booking, record.adjustmentId);
+  if (!adjustment) return { missing: true };
+  return { booking: rec.booking, adjustment };
+}
+
+async function handleExtraProposalGet(event) {
+  const loaded = await loadExtraProposal(proposalTokenFromEvent(event));
+  if (!loaded || loaded.missing) {
+    return extraProposalPage({ status: 'missing' });
+  }
+  const fields = extraPublicFields(loaded.booking, loaded.adjustment);
+  return extraProposalPage({
+    amountLabel: fields.amountLabel,
+    reason: fields.description,
+    status: fields.status,
+    token: proposalTokenFromEvent(event),
+  });
+}
+
+async function handleExtraDecision(body, action) {
+  const loaded = await loadExtraProposal(body.token);
+  if (!loaded || loaded.missing) {
+    return jsonCors(401, { ok: false, error: 'invalid_or_expired_token' });
+  }
+  const fields = extraPublicFields(loaded.booking, loaded.adjustment);
+  if (action === 'view_extra') {
+    return jsonCors(200, { ok: true, proposal: fields });
+  }
+  const decision = action === 'approve_extra' ? 'approve' : 'decline';
+  const result = await respondToCustomerExtra(loaded.booking, {
+    adjustmentId: loaded.adjustment.adjustmentId,
+    decision,
+    actorId: 'customer',
+  });
+  if (!result.ok) {
+    return jsonCors(result.statusCode || 409, {
+      ok: false,
+      error: result.error || 'decision_failed',
+      message: 'Could not save your decision',
+    });
+  }
+  return jsonCors(200, {
+    ok: true,
+    decision,
+    declined: !!result.declined,
+    idempotent: !!result.idempotent,
+    approvedCents: result.approvedCents,
+    remainingCents: result.remainingCents,
+    amountCents: fields.amountCents,
+    description: fields.description,
+  });
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
-  if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
-
   const rate = await checkPublicRateLimit(event, { endpoint: 'customer-action-link' });
-  if (!rate.ok) return jsonCors(429, { ok: false, error: 'too_many_requests' });
+  if (rate && rate.allowed === false) return jsonCors(429, { ok: false, error: 'too_many_requests' });
+
+  if (event.httpMethod === 'GET') return handleExtraProposalGet(event);
+  if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
 
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
   const action = String(body.action || 'view').toLowerCase();
+  if (action === 'view_extra' || action === 'approve_extra' || action === 'decline_extra') {
+    return handleExtraDecision(body, action);
+  }
   const ctx = await resolveContext(event, body, action);
   if (ctx.err) return ctx.err;
 

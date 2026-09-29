@@ -3076,6 +3076,7 @@ async function handleAdminAction(body, testOpts = {}) {
         });
       }
       const pg = authoritativeAdjustment.after;
+      const { supersedeOpenAttempts } = require('../lib/payment-service');
       result.patch = {
         ...result.patch,
         quoteVersion: pg.quoteVersion,
@@ -3101,6 +3102,11 @@ async function handleAdminAction(body, testOpts = {}) {
         paidAmount: pg.settledCents / 100,
         amountDueApproved: pg.remainingCents / 100,
         balanceDue: pg.remainingCents / 100,
+        payLink: '',
+        stripeCheckoutSessionId: '',
+        payLinkAmount: null,
+        payLinkInvalidatedAt: now,
+        paymentAttempts: supersedeOpenAttempts(booking.paymentAttempts, { quoteVersion: pg.quoteVersion }),
       };
     }
 

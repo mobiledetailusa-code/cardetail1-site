@@ -170,7 +170,7 @@ ${a.assign ? `<section class="card">
   <div class="actions">
     <button type="button" class="secondary" id="qo-unassign" data-action="unassign_tech" data-confirm="Remove this job from the assigned technician? You can assign it to someone else after." ${view.assignment && view.assignment.assigned ? '' : 'hidden'}>Remove assignment</button>
   </div>
-  <p class="sub">Send this job to someone already on the roster, or type a mobile number. Assigning sends a text right away: a saved technician gets the portal link on the phone in their account, and a new number gets a one-time job link. The job total stays hidden. They send the customer a payment link, and any amount they add is included in that link. The job closes when the customer pays.</p>
+  <p class="sub">Send this job to someone already on the roster, or type a mobile number. Assigning sends a text right away: a saved technician gets the portal link on the phone in their account, and a new number gets a one-time job link. The text does not include the customer address or phone. The job total stays hidden. An extra they add waits for customer approval and is not charged before that.</p>
   <label for="qo-tech">Registered technician</label>
   <select id="qo-tech"><option value="">Load the roster, or leave blank</option></select>
   <div class="actions"><button type="button" class="secondary" data-action="list_techs">Load roster</button></div>
@@ -178,8 +178,8 @@ ${a.assign ? `<section class="card">
   <input id="qo-phone" inputmode="tel" autocomplete="tel" placeholder="(201) 555-0100">
   <p class="sub">If this number already belongs to a technician, the job goes to that account instead of a one-off link.</p>
   <label for="qo-tech-pay">Technician pay ($)</label>
-  <input id="qo-tech-pay" inputmode="decimal" placeholder="80.00" value="">
-  <p class="sub">This is the only amount the technician sees. The customer price stays on this page.</p>
+  <input id="qo-tech-pay" inputmode="decimal" placeholder="80.00" value="${money.payoutCents == null ? '' : escapeHtml(String(money.payoutCents / 100))}">
+  <p class="sub">${money.payoutCents == null ? 'Technician pay is not set. Enter it below and save. The technician page only shows that amount.' : 'This is the only amount the technician sees. The customer price stays on this page.'}</p>
   <div class="actions">
     <button type="button" data-action="set_tech_pay">Save technician pay</button>
     <button type="button" data-action="assign_tech">Assign job</button>
@@ -187,7 +187,7 @@ ${a.assign ? `<section class="card">
 </section>` : ''}
 ${a.adjust ? `<section class="card">
   <h2>Change price</h2>
-  <p class="warn">A decrease lowers the technician payout by the same share. A $200 job with a $120 payout, lowered by $20, pays $108.</p>
+  <p class="warn">Changing the customer price does not change technician pay. Save technician pay to change that amount.</p>
   <label for="qo-adj-type">Change</label>
   <select id="qo-adj-type"><option value="increase">Increase</option><option value="decrease">Decrease</option></select>
   <label for="qo-adj-amount">Amount ($)</label>
@@ -220,15 +220,11 @@ ${ceramicStaffCard(view)}
     if (!el || !amountEl || !typeEl) return;
     var raw = String(amountEl.value || '').replace(/[^0-9.]/g, '');
     var cents = Math.round(Number(raw) * 100);
-    if (!cents) { el.textContent = payoutCents == null ? 'Technician payout is not set yet.' : ('Current payout ' + dollars(payoutCents) + '.'); return; }
+    if (!cents) { el.textContent = payoutCents == null ? 'Technician pay is not set yet.' : ('Technician pay stays ' + dollars(payoutCents) + '.'); return; }
     var next = typeEl.value === 'decrease' ? approvedCents - cents : approvedCents + cents;
     if (next < 0) { el.textContent = 'That decrease is larger than the balance.'; return; }
     var line = 'New total ' + dollars(next) + '.';
-    if (payoutCents != null && approvedCents > 0) {
-      var nextPay = Math.round(payoutCents * next / approvedCents);
-      line += ' Technician payout becomes ' + dollars(nextPay) + '.';
-      if (typeEl.value === 'decrease') line += ' Lowering the price lowers the payout.';
-    }
+    line += payoutCents == null ? ' Technician pay stays unset.' : (' Technician pay stays ' + dollars(payoutCents) + '.');
     el.textContent = line;
   }
   var amountEl = document.getElementById('qo-adj-amount');
@@ -257,7 +253,6 @@ ${ceramicStaffCard(view)}
       payload.amountDollars = (document.getElementById('qo-adj-amount') || {}).value || '';
       payload.reason = (document.getElementById('qo-adj-note') || {}).value || '';
       if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
-      if (payload.type === 'decrease' && !window.confirm('Lowering the price also lowers the technician payout by the same share. Continue?')) return;
     }
     btn.disabled = true;
     try {
@@ -281,6 +276,11 @@ ${ceramicStaffCard(view)}
           return '<option value="' + esc(t.techId) + '">' + esc(t.fullName) + '</option>';
         }).join('');
         setMsg(techs.length ? 'Roster loaded' : 'No active technicians', true);
+        return;
+      }
+      if (data.delivery) {
+        var good = data.delivery === 'delivered' || data.delivery === 'accepted';
+        setMsg(data.message || '', good);
         return;
       }
       if (!res.ok || data.ok === false) { setMsg(data.message || data.error || 'Could not complete'); return; }
@@ -312,13 +312,17 @@ ${ceramicStaffCard(view)}
 function techQuickOpsPage(view, csrfToken) {
   const a = view.actions || {};
   const buttons = [
-    a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
-    a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
+    a.call ? `<a class="btn secondary" data-contact="call" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
+    a.map ? `<a class="btn ghost" data-contact="map" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
+    a.arrive ? '<button type="button" id="tq-arrive" data-action="arrive">I\'ve arrived</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link to customer</button>' : '',
     a.payment ? '<button type="button" class="ghost" data-action="copy_pay">Copy payment link</button>' : '',
     !a.payment ? '<p class="sub">No payment link to send.</p>' : '',
   ].filter(Boolean).join('');
   const vehicle = [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label;
+  const contact = view.contactRestricted
+    ? '<p class="sub">Customer contact is hidden after the job is complete and paid.</p>'
+    : `${view.service.address ? field('Address', view.service.address) : ''}${view.service.note ? `<p class="note" data-contact="note">${escapeHtml(view.service.note)}</p>` : ''}`;
   return chrome({
     title: 'Technician job',
     extraHeaders: { 'X-Tq-Csrf': csrfToken },
@@ -326,7 +330,7 @@ function techQuickOpsPage(view, csrfToken) {
 <section class="card">
   <div class="status">${escapeHtml(view.status)}</div>
   <h1>${escapeHtml(view.customer.name || 'Customer')}</h1>
-  <p class="sub">Your pay is the amount the office entered. The customer price stays off this page. Send them a payment link. The job closes when they pay.</p>
+  <p class="sub">Your pay is the amount the office entered. The customer price stays off this page. Arrival does not complete the job or take payment.</p>
 </section>
 <section class="card">
   <h2>Your pay</h2>
@@ -335,25 +339,24 @@ function techQuickOpsPage(view, csrfToken) {
 </section>
 <section class="card">
   <h2>Job</h2>
-  ${field('Address', view.service.address)}
+  <div id="tq-contact">${contact}</div>
   ${field('Vehicle', vehicle)}
   ${field('Package', view.service.package)}
   ${field('Date', view.service.date)}
   ${field('Window', view.service.window)}
-  ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${a.increase ? `<section class="card">
   <h2>Add to the payment</h2>
-  <p class="sub">Type only the extra. It is added to your pay and to the customer payment link. You still do not see the original price.</p>
+  <p class="sub">Type only the extra. It is saved for customer approval and is not charged before they approve it. Your pay does not change when you add it. You still do not see the original price.</p>
   <label for="tq-adj-amount">Extra amount ($)</label>
   <input id="tq-adj-amount" inputmode="decimal" placeholder="20.00">
   <label for="tq-adj-note">Note (required)</label>
   <textarea id="tq-adj-note" maxlength="500" placeholder="What the extra charge is for"></textarea>
-  <div class="actions"><button type="button" data-action="adjust_price">Add and send updated link</button></div>
+  <div class="actions"><button type="button" data-action="adjust_price">Save extra for approval</button></div>
 </section>` : ''}
 <section class="card">
   <h2>Customer payment</h2>
-  <div class="actions">${buttons}</div>
+  <div class="actions" id="tq-actions">${buttons}</div>
   <p class="msg" id="tq-msg"></p>
 </section>
 <script>
@@ -362,6 +365,42 @@ ${a.increase ? `<section class="card">
   var bookingVersion = ${JSON.stringify(view.bookingVersion || 0)};
   var msg = document.getElementById('tq-msg');
   function setMsg(text, ok){ msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]); }); }
+  function clearContact(message) {
+    var box = document.getElementById('tq-contact');
+    if (box) {
+      box.textContent = '';
+      var hidden = document.createElement('p');
+      hidden.className = 'sub';
+      hidden.textContent = message || 'Customer contact is hidden after the job is complete and paid.';
+      box.appendChild(hidden);
+    }
+    document.querySelectorAll('[data-contact]').forEach(function(el){ el.remove(); });
+  }
+  function applyView(view){
+    if (!view) return;
+    var payEl = document.getElementById('tq-pay');
+    if (payEl) payEl.textContent = (view.yourPay && view.yourPay.set) ? view.yourPay.label : 'Not set yet';
+    if (view.contactRestricted) clearContact();
+    var arrive = document.getElementById('tq-arrive');
+    if (arrive && view.actions && view.actions.arrive === false) arrive.hidden = true;
+  }
+  async function refreshView(){
+    try {
+      var res = await fetch('/.netlify/functions/tech-quick-ops', {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { accept: 'application/json' }
+      });
+      if (res.status === 401 || res.status === 403) {
+        clearContact('This assignment is no longer available.');
+        return;
+      }
+      var data = await res.json().catch(function(){ return {}; });
+      if (data && data.view) applyView(data.view);
+    } catch (e) {}
+  }
   document.addEventListener('click', async function(ev){
     var btn = ev.target.closest('[data-action]');
     if (!btn) return;
@@ -373,33 +412,39 @@ ${a.increase ? `<section class="card">
       payload.reason = (document.getElementById('tq-adj-note') || {}).value || '';
       if (!String(payload.amountDollars).trim()) { setMsg('Enter the extra amount'); return; }
       if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
-      if (!window.confirm('Add this amount and send the customer an updated payment link?')) return;
+      if (!window.confirm('Save this extra for customer approval? It is not charged until they approve it.')) return;
     }
     btn.disabled = true;
     try {
       var res = await fetch('/.netlify/functions/tech-quick-ops', {
         method: 'POST',
         credentials: 'same-origin',
+        cache: 'no-store',
         headers: { 'content-type': 'application/json', 'x-tq-csrf': csrf },
         body: JSON.stringify(payload)
       });
       var data = await res.json().catch(function(){ return {}; });
       if (typeof data.bookingVersion === 'number') bookingVersion = data.bookingVersion;
-      if (data.yourPayLabel) {
-        var payEl = document.getElementById('tq-pay');
-        if (payEl) payEl.textContent = data.yourPayLabel;
-      }
-      if ((action === 'copy_pay' || action === 'adjust_price') && data.payUrl && !data.queued) {
+      if (data.view) applyView(data.view);
+      if (action === 'copy_pay' && data.payUrl) {
         try { await navigator.clipboard.writeText(data.payUrl); setMsg(data.message || 'Payment link copied', true); }
         catch (e) { setMsg(data.message || 'Payment link ready', true); }
         return;
       }
+      if (data.delivery) {
+        var good = data.delivery === 'delivered' || data.delivery === 'accepted';
+        setMsg(data.message || '', good);
+        refreshView();
+        return;
+      }
       if (!res.ok || data.ok === false) { setMsg(data.message || data.error || 'Could not complete'); return; }
       setMsg(data.message || 'Done', true);
+      refreshView();
       if (data.reload) location.reload();
     } catch (e) { setMsg('Network error'); }
     finally { btn.disabled = false; }
   });
+  setInterval(refreshView, 8000);
 })();
 </script>`,
   });
@@ -458,6 +503,82 @@ function paymentPage({ amountLabel, clientConfigUrl, csrf }) {
   });
 }
 
+function extraProposalPage({ amountLabel, reason, status, token } = {}) {
+  if (!status || status === 'missing') {
+    return chrome({
+      title: 'Proposal unavailable',
+      statusCode: 404,
+      body: '<section class="card"><h1>This proposal link is not valid.</h1></section>',
+    });
+  }
+  const pending = status === 'pending_customer';
+  const decided = status === 'applied'
+    ? 'This extra is already approved and was added to your total once.'
+    : status === 'declined'
+      ? 'This extra was declined. Your total did not change.'
+      : status === 'approved'
+        ? 'This extra is approved.'
+        : '';
+  const actions = pending
+    ? `<div class="actions">
+    <button type="button" id="extra-approve" data-decision="approve">Approve extra</button>
+    <button type="button" class="secondary" id="extra-decline" data-decision="decline">Decline extra</button>
+  </div>`
+    : '';
+  return chrome({
+    title: 'Review extra',
+    body: `
+<section class="card">
+  <h1>Review this extra</h1>
+  <p class="sub">Approving adds this amount to your total once. Declining leaves the total unchanged.</p>
+  <div class="row"><span class="k">Extra</span><span class="v" id="extra-amount">${escapeHtml(amountLabel || '')}</span></div>
+  <p class="note" id="extra-reason">${escapeHtml(reason || '')}</p>
+  ${decided ? `<p class="sub" id="extra-state">${escapeHtml(decided)}</p>` : ''}
+  ${actions}
+  <p class="msg" id="extra-msg"></p>
+</section>
+<script>
+(function(){
+  var token = ${JSON.stringify(token || '')};
+  var msg = document.getElementById('extra-msg');
+  function setMsg(text, ok){ if (!msg) return; msg.textContent = text || ''; msg.className = 'msg' + (ok ? ' ok' : ''); }
+  document.addEventListener('click', async function(ev){
+    var btn = ev.target.closest('[data-decision]');
+    if (!btn) return;
+    var decision = btn.getAttribute('data-decision');
+    btn.disabled = true;
+    try {
+      var res = await fetch('/.netlify/functions/customer-portal-action', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: decision === 'approve' ? 'approve_extra' : 'decline_extra',
+          token: token
+        })
+      });
+      var data = await res.json().catch(function(){ return {}; });
+      if (!res.ok || data.ok === false) {
+        setMsg(data.message || 'Could not save your decision');
+        btn.disabled = false;
+        return;
+      }
+      document.querySelectorAll('[data-decision]').forEach(function(el){ el.hidden = true; });
+      if (decision === 'approve') {
+        setMsg(data.idempotent ? 'Already approved. The total was updated once.' : 'Approved. This extra was added to your total once.', true);
+      } else {
+        setMsg('Declined. Your total did not change.', true);
+      }
+    } catch (e) {
+      setMsg('Network error');
+      btn.disabled = false;
+    }
+  });
+})();
+</script>`,
+  });
+}
+
 module.exports = {
   escapeHtml,
   chrome,
@@ -465,4 +586,5 @@ module.exports = {
   quickOpsPage,
   techQuickOpsPage,
   paymentPage,
+  extraProposalPage,
 };

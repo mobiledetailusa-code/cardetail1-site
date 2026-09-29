@@ -28,6 +28,8 @@ const TEMPLATE_KEYS = Object.freeze({
   CHANGE_REJECTED: 'booking.change_rejected',
   REVIEW_REQUESTED: 'booking.review_requested',
   PAYMENT_RESUME: 'booking.payment_resume',
+  TECH_ARRIVED: 'booking.technician_arrived',
+  EXTRA_APPROVAL: 'booking.extra_approval',
   OWNER_FOLLOWUP: 'booking.owner_followup',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
   SAFE_CONFIRMATION: 'booking.safe_confirmation',
@@ -399,6 +401,15 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} Your secure payment link:`
         + (url ? ` ${url}` : '');
       break;
+    case TEMPLATE_KEYS.TECH_ARRIVED:
+      body = `${smsPrefix(templateKey)} Your technician has arrived at your service location.`;
+      break;
+    case TEMPLATE_KEYS.EXTRA_APPROVAL: {
+      const amount = asciiSms(data.amount).slice(0, 16);
+      body = `${smsPrefix(templateKey)} An extra${amount ? ` of ${amount}` : ''} is waiting for your approval.`
+        + (url ? ` Review: ${url}` : '');
+      break;
+    }
     case TEMPLATE_KEYS.OWNER_FOLLOWUP:
       body = `${smsPrefix(templateKey)} We will follow up on your appointment shortly.`;
       break;
@@ -409,11 +420,11 @@ function renderSmsTemplate(templateKey, data = {}) {
     case TEMPLATE_KEYS.TECH_JOB_LINK: {
       const when = [smsDateLabel(data.date), smsWindowLabel(data.window)].filter(Boolean).join(' ');
       const service = asciiSms(data.service).slice(0, 40);
-      const place = asciiSms(data.place).slice(0, 48);
+      const city = asciiSms(data.city).slice(0, 32);
       body = `${smsPrefix(templateKey)} Job`
         + (when ? ` ${when}` : '')
         + (service ? `. ${service}` : '')
-        + (place ? `. ${place}` : '')
+        + (city ? `. ${city}` : '')
         + '.'
         + (url ? ` Open: ${url}` : '');
       break;

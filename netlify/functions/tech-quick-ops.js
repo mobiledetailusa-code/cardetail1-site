@@ -10,10 +10,16 @@ const {
   isLocalDev,
   verifyTechQuickOpsCsrf,
 } = require('../lib/tech-quick-ops-token');
-const { loadProjectedBooking, mintPaymentLink, textCustomer } = require('../lib/admin-quick-ops-actions');
+const {
+  loadProjectedBooking,
+  mintPaymentLink,
+  textCustomer,
+  paymentLinkMessage,
+  recordTechnicianArrival,
+  offerExtraToCustomer,
+} = require('../lib/admin-quick-ops-actions');
 const { projectTechQuickOpsBooking } = require('../lib/tech-quick-ops-view');
 const { neutralExpiredPage, techQuickOpsPage } = require('../lib/quick-ops-html');
-const { dollarsFromCents } = require('../lib/admin-quick-ops-view');
 
 function json(statusCode, payload, extraHeaders = {}) {
   return {
@@ -169,31 +175,50 @@ async function handlePost(event) {
     return json(200, {
       ok: true,
       payUrl: result.payUrl,
-      message: 'Payment link ready. The job closes when the customer pays.',
+      message: 'Payment link ready. Paying does not complete the job.',
     });
   }
   if (action === 'text_pay') {
     const result = await textCustomer(booking, { kind: 'payment' });
-    return json(result.ok ? 200 : (result.statusCode || 400), {
-      ok: !!result.ok,
-      queued: !!result.queued,
-      message: result.queued || result.idempotent
-        ? 'Payment link texted. The job closes when the customer pays.'
-        : (result.reason === 'booking_sms_consent_required' ? 'Customer SMS consent required' : (result.reason || result.error || 'not sent')),
+    const failed = !result.ok || result.delivery === 'failed' || result.delivery === 'suppressed';
+    return json(failed ? (result.statusCode || 409) : 200, {
+      ok: !failed,
+      delivery: result.delivery || (failed ? 'failed' : 'pending'),
+      message: paymentLinkMessage(result),
+    });
+  }
+  if (action === 'arrive') {
+    if (!actions.arrive) {
+      return json(409, { ok: false, error: 'locked', message: 'This job is closed.' });
+    }
+    const result = await recordTechnicianArrival(booking);
+    if (!result.ok) {
+      return json(result.statusCode || 409, {
+        ok: false,
+        error: result.error,
+        message: result.message || 'Could not record arrival',
+      });
+    }
+    const fresh = projectTechQuickOpsBooking(result.booking, loaded.shared);
+    return json(200, {
+      ok: true,
+      delivery: result.delivery,
+      idempotent: !!result.idempotent,
+      bookingVersion: result.bookingVersion,
+      view: fresh,
+      message: result.message,
     });
   }
   if (action === 'adjust_price') {
     if (!actions.increase || String(body.type || 'increase') !== 'increase') {
-      return json(400, { ok: false, error: 'increase_only', message: 'You can add an extra to the payment link' });
+      return json(400, { ok: false, error: 'increase_only', message: 'You can add an extra for customer approval' });
     }
-    const { adjustQuickOpsPrice } = require('../lib/quick-ops-price');
-    const result = await adjustQuickOpsPrice(booking, {
-      type: 'increase',
+    const { recordTechExtra } = require('../lib/quick-ops-price');
+    const result = await recordTechExtra(booking, {
       amountDollars: body.amountDollars,
       amountCents: body.amountCents,
       reason: body.reason,
       actorId: 'tech_quick_ops',
-      payoutMode: 'add',
     });
     if (!result.ok) {
       return json(result.statusCode || 409, {
@@ -202,33 +227,15 @@ async function handlePost(event) {
         message: result.message || 'Could not add the extra',
       });
     }
-    let delivery = { ok: false, queued: false, payUrl: null };
-    try {
-      delivery = await textCustomer(result.booking, { kind: 'payment' });
-    } catch {
-      delivery = { ok: false, queued: false, payUrl: null };
-    }
-    if (!delivery.payUrl) {
-      try {
-        const link = await mintPaymentLink(result.booking);
-        if (link && link.ok) delivery.payUrl = link.payUrl;
-      } catch { /* link can be sent again from the page */ }
-    }
-    const extra = dollarsFromCents(result.addedCents);
-    const yourPayLabel = result.payout && result.payout.afterCents != null
-      ? dollarsFromCents(result.payout.afterCents)
-      : '';
-    const payLine = yourPayLabel ? ` Your pay is ${yourPayLabel}.` : ' Your pay has not been set yet.';
-    const sent = delivery.queued
-      ? ' Updated payment link sent.'
-      : (delivery.payUrl ? ' Updated payment link ready to forward.' : ' Send the payment link again in a moment.');
+    const offer = await offerExtraToCustomer(result.booking, result.adjustment);
     return json(200, {
       ok: true,
-      queued: !!delivery.queued,
-      payUrl: delivery.payUrl || null,
-      bookingVersion: result.bookingVersion,
-      yourPayLabel: yourPayLabel || null,
-      message: `Added ${extra}.${payLine}${sent}`,
+      pending: true,
+      idempotent: !!result.idempotent,
+      bookingVersion: offer.bookingVersion || result.bookingVersion,
+      delivery: offer.delivery || 'failed',
+      yourPayLabel: view.yourPay && view.yourPay.set ? view.yourPay.label : null,
+      message: offer.message || result.message,
     });
   }
   return json(400, { ok: false, error: 'unknown_action' });

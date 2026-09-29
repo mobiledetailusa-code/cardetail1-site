@@ -222,7 +222,7 @@ describe('reconcileStalePaymentAttempts', () => {
     assert.equal(out.closed, 1);
     assert.equal(out.active, 0);
     assert.equal(prisma.updates[0].data.status, 'canceled');
-    assert.equal(prisma.updates[0].data.failureCode, 'never_reached_stripe');
+    assert.equal(prisma.updates[0].data.failureCode, undefined);
   });
 
   it('leaves a young attempt without a payment intent alone', async () => {
@@ -345,7 +345,8 @@ describe('supersedeOutdatedAttempts', () => {
 
     assert.equal(out.superseded, 1);
     assert.equal(fetchImpl.calls.length, 0);
-    assert.equal(prisma.updates[0].data.failureCode, 'quote_version_superseded');
+    assert.equal(prisma.updates[0].data.status, 'superseded');
+    assert.equal(prisma.updates[0].data.failureCode, undefined);
   });
 
   it('retires an unpaid attempt against the version being replaced', async () => {

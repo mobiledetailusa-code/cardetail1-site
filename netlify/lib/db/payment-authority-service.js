@@ -485,7 +485,7 @@ async function recordSucceededAttemptLedger(prisma, attempt, paymentIntent, acto
     }
     await prisma.paymentAttempt.update({
       where: { id: attempt.id },
-      data: { status: 'succeeded', failureCode: null },
+      data: { status: 'succeeded' },
     });
     return { ok: true, ledger };
   } catch (err) {
@@ -551,7 +551,7 @@ async function reconcileStalePaymentAttempts({
       if (!providerObjectId.startsWith('pi_')) {
         await prisma.paymentAttempt.update({
           where: { id: attempt.id },
-          data: { status: 'canceled', failureCode: 'never_reached_stripe' },
+          data: { status: 'canceled' },
         });
         summary.closed += 1;
         console.log('[payment-authority] attempt closed — never reached Stripe', {
@@ -618,7 +618,7 @@ async function reconcileStalePaymentAttempts({
 
       await prisma.paymentAttempt.update({
         where: { id: attempt.id },
-        data: { status: terminal, failureCode: 'stripe_reported_canceled' },
+        data: { status: terminal },
       });
       summary.closed += 1;
       console.log('[payment-authority] stale attempt reconciled', {
@@ -711,7 +711,7 @@ async function supersedeOutdatedAttempts({
         // Never reached Stripe: nothing to cancel, nothing at risk.
         await prisma.paymentAttempt.update({
           where: { id: attempt.id },
-          data: { status: 'superseded', failureCode: 'quote_version_superseded' },
+          data: { status: 'superseded' },
         });
         summary.superseded += 1;
         continue;
@@ -770,7 +770,7 @@ async function supersedeOutdatedAttempts({
 
       await prisma.paymentAttempt.update({
         where: { id: attempt.id },
-        data: { status: 'superseded', failureCode: 'quote_version_superseded' },
+        data: { status: 'superseded' },
       });
       summary.superseded += 1;
       console.log('[payment-authority] outdated attempt superseded', {
