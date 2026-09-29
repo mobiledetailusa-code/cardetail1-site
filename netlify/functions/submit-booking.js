@@ -1021,12 +1021,25 @@ async function claimConfirmation(store, bookingId) {
 }
 
 async function waitForConfirmedBooking(store, bookingId) {
+  const claimKey = `occupancy-claim/${bookingId}`;
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const current = await store.get(bookingId, { type: 'json' }).catch(() => null);
     if (recordIsConfirmed(current)) return current;
+    if (attempt > 0 && store && typeof store.get === 'function') {
+      const claim = await store.get(claimKey, { type: 'text' }).catch(() => null);
+      // Owner released without confirming. Stop waiting so this attempt can finish.
+      if (!claim) return current;
+    }
     await sleep(50);
   }
   return store.get(bookingId, { type: 'json' }).catch(() => null);
+}
+
+async function releaseUnconfirmedClaim(store, bookingId, claim) {
+  if (!claim || !claim.owner || !claim.key || !store || typeof store.delete !== 'function') return;
+  const current = await store.get(bookingId, { type: 'json' }).catch(() => null);
+  if (recordIsConfirmed(current)) return;
+  try { await store.delete(claim.key); } catch { /* retry uses occupancyPendingAt */ }
 }
 
 async function readBookingMeta(store, bookingId) {
@@ -1694,18 +1707,28 @@ exports.handler = async (event) => {
     }
 
     return withConfirmationGate(rawDraftId, async () => {
-      const claim = await claimConfirmation(store, rawDraftId);
+      let claim = await claimConfirmation(store, rawDraftId);
       if (!claim.owner) {
         const current = await waitForConfirmedBooking(store, rawDraftId);
         if (recordIsConfirmed(current)) {
           return respondIfSpanConfirmed(store, current, event, { idempotent: true });
         }
-        return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
+        claim = await claimConfirmation(store, rawDraftId);
+        if (!claim.owner) {
+          return json(503, occupancyFailureBody(rawDraftId, 'occupancy_incomplete'));
+        }
       }
 
+      try {
       b.occupancyStatus = 'complete';
       b.occupancyPendingAt = existing.occupancyPendingAt || pending.occupancyPendingAt;
-      const readyBeforeConfirm = await bookedSpanReady(b);
+      let readyBeforeConfirm = await bookedSpanReady(b);
+      if (!readyBeforeConfirm.ok || !readyBeforeConfirm.complete) {
+        const repaired = await reserveBookedSpan(b);
+        if (repaired && repaired.ok !== false) {
+          readyBeforeConfirm = await bookedSpanReady(b);
+        }
+      }
       if (!readyBeforeConfirm.ok || !readyBeforeConfirm.complete) {
         return json(503, occupancyFailureBody(
           rawDraftId,
@@ -1781,6 +1804,9 @@ exports.handler = async (event) => {
         bookingVersion: b.bookingVersion || 1,
       });
       return confirmedBookingResponse(withDelivery, { stored, withDelivery });
+      } finally {
+        await releaseUnconfirmedClaim(store, rawDraftId, claim);
+      }
     });
   }
 
