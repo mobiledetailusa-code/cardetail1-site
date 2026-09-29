@@ -282,4 +282,4 @@ jobs:
         env:
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-        run: node scripts/stripe-test-mode-balance-proof.js
+        run: node scripts/isolated-balance-proof.js
