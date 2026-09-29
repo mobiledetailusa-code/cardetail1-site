@@ -237,3 +237,49 @@ jobs:
           TWILIO_MESSAGING_SERVICE_SID:'MG0000000000',
           TWILIO_STATUS_CALLBACK_URL:'https://ci.invalid/status'});
           assert.equal(result.ok,false);assert.equal(result.reason,'non_production_context');"
+
+  stripe_test_mode:
+    name: integration / stripe-test-mode
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cardetail1_ci
+          POSTGRES_PASSWORD: cardetail1_ci
+          POSTGRES_DB: cardetail1_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cardetail1_ci -d cardetail1_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CONTEXT: dev
+      CD1_FORCE_LOCAL_STRIPE_GUARD: '1'
+      POSTGRES_PAYMENT_AUTHORITY: 'true'
+      TWILIO_OUTBOX_ENABLED: 'false'
+      TWILIO_ENABLED: 'false'
+      TWILIO_PRODUCTION_SENDS_ENABLED: 'false'
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js from lockfile cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Apply database migrations
+        run: npx --no-install prisma migrate deploy
+      - name: Prove the Stripe test-mode balance
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+        run: node scripts/stripe-test-mode-balance-proof.js
