@@ -1236,6 +1236,13 @@ exports.handler = async (event) => {
     });
   }
 
+  // Basic RV wash duration is a server estimate. It does not rewrite other packages.
+  try {
+    require('../lib/rv-type-catalog').applyRvExteriorWashDuration(b);
+  } catch (durationErr) {
+    console.warn('[submit-booking] rv duration estimate skipped:', durationErr && durationErr.message);
+  }
+
   const welcomeSource = String(b.welcomeOfferSource || b.offerSource || '').trim() || null;
   delete b.welcomeOfferSource;
   delete b.offerSource;

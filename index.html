@@ -3017,11 +3017,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="sel-l">RV Type *</div>
             <select class="sel-s" id="rv-type-sel">
               <option value="">— select RV type —</option>
-              <option value="travel">Travel Trailer</option>
-              <option value="fifthwheel">Fifth Wheel</option>
-              <option value="classA">Class A Motorhome</option>
-              <option value="classB">Class B Motorhome</option>
-              <option value="classC">Class C Motorhome</option>
+              <option value="travel">Travel Trailer — rear hitch</option>
+              <option value="fifthwheel">Fifth Wheel — pickup-bed hitch</option>
+              <option value="motorhome">Motorhome — Class A, B or C</option>
+              <option value="classA" hidden>Class A Motorhome</option>
+              <option value="classB" hidden>Class B Motorhome</option>
+              <option value="classC" hidden>Class C Motorhome</option>
               <option value="airstream">Airstream</option>
               <option value="cargo">Cargo Trailer</option>
               <option value="horse">Horse Trailer</option>
@@ -3105,6 +3106,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="g-year"><option value="">— year —</option></select></div>
           </div>
           <div id="g-custom-note" style="display:none;font-size:11px;color:var(--blue);margin-top:7px;padding:6px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">✏️ Custom entry — not in catalog. That's OK, free-form is supported.</div>
+          <button type="button" id="g-model-unlisted" style="display:none;margin-top:8px;background:transparent;border:0;padding:0;color:var(--blue);font:600 12px/1.4 inherit;cursor:pointer;text-decoration:underline">My model isn’t listed</button>
         </div>
 
         <!-- Length selector for boats, RVs and travel trailers -->
@@ -3124,6 +3126,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="rv-service-subtotal" id="rv-service-subtotal" hidden>
             Estimated service price: <strong id="rv-subtotal-amt">$0</strong>
             <span class="rv-subtotal-note">Travel and location adjustments are calculated after the service ZIP is entered.</span>
+            <span id="rv-duration-note" class="rv-subtotal-note"></span>
           </div>
         </div>
 
@@ -4057,35 +4060,40 @@ let PRICING = {
       specialty:  {label:'Cargo, Horse or Custom Trailer', icon:'📦', desc:'Living quarters required for interior packages', maint:265, maint_light:0, interior:0, full_basic:0, premium:925, full:0},
     },
     packages:[
-      {id:'maint', name:'Maintenance Wash', icon:'🪣', tag:'Keep your RV clean, protected and ready for the road.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
-        ext:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
+      {id:'exterior_wash', name:'Exterior Wash', icon:'🪣', tag:'Clean the outside without a separate wax or sealant.', dur:'Estimate by length', popular:false, scope:'ext',
+        ext:['Exterior wash and dry','Bug and light road-dirt removal','Exterior glass','Wheels cleaned','Tire finish when appropriate'],
         int:[],
-        feats:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
-        miss:['Roof','Heavy black streaks','Oxidation','Severe water spots','Interior']},
+        feats:['Exterior wash and dry','Bug and light road-dirt removal','Exterior glass','Wheels cleaned','Tire finish when appropriate'],
+        miss:['Separate wax or sealant','Polish and oxidation removal','Persistent stains and heavy black streaks','Roof, awnings, and interior']},
+      {id:'maint', name:'Wash & Protect', icon:'🪣', tag:'Clean and protect with a quick wax or sealant included in the wash.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick wax or sealant for exterior protection','Final exterior inspection'],
+        int:[],
+        feats:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick wax or sealant for exterior protection','Final exterior inspection'],
+        miss:['Separate wax charged again','Machine polish','Promised months of durability','Roof','Heavy black streaks','Oxidation removal','Interior']},
       {id:'maint_light', name:'Maintenance Wash + Light Interior', icon:'🪣', tag:'Exterior maintenance plus a quick interior refresh.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
         ext:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant'],
-        int:['Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and windshield','Accessible trash removal'],
-        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors and windshield','Accessible trash removal'],
+        int:['Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down (motorhomes only)','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors; windshield on motorhomes only','Accessible trash removal'],
+        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down (motorhomes only)','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors; windshield on motorhomes only','Accessible trash removal'],
         miss:['Upholstery shampoo','Carpet extraction','Pet hair','Odor treatment','Refrigerator interior','Oven interior','Cabinet interiors','Bed making','Roof cleaning']},
       {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'A complete interior cleaning from the driver cabin to the living area.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'int',
         ext:[],
-        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
-        feats:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        feats:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Exterior','Personal belongings left in place','Heavy staining without Super Interior','Excessive pet hair','Strong odors']},
       {id:'full_basic', name:'Full RV Detail', icon:'🧽', tag:'Complete interior cleaning plus exterior wash and protection.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
         ext:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
-        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
-        feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','One-step machine polishing','Oxidation correction']},
-      {id:'premium', name:'Premium Exterior Detail', icon:'🏅', tag:'One-Step Machine Polish + Premium Protection', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
-        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+      {id:'premium', name:'Exterior Polish & Protect', icon:'🏅', tag:'Restore gloss and protect with a one-step polish.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish to restore gloss','Light haze improvement where the surface allows','High-quality wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
         int:[],
-        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
-        miss:['Roof','Multi-stage restoration','Interior','Guaranteed removal of every scratch or permanent water spot']},
+        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish to restore gloss','Light haze improvement where the surface allows','High-quality wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        miss:['Roof','Complete oxidation removal','Scratch removal','Heavy or multi-stage restoration','Interior']},
       {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'One-Step Exterior Polish + Complete Interior Detail', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
         ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
-        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
-        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','Multi-stage correction','Severe oxidation without inspection','Deep scratches and damaged decals without inspection']}
     ],
     addons:[
@@ -4217,6 +4225,7 @@ let LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
+      exterior_wash: { perFt: 8, min: 199, ratePerFoot: 8 },
       maint:       { base: 135, ratePerFoot: 9 },
       maint_light: { base: 220, ratePerFoot: 14 },
       interior:    { base: 220, ratePerFoot: 15 },
@@ -4237,7 +4246,12 @@ let LENGTH_PRICING = {
   }
 };
 
-const RV_TYPE_MULTIPLIERS = { travel:1, fifthwheel:1, classA:1, classB:1, classC:1, classBC:1, airstream:1, cargo:1, horse:1, other:1, specialty:1 };
+const RV_TYPE_MULTIPLIERS = { travel:1, fifthwheel:1, motorhome:1, classA:1, classB:1, classC:1, classBC:1, airstream:1, cargo:1, horse:1, other:1, specialty:1 };
+const RV_MOTORIZED = { motorhome:1, classA:1, classB:1, classC:1, classBC:1 };
+const RV_MODEL_TYPE_HINTS = {
+  // Forest River Class C Division brochure: Lexington is a Class C / B+ motorhome, not a travel trailer.
+  'forest river': { lexington: 'motorhome' }
+};
 const BOAT_TYPE_MULTIPLIERS = { runabout:1, bowrider:1, center:1, pontoon:1, bass:1, skiwake:1, cuddy:1, walkaround:1, sportcruiser:1, cabincruiser:1, cruiser:1, yacht:1, jetski:1, other:1 };
 const BOAT_TYPE_ALIASES = { cruiser:'cabincruiser' };
 const BOAT_TYPE_LABELS = {
@@ -4291,17 +4305,29 @@ function getLengthPrice(cat, pkgId, ft, typeKey){
   }
   if(!cfg.packages[id]) return null;
   const rule = cfg.packages[id];
-  const lengthFt = Number(ft || cfg.defaultFt);
+  const explicit = ft != null && ft !== '';
+  const lengthFt = explicit ? Number(ft) : Number(cfg.defaultFt);
+  if(!Number.isFinite(lengthFt) || lengthFt <= 0) return null;
   if(cat==='rvs'){
+    if(lengthFt < cfg.min || lengthFt > cfg.max) return null;
     const key = typeKey || (typeof ST!=='undefined' && ST.rvType) || 'travel';
     const mult = Number(RV_TYPE_MULTIPLIERS[key]) || 1;
-    const base = Number(rule.base) || 0;
-    const rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
-    const raw = (base + rate * lengthFt) * mult;
-    return Math.round(raw * 100) / 100;
+    if(rule.base != null){
+      const base = Number(rule.base) || 0;
+      const rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
+      return Math.round((base + rate * lengthFt) * mult * 100) / 100;
+    }
+    const rate = Number(rule.perFt != null ? rule.perFt : rule.ratePerFoot) || 0;
+    const raw = Math.round(rate * lengthFt * mult * 100) / 100;
+    return Math.max(Number(rule.min) || 0, raw);
   }
   const raw = rule.perFt * lengthFt;
   return Math.max(rule.min, Math.round(raw));
+}
+function rvExteriorWashMinutes(ft){
+  const n = Number(ft);
+  if(!Number.isFinite(n) || n <= 0) return null;
+  return Math.max(90, Math.round(4 * n));
 }
 
 function setupLengthSelector(cat){
@@ -4495,6 +4521,19 @@ function setupRvTypeControls(cat){
     if(typeof setVehicleVisual==='function') setVehicleVisual();
     try{ sessionStorage.setItem('cd1_rv_type', ST.rvType); }catch(e){}
     syncLivingVisibility();
+    if(document.getElementById('pkg-grid') && document.querySelector('#pkg-grid .pkg-c')){
+      const selected = ST.pkgId;
+      renderPackages('rvs');
+      if(selected){
+        ST.pkgId = selected;
+        ST.pkg = (PRICING.rvs.packages || []).find(function(p){ return p.id===selected; }) || ST.pkg;
+        const el = document.getElementById('pk-'+selected);
+        if(el){ el.classList.add('sel'); if(el.getAttribute('role')==='radio') el.setAttribute('aria-checked','true'); }
+        const n2 = document.getElementById('next2');
+        if(n2) n2.disabled = !ST.pkg;
+      }
+    }
+    if(typeof syncRvAddonVisibility==='function') syncRvAddonVisibility();
     updateRvServiceSubtotal();
     tryGenericConfirm();
   };
@@ -4546,7 +4585,21 @@ function updateRvServiceSubtotal(){
   if(!price){ subEl.hidden = true; return; }
   const total = price + (ST.addonTotal || 0);
   amtEl.textContent = '$' + total;
+  const durEl = document.getElementById('rv-duration-note');
+  if(durEl){
+    if(ST.pkgId==='exterior_wash'){
+      const mins = rvExteriorWashMinutes(ft);
+      durEl.textContent = mins ? (' Estimated time: '+mins+' min. This estimate still needs owner confirmation.') : '';
+    }else durEl.textContent = '';
+  }
   subEl.hidden = false;
+  document.querySelectorAll('#pkg-grid .pkg-c').forEach(function(card){
+    const id = (card.id || '').replace(/^pk-/, '');
+    const priceEl = card.querySelector('.pkg-c-price');
+    if(!priceEl || !id) return;
+    const cardPrice = getLengthPrice('rvs', id, ft, type);
+    if(cardPrice) priceEl.textContent = '$' + cardPrice;
+  });
 }
 
 function setupUnitSelector(cat){
@@ -5089,7 +5142,7 @@ window.SPECIALTY_MODELS = {
     "Dutchmen":["Aspen Trail","Astoria","Coleman","Colorado","Kodiak","Voltage","Yukon"],
     "Entegra Coach":["Accolade","Anthem","Aspire","Cornerstone","Esteem","Ethos","Odyssey","Reatta"],
     "Fleetwood RV":["Bounder","Discovery","Flair","Flex","Fortis","Frontier","Insight","Pace Arrow"],
-    "Forest River":["Berkshire","Cardinal","Cedar Creek","Cherokee","Flagstaff","Forester","Georgetown","Grey Wolf","No Boundaries","Rockwood","Salem","Sandstorm","Sunseeker","Vibe","Wildwood","Wolf Pack"],
+    "Forest River":["Berkshire","Cardinal","Cedar Creek","Cherokee","Flagstaff","Forester","Georgetown","Grey Wolf","Lexington","No Boundaries","Rockwood","Salem","Sandstorm","Sunseeker","Vibe","Wildwood","Wolf Pack"],
     "Featherlite":["Car Trailer","Cargo Trailer","Horse Trailer","Livestock Trailer","Recreational Trailer"],
     "Grand Design":["Imagine","Momentum","Reflection","Solitude","Transcend"],
     "Gulf Stream":["Ameri-Lite","BT Cruiser","Conquest","Friendship","Kingsport","Vintage Cruiser"],
@@ -5783,8 +5836,9 @@ const PKG_COMPACT_META_BY_CAT = {
     premium: { shortName: 'Premium Marine', line: 'Gloss enhancement & light-to-moderate oxidation', chips: ['Polish', 'Wax', 'Gloss'] },
   },
   rvs: {
-    maint: { shortName: 'Maintenance Wash', line: 'Exterior keep-clean wash', chips: ['Exterior', 'Wash', 'Sealant'] },
-    premium: { shortName: 'Premium Exterior Detail', line: 'One-step polish + protection', chips: ['Exterior', 'Polish', 'Sealant'] },
+    exterior_wash: { shortName: 'Exterior Wash', line: 'Clean', chips: ['Wash', 'Glass', 'Wheels'] },
+    maint: { shortName: 'Wash & Protect', line: 'Clean and protect', chips: ['Wash', 'Protect'] },
+    premium: { shortName: 'Polish & Protect', line: 'Restore gloss and protect', chips: ['Polish', 'Protect'] },
     interior: { shortName: 'Interior Detail', line: 'Cabin through living area', chips: ['Interior', 'Shampoo', 'Kitchen'] },
     maint_light: { shortName: 'Wash + Light Interior', line: 'Exterior + quick interior refresh', chips: ['In + Out', 'Wash', 'Vacuum'] },
     full_basic: { shortName: 'Full RV Detail', line: 'Complete interior + exterior wash', chips: ['In + Out', 'Wash', 'Shampoo'] },
@@ -5819,6 +5873,11 @@ function compactPackagePriceLabel(cat, p, d) {
     return 'From $' + (applyRichPrice(rule.min) + fee);
   }
   if (cat === 'rvs' && LENGTH_PRICING.rvs && LENGTH_PRICING.rvs.packages[p.id]) {
+    const ft = Number(ST.lengthFt || 0);
+    if (ft && ST.rvType) {
+      const price = getLengthPrice('rvs', p.id, ft, ST.rvType);
+      if (price) return '$' + price;
+    }
     return 'By length';
   }
   if (cat === 'powersports') {
@@ -5877,8 +5936,27 @@ function groupPackagesForDisplay(cat, packages){
   return groups.length ? groups : [{ label:'', items:packages||[] }];
 }
 
+function rvLineForType(line){
+  const text = String(line || '');
+  if(!ST.rvType) return text;
+  if(RV_MOTORIZED[ST.rvType]){
+    return text
+      .replace(/\s*\(motorhomes only\)/ig, '')
+      .replace(/;\s*windshield on motorhomes only/ig, ' and windshield');
+  }
+  if(/driver cabin|windshield/i.test(text)) return '';
+  return text;
+}
+function rvPackageForDisplay(p){
+  if(!p || ST.cat!=='rvs') return p;
+  function mapList(list){
+    if(!Array.isArray(list)) return list;
+    return list.map(rvLineForType).filter(Boolean);
+  }
+  return Object.assign({}, p, { ext: mapList(p.ext), int: mapList(p.int), feats: mapList(p.feats) });
+}
 function renderCompactPkgCardHtml(cat, p, d){
-  const presented = (cat==='powersports') ? presentPowersportsPackage(p, ST.tierKey) : p;
+  const presented = (cat==='powersports') ? presentPowersportsPackage(p, ST.tierKey) : rvPackageForDisplay(p);
   const meta=getPkgCompactMeta(cat, p.id)||{shortName:presented.name,line:presented.tag,chips:[]};
   const priceLabel=compactPackagePriceLabel(cat, p, d);
   const chips=(meta.chips||[]).map(c=>`<span>${c}</span>`).join('');
@@ -6196,6 +6274,11 @@ function initSpecialtySearch(cat){
   makeIn.parentNode.replaceChild(newMakeIn, makeIn);
   modelIn.parentNode.replaceChild(newModelIn, modelIn);
   newMakeIn.value=''; newModelIn.value=''; newModelIn.disabled=true;
+  const unlistedBtn = document.getElementById('g-model-unlisted');
+  if(unlistedBtn){
+    unlistedBtn.style.display = cat==='rvs' ? 'inline-block' : 'none';
+    unlistedBtn.onclick = function(){ enableUnlistedSpecialtyModel(); };
+  }
 
   // Re-wire year change to new elements
   document.getElementById('g-year').onchange = tryGenericConfirm;
@@ -6253,7 +6336,7 @@ function initSpecialtySearch(cat){
         modelDd.innerHTML = hits.map(m=>`<div class="srch-item" data-val="${m}">${hl(m,q)}</div>`).join('');
         modelDd.classList.add('open');
         modelDd.querySelectorAll('.srch-item').forEach(el=>{
-          el.addEventListener('mousedown',e=>{e.preventDefault(); newModelIn.value=el.dataset.val; modelDd.classList.remove('open'); tryGenericConfirm();});
+          el.addEventListener('mousedown',e=>{e.preventDefault(); newModelIn.value=el.dataset.val; modelDd.classList.remove('open'); applyRvModelHint(newMakeIn.value, el.dataset.val); tryGenericConfirm();});
         });
       }
     }
@@ -6284,7 +6367,7 @@ function selectSpecialtyMake(make, catData, makeIn, makeDd, modelIn, modelDd, no
       modelDd.innerHTML = models.map(m=>`<div class="srch-item" data-val="${m}">${m}</div>`).join('');
       modelDd.classList.add('open');
       modelDd.querySelectorAll('.srch-item').forEach(el=>{
-        el.addEventListener('mousedown',e=>{e.preventDefault(); modelIn.value=el.dataset.val; modelDd.classList.remove('open'); tryGenericConfirm();});
+        el.addEventListener('mousedown',e=>{e.preventDefault(); modelIn.value=el.dataset.val; modelDd.classList.remove('open'); applyRvModelHint(make, el.dataset.val); tryGenericConfirm();});
       });
     }
   },{once:true});
@@ -6330,27 +6413,72 @@ function inferPowersportsTier(make, model){
   return record&&record.publicStatus==='bookable' ? record.serviceClass : '';
 }
 
+function rvTypeHintFor(make, model){
+  const byMake = RV_MODEL_TYPE_HINTS[String(make||'').trim().toLowerCase()];
+  if(!byMake) return '';
+  return byMake[String(model||'').trim().toLowerCase()] || '';
+}
+function applyRvModelHint(make, model){
+  if(ST.cat!=='rvs') return;
+  const hint = rvTypeHintFor(make, model);
+  if(!hint) return;
+  const typeSel = document.getElementById('rv-type-sel');
+  if(!typeSel || !typeSel.querySelector('option[value="'+hint+'"]')) return;
+  if(ST.rvType===hint && typeSel.value===hint) return;
+  typeSel.value = hint;
+  typeSel.dispatchEvent(new Event('change'));
+}
+function enableUnlistedSpecialtyModel(){
+  const makeIn = document.getElementById('g-make');
+  const modelIn = document.getElementById('g-model');
+  const note = document.getElementById('g-custom-note');
+  if(modelIn){
+    modelIn.disabled = false;
+    modelIn.placeholder = 'Type the model';
+  }
+  if(note){
+    note.style.display = 'block';
+    note.textContent = 'My model isn’t listed. Type the make and model if you have them. Length is still required for the price.';
+  }
+  if(makeIn && !makeIn.value.trim()) makeIn.focus();
+  else if(modelIn) modelIn.focus();
+}
 function tryGenericConfirm(){
-  const make=document.getElementById('g-make').value.trim();
-  const model=document.getElementById('g-model').value.trim();
+  const makeEl=document.getElementById('g-make');
+  const modelEl=document.getElementById('g-model');
+  if(!makeEl || !modelEl) return;
+  const make=makeEl.value.trim();
+  const model=modelEl.value.trim();
   const year=document.getElementById('g-year').value;
   if(ST.cat==='powersports') CD1PowersportsBookingSafety.resetForIdentityChange(ST,make,model);
+  if(ST.cat==='rvs'){
+    if(typeof applyRvModelHint==='function') applyRvModelHint(make, model);
+    if(!ST.pkgId || !ST.rvType) return;
+    if((ST.rvType==='cargo'||ST.rvType==='horse'||ST.rvType==='other') && !ST.rvLiving) return;
+    const ft = Number(ST.lengthFt || 0);
+    if(!ft) return;
+    const price = getLengthPrice(ST.cat, ST.pkgId, ft, ST.rvType);
+    if(!price) return;
+    ST.make = make;
+    ST.model = model;
+    ST.year = year;
+    ST.basePrice = price;
+    const identity = [year, make, model].filter(Boolean).join(' ');
+    const typeLabel = (document.querySelector?.('#rv-type-sel option:checked')||{}).textContent || 'RV';
+    ST.vehicleLabel = `${identity || typeLabel.trim()} · ${ft} ft`;
+    ST.tierKey = ST.rvType;
+    ST.tier={label:`${ft} ft`, icon:'🏕️', desc:'RV priced by exact length and type'};
+    updateRvServiceSubtotal();
+    setVehicleVisual();
+    setVcName(ST.vehicleLabel);
+    document.getElementById('vc').classList.add('show');
+    document.getElementById('next3').disabled=false; renderAddons();
+    return;
+  }
   if(!make||!model||!year||!ST.pkgId)return;
 
-  if(ST.cat==='boats'||ST.cat==='rvs'){
-    if(ST.cat==='rvs'){
-      if(!ST.rvType) return;
-      if((ST.rvType==='cargo'||ST.rvType==='horse'||ST.rvType==='other') && !ST.rvLiving) return;
-      const ft = Number(ST.lengthFt || 0);
-      if(!ft) return;
-      const price = getLengthPrice(ST.cat, ST.pkgId, ft, ST.rvType);
-      if(!price) return;
-      ST.basePrice = price;
-      ST.vehicleLabel = `${year} ${make} ${model} · ${ft} ft`;
-      ST.tierKey = ST.rvType;
-      ST.tier={label:`${ft} ft`, icon:'🏕️', desc:'RV priced by exact length and type'};
-      updateRvServiceSubtotal();
-    }else{
+  if(ST.cat==='boats'){
+    {
       if(!ST.boatType) return;
       if(ST.boatType==='jetski'){
         const price = getBoatQuotePrice(ST.pkgId, 0, 'jetski');
@@ -6629,6 +6757,30 @@ function addonRequiresShampooOrSteam(a){
   return /shampoo|steam/.test(blob);
 }
 
+function rvPackageIncludesProtection(pkgId){
+  return pkgId==='maint' || pkgId==='maint_light' || pkgId==='full_basic' || pkgId==='premium' || pkgId==='full';
+}
+function syncRvAddonVisibility(){
+  if(ST.cat!=='rvs') return;
+  const protects = rvPackageIncludesProtection(ST.pkgId);
+  const towable = !!(ST.rvType && !RV_MOTORIZED[ST.rvType]);
+  let changed = false;
+  document.querySelectorAll('.addon').forEach(function(card){
+    const id = card.dataset.id;
+    const hide = (protects && (id==='polymer' || id==='wax1yr')) || (towable && id==='rainx');
+    card.style.display = hide ? 'none' : '';
+    if(hide && ST.addons.some(function(a){ return a.id===id; })){
+      card.classList.remove('sel');
+      ST.addons = ST.addons.filter(function(a){ return a.id!==id; });
+      changed = true;
+    }
+  });
+  if(changed){
+    ST.addonTotal = ST.addons.reduce(function(sum, a){ return sum + (Number(a.price)||0) * (Number(a.qty)||1); }, 0);
+    if(typeof updateTotal==='function') updateTotal();
+    updateRvServiceSubtotal();
+  }
+}
 function renderAddons(){
   if(!ST.pkg) return;
   const ahPkg=document.getElementById('ah-pkg');
@@ -6658,6 +6810,8 @@ function renderAddons(){
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
+    if(ST.cat==='rvs' && rvPackageIncludesProtection(ST.pkgId) && (a.id==='polymer' || a.id==='wax1yr')) return false;
+    if(ST.cat==='rvs' && ST.rvType && !RV_MOTORIZED[ST.rvType] && a.id==='rainx') return false;
     if(ST.cat==='powersports' && !a.publicNew) return false;
     if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isChildId(a.id)) return false;
     if(ST.cat==='cars' && ST.pkgId==='maint' && addonRequiresShampooOrSteam(a)) return false;
@@ -6723,6 +6877,7 @@ function renderAddons(){
       '<button type="button" class="addon-toggle-btn" id="addon-toggle-btn" onclick="toggleAllAddons()">Show All Add-ons ▾</button></div>';
   }
   syncRvSuperintAddonDedup();
+  if(typeof syncRvAddonVisibility==='function') syncRvAddonVisibility();
   if(window.CD1SeasonalDriveway) CD1SeasonalDriveway.mountAddonGrid(ST, PRICING);
   if(typeof recalcAddonTotal==='function') recalcAddonTotal();
   updateTotal();

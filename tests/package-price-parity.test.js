@@ -135,7 +135,7 @@ function catalogPriceEntries() {
   return entries;
 }
 
-test('13 booking pages match all 220 authoritative package values (2,860 comparisons)', () => {
+test('13 booking pages match all 223 authoritative package values (2,899 comparisons)', () => {
   const discovered = fs.readdirSync(ROOT)
     .filter((file) => file.endsWith('.html'))
     .filter((file) => /(?:const|let)\s+PRICING\s*=/.test(read(file)))
@@ -144,8 +144,9 @@ test('13 booking pages match all 220 authoritative package values (2,860 compari
 
   const entries = catalogPriceEntries();
   // 206 prior catalog values + 14 Ceramic Coating tier prices
-  // (7 passenger tiers × 1-year and 3-year). Cargo vans are intentionally omitted.
-  assert.equal(entries.length, 220);
+  // (7 passenger tiers × 1-year and 3-year) + 3 RV exterior_wash fields
+  // (perFt, min, ratePerFoot). Cargo vans are intentionally omitted.
+  assert.equal(entries.length, 223);
   assert.equal(PRICING.cars.tiers.full_size_van.interior, 285);
   assert.equal(PRICING.cars.tiers.full_size_van_passenger.interior, 300);
   assert.equal(PRICING.cars.tiers.compact_van.interior, 255);
@@ -165,7 +166,7 @@ test('13 booking pages match all 220 authoritative package values (2,860 compari
       comparisons += 1;
     }
   }
-  assert.equal(comparisons, 2860);
+  assert.equal(comparisons, 2899);
 });
 
 test('server length helpers and RV calculator derive from the authoritative catalog', () => {
@@ -214,12 +215,14 @@ test('commercial rounding is consistent for flat/base/minimum package amounts', 
       }
     }
   }
-  for (const catalog of Object.values(LENGTH_PRICING)) {
-    for (const row of Object.values(catalog.packages)) {
+  for (const [category, catalog] of Object.entries(LENGTH_PRICING)) {
+    for (const [packageId, row] of Object.entries(catalog.packages)) {
       for (const [key, price] of Object.entries(row)) {
-        if (price > 0 && key !== 'perFt' && key !== 'ratePerFoot') {
-          assert.equal(price % 5, 0, `${key} package price ${price} is not a $5 increment`);
-        }
+        if (!(price > 0) || key === 'perFt' || key === 'ratePerFoot') continue;
+        // Owner-review floor for the basic RV wash. 25 ft is $200; shorter
+        // units stop at $199, which is not a $5 step until the owner decides.
+        if (category === 'rvs' && packageId === 'exterior_wash' && key === 'min') continue;
+        assert.equal(price % 5, 0, `${key} package price ${price} is not a $5 increment`);
       }
     }
   }
@@ -267,7 +270,10 @@ test('static starting-price surfaces are verified against the catalog', () => {
   assert.match(read('boats-detailing.html'), new RegExp(`Marine Wash[\\s\\S]*?From \\$${boat}<`));
   assert.match(read('powersports-detailing.html'), new RegExp(`Maintenance Detail[\\s\\S]*?From \\$${powersports}<`));
   for (const [packageId, rule] of Object.entries(LENGTH_PRICING.rvs.packages)) {
-    const minimum = rule.base + rule.ratePerFoot * LENGTH_PRICING.rvs.min;
+    const atFloor = LENGTH_PRICING.rvs.min;
+    const minimum = rule.base != null
+      ? rule.base + rule.ratePerFoot * atFloor
+      : Math.max(Number(rule.min) || 0, Number(rule.perFt || 0) * atFloor);
     assert.match(read('rv-detailing.html'), new RegExp(`data-rv-tier="${packageId}"[\\s\\S]*?min \\$${minimum}<`));
   }
 });

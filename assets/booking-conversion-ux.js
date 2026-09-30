@@ -163,6 +163,27 @@
     return iso && slotsFn ? (slotsFn(iso) || []) : [];
   }
 
+  function rvExteriorWashMinutes(st) {
+    if (!st) return 0;
+    const perFoot = 4;
+    const floor = 90;
+    const vehicles = Array.isArray(st.vehicles) ? st.vehicles : [];
+    let minutes = 0;
+    let matchedCurrent = false;
+    vehicles.forEach(function (vehicle) {
+      if (!vehicle || vehicle.pkgId !== 'exterior_wash') return;
+      const ft = Number(vehicle.lengthFt || 0);
+      if (!(ft > 0)) return;
+      minutes += Math.max(floor, Math.round(perFoot * ft));
+      if (st.pkgId === 'exterior_wash' && Number(st.lengthFt || 0) === ft) matchedCurrent = true;
+    });
+    if (st.cat === 'rvs' && st.pkgId === 'exterior_wash' && !matchedCurrent) {
+      const ft = Number(st.lengthFt || 0);
+      if (ft > 0) minutes += Math.max(floor, Math.round(perFoot * ft));
+    }
+    return minutes;
+  }
+
   function scheduleDemand() {
     let durationMinutes = 0;
     try {
@@ -170,6 +191,10 @@
         durationMinutes = Number(window.CD1CeramicBooking.appointmentMinutes()) || 0;
       }
     } catch (_) { /* catalog not on this page */ }
+    if (!(durationMinutes > 0)) {
+      try { durationMinutes = rvExteriorWashMinutes(window.ST); }
+      catch (_) { durationMinutes = 0; }
+    }
     return {
       durationMinutes,
       companionInterior: !!(durationMinutes > 0 && window.ST && window.ST.companionInterior),

@@ -71,12 +71,13 @@ const PACKAGE_DISPLAY = {
     premium: 'Premium Marine Detail',
   },
   rvs: {
-    maint: 'Maintenance Wash',
-    maint_light: 'Exterior Wash & Protect',
+    exterior_wash: 'Exterior Wash',
+    maint: 'Wash & Protect',
+    maint_light: 'Maintenance Wash + Light Interior',
     interior: 'Interior Detail',
     full_basic: 'Full RV Detail',
-    premium: 'Premium Exterior Detail',
-    full: 'Premium Complete Detail',
+    premium: 'Exterior Polish & Protect',
+    full: 'Premium Complete RV Detail',
   },
   powersports: {
     wash: 'Wash & Shine',

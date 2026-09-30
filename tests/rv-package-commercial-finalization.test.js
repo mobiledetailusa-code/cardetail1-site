@@ -24,13 +24,15 @@ const {
   computeAddonTotal,
 } = require('../netlify/lib/booking-price-catalog');
 
-const FINAL_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
+const FINAL_IDS = ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
+const BASE_RATE_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 const FINAL_NAMES = {
-  maint: 'Maintenance Wash',
+  exterior_wash: 'Exterior Wash',
+  maint: 'Wash & Protect',
   maint_light: 'Maintenance Wash + Light Interior',
   interior: 'Interior Detail',
   full_basic: 'Full RV Detail',
-  premium: 'Premium Exterior Detail',
+  premium: 'Exterior Polish & Protect',
   full: 'Premium Complete RV Detail',
 };
 
@@ -52,17 +54,18 @@ function extractRvLength(html) {
   return m[1];
 }
 
-test('PACKAGE STRUCTURE: six customer-visible RV packages', () => {
+test('PACKAGE STRUCTURE: seven customer-visible RV packages', () => {
   const html = read('index.html');
   const block = extractRvPackages(html);
   const ids = [...block.matchAll(/id:'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(ids, FINAL_IDS);
 
   const page = read('rv-detailing.html');
-  assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 7);
   for (const [id, name] of Object.entries(FINAL_NAMES)) {
     assert.match(page, new RegExp(`data-rv-tier="${id}"`));
-    assert.match(page, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    const visible = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '(?:&|&amp;)');
+    assert.match(page, new RegExp(visible));
     assert.match(block, new RegExp(`id:'${id}'`));
   }
   assert.doesNotMatch(page, /One-Step Paint Correction \+|Exterior Wash &amp; Protect|Paint Improvement|Essential Care|Complete Care/);
@@ -153,6 +156,7 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
+  assert.equal(prices.exterior_wash, 199);
   assert.equal(prices.maint, 351);
   assert.equal(prices.maint_light, 556);
   assert.equal(prices.interior, 580);
@@ -196,7 +200,8 @@ test('SYNC: RV pricing sync remains idempotent', () => {
 
 test('client and server LENGTH_PRICING.rvs stay synced', () => {
   const lengthBlock = extractRvLength(read('index.html'));
-  for (const id of FINAL_IDS) {
+  assert.match(lengthBlock, /exterior_wash:\s*\{ perFt: 8, min: 199, ratePerFoot: 8 \}/);
+  for (const id of BASE_RATE_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
     assert.match(
       lengthBlock,

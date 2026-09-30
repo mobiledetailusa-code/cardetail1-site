@@ -61,12 +61,13 @@ test('Super Interior $135; Sanitize $75; Mold absent', () => {
   assert.equal(computeAddonTotal({ cat: 'rvs', addons: [{ id: 'sanitize' }] }).total, 75);
 });
 
-test('public page: single-price cards; six packages; booking CTAs; no funnel', () => {
+test('public page: single-price cards; seven packages; booking CTAs; no funnel', () => {
   const page = read('rv-detailing.html');
   assert.match(page, /Price calculated from your vehicle details/);
   assert.doesNotMatch(page, /Starting at \$[\d.]+\/ft/);
   assert.doesNotMatch(page, /From \$899\b|From \$1,?299|From \$1,?499/);
-  assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 7);
+  assert.match(page, /data-rv-tier="exterior_wash"/);
   assert.match(page, /package-booking-cta/);
   assert.doesNotMatch(page, /CHECK PRICE &amp; AVAILABILITY|rv-pricing-funnel/);
   assert.match(page, /Maintenance Wash \+ Light Interior/);
@@ -103,6 +104,8 @@ test('frontend formula matches backend; manipulated addon prices rejected', () =
 test('package hierarchy valid; other categories unchanged', () => {
   for (const ft of [20, 24, 30, 40, 45]) {
     const p = Object.fromEntries(PKG_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
+    const wash = getLengthPrice('rvs', 'exterior_wash', ft, 'travel');
+    assert.ok(wash < p.maint);
     assert.ok(p.maint < p.maint_light);
     assert.ok(p.full_basic > p.interior);
     assert.ok(p.premium > p.maint_light);

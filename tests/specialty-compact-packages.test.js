@@ -155,6 +155,7 @@ test('RV/trailer packages group into Exterior, Interior, and Interior + Exterior
   vm.createContext(sandbox);
   vm.runInContext(fn + '\nthis.groupPackagesForDisplay = groupPackagesForDisplay;', sandbox);
   const pkgs = [
+    { id: 'exterior_wash', scope: 'ext' },
     { id: 'maint', scope: 'ext' },
     { id: 'maint_light', scope: 'both' },
     { id: 'interior', scope: 'int' },
@@ -167,7 +168,7 @@ test('RV/trailer packages group into Exterior, Interior, and Interior + Exterior
   assert.equal(String(groups[0].label), 'Exterior');
   assert.equal(String(groups[1].label), 'Interior');
   assert.equal(String(groups[2].label), 'Interior + Exterior');
-  assert.equal(groups[0].items.map((p) => p.id).join(','), 'maint,premium');
+  assert.equal(groups[0].items.map((p) => p.id).join(','), 'exterior_wash,maint,premium');
   assert.equal(groups[1].items.map((p) => p.id).join(','), 'interior');
   assert.equal(groups[2].items.map((p) => p.id).join(','), 'maint_light,full_basic,full');
   const cars = sandbox.groupPackagesForDisplay('cars', [{ id: 'full' }, { id: 'wash' }]);
@@ -190,7 +191,7 @@ test('RV combined packages split includes into Interior and Exterior sections', 
   );
 
   // Pull maint_light ext/int from live PRICING copy in index.html
-  assert.match(html, /id:'maint_light'[\s\S]*?ext:\[[^\]]+\][\s\S]*?int:\[[^\]]+Interior mirrors and windshield/);
+  assert.match(html, /id:'maint_light'[\s\S]*?ext:\[[^\]]+\][\s\S]*?int:\[[^\]]+Interior mirrors; windshield on motorhomes only/);
   assert.doesNotMatch(html, /Interior mirrors and glass/);
   assert.doesNotMatch(html, /id:'maint_light'[\s\S]*?feats:\[[^\]]*glass[^\]]*\]/);
 

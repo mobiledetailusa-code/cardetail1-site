@@ -279,7 +279,8 @@ describe('Powersports public entry + package IDs', () => {
 describe('second defect: empty tierKey is the Continue gate', () => {
   it('does not fold Powersports into the RV/Boat length branch', () => {
     const fn = extractFunction(index, 'tryGenericConfirm');
-    assert.match(fn, /if\(ST\.cat==='boats'\|\|ST\.cat==='rvs'\)/);
+    assert.match(fn, /if\(ST\.cat==='rvs'\)/);
+    assert.match(fn, /if\(ST\.cat==='boats'\)/);
     assert.doesNotMatch(fn, /ST\.cat==='powersports' && \(ST\.cat==='boats'|ST\.cat==='boats'\|\|ST\.cat==='rvs'\|\|ST\.cat==='powersports'/);
     assert.match(fn, /CD1PowersportsBookingSafety\.resetForIdentityChange\(ST,make,model\)/);
     assert.match(fn, /CD1PowersportsBookingSafety\.resolveAndApply\(ST,PRICING\.powersports,make,model\)/);

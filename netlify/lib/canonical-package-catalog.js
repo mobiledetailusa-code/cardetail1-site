@@ -47,11 +47,12 @@ const PACKAGE_DESCRIPTIONS = {
     premium: 'Premium marine detail with expanded exterior protection.',
   },
   rvs: {
-    maint: 'Exterior maintenance wash for RVs and trailers.',
-    maint_light: 'Exterior wash and protect for regularly maintained units.',
-    interior: 'Interior detail for living areas and soft surfaces.',
-    full_basic: 'Full RV detail covering exterior and interior basics.',
-    premium: 'Premium exterior detail and protection.',
+    exterior_wash: 'Basic exterior wash and dry. No separate wax, polish, roof, awning, or interior.',
+    maint: 'Exterior wash plus a quick wax or sealant. Not machine correction and not a durability promise.',
+    maint_light: 'Exterior wash and protect for regularly maintained units, plus a light interior refresh.',
+    interior: 'Interior detail for living areas and soft surfaces. Driver cabin and windshield apply to motorhomes.',
+    full_basic: 'Full RV detail covering exterior wash, protection, and interior basics.',
+    premium: 'One-step polish to restore gloss, plus exterior protection. Not complete oxidation or scratch removal.',
     full: 'Premium complete RV detail.',
   },
   powersports: {

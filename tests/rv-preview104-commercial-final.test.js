@@ -79,7 +79,8 @@ test('compact tabbed packages with booking CTAs', () => {
   assert.match(page, /id="rv-panel-outside"/);
   assert.match(page, /id="rv-panel-inside"/);
   assert.match(page, /id="rv-panel-both"/);
-  assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 7);
+  assert.match(page, /data-booking-package="exterior_wash"/);
   assert.match(page, /Price calculated from your vehicle details/);
   assert.match(page, /MOST POPULAR/);
   assert.match(page, /BEST FINISH/);
@@ -142,7 +143,7 @@ test('expanded RV_TYPES with living-quarters gate', () => {
   for (const k of ['travel', 'fifthwheel', 'classA', 'classB', 'classC', 'airstream', 'cargo', 'horse', 'other']) {
     assert.ok(RV_TYPES[k], k);
   }
-  assert.deepEqual(eligiblePackagesForType('cargo', 'no'), ['maint', 'premium']);
+  assert.deepEqual(eligiblePackagesForType('cargo', 'no'), ['exterior_wash', 'maint', 'premium']);
   assert.ok(eligiblePackagesForType('horse', 'yes').includes('full_basic'));
   assert.equal(resolveRvTypeKey({ rvType: 'classB' }), 'classB');
   assert.equal(resolveRvTypeKey({ rvType: 'classBC' }), 'classC');
