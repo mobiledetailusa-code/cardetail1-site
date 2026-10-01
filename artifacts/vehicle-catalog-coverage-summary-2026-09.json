@@ -1,0 +1,205 @@
+{
+  "catalog": {
+    "yearRange": "1990-2026",
+    "makes": 41,
+    "makeList": [
+      "Acura",
+      "Alfa Romeo",
+      "Aston Martin",
+      "Audi",
+      "Bentley",
+      "BMW",
+      "Buick",
+      "Cadillac",
+      "Chevrolet",
+      "Chrysler",
+      "Dodge",
+      "Ferrari",
+      "FIAT",
+      "Ford",
+      "Genesis",
+      "GMC",
+      "Honda",
+      "Hyundai",
+      "INFINITI",
+      "Jaguar",
+      "Jeep",
+      "Kia",
+      "Lamborghini",
+      "Land Rover",
+      "Lexus",
+      "Lincoln",
+      "Maserati",
+      "Mazda",
+      "McLaren",
+      "Mercedes-Benz",
+      "MINI",
+      "Mitsubishi",
+      "Nissan",
+      "Porsche",
+      "Ram",
+      "Rolls-Royce",
+      "Subaru",
+      "Tesla",
+      "Toyota",
+      "Volkswagen",
+      "Volvo"
+    ],
+    "canonicalModels": 351,
+    "yearAwareMappings": 1,
+    "aliases": 0,
+    "classesPricing": [
+      "small",
+      "suv2",
+      "suv3",
+      "truck"
+    ],
+    "classesDisplay": [
+      "small",
+      "suv2",
+      "suv3",
+      "truck",
+      "minivan"
+    ],
+    "byClass": {
+      "small": 152,
+      "suv3": 64,
+      "suv2": 106,
+      "truck": 29
+    },
+    "minivanKeys": [
+      "Dodge|Grand Caravan",
+      "Chrysler|Pacifica",
+      "Chrysler|Voyager",
+      "Honda|Odyssey",
+      "Toyota|Sienna",
+      "Kia|Carnival"
+    ]
+  },
+  "external": {
+    "makesReviewed": 59,
+    "modelYearCombosApprox": 25000,
+    "note": "NHTSA GetModelsForMakeYear passenger+mpv+truck; years sampled 1990-2026 denser after 2010"
+  },
+  "coverage": {
+    "missingModels": 969,
+    "missingP1": 34,
+    "partialYear": 0,
+    "invalidYear": 282,
+    "suspectClass": 8,
+    "aliasDup": 21,
+    "totalGaps": 1280
+  },
+  "vans": {
+    "fullSizeMissing": [
+      "Mercedes-Benz Sprinter",
+      "GMC Savana",
+      "Nissan NV",
+      "Ford E-Series",
+      "Dodge Sprinter (legacy)"
+    ],
+    "fullSizePresentWrongClass": [
+      "Ford Transit",
+      "Chevrolet Express",
+      "Ram ProMaster"
+    ],
+    "compactPresentWrongClass": [
+      "Ford Transit Connect",
+      "Ram ProMaster City"
+    ],
+    "compactMissing": [
+      "Nissan NV200",
+      "Mercedes-Benz Metris"
+    ],
+    "recommendFullSizeVanClass": "YES",
+    "passengerCargoSubtypeFeasible": "YES"
+  },
+  "priority": {
+    "P0": 8,
+    "P1": 34,
+    "P2": 823,
+    "P3": 415
+  },
+  "top25": [
+    "P0 | Chevrolet Express | WRONG_CLASS | → full_size_van",
+    "P0 | Ford Mustang Mach-E | WRONG_CLASS | → suv2",
+    "P0 | Ford Transit | WRONG_CLASS | → full_size_van",
+    "P0 | Ford Transit Connect | WRONG_CLASS | → suv2",
+    "P0 | Ram ProMaster | WRONG_CLASS | → full_size_van",
+    "P0 | Ram ProMaster City | WRONG_CLASS | → suv2",
+    "P0 | Toyota 4Runner | WRONG_ROWS | → suv2",
+    "P0 | Volkswagen ID.Buzz | WRONG_CLASS | → minivan",
+    "P1 | Audi Q4 e-tron | MISSING_MODEL | → suv2",
+    "P1 | Chevrolet Blazer EV | MISSING_MODEL | → suv2",
+    "P1 | Chevrolet Bolt EUV | MISSING_MODEL | → suv2",
+    "P1 | Chevrolet Bolt EV | MISSING_MODEL | → small",
+    "P1 | Chevrolet Cruze | MISSING_MODEL | → small",
+    "P1 | Chevrolet Equinox EV | MISSING_MODEL | → suv2",
+    "P1 | Chevrolet Impala | MISSING_MODEL | → small",
+    "P1 | Chevrolet Silverado EV | MISSING_MODEL | → truck",
+    "P1 | Chrysler Town & Country | MISSING_MODEL | → minivan",
+    "P1 | Ford Flex | MISSING_MODEL | → suv3",
+    "P1 | Ford Focus | MISSING_MODEL | → small",
+    "P1 | Ford Fusion | MISSING_MODEL | → small",
+    "P1 | GMC Hummer EV | MISSING_MODEL | → suv3",
+    "P1 | GMC Savana | MISSING_MODEL | → full_size_van",
+    "P1 | Lexus TX | MISSING_MODEL | → suv3",
+    "P1 | Lucid Air | MISSING_MODEL | → small",
+    "P1 | Lucid Gravity | MISSING_MODEL | → suv3"
+  ],
+  "p1MissingList": [
+    "Audi Q4 e-tron → suv2",
+    "Chevrolet Blazer EV → suv2",
+    "Chevrolet Bolt EUV → suv2",
+    "Chevrolet Bolt EV → small",
+    "Chevrolet Cruze → small",
+    "Chevrolet Equinox EV → suv2",
+    "Chevrolet Impala → small",
+    "Chevrolet Silverado EV → truck",
+    "Chrysler Town & Country → minivan",
+    "Ford Flex → suv3",
+    "Ford Focus → small",
+    "Ford Fusion → small",
+    "GMC Hummer EV → suv3",
+    "GMC Savana → full_size_van",
+    "Lexus TX → suv3",
+    "Lucid Air → small",
+    "Lucid Gravity → suv3",
+    "Mazda CX-9 → suv3",
+    "Mercedes-Benz Metris → suv2",
+    "Mercedes-Benz Sprinter → full_size_van",
+    "Nissan Ariya → suv2",
+    "Nissan Maxima → small",
+    "Nissan NV → full_size_van",
+    "Nissan NV200 → suv2",
+    "Polestar 2 → small",
+    "Polestar 3 → suv2",
+    "Polestar 4 → suv2",
+    "Rivian R1S → suv3",
+    "Rivian R1T → truck",
+    "Toyota Corolla Cross → suv2",
+    "Toyota Grand Highlander → suv3",
+    "Volkswagen Passat → small",
+    "Volvo EX30 → suv2",
+    "Volvo EX90 → suv3"
+  ],
+  "pricing": {
+    "allNumeric": "YES",
+    "newTiers": [
+      "full_size_van"
+    ],
+    "minivanPlus10": "YES"
+  },
+  "architecture": {
+    "yearAware": "NO",
+    "aliases": "NO",
+    "singleSourceOfTruth": "NO",
+    "broadRewrite": "YES"
+  },
+  "estimates": {
+    "modelsToAdd": 573,
+    "yearRangeFixes": 351,
+    "classificationFixes": 10,
+    "recommendedPRs": 5
+  }
+}

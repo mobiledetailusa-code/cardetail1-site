@@ -1,0 +1,1281 @@
+make,model,model_year_or_range,external_reference,cardetail1_status,current_class,recommended_class,issue_type,priority,notes
+Chevrolet,Express,1990-2026,classification audit,PRESENT_SUSPECT,truck,full_size_van,WRONG_CLASS,P0,Full-size van classified/priced as Truck
+Ford,Mustang Mach-E,1990-2026,classification audit,PRESENT_SUSPECT,small,suv2,WRONG_CLASS,P0,Crossover EV body currently Small Car
+Ford,Transit,1990-2026,classification audit,PRESENT_SUSPECT,truck,full_size_van,WRONG_CLASS,P0,Full-size van classified/priced as Truck
+Ford,Transit Connect,1990-2026,classification audit,PRESENT_SUSPECT,truck,suv2,WRONG_CLASS,P0,Compact van classified as Truck; not full-size
+Ram,ProMaster,1990-2026,classification audit,PRESENT_SUSPECT,truck,full_size_van,WRONG_CLASS,P0,Full-size van classified/priced as Truck
+Ram,ProMaster City,1990-2026,classification audit,PRESENT_SUSPECT,truck,suv2,WRONG_CLASS,P0,Compact van classified as Truck
+Toyota,4Runner,1990-2026,classification audit,PRESENT_SUSPECT,suv3,suv2,WRONG_ROWS,P0,Primarily 2-row SUV; catalog marks suv3
+Volkswagen,ID.Buzz,1990-2026,classification audit,PRESENT_SUSPECT,suv2,minivan,WRONG_CLASS,P0,Van/MPV currently SUV 2-Row; minivan display + suv3 pricing more appropriate
+Audi,Q4 e-tron,2022-2026,NHTSA vPIC: Q4,MISSING_MODEL,,suv2,MISSING_MODEL,P1,EV crossover missing
+Chevrolet,Blazer EV,2024-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,suv2,MISSING_MODEL,P1,Distinct from Blazer ICE
+Chevrolet,Bolt EUV,2022-2023,NHTSA vPIC: Bolt EUV,MISSING_MODEL,,suv2,MISSING_MODEL,P1,Common EV crossover missing
+Chevrolet,Bolt EV,2017-2023,NHTSA vPIC: Bolt EV,MISSING_MODEL,,small,MISSING_MODEL,P1,Common EV missing
+Chevrolet,Cruze,2011-2019,NHTSA vPIC: Cruze,MISSING_MODEL,,small,MISSING_MODEL,P1,Common used sedan
+Chevrolet,Equinox EV,2024-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,suv2,MISSING_MODEL,P1,Distinct from Equinox ICE
+Chevrolet,Impala,1990-2020,NHTSA vPIC: Impala,MISSING_MODEL,,small,MISSING_MODEL,P1,Common used sedan
+Chevrolet,Silverado EV,2024-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,truck,MISSING_MODEL,P1,Distinct EV truck
+Chrysler,Town & Country,1990-2016,NHTSA vPIC: Town and Country,MISSING_MODEL,,minivan,MISSING_MODEL,P1,Legacy minivan in range
+Ford,Flex,2009-2019,NHTSA vPIC: Flex,MISSING_MODEL,,suv3,MISSING_MODEL,P1,Discontinued but in range; 3-row crossover
+Ford,Focus,2000-2018,NHTSA vPIC: Focus,MISSING_MODEL,,small,MISSING_MODEL,P1,Very common used vehicle
+Ford,Fusion,2006-2020,NHTSA vPIC: Fusion,MISSING_MODEL,,small,MISSING_MODEL,P1,Very common used vehicle
+GMC,Hummer EV,2022-2026,NHTSA vPIC: Hummer EV Pickup | Hummer EV SUV,MISSING_MODEL,,suv3,MISSING_MODEL,P1,Hummer EV SUV/pickup family
+GMC,Savana,1996-2026,NHTSA vPIC: Savana,MISSING_MODEL,,full_size_van,MISSING_MODEL,P1,Full-size van family completely absent
+Lexus,TX,2024-2026,NHTSA vPIC: TX,MISSING_MODEL,,suv3,MISSING_MODEL,P1,New 3-row Lexus
+Lucid,Air,2022-2026,NHTSA vPIC: Air,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P1,Make absent
+Lucid,Gravity,2025-2026,NHTSA vPIC: Gravity,MISSING_MAKE_AND_MODEL,,suv3,MISSING_MODEL,P1,Make absent
+Mazda,CX-9,2007-2023,NHTSA vPIC: CX-9,MISSING_MODEL,,suv3,MISSING_MODEL,P1,Discontinued 3-row still common
+Mercedes-Benz,Metris,2016-2023,NHTSA vPIC: Metris,MISSING_MODEL,,suv2,MISSING_MODEL,P1,Compact van absent
+Mercedes-Benz,Sprinter,2010-2026,NHTSA vPIC: Sprinter,MISSING_MODEL,,full_size_van,MISSING_MODEL,P1,Full-size van family completely absent
+Nissan,Ariya,2023-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,suv2,MISSING_MODEL,P1,Mainstream EV crossover missing
+Nissan,Maxima,1990-2025,NHTSA vPIC: Maxima,MISSING_MODEL,,small,MISSING_MODEL,P1,Long-running sedan missing
+Nissan,NV,2012-2021,NHTSA vPIC: NV,MISSING_MODEL,,full_size_van,MISSING_MODEL,P1,Full-size van (discontinued but in year range)
+Nissan,NV200,2013-2021,NHTSA vPIC: NV200,MISSING_MODEL,,suv2,MISSING_MODEL,P1,Compact van absent
+Polestar,2,2021-2026,NHTSA vPIC: Polestar 2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P1,Make absent
+Polestar,3,2024-2026,NHTSA vPIC: Polestar 3,MISSING_MAKE_AND_MODEL,,suv2,MISSING_MODEL,P1,Make absent
+Polestar,4,2025-2026,NHTSA vPIC: Polestar 4,MISSING_MAKE_AND_MODEL,,suv2,MISSING_MODEL,P1,Make absent
+Rivian,R1S,2022-2026,NHTSA vPIC: R1S,MISSING_MAKE_AND_MODEL,,suv3,MISSING_MODEL,P1,Make absent
+Rivian,R1T,2022-2026,NHTSA vPIC: R1T,MISSING_MAKE_AND_MODEL,,truck,MISSING_MODEL,P1,Make absent
+Toyota,Corolla Cross,2022-2026,NHTSA vPIC: Corolla Cross,MISSING_MODEL,,suv2,MISSING_MODEL,P1,Distinct from Corolla sedan
+Toyota,Grand Highlander,2024-2026,NHTSA vPIC: Grand Highlander,MISSING_MODEL,,suv3,MISSING_MODEL,P1,High-volume 3-row missing
+Volkswagen,Passat,1990-2022,NHTSA vPIC: Passat,MISSING_MODEL,,small,MISSING_MODEL,P1,Common sedan missing
+Volvo,EX30,2025-2026,NHTSA vPIC: EX30 | EX30 CC,MISSING_MODEL,,suv2,MISSING_MODEL,P1,New Volvo EV
+Volvo,EX90,2025-2026,NHTSA vPIC: EX90,MISSING_MODEL,,suv3,MISSING_MODEL,P1,New Volvo EV SUV
+Acura,ADX,2025-2026,NHTSA vPIC: ADX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,CL,1990-2002,NHTSA vPIC: CL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,ILX,1990-2012,NHTSA sampled first ~2013 (ILX),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Acura,Legend,1990-1995,NHTSA vPIC: Legend,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,MDX,1990-2001,NHTSA sampled first ~2002 (MDX),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Acura,RDX,1990-2007,NHTSA sampled first ~2008 (RDX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Acura,RL,1990-2012,NHTSA vPIC: RL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,RLX,1990-2013,NHTSA sampled first ~2014 (RLX),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Acura,RSX,2002-2006,NHTSA vPIC: RSX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,TL,1990-2014,NHTSA vPIC: TL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,TLX,1990-2014,NHTSA sampled first ~2015 (TLX),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Acura,TSX,2004-2014,NHTSA vPIC: TSX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Acura,ZDX,1990-2009,NHTSA sampled first ~2010 (ZDX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Alfa Romeo,Stelvio,1990-2017,NHTSA sampled first ~2018 (Stelvio),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Alfa Romeo,Tonale,1990-2023,NHTSA sampled first ~2024 (Tonale),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Aston Martin,DB11,1990-2016,NHTSA sampled first ~2017 (DB11),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Aston Martin,DBS,1990-2009,NHTSA sampled first ~2010 (DBS),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Aston Martin,DBX,1990-2020,NHTSA sampled first ~2021 (DBX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Aston Martin,Vantage,1990-2005,NHTSA sampled first ~2006 (Vantage),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2006
+Audi,100,1990-1990,NHTSA vPIC: 100,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,200,1990-1990,NHTSA vPIC: 200,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,80,1990-1990,NHTSA vPIC: 80,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,90,1990-1995,NHTSA vPIC: 90,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,A3,1990-2005,NHTSA sampled first ~2006 (A3),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2006
+Audi,A4,1990-1999,NHTSA sampled first ~2000 (A4 | A4 allroad),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Audi,A5,1990-2007,NHTSA sampled first ~2008 (A5),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Audi,A6,1990-1994,NHTSA sampled first ~1995 (A6 | A6 allroad),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Audi,A7,1990-2011,NHTSA sampled first ~2012 (A7 | A7 e),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2012
+Audi,A8,1990-1999,NHTSA sampled first ~2000 (A8 | A8 e | A8 L),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Audi,allroad,2002-2005,NHTSA vPIC: allroad,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,Cabriolet,1995-1995,NHTSA vPIC: Cabriolet,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,Coupe,1990-1990,NHTSA vPIC: Coupe,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,e-tron,1990-2018,NHTSA sampled first ~2019 (e-tron | e-tron Sportback),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Audi,Q3,1990-2014,NHTSA sampled first ~2015 (Q3),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Audi,Q5,1990-2009,NHTSA sampled first ~2010 (Q5 | SQ5 | Q5 e),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Audi,Q6 e-tron,2025-2026,NHTSA vPIC: Q6,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Audi,Q7,1990-2007,NHTSA sampled first ~2008 (Q7),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Audi,Q8,1990-2018,NHTSA sampled first ~2019 (Q8),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Audi,R8,2008-2023,NHTSA vPIC: R8,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,RS 3,1990-2016,NHTSA sampled first ~2017 (RS 3),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Audi,RS 4,2008-2008,NHTSA vPIC: RS 4,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,RS 5,1990-2012,NHTSA sampled first ~2013 (RS 5),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Audi,RS 6,1990-2003,NHTSA sampled first ~2004 (RS 6 | RS 6 Avant),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Audi,RS 7,1990-2013,NHTSA sampled first ~2014 (RS 7),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Audi,RS Q8,2020-2026,NHTSA vPIC: RS Q8,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Audi,S3,2015-2026,NHTSA vPIC: S3,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,S4,2000-2025,NHTSA vPIC: S4,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,S5,2008-2026,NHTSA vPIC: S5,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,S6,1995-2025,NHTSA vPIC: S6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,S7,2013-2025,NHTSA vPIC: S7,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,S8,2002-2026,NHTSA vPIC: S8,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,SQ6,2025-2026,NHTSA vPIC: SQ6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Audi,SQ7,2020-2026,NHTSA vPIC: SQ7,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Audi,SQ8,2020-2026,NHTSA vPIC: SQ8,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Audi,TT,1990-1999,NHTSA sampled first ~2000 (TT | TTS | TT RS),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Bentley,Bentayga,1990-2016,NHTSA sampled first ~2017 (Bentayga),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Bentley,Flying Spur,1990-2013,NHTSA sampled first ~2014 (Flying Spur),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+BMW,128i,2008-2014,NHTSA vPIC: 128i,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,135i,2008-2014,NHTSA vPIC: 135i,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,1M,2011-2011,NHTSA vPIC: 1M,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,2 Series,1990-2013,NHTSA sampled first ~2014 (228i | 230i | 228),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+BMW,4 Series,1990-2013,NHTSA sampled first ~2014 (428i | 435i | 430i),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+BMW,6 Series,1990-2003,NHTSA sampled first ~2004 (645Ci | 645i | 650i),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+BMW,ActiveE,2012-2012,NHTSA vPIC: ActiveE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,ActiveHybrid 3,2014-2015,NHTSA vPIC: ActiveHybrid 3,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,ActiveHybrid 5,2012-2018,NHTSA vPIC: ActiveHybrid 5,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,ActiveHybrid 7,2014-2015,NHTSA vPIC: ActiveHybrid 7,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,Alpina B8,2022-2025,NHTSA vPIC: Alpina B8,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,B7,2019-2022,NHTSA vPIC: B7,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,i3,2014-2021,NHTSA vPIC: i3,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,i4,1990-2021,NHTSA sampled first ~2022 (i4),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+BMW,i5,1990-2023,NHTSA sampled first ~2024 (i5),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+BMW,i7,1990-2022,NHTSA sampled first ~2023 (i7),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+BMW,i8,2014-2020,NHTSA vPIC: i8,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,iX,1990-2021,NHTSA sampled first ~2022 (iX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+BMW,M2,1990-2013,NHTSA sampled first ~2014 (M235i | M2 | M240i),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+BMW,M4,1990-2014,NHTSA sampled first ~2015 (M4 | M440i),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+BMW,M5,1990-1999,NHTSA sampled first ~2000 (M5 | M550i),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+BMW,M6,2006-2019,NHTSA vPIC: M6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,M760i,2017-2021,NHTSA vPIC: M760i,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,M760Li,2022-2022,NHTSA vPIC: M760Li,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,M8,1990-2019,NHTSA sampled first ~2020 (M850i | M8),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+BMW,X1,1990-2011,NHTSA sampled first ~2012 (X1),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2012
+BMW,X2,1990-2017,NHTSA sampled first ~2018 (X2),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+BMW,X3,1990-2003,NHTSA sampled first ~2004 (X3),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+BMW,X4,1990-2014,NHTSA sampled first ~2015 (X4),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+BMW,X5,1990-1999,NHTSA sampled first ~2000 (X5),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+BMW,X6,1990-2007,NHTSA sampled first ~2008 (X6),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+BMW,X7,1990-2018,NHTSA sampled first ~2019 (X7),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+BMW,XM,1990-2022,NHTSA sampled first ~2023 (XM),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+BMW,Z3,2000-2002,NHTSA vPIC: Z3,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+BMW,Z4,1990-2003,NHTSA sampled first ~2004 (Z4),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+BMW,Z8,2002-2002,NHTSA vPIC: Z8,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Allure,2005-2008,NHTSA vPIC: Allure,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Cascada,2016-2019,NHTSA vPIC: Cascada,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Century,1990-2005,NHTSA vPIC: Century,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Coachbuilder,1990-1995,NHTSA vPIC: Coachbuilder,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Electra,1990-1990,NHTSA vPIC: Electra,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Enclave,1990-2007,NHTSA sampled first ~2008 (Enclave),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Buick,Encore,1990-2012,NHTSA sampled first ~2013 (Encore),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Buick,Encore GX,1990-2019,NHTSA sampled first ~2020 (Encore GX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Buick,Envision,1990-2015,NHTSA sampled first ~2016 (Envision),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Buick,Envista,2024-2026,NHTSA vPIC: Envista,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,LaCrosse,1990-2004,NHTSA sampled first ~2005 (LaCrosse),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2005
+Buick,LeSabre,1990-2005,NHTSA vPIC: LeSabre,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Lucerne,2006-2011,NHTSA vPIC: Lucerne,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Park Avenue,1995-2005,NHTSA vPIC: Park Avenue,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Buick,Rainier,2004-2006,NHTSA vPIC: Rainier,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Reatta,1990-1990,NHTSA vPIC: Reatta,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Regal,1990-2020,NHTSA vPIC: Regal,MISSING_MODEL,,small,MISSING_MODEL,P2,Missing sedan
+Buick,Rendezvous,2002-2006,NHTSA vPIC: Rendezvous,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Riviera,1990-1995,NHTSA vPIC: Riviera,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Roadmaster,1990-1995,NHTSA vPIC: Roadmaster,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Skyhawk,1990-1990,NHTSA vPIC: Skyhawk,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Skylark,1990-1995,NHTSA vPIC: Skylark,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Terraza,2005-2006,NHTSA vPIC: Terraza,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Buick,Verano,2012-2017,NHTSA vPIC: Verano,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Allante,1990-1990,NHTSA vPIC: Allante,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,ATS,2013-2019,NHTSA vPIC: ATS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Brougham,1990-1990,NHTSA vPIC: Brougham,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Catera,2000-2000,NHTSA vPIC: Catera,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Celestiq,2025-2026,NHTSA vPIC: Celestiq,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,CT4,1990-2019,NHTSA sampled first ~2020 (CT4),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Cadillac,CT5,1990-2019,NHTSA sampled first ~2020 (CT5),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Cadillac,CT6,2016-2020,NHTSA vPIC: CT6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,CTS,2004-2019,NHTSA vPIC: CTS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Deville,1990-2005,NHTSA vPIC: Deville,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,DTS,2006-2011,NHTSA vPIC: DTS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Eldorado,1990-2002,NHTSA vPIC: Eldorado,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,ELR,2014-2017,NHTSA vPIC: ELR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Escalade,1990-1999,NHTSA sampled first ~2000 (Escalade),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Cadillac,Escalade ESV,1990-2016,NHTSA sampled first ~2017 (Escalade ESV),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Cadillac,Escalade IQ,2025-2026,NHTSA vPIC: Escalade IQ | Escalade IQL,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Fleetwood,1990-1995,NHTSA vPIC: Fleetwood,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Limousine,2000-2010,NHTSA vPIC: Limousine,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Lyriq,1990-2022,NHTSA sampled first ~2023 (Lyriq),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Cadillac,Optiq,2025-2026,NHTSA vPIC: Optiq,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Seville,1990-2004,NHTSA vPIC: Seville,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,SRX,2004-2016,NHTSA vPIC: SRX,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Common used Cadillac crossover
+Cadillac,STS,2005-2011,NHTSA vPIC: STS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,Vistiq,2026-2026,NHTSA vPIC: Vistiq,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,XLR,2004-2008,NHTSA vPIC: XLR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Cadillac,XT4,1990-2018,NHTSA sampled first ~2019 (XT4),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Cadillac,XT5,1990-2016,NHTSA sampled first ~2017 (XT5),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Cadillac,XT6,1990-2019,NHTSA sampled first ~2020 (XT6),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Cadillac,XTS,2013-2019,NHTSA vPIC: XTS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,3 ton,2002-2004,NHTSA vPIC: 3 ton,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Astro Van,1990-2005,NHTSA vPIC: Astro Van,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Avalanche,2002-2013,NHTSA vPIC: Avalanche,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Aveo,2004-2020,NHTSA vPIC: Aveo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Beretta,1990-1995,NHTSA vPIC: Beretta,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,BrightDrop,2025-2026,NHTSA vPIC: BrightDrop,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,C5,1990-1990,NHTSA vPIC: C5,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,C6,1990-1990,NHTSA vPIC: C6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,C7,1990-1990,NHTSA vPIC: C7,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Caprice,1990-1995,NHTSA vPIC: Caprice,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Caprice Police Vehicle,2011-2017,NHTSA vPIC: Caprice Police Vehicle,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Captiva Sport,2010-2017,NHTSA vPIC: Captiva Sport,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Cavalier,1990-2005,NHTSA vPIC: Cavalier,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Celebrity,1990-1990,NHTSA vPIC: Celebrity,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Cobalt,2005-2010,NHTSA vPIC: Cobalt,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Colorado,1990-2003,NHTSA sampled first ~2004 (Colorado),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Chevrolet,Corsica,1990-1995,NHTSA vPIC: Corsica,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Epica,2004-2006,NHTSA vPIC: Epica,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Equinox,1990-2004,NHTSA sampled first ~2005 (Equinox),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2005
+Chevrolet,Express,1990-1999,NHTSA sampled first ~2000 (Express),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Chevrolet,Geo Prizm,2000-2002,NHTSA vPIC: Geo Prizm,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,GMT-400,1990-2000,NHTSA vPIC: GMT-400,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,HHR,2006-2011,NHTSA vPIC: HHR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Kalos,2008-2008,NHTSA vPIC: Kalos,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Lumina,1990-2000,NHTSA vPIC: Lumina,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Lumina APV,1990-1995,NHTSA vPIC: Lumina APV,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Malibu,1990-1999,NHTSA sampled first ~2000 (Malibu),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Chevrolet,Matiz,2004-2012,NHTSA vPIC: Matiz,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Metro,2000-2000,NHTSA vPIC: Metro,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Monte Carlo,1995-2006,NHTSA vPIC: Monte Carlo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Onix,2021-2024,NHTSA vPIC: Onix,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Optra,2004-2008,NHTSA vPIC: Optra,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Orlando,2010-2015,NHTSA vPIC: Orlando,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,R Conventional,1990-1990,NHTSA vPIC: R Conventional,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,S-10 Pickup,1990-2005,NHTSA vPIC: S-10 Pickup,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,S6,1990-1990,NHTSA vPIC: S6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Silverado 1500,1990-1999,NHTSA sampled first ~2000 (Silverado | Silverado LD | Silverado LTD),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Chevrolet,Silverado 2500HD,1990-2018,NHTSA sampled first ~2019 (Silverado HD),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Chevrolet,Sonic,2012-2020,NHTSA vPIC: Sonic,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,SS,2014-2017,NHTSA vPIC: SS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,SSR,2004-2006,NHTSA vPIC: SSR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Tahoe,1990-1994,NHTSA sampled first ~1995 (Tahoe),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Chevrolet,Tracker,1995-2020,NHTSA vPIC: Tracker,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Trailblazer,1990-2001,NHTSA sampled first ~2002 (Trailblazer),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Chevrolet,Traverse,1990-2009,NHTSA sampled first ~2010 (Traverse),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Chevrolet,Trax,1990-2012,NHTSA sampled first ~2013 (Trax),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Chevrolet,U100,2004-2005,NHTSA vPIC: U100,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Uplander,2005-2008,NHTSA vPIC: Uplander,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,V Conventional,1990-1990,NHTSA vPIC: V Conventional,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Venture,2000-2005,NHTSA vPIC: Venture,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chevrolet,Volt,2011-2019,NHTSA vPIC: Volt,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,200,2011-2017,NHTSA vPIC: 200,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,300,1990-1999,NHTSA sampled first ~2000 (300),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Chrysler,300C,2005-2011,NHTSA vPIC: 300C,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Aspen,2008-2008,NHTSA vPIC: Aspen,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Cirrus,1995-2006,NHTSA vPIC: Cirrus,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Concorde,1995-2004,NHTSA vPIC: Concorde,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Concorde/LHS,1995-1995,NHTSA vPIC: Concorde/LHS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Crossfire,2004-2008,NHTSA vPIC: Crossfire,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Daytona,1990-1990,NHTSA vPIC: Daytona,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Dynasty,1990-1990,NHTSA vPIC: Dynasty,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Grand Caravan,2021-2026,NHTSA vPIC: Grand Caravan,ALIAS_NEEDED,,minivan,ALIAS,P2,Alias to Dodge Grand Caravan (already in catalog + MINIVAN_KEYS)
+Chrysler,Grand Caravan,2008-2020,NHTSA sometimes lists Chrysler Grand Caravan,ALIAS_NEEDED,,minivan,ALIAS,P2,Alias to Dodge Grand Caravan (already in catalog + MINIVAN_KEYS)
+Chrysler,Grand Voyager,2000-2000,NHTSA vPIC: Grand Voyager,MISSING_MODEL,,minivan,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Imperial,1990-1990,NHTSA vPIC: Imperial,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Intrepid,1995-2002,NHTSA vPIC: Intrepid,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,LeBaron,1990-1995,NHTSA vPIC: LeBaron,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,LHS,1995-2000,NHTSA vPIC: LHS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Neon,1995-2002,NHTSA vPIC: Neon,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,New Yorker,1990-1995,NHTSA vPIC: New Yorker,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Pacifica,1990-2003,NHTSA sampled first ~2004 (Pacifica),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Chrysler,Prowler,2002-2002,NHTSA vPIC: Prowler,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,PT Cruiser,1995-2010,NHTSA vPIC: PT Cruiser,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,SALON,1990-1990,NHTSA vPIC: SALON,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Sebring,1995-2010,NHTSA vPIC: Sebring,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Stratus,1995-1995,NHTSA vPIC: Stratus,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,TC,1990-1990,NHTSA vPIC: TC,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Viper,1995-1995,NHTSA vPIC: Viper,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Vision,1995-1995,NHTSA vPIC: Vision,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Chrysler,Voyager,1990-1994,NHTSA sampled first ~1995 (Voyager),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Dodge,Avenger,1995-2014,NHTSA vPIC: Avenger,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Caliber,2006-2012,NHTSA vPIC: Caliber,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Challenger,1990-2007,NHTSA sampled first ~2008 (Challenger),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Dodge,Charger,1990-2005,NHTSA sampled first ~2006 (Charger),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2006
+Dodge,Colt,1990-1995,NHTSA vPIC: Colt,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Dakota,1990-2012,NHTSA vPIC: Dakota,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Dart,2013-2016,NHTSA vPIC: Dart,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Daytona,1990-1990,NHTSA vPIC: Daytona,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Durango,1990-1994,NHTSA sampled first ~1995 (Durango),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Dodge,Dynasty,1990-1990,NHTSA vPIC: Dynasty,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Hornet,1990-2022,NHTSA sampled first ~2023 (Hornet),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Dodge,Intrepid,1995-2004,NHTSA vPIC: Intrepid,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Journey,2009-2020,NHTSA vPIC: Journey,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Common used crossover
+Dodge,Magnum,2005-2008,NHTSA vPIC: Magnum,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Monaco,1990-1990,NHTSA vPIC: Monaco,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Neon,1995-2005,NHTSA vPIC: Neon,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Nitro,2008-2012,NHTSA vPIC: Nitro,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,OMNI,1990-1990,NHTSA vPIC: OMNI,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Ram,1995-2012,NHTSA vPIC: Ram,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,RAM 50,1990-1990,NHTSA vPIC: RAM 50,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Ram Van,1990-2002,NHTSA vPIC: Ram Van,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Ram Wagon,1990-2002,NHTSA vPIC: Ram Wagon,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Shadow,1990-1990,NHTSA vPIC: Shadow,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Spirit,1990-1995,NHTSA vPIC: Spirit,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Stealth,1995-1995,NHTSA vPIC: Stealth,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Stratus,1995-2006,NHTSA vPIC: Stratus,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Dodge,Viper,1995-2017,NHTSA vPIC: Viper,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ferrari,GTC4Lusso,1990-2016,NHTSA sampled first ~2017 (GTC4Lusso),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Ferrari,Portofino M,1990-2020,NHTSA sampled first ~2021 (Portofino M),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Ferrari,Roma,1990-2020,NHTSA sampled first ~2021 (Roma),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+FIAT,500,1990-2011,NHTSA sampled first ~2012 (500),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2012
+FIAT,500L,1990-2013,NHTSA sampled first ~2014 (500L),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+FIAT,500X,1990-2015,NHTSA sampled first ~2016 (500X),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Ford,'34,1990-2026,NHTSA vPIC: '34,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,A8513,1990-1995,NHTSA vPIC: A8513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,A9513,1990-1995,NHTSA vPIC: A9513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,A9522,1990-1995,NHTSA vPIC: A9522,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Aerostar,1990-1995,NHTSA vPIC: Aerostar,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Aspire,1995-1995,NHTSA vPIC: Aspire,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,AT8513,1990-1995,NHTSA vPIC: AT8513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,AT9513,1990-1995,NHTSA vPIC: AT9513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,AT9522,1990-1995,NHTSA vPIC: AT9522,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,B-750,2002-2002,NHTSA vPIC: B-750,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,B600,1990-1990,NHTSA vPIC: B600,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,B700,1990-1990,NHTSA vPIC: B700,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,B800,1995-1995,NHTSA vPIC: B800,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Bronco Sport,1990-2020,NHTSA sampled first ~2021 (Bronco Sport),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Ford,C-Max,2013-2018,NHTSA vPIC: C-Max,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,C800,1990-1990,NHTSA vPIC: C800,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,C8000,1990-1990,NHTSA vPIC: C8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CF6000,1990-1990,NHTSA vPIC: CF6000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CF7000,1990-1995,NHTSA vPIC: CF7000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CF8000,1990-1995,NHTSA vPIC: CF8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CFT8000,1990-1995,NHTSA vPIC: CFT8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CL9000,1990-1990,NHTSA vPIC: CL9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CLT9000,1990-1990,NHTSA vPIC: CLT9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Contour,1995-2000,NHTSA vPIC: Contour,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Crown Victoria,1990-2011,NHTSA vPIC: Crown Victoria,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,CT8000,1990-1990,NHTSA vPIC: CT8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,E-550,2002-2002,NHTSA vPIC: E-550,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,E-Series,1990-2026,NHTSA vPIC: E-150 | E-250 | E-350,MISSING_MODEL,,full_size_van,MISSING_MODEL,P2,Legacy/cutaway full-size van still on road
+Ford,Ecosport,2018-2022,NHTSA vPIC: Ecosport,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Ford,Edge,1990-2007,NHTSA sampled first ~2008 (Edge),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Ford,Escape,1990-2001,NHTSA sampled first ~2002 (Escape),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Ford,Escort,1990-2002,NHTSA vPIC: Escort,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Excursion,2000-2005,NHTSA vPIC: Excursion,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Expedition,1990-1999,NHTSA sampled first ~2000 (Expedition),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Ford,Expedition EL,2017-2017,NHTSA vPIC: Expedition EL,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Ford,Expedition MAX,2008-2026,NHTSA vPIC: Expedition MAX,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Ford,Explorer,1990-1994,NHTSA sampled first ~1995 (Explorer),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Ford,F-800,1990-2002,NHTSA vPIC: F-800,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,F-Super Duty,1990-1995,NHTSA vPIC: F-Super Duty,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Festiva,1990-1990,NHTSA vPIC: Festiva,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Five Hundred,2005-2006,NHTSA vPIC: Five Hundred,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Freestar,2004-2006,NHTSA vPIC: Freestar,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Freestyle,2005-2006,NHTSA vPIC: Freestyle,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,FT800,1990-1990,NHTSA vPIC: FT800,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,FT900,1990-1995,NHTSA vPIC: FT900,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,GT,2004-2022,NHTSA vPIC: GT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,L8000,1990-1995,NHTSA vPIC: L8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,L8513,1990-1995,NHTSA vPIC: L8513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,L9000,1990-1995,NHTSA vPIC: L9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,L9513,1990-1995,NHTSA vPIC: L9513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LA8000,1990-1995,NHTSA vPIC: LA8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LA9000,1990-1995,NHTSA vPIC: LA9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LL9000,1990-1995,NHTSA vPIC: LL9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LLA9000,1990-1995,NHTSA vPIC: LLA9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LLS9000,1990-1995,NHTSA vPIC: LLS9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LN7000,1990-1995,NHTSA vPIC: LN7000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LN8000,1990-1995,NHTSA vPIC: LN8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LN9000,1990-1995,NHTSA vPIC: LN9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LNT8000,1990-1995,NHTSA vPIC: LNT8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LNT9000,1990-1995,NHTSA vPIC: LNT9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LS8000,1990-1995,NHTSA vPIC: LS8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LS9000,1990-1995,NHTSA vPIC: LS9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT8000,1990-1995,NHTSA vPIC: LT8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT8501,1990-1995,NHTSA vPIC: LT8501,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT8513,1990-1995,NHTSA vPIC: LT8513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT9000,1990-1995,NHTSA vPIC: LT9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT9501,1990-1995,NHTSA vPIC: LT9501,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT9513,1990-1995,NHTSA vPIC: LT9513,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LT9522,1990-1995,NHTSA vPIC: LT9522,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LTA9000,1990-1995,NHTSA vPIC: LTA9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LTL9000,1990-1995,NHTSA vPIC: LTL9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LTLA9000,1990-1995,NHTSA vPIC: LTLA9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LTLS9000,1990-1995,NHTSA vPIC: LTLS9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LTS8000,1990-1995,NHTSA vPIC: LTS8000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,LTS9000,1990-1995,NHTSA vPIC: LTS9000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Maverick,1990-2021,NHTSA sampled first ~2022 (Maverick),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Ford,Mustang Mach-E,1990-2020,NHTSA sampled first ~2021 (Mustang Mach-E),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Ford,P600,1990-1990,NHTSA vPIC: P600,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,P700,1995-1995,NHTSA vPIC: P700,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,P800,1995-1995,NHTSA vPIC: P800,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Probe,1990-1995,NHTSA vPIC: Probe,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Recreational Vehicle,1990-1990,NHTSA vPIC: Recreational Vehicle,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Taurus,1990-2019,NHTSA vPIC: Taurus,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Tempo,1990-1990,NHTSA vPIC: Tempo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Thunderbird,1990-2005,NHTSA vPIC: Thunderbird,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,Transit,1990-2014,NHTSA sampled first ~2015 (Transit),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Ford,Transit Connect,1990-2009,NHTSA sampled first ~2010 (Transit Connect),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Ford,Windstar,1995-2002,NHTSA vPIC: Windstar,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ford,ZX2,2000-2002,NHTSA vPIC: ZX2,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Genesis,G70,1990-2018,NHTSA sampled first ~2019 (G70),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Genesis,G80,1990-2016,NHTSA sampled first ~2017 (G80),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Genesis,G90,1990-2016,NHTSA sampled first ~2017 (G90),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Genesis,GV60,1990-2022,NHTSA sampled first ~2023 (GV60),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Genesis,GV70,1990-2021,NHTSA sampled first ~2022 (GV70),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Genesis,GV80,1990-2020,NHTSA sampled first ~2021 (GV80),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+GMC,Acadia,1990-2007,NHTSA sampled first ~2008 (Acadia),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+GMC,ACL,1990-1995,NHTSA vPIC: ACL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,ACM,1990-1995,NHTSA vPIC: ACM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,AT,1990-1995,NHTSA vPIC: AT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,CACL,1990-1995,NHTSA vPIC: CACL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Canyon,1990-2003,NHTSA sampled first ~2004 (Canyon),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+GMC,CNR,1990-1995,NHTSA vPIC: CNR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Cruise Origin AV,2024-2024,NHTSA vPIC: Cruise Origin AV,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,CWG,1990-1995,NHTSA vPIC: CWG,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,DK,1990-1995,NHTSA vPIC: DK,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,DS,1990-1995,NHTSA vPIC: DS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Electric Vehicle,2000-2000,NHTSA vPIC: Electric Vehicle,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Envoy,2002-2008,NHTSA vPIC: Envoy,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,FE,1990-1995,NHTSA vPIC: FE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Geo Tracker,1990-1990,NHTSA vPIC: Geo Tracker,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Hi-Cube,1990-1990,NHTSA vPIC: Hi-Cube,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Jimmy,1990-1990,NHTSA vPIC: Jimmy,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Jimmy Utility,1995-2005,NHTSA vPIC: Jimmy Utility,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Magna Van,1990-1990,NHTSA vPIC: Magna Van,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,NE,1990-1995,NHTSA vPIC: NE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,NR,1990-1995,NHTSA vPIC: NR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,P Truck Forward,1995-1995,NHTSA vPIC: P Truck Forward,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,R Conventional,1990-1990,NHTSA vPIC: R Conventional,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Rally,1990-1995,NHTSA vPIC: Rally,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,S15 Pickup,1990-1990,NHTSA vPIC: S15 Pickup,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,S15 Utility,1990-1990,NHTSA vPIC: S15 Utility,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Safari,1990-2005,NHTSA vPIC: Safari,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Sierra 2500HD,1990-2018,NHTSA sampled first ~2019 (Sierra HD),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+GMC,Sonoma,1995-2004,NHTSA vPIC: Sonoma,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Terrain,1990-2009,NHTSA sampled first ~2010 (Terrain),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+GMC,V Conventional,1990-1990,NHTSA vPIC: V Conventional,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Value Van,1990-1990,NHTSA vPIC: Value Van,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Vandura,1990-1995,NHTSA vPIC: Vandura,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WB,1990-1995,NHTSA vPIC: WB,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WCA,1990-1995,NHTSA vPIC: WCA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WCL,1990-1995,NHTSA vPIC: WCL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WCM,1990-1995,NHTSA vPIC: WCM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WCS,1990-1995,NHTSA vPIC: WCS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WHEB,1990-1995,NHTSA vPIC: WHEB,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WHL,1990-1995,NHTSA vPIC: WHL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WHLB,1990-1995,NHTSA vPIC: WHLB,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WHM,1990-1995,NHTSA vPIC: WHM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WHR,1990-1995,NHTSA vPIC: WHR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WHS,1990-1995,NHTSA vPIC: WHS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WIA,1990-1995,NHTSA vPIC: WIA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WIL,1990-1995,NHTSA vPIC: WIL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WIM,1990-1995,NHTSA vPIC: WIM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,WIS,1990-1995,NHTSA vPIC: WIS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+GMC,Yukon,1990-1994,NHTSA sampled first ~1995 (Yukon),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+GMC,Yukon XL,1990-1994,NHTSA sampled first ~1995 (Yukon XL),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Honda,Clarity,2017-2021,NHTSA vPIC: Clarity,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Honda,CR-V,1990-1999,NHTSA sampled first ~2000 (CR-V),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Honda,CR-Z,1990-2010,NHTSA sampled first ~2011 (CR-Z),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2011
+Honda,CR-Z,2017-2026,NHTSA sampled last ~2016,INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable through 2026 but not observed in vPIC after ~2016
+Honda,Crosstour,2012-2015,NHTSA vPIC: Crosstour,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Honda,del Sol,1995-1995,NHTSA vPIC: del Sol,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Honda,Element,2003-2011,NHTSA vPIC: Element,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Cult classic in range
+Honda,FCX Clarity,2004-2014,NHTSA vPIC: FCX Clarity,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Honda,Fit,2007-2020,NHTSA vPIC: Fit,MISSING_MODEL,,small,MISSING_MODEL,P2,Common used hatch
+Honda,HR-V,1990-2015,NHTSA sampled first ~2016 (HR-V),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Honda,Insight,1990-1999,NHTSA sampled first ~2000 (Insight),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Honda,Odyssey,1990-1994,NHTSA sampled first ~1995 (Odyssey),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Honda,Passport,1990-1994,NHTSA sampled first ~1995 (Passport),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Honda,Pilot,1990-2003,NHTSA sampled first ~2004 (Pilot),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Honda,Prelude,1990-2026,NHTSA vPIC: Prelude,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Honda,Prologue,1990-2023,NHTSA sampled first ~2024 (Prologue),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Honda,Ridgeline,1990-2005,NHTSA sampled first ~2006 (Ridgeline),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2006
+Honda,S2000,2000-2008,NHTSA vPIC: S2000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Accent,1995-2022,NHTSA vPIC: Accent,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Azera,2006-2018,NHTSA vPIC: Azera,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Elantra,1990-1994,NHTSA sampled first ~1995 (Elantra),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Hyundai,Entourage,2006-2014,NHTSA vPIC: Entourage,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Equus,2011-2016,NHTSA vPIC: Equus,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Excel,1990-1990,NHTSA vPIC: Excel,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Genesis,2010-2016,NHTSA vPIC: Genesis,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Genesis Coupe,2010-2016,NHTSA vPIC: Genesis Coupe,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,IONIQ 5,1990-2021,NHTSA sampled first ~2022 (Ioniq 5 | Ioniq 5 N),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Hyundai,IONIQ 6,1990-2022,NHTSA sampled first ~2023 (Ioniq 6 | Ioniq 6 N),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Hyundai,Kona,1990-2017,NHTSA sampled first ~2018 (Kona),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Hyundai,Nexo,2019-2026,NHTSA vPIC: Nexo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Palisade,1990-2019,NHTSA sampled first ~2020 (Palisade),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Hyundai,Santa Cruz,1990-2021,NHTSA sampled first ~2022 (Santa Cruz),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Hyundai,Santa Fe,1990-2001,NHTSA sampled first ~2002 (Santa Fe | Santa Fe Sport | Santa Fe XL),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Hyundai,Scoupe,1995-1995,NHTSA vPIC: Scoupe,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Tiburon,2000-2008,NHTSA vPIC: Tiburon,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Tucson,1990-2004,NHTSA sampled first ~2005 (Tucson),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2005
+Hyundai,Veloster,2012-2021,NHTSA vPIC: Veloster,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Veloster N,2019-2022,NHTSA vPIC: Veloster N,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Venue,1990-2019,NHTSA sampled first ~2020 (Venue),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Hyundai,Veracruz,2008-2013,NHTSA vPIC: Veracruz,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,Xcient,2023-2026,NHTSA vPIC: Xcient,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Hyundai,XG350,2002-2005,NHTSA vPIC: XG350,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,FX45,2004-2008,NHTSA vPIC: FX45,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+INFINITI,G20,1995-2002,NHTSA vPIC: G20,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,G25,2011-2012,NHTSA vPIC: G25,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,G35,2004-2008,NHTSA vPIC: G35,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,G37,2008-2013,NHTSA vPIC: G37,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,I30,2000-2000,NHTSA vPIC: I30,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,I35,2002-2004,NHTSA vPIC: I35,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,J30,1995-1995,NHTSA vPIC: J30,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,M30,1990-1990,NHTSA vPIC: M30,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,M35,2006-2013,NHTSA vPIC: M35 | M35h,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,M37,2011-2013,NHTSA vPIC: M37,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,M45,2004-2010,NHTSA vPIC: M45,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,M56,2011-2013,NHTSA vPIC: M56,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+INFINITI,Q50,1990-2013,NHTSA sampled first ~2014 (Q50),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+INFINITI,Q60,1990-2013,NHTSA sampled first ~2014 (Q60),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+INFINITI,Q70,2014-2022,NHTSA vPIC: Q70 | Q70L,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+INFINITI,QX4,2000-2002,NHTSA vPIC: QX4,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+INFINITI,QX50,1990-2013,NHTSA sampled first ~2014 (QX50),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+INFINITI,QX55,1990-2021,NHTSA sampled first ~2022 (QX55),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+INFINITI,QX60,1990-2013,NHTSA sampled first ~2014 (QX60),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+INFINITI,QX70,2014-2018,NHTSA vPIC: QX70,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+INFINITI,QX80,1990-2013,NHTSA sampled first ~2014 (QX80),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Jaguar,E-PACE,1990-2017,NHTSA sampled first ~2018 (E-PACE),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Jaguar,F-PACE,1990-2016,NHTSA sampled first ~2017 (F-PACE),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Jaguar,F-TYPE,1990-2013,NHTSA sampled first ~2014 (F-TYPE),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Jaguar,I-PACE,1990-2018,NHTSA sampled first ~2019 (I-PACE),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Jaguar,XE,1990-2016,NHTSA sampled first ~2017 (XE),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Jaguar,XF,1990-2009,NHTSA sampled first ~2010 (XF),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Jeep,Comanche,1990-1990,NHTSA vPIC: Comanche,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Jeep,Commander,2006-2010,NHTSA vPIC: Commander,MISSING_MODEL,,suv3,MISSING_MODEL,P2,Canonical model absent
+Jeep,Compass,1990-2005,NHTSA sampled first ~2006 (Compass),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2006
+Jeep,Gladiator,1990-2019,NHTSA sampled first ~2020 (Gladiator),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Jeep,Grand Cherokee,1990-1994,NHTSA sampled first ~1995 (Grand Cherokee),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Jeep,Grand Cherokee L,1990-2020,NHTSA sampled first ~2021 (Grand Cherokee L),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Jeep,Liberty,1995-2013,NHTSA vPIC: Liberty,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Jeep,Patriot,2008-2018,NHTSA vPIC: Patriot,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Jeep,Recon,2026-2026,NHTSA vPIC: Recon,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Jeep,Renegade,1990-2014,NHTSA sampled first ~2015 (Renegade),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Kia,Amanti,2004-2008,NHTSA vPIC: Amanti,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Borrego,2010-2011,NHTSA vPIC: Borrego,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Cadenza,2014-2020,NHTSA vPIC: Cadenza,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Carnival,1990-2021,NHTSA sampled first ~2022 (Carnival),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Kia,EV6,1990-2021,NHTSA sampled first ~2022 (EV6),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Kia,EV9,1990-2023,NHTSA sampled first ~2024 (EV9),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Kia,Forte,1990-2009,NHTSA sampled first ~2010 (Forte),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Kia,K4,2025-2026,NHTSA vPIC: K4,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,K5,1990-2020,NHTSA sampled first ~2021 (K5),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Kia,K900,2015-2020,NHTSA vPIC: K900,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Miami,1990-2026,NHTSA vPIC: Miami,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Niro,1990-2016,NHTSA sampled first ~2017 (Niro),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Kia,Optima,2001-2020,NHTSA vPIC: Optima,MISSING_MODEL,,small,MISSING_MODEL,P2,Predecessor to K5
+Kia,Rio,2002-2023,NHTSA vPIC: Rio,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Rondo,2008-2016,NHTSA vPIC: Rondo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Sedona,2002-2021,NHTSA vPIC: Sedona,MISSING_MODEL,,minivan,MISSING_MODEL,P2,Predecessor to Carnival
+Kia,Seltos,1990-2020,NHTSA sampled first ~2021 (Seltos),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Kia,Sephia,1995-2000,NHTSA vPIC: Sephia,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Sorento,1990-2001,NHTSA sampled first ~2002 (Sorento),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Kia,Soul,1990-2009,NHTSA sampled first ~2010 (Soul),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Kia,Spectra,2000-2008,NHTSA vPIC: Spectra,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Kia,Sportage,1990-1994,NHTSA sampled first ~1995 (Sportage),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Kia,Stinger,1990-2017,NHTSA sampled first ~2018 (Stinger),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Kia,Telluride,1990-2019,NHTSA sampled first ~2020 (Telluride),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Lamborghini,Revuelto,1990-2023,NHTSA sampled first ~2024 (Revuelto),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Lamborghini,Urus,1990-2018,NHTSA sampled first ~2019 (URUS),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Land Rover,Defender,1990-1994,NHTSA sampled first ~1995 (Defender),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Land Rover,Discovery,1990-1994,NHTSA sampled first ~1995 (Discovery),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Land Rover,Discovery Sport,1990-2014,NHTSA sampled first ~2015 (Discovery Sport),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Land Rover,Freelander,1990-2001,NHTSA sampled first ~2002 (Freelander),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Land Rover,Freelander,2006-2026,NHTSA sampled last ~2005,INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable through 2026 but not observed in vPIC after ~2005
+Land Rover,Range Rover Evoque,1990-2011,NHTSA sampled first ~2012 (Range Rover Evoque),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2012
+Land Rover,Range Rover Sport,1990-2005,NHTSA sampled first ~2006 (Range Rover Sport),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2006
+Land Rover,Range Rover Velar,1990-2017,NHTSA sampled first ~2018 (Range Rover Velar),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Lexus,CT,2011-2017,NHTSA vPIC: CT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lexus,GS,1990-1994,NHTSA sampled first ~1995 (GS),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Lexus,GX,1990-2003,NHTSA sampled first ~2004 (GX),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Lexus,HS,2010-2012,NHTSA vPIC: HS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lexus,IS,1990-2001,NHTSA sampled first ~2002 (IS),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Lexus,LC,1990-2017,NHTSA sampled first ~2018 (LC),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Lexus,LFA,2012-2013,NHTSA vPIC: LFA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lexus,LX,1990-1999,NHTSA sampled first ~2000 (LX),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Lexus,NX,1990-2014,NHTSA sampled first ~2015 (NX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Lexus,RC,2015-2025,NHTSA vPIC: RC,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lexus,RX,1990-1999,NHTSA sampled first ~2000 (RX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Lexus,RZ,1990-2022,NHTSA sampled first ~2023 (RZ),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Lexus,SC,1995-2010,NHTSA vPIC: SC,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lexus,UX,1990-2018,NHTSA sampled first ~2019 (UX),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Lincoln,Aviator,1990-2003,NHTSA sampled first ~2004 (Aviator),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Lincoln,Blackwood,2002-2002,NHTSA vPIC: Blackwood,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,Continental,1990-2020,NHTSA vPIC: Continental,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,Corsair,1990-2019,NHTSA sampled first ~2020 (Corsair),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Lincoln,LS,2000-2006,NHTSA vPIC: LS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,Mark,1990-1995,NHTSA vPIC: Mark,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,Mark LT,2006-2008,NHTSA vPIC: Mark LT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,MKC,2015-2019,NHTSA vPIC: MKC,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Lincoln,MKS,2010-2016,NHTSA vPIC: MKS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,MKT,2010-2019,NHTSA vPIC: MKT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,MKX,2007-2018,NHTSA vPIC: MKX,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Predecessor naming to Nautilus
+Lincoln,MKZ,2007-2020,NHTSA vPIC: MKZ,MISSING_MODEL,,small,MISSING_MODEL,P2,Common used Lincoln
+Lincoln,Nautilus,1990-2018,NHTSA sampled first ~2019 (Nautilus),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Lincoln,Navigator,1990-1999,NHTSA sampled first ~2000 (Navigator),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Lincoln,Navigator L,1990-2016,NHTSA sampled first ~2017 (Navigator L),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Lincoln,Town Car,1990-2011,NHTSA vPIC: Town Car,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Lincoln,Zephyr,2006-2006,NHTSA vPIC: Zephyr,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Maserati,Ghibli,1990-2013,NHTSA sampled first ~2014 (Ghibli),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Maserati,GranTurismo,1990-2007,NHTSA sampled first ~2008 (Granturismo),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Maserati,Grecale,1990-2022,NHTSA sampled first ~2023 (Grecale),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Maserati,Levante,1990-2016,NHTSA sampled first ~2017 (Levante),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Maserati,MC20,1990-2021,NHTSA sampled first ~2022 (MC20),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Mazda,323,1990-1990,NHTSA vPIC: 323,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,626,1990-2002,NHTSA vPIC: 626,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,929,1990-1995,NHTSA vPIC: 929,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,CX-3,1990-2015,NHTSA sampled first ~2016 (CX-3),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Mazda,CX-30,1990-2019,NHTSA sampled first ~2020 (CX-30),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Mazda,CX-5,1990-2012,NHTSA sampled first ~2013 (CX-5),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Mazda,CX-50,1990-2022,NHTSA sampled first ~2023 (CX-50),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Mazda,CX-7,2008-2012,NHTSA vPIC: CX-7,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,CX-70,1990-2024,NHTSA sampled first ~2025 (CX-70),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2025
+Mazda,CX-90,1990-2023,NHTSA sampled first ~2024 (CX-90),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Mazda,Mazda2,2011-2021,NHTSA vPIC: Mazda2,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,Mazda3,1990-2003,NHTSA sampled first ~2004 (Mazda3),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Mazda,Mazda6,1990-2003,NHTSA sampled first ~2004 (Mazda6),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Mazda,Millenia,1995-2002,NHTSA vPIC: Millenia,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,MPV,1990-2006,NHTSA vPIC: MPV,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,MX-3,1990-1995,NHTSA vPIC: MX-3,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,MX-30,1990-2021,NHTSA sampled first ~2022 (MX-30),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Mazda,MX-6,1990-1990,NHTSA vPIC: MX-6,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,Protege,1990-2002,NHTSA vPIC: Protege,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mazda,RX-7,1990-1995,NHTSA vPIC: RX-7,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Mazda,RX-8,2004-2012,NHTSA vPIC: RX-8,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Mazda,Tribute,2002-2011,NHTSA vPIC: Tribute,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+McLaren,570S,1990-2009,NHTSA sampled first ~2010 (570S),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+McLaren,600LT,1990-2016,NHTSA sampled first ~2017 (600LT),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+McLaren,720S,1990-2016,NHTSA sampled first ~2017 (720S),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+McLaren,765LT,1990-2021,NHTSA sampled first ~2022 (765LT),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+McLaren,Artura,1990-2022,NHTSA sampled first ~2023 (Artura),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+McLaren,GT,1990-2016,NHTSA sampled first ~2017 (GT),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Mercedes-Benz,190,1990-1990,NHTSA vPIC: 190,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,300,1990-1990,NHTSA vPIC: 300,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,350,1990-1990,NHTSA vPIC: 350,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,420,1990-1990,NHTSA vPIC: 420,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,500,1990-1990,NHTSA vPIC: 500,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,560,1990-1990,NHTSA vPIC: 560,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,A-Class,1990-2018,NHTSA sampled first ~2019 (A-Class),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Mercedes-Benz,AMG GT,1990-2015,NHTSA sampled first ~2016 (AMG GT),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Mercedes-Benz,B-Class,1990-2010,NHTSA sampled first ~2011 (B-Class),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2011
+Mercedes-Benz,C-Class,1990-1994,NHTSA sampled first ~1995 (C-Class),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Mercedes-Benz,CL-Class,2000-2014,NHTSA vPIC: CL-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,CLE,2024-2026,NHTSA vPIC: CLE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,CLK-Class,2000-2008,NHTSA vPIC: CLK-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,E-Class,1990-1994,NHTSA sampled first ~1995 (E-Class),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Mercedes-Benz,EQE SUV,1990-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,suv2,MISSING_MODEL,P2,SUV body distinct from EQE sedan; add model or alias with suv2/suv3
+Mercedes-Benz,EQE SUV,2023-2026,NHTSA vPIC: EQE-Class SUV,MISSING_MODEL,,suv2,MISSING_MODEL,P2,SUV body distinct from EQE sedan; add model or alias with suv2/suv3
+Mercedes-Benz,EQS SUV,1990-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,suv3,MISSING_MODEL,P2,SUV body distinct from EQS sedan
+Mercedes-Benz,EQS SUV,2023-2026,NHTSA vPIC: EQS-Class SUV,MISSING_MODEL,,suv3,MISSING_MODEL,P2,SUV body distinct from EQS sedan
+Mercedes-Benz,G-Class,1990-2001,NHTSA sampled first ~2002 (G-Class),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Mercedes-Benz,GL-Class,2006-2016,NHTSA vPIC: GL-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,GLK-Class,2010-2020,NHTSA vPIC: GLK-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1013,1990-1990,NHTSA vPIC: L1013,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1113,1990-1990,NHTSA vPIC: L1113,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1116,1990-1990,NHTSA vPIC: L1116,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1117,1990-1990,NHTSA vPIC: L1117,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1316,1990-1990,NHTSA vPIC: L1316,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1317,1990-1990,NHTSA vPIC: L1317,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1319,1990-1990,NHTSA vPIC: L1319,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1418,1990-1990,NHTSA vPIC: L1418,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,L1419,1990-1990,NHTSA vPIC: L1419,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,LP1219,1990-1990,NHTSA vPIC: LP1219,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,LP1419,1990-1990,NHTSA vPIC: LP1419,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,LPS1525,1990-1990,NHTSA vPIC: LPS1525,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,M-Class,1995-2019,NHTSA vPIC: M-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,ML-Class,2012-2015,NHTSA vPIC: ML-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,R-Class,2006-2013,NHTSA vPIC: R-Class,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Mercedes-Benz,S-Class,1990-1994,NHTSA sampled first ~1995 (S-Class),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+MINI,Clubman,1990-2007,NHTSA sampled first ~2008 (Clubman),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+MINI,Countryman,1990-2010,NHTSA sampled first ~2011 (Countryman),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2011
+MINI,Hardtop,1990-2009,NHTSA sampled first ~2010 (Hardtop),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+MINI,Paceman,1990-2012,NHTSA sampled first ~2013 (Paceman),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Mitsubishi,Eclipse Cross,1990-2017,NHTSA sampled first ~2018 (Eclipse Cross),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Mitsubishi,Outlander,1990-2003,NHTSA sampled first ~2004 (Outlander),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Mitsubishi,Outlander Sport,1990-2010,NHTSA sampled first ~2011 (Outlander Sport),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2011
+Nissan,200SX,1995-1995,NHTSA vPIC: 200SX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,240SX,1990-2000,NHTSA vPIC: 240SX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,300ZX,1990-1995,NHTSA vPIC: 300ZX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,350Z,2004-2008,NHTSA vPIC: 350Z,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,370Z,2010-2022,NHTSA vPIC: 370Z,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Altima,1990-1994,NHTSA sampled first ~1995 (Altima),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Nissan,Altra-EV,2000-2004,NHTSA vPIC: Altra-EV,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Armada,1990-2001,NHTSA sampled first ~2002 (Armada),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Nissan,Axxess,1990-1990,NHTSA vPIC: Axxess,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Cube,2010-2014,NHTSA vPIC: Cube,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Frontier,1990-1999,NHTSA sampled first ~2000 (Frontier),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Nissan,GT-R,1990-2009,NHTSA sampled first ~2010 (GT-R),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Nissan,Juke,2011-2018,NHTSA vPIC: Juke,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Nissan,Kicks,1990-2017,NHTSA sampled first ~2018 (Kicks),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Nissan,Leaf,1990-2010,NHTSA sampled first ~2011 (Leaf),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2011
+Nissan,Micra,1990-1990,NHTSA vPIC: Micra,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Murano,1990-2001,NHTSA sampled first ~2002 (Murano),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Nissan,Nissan Z,2023-2026,NHTSA vPIC: Nissan Z,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Pickup,1990-1995,NHTSA vPIC: Pickup,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,PULSAR,1990-1990,NHTSA vPIC: PULSAR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Quest,1995-2017,NHTSA vPIC: Quest,MISSING_MODEL,,minivan,MISSING_MODEL,P2,Canonical model absent
+Nissan,Rogue,1990-2007,NHTSA sampled first ~2008 (Rogue),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Nissan,Rogue Sport,1990-2016,NHTSA sampled first ~2017 (Rogue Sport),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Nissan,Stanza,1990-1990,NHTSA vPIC: Stanza,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Titan,1990-2001,NHTSA sampled first ~2002 (Titan),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Nissan,Van,1990-1990,NHTSA vPIC: Van,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Versa,1990-2007,NHTSA sampled first ~2008 (Versa),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2008
+Nissan,X-Trail,2005-2006,NHTSA vPIC: X-Trail,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Nissan,Xterra,2000-2015,NHTSA vPIC: Xterra,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Porsche,918,2015-2015,NHTSA vPIC: 918,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Porsche,928,1990-1990,NHTSA vPIC: 928,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Porsche,944,1990-1990,NHTSA vPIC: 944,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Porsche,Boxster,2000-2016,NHTSA vPIC: Boxster,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Porsche,Cayenne,1990-2003,NHTSA sampled first ~2004 (Cayenne),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Porsche,Macan,1990-2014,NHTSA sampled first ~2015 (Macan),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Porsche,Panamera,1990-2009,NHTSA sampled first ~2010 (Panamera),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Porsche,Taycan,1990-2019,NHTSA sampled first ~2020 (Taycan),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Ram,1500,1990-2012,NHTSA sampled first ~2013 (1500),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Ram,2500,1990-2012,NHTSA sampled first ~2013 (2500),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Ram,3500,1990-2011,NHTSA sampled first ~2012 (3500),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2012
+Ram,4000,2013-2023,NHTSA vPIC: 4000,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ram,4500,2013-2024,NHTSA vPIC: 4500,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ram,5500,2013-2024,NHTSA vPIC: 5500,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ram,Cargo Van,2013-2016,NHTSA vPIC: Cargo Van,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Ram,ProMaster,1990-2013,NHTSA sampled first ~2014 (ProMaster 1500 | ProMaster 2500 | ProMaster 3500),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Ram,ProMaster City,1990-2014,NHTSA sampled first ~2015 (Promaster City),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Rolls-Royce,Cullinan,1990-2018,NHTSA sampled first ~2019 (Cullinan),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Rolls-Royce,Dawn,1990-2015,NHTSA sampled first ~2016 (Dawn),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Rolls-Royce,Ghost,1990-2009,NHTSA sampled first ~2010 (Ghost),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Rolls-Royce,Phantom,1990-2003,NHTSA sampled first ~2004 (Phantom),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Rolls-Royce,Spectre,1990-2023,NHTSA sampled first ~2024 (Spectre),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Rolls-Royce,Wraith,1990-2013,NHTSA sampled first ~2014 (Wraith),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2014
+Subaru,Ascent,1990-2018,NHTSA sampled first ~2019 (Ascent),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Subaru,B9 Tribeca,2006-2014,NHTSA vPIC: B9 Tribeca,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,BRZ,1990-2012,NHTSA sampled first ~2013 (BRZ),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2013
+Subaru,Crosstrek,1990-2015,NHTSA sampled first ~2016 (Crosstrek),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Subaru,Forester,1990-1999,NHTSA sampled first ~2000 (Forester),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Subaru,Impreza,1990-1994,NHTSA sampled first ~1995 (Impreza),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Subaru,Justy,1990-1990,NHTSA vPIC: Justy,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,Loyale,1990-1990,NHTSA vPIC: Loyale,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,Outback,1990-2004,NHTSA sampled first ~2005 (Outback),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2005
+Subaru,Solterra,1990-2022,NHTSA sampled first ~2023 (Solterra),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Subaru,SVX,1995-1995,NHTSA vPIC: SVX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,Trailseeker,2026-2026,NHTSA vPIC: Trailseeker,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,Uncharted,2026-2026,NHTSA vPIC: Uncharted,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,WRX,1990-2014,NHTSA sampled first ~2015 (WRX),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Subaru,XT,1990-1990,NHTSA vPIC: XT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Subaru,XT6,1990-1990,NHTSA vPIC: XT6,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Subaru,XV CrossTrek,2012-2015,NHTSA vPIC: XV CrossTrek,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Tesla,Cybercab,2026-2026,NHTSA vPIC: Cybercab,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Tesla,Cybertruck,1990-2023,NHTSA sampled first ~2024 (Cybertruck),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2024
+Tesla,Model 3,1990-2016,NHTSA sampled first ~2017 (Model 3),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Tesla,Model S,1990-2011,NHTSA sampled first ~2012 (Model S),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2012
+Tesla,Model X,1990-2015,NHTSA sampled first ~2016 (Model X),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Tesla,Model Y,1990-2019,NHTSA sampled first ~2020 (Model Y),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Tesla,Roadster,2008-2012,NHTSA vPIC: Roadster,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Tesla,Semi,2023-2026,NHTSA vPIC: Semi,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Avalon,1990-1994,NHTSA sampled first ~1995 (Avalon),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Toyota,bZ,2026-2026,NHTSA vPIC: bZ,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,bZ Woodland,2026-2026,NHTSA vPIC: bZ Woodland,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,bZ4X,1990-2022,NHTSA sampled first ~2023 (bZ4X),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Toyota,C-HR,1990-2017,NHTSA sampled first ~2018 (C-HR),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Toyota,Celica,1990-2006,NHTSA vPIC: Celica,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Cressida,1990-1990,NHTSA vPIC: Cressida,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Crown,1990-2022,NHTSA sampled first ~2023 (Crown),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Toyota,Crown Signia,2025-2026,NHTSA vPIC: Crown Signia,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Toyota,Echo,2000-2005,NHTSA vPIC: Echo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,FCHV-adv,2010-2010,NHTSA vPIC: FCHV-adv,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,GR Corolla,1990-2022,NHTSA sampled first ~2023 (GR Corolla),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2023
+Toyota,GR86,1990-2016,NHTSA sampled first ~2017 (86 | GR86),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Toyota,Highlander,1990-2001,NHTSA sampled first ~2002 (Highlander),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Toyota,Mirai,1990-2015,NHTSA sampled first ~2016 (Mirai),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2016
+Toyota,MR2,1995-2006,NHTSA vPIC: MR2,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Paseo,1995-1995,NHTSA vPIC: Paseo,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Pick-Up,1990-1995,NHTSA vPIC: Pick-Up,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Previa,1995-1995,NHTSA vPIC: Previa,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Prius,1990-2001,NHTSA sampled first ~2002 (Prius | Prius V | Prius C),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Toyota,RAV4,1990-1999,NHTSA sampled first ~2000 (RAV4 | RAV4 Prime (PHEV)),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Toyota,Scion FR-S,2013-2016,NHTSA vPIC: Scion FR-S,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion iA,2016-2016,NHTSA vPIC: Scion iA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion iM,2016-2016,NHTSA vPIC: Scion iM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion iQ,2011-2015,NHTSA vPIC: Scion iQ,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion tC,2005-2016,NHTSA vPIC: Scion tC,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion xA,2004-2006,NHTSA vPIC: Scion xA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion xB,2004-2015,NHTSA vPIC: Scion xB,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Scion xD,2008-2014,NHTSA vPIC: Scion xD,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Sequoia,1990-1999,NHTSA sampled first ~2000 (Sequoia),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2000
+Toyota,Sienna,1990-1994,NHTSA sampled first ~1995 (Sienna),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Toyota,Supra,1990-2026,NHTSA vPIC: Supra,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,T100,1995-1995,NHTSA vPIC: T100,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Tacoma,1990-1994,NHTSA sampled first ~1995 (Tacoma),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Toyota,Tercel,1990-1995,NHTSA vPIC: Tercel,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Toyota,Tundra,1990-1994,NHTSA sampled first ~1995 (Tundra),INVALID_YEAR_ACCEPTED,truck,truck,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~1995
+Toyota,Venza,1990-2009,NHTSA sampled first ~2010 (Venza),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Toyota,Yaris,2008-2020,NHTSA vPIC: Yaris,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+VinFast,VF 8,2022-2026,NHTSA vPIC: VF 8,MISSING_MAKE_AND_MODEL,,suv2,MISSING_MODEL,P2,Make absent from MAKES list
+VinFast,VF 9,2022-2026,NHTSA vPIC: VF 9,MISSING_MAKE_AND_MODEL,,suv3,MISSING_MODEL,P2,Make absent from MAKES list
+Volkswagen,Arteon,1990-2018,NHTSA sampled first ~2019 (Arteon),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Volkswagen,Atlas,1990-2017,NHTSA sampled first ~2018 (Atlas),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2018
+Volkswagen,Atlas Cross Sport,1990-2019,NHTSA sampled first ~2020 (Atlas Cross Sport),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2020
+Volkswagen,Beetle,2000-2019,NHTSA vPIC: Beetle,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,Cabrio,1995-2002,NHTSA vPIC: Cabrio,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,CABRIOLET,1990-1990,NHTSA vPIC: CABRIOLET,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,CC,2012-2018,NHTSA vPIC: CC,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,Corrado,1990-1995,NHTSA vPIC: Corrado,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,e-Golf,2015-2020,NHTSA vPIC: e-Golf,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,Eos,2008-2016,NHTSA vPIC: Eos,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,EuroVan,1995-2002,NHTSA vPIC: EuroVan,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,FOX,1990-1990,NHTSA vPIC: FOX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,GLI,2008-2008,NHTSA vPIC: GLI,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,GTI,1995-2025,NHTSA vPIC: GTI,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,ID.4,1990-2020,NHTSA sampled first ~2021 (ID.4),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2021
+Volkswagen,ID.Buzz,1990-2024,NHTSA sampled first ~2025 (ID. Buzz),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2025
+Volkswagen,Phaeton,2004-2006,NHTSA vPIC: Phaeton,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,R32,2004-2008,NHTSA vPIC: R32,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,Rabbit,2006-2008,NHTSA vPIC: Rabbit,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,Taos,1990-2021,NHTSA sampled first ~2022 (Taos),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Volkswagen,Tiguan,1990-2009,NHTSA sampled first ~2010 (Tiguan),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Volkswagen,Touareg,2004-2018,NHTSA vPIC: Touareg,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Volkswagen,Vanagon,1990-1990,NHTSA vPIC: Vanagon,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,ACL,1990-2000,NHTSA vPIC: ACL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,C30,2008-2013,NHTSA vPIC: C30,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,C40,1990-2021,NHTSA sampled first ~2022 (C40),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2022
+Volvo,C70,2000-2013,NHTSA vPIC: C70,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,C70 / C30,2012-2012,NHTSA vPIC: C70 / C30,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,Cab Behind Engine,1990-2026,NHTSA vPIC: Cab Behind Engine,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,Cab Over Engine HT,1990-2026,NHTSA vPIC: Cab Over Engine HT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,Cab Over Engine LT,1990-2026,NHTSA vPIC: Cab Over Engine LT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,CACL,1990-1995,NHTSA vPIC: CACL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,CNE,1990-1995,NHTSA vPIC: CNE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,CNR,1990-1995,NHTSA vPIC: CNR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,CWG,1990-1995,NHTSA vPIC: CWG,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,EC40,2025-2026,NHTSA vPIC: EC40,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Volvo,EX40,2025-2026,NHTSA vPIC: EX40,MISSING_MODEL,,suv2,MISSING_MODEL,P2,Canonical model absent
+Volvo,F12 w/F7 Cab,1990-2026,NHTSA vPIC: F12 w/F7 Cab,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,F6 w/F7 Cab,1990-2026,NHTSA vPIC: F6 w/F7 Cab,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,FE,1990-1995,NHTSA vPIC: FE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,FM10,2002-2017,NHTSA vPIC: FM10,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,FML,2000-2002,NHTSA vPIC: FML,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,NE,1990-1995,NHTSA vPIC: NE,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,NR,1990-1995,NHTSA vPIC: NR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,S40,2000-2011,NHTSA vPIC: S40,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,S60,1990-2001,NHTSA sampled first ~2002 (S60 | S60 Cross Country),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2002
+Volvo,S70,2000-2000,NHTSA vPIC: S70,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,S80,2000-2016,NHTSA vPIC: S80,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,S90,1990-2016,NHTSA sampled first ~2017 (S90),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Volvo,V40,2000-2004,NHTSA vPIC: V40,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,V50,2005-2011,NHTSA vPIC: V50,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,V60,1990-2014,NHTSA sampled first ~2015 (V60 | V60CC),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2015
+Volvo,V70,2000-2010,NHTSA vPIC: V70,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,V90,1990-2016,NHTSA sampled first ~2017 (V90 | V90CC),INVALID_YEAR_ACCEPTED,small,small,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2017
+Volvo,VAH,2012-2026,NHTSA vPIC: VAH,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VHD,2002-2026,NHTSA vPIC: VHD,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VNC,2000-2000,NHTSA vPIC: VNC,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VNL,2000-2026,NHTSA vPIC: VNL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VNL (4),2025-2026,NHTSA vPIC: VNL (4),MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VNM,2000-2024,NHTSA vPIC: VNM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VNR,2013-2026,NHTSA vPIC: VNR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VNR (4),2025-2026,NHTSA vPIC: VNR (4),MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VS,2019-2026,NHTSA vPIC: VS,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,VT,2005-2026,NHTSA vPIC: VT,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WAH,1990-2002,NHTSA vPIC: WAH,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WCA,1990-1995,NHTSA vPIC: WCA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WG,1990-2000,NHTSA vPIC: WG,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WHEB,1990-1995,NHTSA vPIC: WHEB,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WHL,1990-1995,NHTSA vPIC: WHL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WHLB,1990-1995,NHTSA vPIC: WHLB,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WHR,1990-1995,NHTSA vPIC: WHR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WIA,1990-1995,NHTSA vPIC: WIA,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WX,1990-2002,NHTSA vPIC: WX,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WXLL,1990-2002,NHTSA vPIC: WXLL,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WXLM,1990-1995,NHTSA vPIC: WXLM,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,WXR,1990-2002,NHTSA vPIC: WXR,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,XC40,1990-2018,NHTSA sampled first ~2019 (XC40),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2019
+Volvo,XC60,1990-2009,NHTSA sampled first ~2010 (XC60),INVALID_YEAR_ACCEPTED,suv2,suv2,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2010
+Volvo,XC70,2004-2016,NHTSA vPIC: XC70,MISSING_MODEL,,small,MISSING_MODEL,P2,Canonical model absent
+Volvo,XC90,1990-2003,NHTSA sampled first ~2004 (XC90),INVALID_YEAR_ACCEPTED,suv3,suv3,INVALID_YEAR,P2,Selectable from 1990 but not observed in vPIC before ~2004
+Alfa Romeo,164,1990-1995,NHTSA vPIC: 164,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Alfa Romeo,4C,2014-2020,NHTSA vPIC: 4C,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Alfa Romeo,8C Competizione Spider,2000-2013,NHTSA vPIC: 8C Competizione Spider,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Alfa Romeo,Giulia (952),2016-2026,NHTSA vPIC: Giulia (952),MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Alfa Romeo,Milano,1990-1990,NHTSA vPIC: Milano,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Alfa Romeo,Spider,1990-1990,NHTSA vPIC: Spider,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,DB12,2024-2026,NHTSA vPIC: DB12,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,DB7,1995-2002,NHTSA vPIC: DB7,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,DB9,2005-2016,NHTSA vPIC: DB9,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Rapide,2010-2019,NHTSA vPIC: Rapide,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,V12 Vantage,2011-2018,NHTSA vPIC: V12 Vantage,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,V8 Vantage,2010-2018,NHTSA vPIC: V8 Vantage,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Valhalla,2026-2026,NHTSA vPIC: Valhalla,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Valiant,2024-2026,NHTSA vPIC: Valiant,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Valour,2024-2024,NHTSA vPIC: Valour,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Vanquish,2002-2026,NHTSA vPIC: Vanquish,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Vanquish Zagato,2018-2019,NHTSA vPIC: Vanquish Zagato,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Aston Martin,Virage,1990-2012,NHTSA vPIC: Virage,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,ARMOURED ARNAGE,2004-2008,NHTSA vPIC: ARMOURED ARNAGE,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,Arnage,2000-2008,NHTSA vPIC: Arnage,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,Azure,2000-2010,NHTSA vPIC: Azure,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,Brooklands,1995-2010,NHTSA vPIC: Brooklands,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,Continental,1990-2026,NHTSA vPIC: Continental,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,Eight,1990-1990,NHTSA vPIC: Eight,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bentley,Turbo,1990-1995,NHTSA vPIC: Turbo,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Bugatti,Chiron,2018-2024,NHTSA vPIC: Chiron,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Bugatti,Chiron Pur Sport,2020-2024,NHTSA vPIC: Chiron Pur Sport,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Bugatti,Chiron Supersport,2020-2024,NHTSA vPIC: Chiron Supersport,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Bugatti,EB110,1995-2026,NHTSA vPIC: EB110,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Bugatti,Mistral,2025-2026,NHTSA vPIC: Mistral,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Bugatti,Veyron,2005-2017,NHTSA vPIC: Veyron,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Buick,Regal TourX,2018-2020,NHTSA vPIC: Regal TourX,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Chevrolet,City Express,2015-2018,NHTSA vPIC: City Express,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Chevrolet,Cruze Limited,2016-2016,NHTSA vPIC: Cruze Limited,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Chevrolet,G-Series,1990-1995,NHTSA vPIC: G-Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Chevrolet,Impala Limited,2014-2016,NHTSA vPIC: Impala Limited,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Chevrolet,Malibu Classic,2004-2005,NHTSA vPIC: Malibu Classic,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""Malibu"" — add alias mapping"
+Chevrolet,P - Series,1990-1990,NHTSA vPIC: P - Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Chevrolet,S-10 Blazer,2000-2000,NHTSA vPIC: S-10 Blazer,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Chevrolet,Spark,2008-2022,NHTSA vPIC: Spark,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Dodge,D-Series,1990-1990,NHTSA vPIC: D-Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Dodge,Ramcharger,1990-1990,NHTSA vPIC: Ramcharger,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Dodge,Sprinter,2004-2008,NHTSA vPIC: Sprinter,MISSING_MODEL,,full_size_van,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Dodge,W-Series,1990-1990,NHTSA vPIC: W-Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Ferrari,12Cilindri,2025-2026,NHTSA vPIC: 12Cilindri,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,296,2022-2026,NHTSA vPIC: 296,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,296 Speciale,2026-2026,NHTSA vPIC: 296 Speciale,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,296 Speciale A,2026-2026,NHTSA vPIC: 296 Speciale A,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,348 Spider,1995-1995,NHTSA vPIC: 348 Spider,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,348 tb,1990-1995,NHTSA vPIC: 348 tb,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,348 ts,1990-1995,NHTSA vPIC: 348 ts,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,355 Berlinetta,1995-1995,NHTSA vPIC: 355 Berlinetta,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,355 GTS,1995-1995,NHTSA vPIC: 355 GTS,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,355 Spider,1995-1995,NHTSA vPIC: 355 Spider,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,360,2000-2005,NHTSA vPIC: 360,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,430,2008-2008,NHTSA vPIC: 430,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,456,1995-1995,NHTSA vPIC: 456,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,456M,2000-2002,NHTSA vPIC: 456M,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,458,2010-2017,NHTSA vPIC: 458,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,458 Italia,2010-2017,NHTSA vPIC: 458 Italia,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,488,2016-2020,NHTSA vPIC: 488,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,512 TR,1995-1995,NHTSA vPIC: 512 TR,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,550 Maranello,2000-2000,NHTSA vPIC: 550 Maranello,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,575M Maranello,2002-2005,NHTSA vPIC: 575M Maranello,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,599,2006-2011,NHTSA vPIC: 599,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,599 GTB Fiorano,2008-2011,NHTSA vPIC: 599 GTB Fiorano,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,612 Scaglietti,2005-2011,NHTSA vPIC: 612 Scaglietti,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,812,2017-2024,NHTSA vPIC: 812,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,849 Testarossa,2026-2026,NHTSA vPIC: 849 Testarossa,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,California,2010-2014,NHTSA vPIC: California,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,California T,2010-2018,NHTSA vPIC: California T,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Challenge Stradale,2004-2004,NHTSA vPIC: Challenge Stradale,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Daytona SP3,2023-2025,NHTSA vPIC: Daytona SP3,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F12 Berlinetta,2010-2017,NHTSA vPIC: F12 Berlinetta,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F12 Special Series,2016-2016,NHTSA vPIC: F12 Special Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F12 tdf (Tour de France),2017-2017,NHTSA vPIC: F12 tdf (Tour de France),MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F430,2006-2008,NHTSA vPIC: F430,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F60 America,2016-2016,NHTSA vPIC: F60 America,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F8,2020-2023,NHTSA vPIC: F8,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,F80,2026-2026,NHTSA vPIC: F80,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,FF,2010-2016,NHTSA vPIC: FF,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,La Ferrari,2010-2017,NHTSA vPIC: La Ferrari,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Mondial T,1990-1990,NHTSA vPIC: Mondial T,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Monza SP1/SP2,2023-2023,NHTSA vPIC: Monza SP1/SP2,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Portofino,2019-2021,NHTSA vPIC: Portofino,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Purosangue,2023-2026,NHTSA vPIC: Purosangue,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,SF90,2021-2025,NHTSA vPIC: SF90,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Ferrari,Testarossa,1990-1990,NHTSA vPIC: Testarossa,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+FIAT,124 Spider,2017-2020,NHTSA vPIC: 124 Spider,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+FIAT,500e,2024-2026,NHTSA vPIC: 500e,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+FIAT,Ducato,2019-2023,NHTSA vPIC: Ducato,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+FIAT,Freemont,2011-2016,NHTSA vPIC: Freemont,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Fisker,Karma,2011-2012,NHTSA vPIC: Karma,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Fisker,Nina,2011-2026,NHTSA vPIC: Nina,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Fisker,Ocean,2023-2024,NHTSA vPIC: Ocean,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Ford,Bronco II,1990-1990,NHTSA vPIC: Bronco II,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Ford,Explorer Sport Trac,2002-2010,NHTSA vPIC: Explorer Sport Trac,MISSING_MODEL,,suv3,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Ford,Fiesta,2011-2019,NHTSA vPIC: Fiesta,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Ford,Taurus X,2008-2008,NHTSA vPIC: Taurus X,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+GMC,Suburban,1990-2000,NHTSA vPIC: Suburban,MISSING_MODEL,,suv3,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Hummer,H1,1995-2006,NHTSA vPIC: H1,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Hummer,H2,2004-2011,NHTSA vPIC: H2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Hummer,H3,2006-2011,NHTSA vPIC: H3,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Hyundai,Ioniq,2017-2022,NHTSA vPIC: Ioniq,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Hyundai,IONIQ 9,2026-2026,NHTSA vPIC: Ioniq 9,MISSING_MODEL,,suv3,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,EX35,2008-2013,NHTSA vPIC: EX35,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,FX35,2004-2012,NHTSA vPIC: FX35,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,FX37,2013-2013,NHTSA vPIC: FX37,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,FX50,2010-2013,NHTSA vPIC: FX50,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,JX35,2013-2013,NHTSA vPIC: JX35,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,Q40,2015-2016,NHTSA vPIC: Q40,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,Q45,1990-2006,NHTSA vPIC: Q45,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,QX30,2017-2019,NHTSA vPIC: QX30,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+INFINITI,QX56,2004-2013,NHTSA vPIC: QX56,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Isuzu,Amigo,1990-1990,NHTSA vPIC: Amigo,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Ascender,2004-2008,NHTSA vPIC: Ascender,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Axiom,2002-2004,NHTSA vPIC: Axiom,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,F6,2000-2002,NHTSA vPIC: F6,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,F7,2000-2002,NHTSA vPIC: F7,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,FRR,1995-2004,NHTSA vPIC: FRR,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,FSR,1995-1995,NHTSA vPIC: FSR,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,FTR/FVR/EVR,1995-1995,NHTSA vPIC: FTR/FVR/EVR,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,H-Series,2005-2008,NHTSA vPIC: H-Series,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Hombre,2000-2000,NHTSA vPIC: Hombre,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,i-280,2006-2006,NHTSA vPIC: i-280,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,i-290,2008-2008,NHTSA vPIC: i-290,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,i-350,2006-2006,NHTSA vPIC: i-350,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,i-370,2008-2008,NHTSA vPIC: i-370,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,IMPULSE,1990-1990,NHTSA vPIC: IMPULSE,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,NPR,1995-2010,NHTSA vPIC: NPR,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,NPR/NPR-HD,2000-2005,NHTSA vPIC: NPR/NPR-HD,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,NQR,2000-2004,NHTSA vPIC: NQR,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,NQR/NRR,2005-2010,NHTSA vPIC: NQR/NRR,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Pickup,1990-1995,NHTSA vPIC: Pickup,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Rodeo,1990-2004,NHTSA vPIC: Rodeo,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Stylus,1990-1990,NHTSA vPIC: Stylus,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,T6F,2004-2010,NHTSA vPIC: T6F,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,T7F,2004-2010,NHTSA vPIC: T7F,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,T8F,2004-2010,NHTSA vPIC: T8F,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Trooper,1990-2002,NHTSA vPIC: Trooper,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,Trooper II,1990-1990,NHTSA vPIC: Trooper II,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Isuzu,VehiCross,2000-2002,NHTSA vPIC: VehiCross,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Jaguar,S-Type,2000-2008,NHTSA vPIC: S-Type,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,Vanden Plas,1990-2004,NHTSA vPIC: Vanden Plas,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,X-Type,2002-2008,NHTSA vPIC: X-Type,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XJ,2002-2019,NHTSA vPIC: XJ,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XJ12,1995-1995,NHTSA vPIC: XJ12,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XJ6,1990-1995,NHTSA vPIC: XJ6,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XJ8,2000-2002,NHTSA vPIC: XJ8,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XJR,1995-2006,NHTSA vPIC: XJR,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XJS,1990-1995,NHTSA vPIC: XJS,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XK,2000-2015,NHTSA vPIC: XK,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Jaguar,XK8,2000-2004,NHTSA vPIC: XK8,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Karma,Atlantic,2015-2016,NHTSA vPIC: Atlantic,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Karma,GS-6,2021-2025,NHTSA vPIC: GS-6,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Karma,Gyesera,2025-2025,NHTSA vPIC: Gyesera,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Karma,Karma,2015-2015,NHTSA vPIC: Karma,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Karma,Kaveya,2025-2025,NHTSA vPIC: Kaveya,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Karma,Revero,2016-2025,NHTSA vPIC: Revero,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Karma,Revero GT,2021-2024,NHTSA vPIC: Revero GT,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lamborghini,147,2002-2002,NHTSA vPIC: 147,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Aventador,2011-2022,NHTSA vPIC: Aventador,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Diablo,1990-2000,NHTSA vPIC: Diablo,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Gallardo,2004-2014,NHTSA vPIC: Gallardo,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Huracan,2015-2024,NHTSA vPIC: Huracan,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Murcielago,2004-2010,NHTSA vPIC: Murcielago,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Roadster,1990-2000,NHTSA vPIC: Roadster,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lamborghini,Temerario,2026-2026,NHTSA vPIC: Temerario,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Land Rover,"110"" WB",2025-2026,"NHTSA vPIC: 110"" WB",MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Land Rover,88” WB,2026-2026,NHTSA vPIC: 88” WB,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Land Rover,"90"" WB",2025-2026,"NHTSA vPIC: 90"" WB",MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Land Rover,LR2,2008-2015,NHTSA vPIC: LR2,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Land Rover,LR3,2005-2008,NHTSA vPIC: LR3,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Land Rover,LR4,2010-2016,NHTSA vPIC: LR4,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Lotus,2-Eleven,2008-2012,NHTSA vPIC: 2-Eleven,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,340R,2008-2008,NHTSA vPIC: 340R,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Eagle,2008-2008,NHTSA vPIC: Eagle,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Eclat,1990-2008,NHTSA vPIC: Eclat,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Elan,1990-2008,NHTSA vPIC: Elan,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,ELETRE,2025-2026,NHTSA vPIC: ELETRE,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Eleven,2010-2010,NHTSA vPIC: Eleven,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Elise,2005-2012,NHTSA vPIC: Elise,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Elite,1990-2008,NHTSA vPIC: Elite,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Emira,2024-2026,NHTSA vPIC: Emira,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Esprit,1990-2008,NHTSA vPIC: Esprit,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Europa,2008-2008,NHTSA vPIC: Europa,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Evora,2010-2021,NHTSA vPIC: Evora,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Exige,2008-2012,NHTSA vPIC: Exige,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,MEL,2008-2008,NHTSA vPIC: MEL,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Monaco,2008-2008,NHTSA vPIC: Monaco,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Monza,2008-2008,NHTSA vPIC: Monza,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Spa,2008-2008,NHTSA vPIC: Spa,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Lotus,Turbo Esprit,1990-2000,NHTSA vPIC: Turbo Esprit,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Maserati,228,1990-1990,NHTSA vPIC: 228,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,430,1990-1990,NHTSA vPIC: 430,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,Biturbo,1990-1990,NHTSA vPIC: Biturbo,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,Coupe,2002-2006,NHTSA vPIC: Coupe,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,Grancabrio,2024-2026,NHTSA vPIC: Grancabrio,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,MCPura,2026-2026,NHTSA vPIC: MCPura,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,Merak,1990-1990,NHTSA vPIC: Merak,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,Spyder,1990-2006,NHTSA vPIC: Spyder,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maserati,TC,1990-1990,NHTSA vPIC: TC,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Maybach,57,2004-2012,NHTSA vPIC: 57,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Maybach,62,2004-2012,NHTSA vPIC: 62,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mazda,B-Series,1990-2010,NHTSA vPIC: B-Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Mazda,Mazda5,2006-2015,NHTSA vPIC: Mazda5,MISSING_MODEL,,minivan,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+McLaren,540C,2010-2021,NHTSA vPIC: 540C,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,570GT,2010-2021,NHTSA vPIC: 570GT,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,620R,2020-2021,NHTSA vPIC: 620R,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,625C,2010-2021,NHTSA vPIC: 625C,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,650S,2010-2021,NHTSA vPIC: 650S,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,675LT,2010-2021,NHTSA vPIC: 675LT,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,750S,2024-2026,NHTSA vPIC: 750S,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,ELVA,2022-2022,NHTSA vPIC: ELVA,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,GTS,2025-2026,NHTSA vPIC: GTS,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,MP4-12C,2010-2021,NHTSA vPIC: MP4-12C,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,P1,2010-2021,NHTSA vPIC: P1,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,SENNA,2017-2021,NHTSA vPIC: SENNA,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+McLaren,SENNA GTR,2017-2021,NHTSA vPIC: SENNA GTR,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mercedes-Benz,CLA-Class,2014-2026,NHTSA vPIC: CLA-Class,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""CLA"" — add alias mapping"
+Mercedes-Benz,CLS-Class,2005-2023,NHTSA vPIC: CLS-Class,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""CLS"" — add alias mapping"
+Mercedes-Benz,EQB-Class,2022-2025,NHTSA vPIC: EQB-Class,COVERED_VIA_ALIAS,suv2,suv2,ALIAS,P3,"Covered by canonical ""EQB"" — add alias mapping"
+Mercedes-Benz,EQE-Class Sedan,2023-2026,NHTSA vPIC: EQE-Class Sedan,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""EQE"" — add alias mapping"
+Mercedes-Benz,EQS-Class Sedan,2022-2026,NHTSA vPIC: EQS-Class Sedan,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""EQS"" — add alias mapping"
+Mercedes-Benz,eSprinter,2024-2026,NHTSA vPIC: eSprinter,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Mercedes-Benz,GLA-Class,2015-2026,NHTSA vPIC: GLA-Class,COVERED_VIA_ALIAS,suv2,suv2,ALIAS,P3,"Covered by canonical ""GLA"" — add alias mapping"
+Mercedes-Benz,GLB-Class,2020-2026,NHTSA vPIC: GLB-Class,COVERED_VIA_ALIAS,suv2,suv2,ALIAS,P3,"Covered by canonical ""GLB"" — add alias mapping"
+Mercedes-Benz,GLC-Class,2016-2026,NHTSA vPIC: GLC-Class,COVERED_VIA_ALIAS,suv2,suv2,ALIAS,P3,"Covered by canonical ""GLC"" — add alias mapping"
+Mercedes-Benz,GLE-Class,2016-2026,NHTSA vPIC: GLE-Class,COVERED_VIA_ALIAS,suv3,suv3,ALIAS,P3,"Covered by canonical ""GLE"" — add alias mapping"
+Mercedes-Benz,GLS-Class,2016-2026,NHTSA vPIC: GLS-Class,COVERED_VIA_ALIAS,suv3,suv3,ALIAS,P3,"Covered by canonical ""GLS"" — add alias mapping"
+Mercedes-Benz,SL-Class,1995-2026,NHTSA vPIC: SL-Class,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""SL"" — add alias mapping"
+Mercedes-Benz,SLC-Class,2017-2020,NHTSA vPIC: SLC-Class,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""SL"" — add alias mapping"
+Mercedes-Benz,SLK-Class,2000-2016,NHTSA vPIC: SLK-Class,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""SL"" — add alias mapping"
+Mercedes-Benz,SLS-Class,2011-2022,NHTSA vPIC: SLS-Class,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""SL"" — add alias mapping"
+Mercury,Capri,1990-1990,NHTSA vPIC: Capri,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Cougar,1990-2002,NHTSA vPIC: Cougar,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Grand Marquis,1990-2011,NHTSA vPIC: Grand Marquis,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Marauder,2004-2004,NHTSA vPIC: Marauder,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Mariner,2005-2011,NHTSA vPIC: Mariner,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Milan,2006-2011,NHTSA vPIC: Milan,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Montego,2005-2006,NHTSA vPIC: Montego,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Monterey,2004-2006,NHTSA vPIC: Monterey,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Mountaineer,2000-2010,NHTSA vPIC: Mountaineer,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Mystique,1995-2000,NHTSA vPIC: Mystique,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Sable,1990-2008,NHTSA vPIC: Sable,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Topaz,1990-1990,NHTSA vPIC: Topaz,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Tracer,1990-1995,NHTSA vPIC: Tracer,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Mercury,Villager,1995-2002,NHTSA vPIC: Villager,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+MINI,Cooper,2002-2010,NHTSA vPIC: Cooper,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,Cooper Convertible,2004-2026,NHTSA vPIC: Cooper Convertible,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,Cooper Coupe,2012-2015,NHTSA vPIC: Cooper Coupe,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,Cooper Roadster,2012-2015,NHTSA vPIC: Cooper Roadster,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,FL,1990-2026,NHTSA vPIC: FL,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,KW,1990-2026,NHTSA vPIC: KW,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,Mack,1990-2026,NHTSA vPIC: Mack,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+MINI,Pete,1990-2026,NHTSA vPIC: Pete,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,3000GT,1995-1995,NHTSA vPIC: 3000GT,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Diamante,1995-2005,NHTSA vPIC: Diamante,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Eclipse,1990-2012,NHTSA vPIC: Eclipse,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Endeavor,2004-2011,NHTSA vPIC: Endeavor,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Expo,1995-1995,NHTSA vPIC: Expo,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FE639,2002-2002,NHTSA vPIC: FE639,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FE640,2002-2002,NHTSA vPIC: FE640,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FE640DW,2002-2002,NHTSA vPIC: FE640DW,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FE649,2002-2002,NHTSA vPIC: FE649,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FEC7US / eCanter,2017-2017,NHTSA vPIC: FEC7US / eCanter,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FG639,2002-2002,NHTSA vPIC: FG639,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FG649,2002-2002,NHTSA vPIC: FG649,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FH211,2002-2002,NHTSA vPIC: FH211,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FK617,2002-2002,NHTSA vPIC: FK617,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FM617,2002-2002,NHTSA vPIC: FM617,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,FM657,2002-2002,NHTSA vPIC: FM657,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Galant,1990-2012,NHTSA vPIC: Galant,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,i-MiEV,2012-2018,NHTSA vPIC: i-MiEV,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Lancer,2002-2017,NHTSA vPIC: Lancer,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Lancer Evolution,2004-2015,NHTSA vPIC: Lancer Evolution,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Lancer SportBack,2004-2017,NHTSA vPIC: Lancer SportBack,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Mighty Max,1990-1995,NHTSA vPIC: Mighty Max,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Mirage G4,2017-2024,NHTSA vPIC: Mirage G4,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Montero,1990-2006,NHTSA vPIC: Montero,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Montero Sport,2000-2004,NHTSA vPIC: Montero Sport,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Precis,1990-1990,NHTSA vPIC: Precis,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Raider,1995-2010,NHTSA vPIC: Raider,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,RVR,2011-2022,NHTSA vPIC: RVR,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Sigma,1990-1990,NHTSA vPIC: Sigma,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,SPX,1990-1990,NHTSA vPIC: SPX,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Starion,1990-1990,NHTSA vPIC: Starion,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Van,1990-1990,NHTSA vPIC: Van,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Mitsubishi,Wagon,1990-1990,NHTSA vPIC: Wagon,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Nissan,Sentra Classic,1995-1995,NHTSA vPIC: Sentra Classic,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""Sentra"" — add alias mapping"
+Oldsmobile,Achieva,1995-1995,NHTSA vPIC: Achieva,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Alero,2000-2004,NHTSA vPIC: Alero,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Aurora,1995-2002,NHTSA vPIC: Aurora,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Bravada,1995-2004,NHTSA vPIC: Bravada,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Custom Cruiser,1990-1990,NHTSA vPIC: Custom Cruiser,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Cutlass Calais,1990-1990,NHTSA vPIC: Cutlass Calais,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Cutlass Ciera,1990-1995,NHTSA vPIC: Cutlass Ciera,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Cutlass Supreme,1990-1995,NHTSA vPIC: Cutlass Supreme,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Eighty Eight (88),1990-1995,NHTSA vPIC: Eighty Eight (88),MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Intrigue,2000-2002,NHTSA vPIC: Intrigue,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Ninety Eight (98),1990-1995,NHTSA vPIC: Ninety Eight (98),MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Silhouette,1990-2004,NHTSA vPIC: Silhouette,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Oldsmobile,Toronado,1990-1990,NHTSA vPIC: Toronado,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Acclaim,1990-1995,NHTSA vPIC: Acclaim,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Breeze,2000-2000,NHTSA vPIC: Breeze,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Colt,1990-1990,NHTSA vPIC: Colt,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Grand Voyager,1990-2000,NHTSA vPIC: Grand Voyager,MISSING_MAKE_AND_MODEL,,minivan,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,HORIZON,1990-1990,NHTSA vPIC: HORIZON,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Laser,1990-1990,NHTSA vPIC: Laser,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Neon,1995-2002,NHTSA vPIC: Neon,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Prowler,2000-2002,NHTSA vPIC: Prowler,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Sundance,1990-1990,NHTSA vPIC: Sundance,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Plymouth,Voyager,1990-2000,NHTSA vPIC: Voyager,MISSING_MAKE_AND_MODEL,,minivan,MISSING_MODEL,P3,Make absent from MAKES list
+Polestar,1,2019-2021,NHTSA vPIC: Polestar 1,MISSING_MAKE_AND_MODEL,,suv2,MISSING_MODEL,P3,Make absent from MAKES list | demoted: niche/legacy/alias-adjacent
+Pontiac,6000,1990-1990,NHTSA vPIC: 6000,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Aztek,2000-2005,NHTSA vPIC: Aztek,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Bonneville,1990-2005,NHTSA vPIC: Bonneville,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Firebird,1990-2002,NHTSA vPIC: Firebird,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Firefly,1990-1995,NHTSA vPIC: Firefly,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,G3,2008-2010,NHTSA vPIC: G3,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,G5,2008-2010,NHTSA vPIC: G5,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,G6,2005-2010,NHTSA vPIC: G6,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,G8,2008-2010,NHTSA vPIC: G8,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Grand AM,1990-2005,NHTSA vPIC: Grand AM,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Grand Prix,1990-2008,NHTSA vPIC: Grand Prix,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,GTO,2004-2006,NHTSA vPIC: GTO,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Lemans,1990-1990,NHTSA vPIC: Lemans,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Matiz,2010-2010,NHTSA vPIC: Matiz,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Montana,2000-2004,NHTSA vPIC: Montana,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Montana SV6,2005-2008,NHTSA vPIC: Montana SV6,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Pursuit,2005-2006,NHTSA vPIC: Pursuit,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Solstice,2006-2010,NHTSA vPIC: Solstice,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Sunbird,1990-1995,NHTSA vPIC: Sunbird,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Sunfire,2000-2005,NHTSA vPIC: Sunfire,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Tempest,1990-1990,NHTSA vPIC: Tempest,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Torrent,2006-2008,NHTSA vPIC: Torrent,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Trans Sport,1990-1995,NHTSA vPIC: Trans Sport,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Vibe,2004-2010,NHTSA vPIC: Vibe,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Pontiac,Wave,2005-2008,NHTSA vPIC: Wave,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Porsche,718,2006-2025,NHTSA vPIC: Cayman | 718 Boxster | 718 Cayman | 718 Spyder,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""718 Boxster"" — add alias mapping"
+Rivian,EDV,2022-2026,NHTSA vPIC: RCV | EDV,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list | demoted: niche/legacy/alias-adjacent
+Rolls-Royce,Corniche,1990-2002,NHTSA vPIC: Corniche,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Flying Spur,1995-1995,NHTSA vPIC: Flying Spur,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Park Ward,2002-2002,NHTSA vPIC: Park Ward,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Silver Dawn,1995-1995,NHTSA vPIC: Silver Dawn,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Silver Seraph,2000-2002,NHTSA vPIC: Silver Seraph,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Silver Spirit,1990-1995,NHTSA vPIC: Silver Spirit,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Silver Spur,1990-1995,NHTSA vPIC: Silver Spur,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Rolls-Royce,Touring Limousine,1995-1995,NHTSA vPIC: Touring Limousine,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent
+Saab,9-2X,2005-2008,NHTSA vPIC: 9-2X,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saab,9-3,2000-2012,NHTSA vPIC: 9-3,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saab,9-4x,2011-2012,NHTSA vPIC: 9-4x,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saab,9-5,2000-2012,NHTSA vPIC: 9-5,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saab,9-7X,2005-2008,NHTSA vPIC: 9-7X,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saab,900,1990-1995,NHTSA vPIC: 900,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saab,9000,1990-1995,NHTSA vPIC: 9000,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Astra,2008-2008,NHTSA vPIC: Astra,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Aura,2008-2010,NHTSA vPIC: Aura,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Ion,2004-2006,NHTSA vPIC: Ion,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,L300,2004-2005,NHTSA vPIC: L300,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,LS,2000-2002,NHTSA vPIC: LS,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,LS1,2000-2002,NHTSA vPIC: LS1,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,LS2,2000-2002,NHTSA vPIC: LS2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,LW1,2000-2002,NHTSA vPIC: LW1,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,LW2,2000-2002,NHTSA vPIC: LW2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,LW300,2004-2004,NHTSA vPIC: LW300,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Outlook,2008-2010,NHTSA vPIC: Outlook,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Relay,2005-2006,NHTSA vPIC: Relay,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SC1,1995-2002,NHTSA vPIC: SC1,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SC2,1995-2002,NHTSA vPIC: SC2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Sky,2008-2010,NHTSA vPIC: Sky,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SL,1995-2002,NHTSA vPIC: SL,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SL1,1995-2002,NHTSA vPIC: SL1,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SL2,1995-2002,NHTSA vPIC: SL2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SW1,1995-2000,NHTSA vPIC: SW1,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,SW2,1995-2000,NHTSA vPIC: SW2,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Saturn,Vue,2002-2010,NHTSA vPIC: Vue,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Smart,EQ Fortwo,2018-2020,NHTSA vPIC: EQ Fortwo,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Smart,Fortwo,2008-2020,NHTSA vPIC: Fortwo,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Smart,Fortwo Electric Drive,2013-2015,NHTSA vPIC: Fortwo Electric Drive,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Smart,smart,2000-2004,NHTSA vPIC: smart,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Subaru,Baja,2003-2006,NHTSA vPIC: Baja,MISSING_MODEL,,truck,MISSING_MODEL,P3,Niche
+Suzuki,Aerio,2002-2006,NHTSA vPIC: Aerio,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Equator,2010-2013,NHTSA vPIC: Equator,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Esteem,1995-2002,NHTSA vPIC: Esteem,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Forenza,2004-2008,NHTSA vPIC: Forenza,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Grand Vitara,2000-2014,NHTSA vPIC: Grand Vitara,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Grand Vitara XL-7,2002-2008,NHTSA vPIC: Grand Vitara XL-7,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Kizashi,2010-2014,NHTSA vPIC: Kizashi,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Reno,2005-2008,NHTSA vPIC: Reno,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Samurai,1990-1995,NHTSA vPIC: Samurai,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Sidekick,1990-1995,NHTSA vPIC: Sidekick,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Sidekick Sport,1990-1995,NHTSA vPIC: Sidekick Sport,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Swift,1990-2008,NHTSA vPIC: Swift,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,SX4,2008-2014,NHTSA vPIC: SX4,MISSING_MAKE_AND_MODEL,,suv2,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Verona,2004-2008,NHTSA vPIC: Verona,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,Vitara,2000-2004,NHTSA vPIC: Vitara,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Suzuki,XL7,2004-2008,NHTSA vPIC: XL7,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Toyota,86,2012-2020,market continuity with GR86,ALIAS_OVERLAP,small,small,ALIAS,P3,86 and GR86 both listed; consider alias/year split
+Toyota,FJ Cruiser,2008-2014,NHTSA vPIC: FJ Cruiser,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Toyota,Matrix,1990-2026,US-market high-impact checklist (cross-checked vs NHTSA where available),MISSING_MODEL,,small,MISSING_MODEL,P3,Legitimate US light vehicle gap
+Toyota,Yaris iA,2017-2019,NHTSA vPIC: Yaris iA,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+VinFast,VF 6,2023-2026,NHTSA vPIC: VF 6,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+VinFast,VF 7,2023-2026,NHTSA vPIC: VF 7,MISSING_MAKE_AND_MODEL,,small,MISSING_MODEL,P3,Make absent from MAKES list
+Volkswagen,Jetta GLI,2021-2026,NHTSA vPIC: Jetta GLI,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""Jetta"" — add alias mapping"
+Volkswagen,Jetta SportWagen,2010-2014,NHTSA vPIC: Jetta SportWagen,COVERED_VIA_ALIAS,small,small,ALIAS,P3,"Covered by canonical ""Jetta"" — add alias mapping"
+Volkswagen,Routan,2010-2014,NHTSA vPIC: Routan,MISSING_MODEL,,minivan,MISSING_MODEL,P3,Canonical model absent | demoted: niche/legacy/alias-adjacent
+Volvo,240 Series,1990-1990,NHTSA vPIC: 240 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,740 Series,1990-1990,NHTSA vPIC: 740 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,760 Series,1990-1990,NHTSA vPIC: 760 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,780 Series,1990-1990,NHTSA vPIC: 780 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,850 Series,1995-1995,NHTSA vPIC: 850 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,940 Series,1995-1995,NHTSA vPIC: 940 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,960 Series,1995-1995,NHTSA vPIC: 960 Series,MISSING_MODEL,,small,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
+Volvo,VNX,2013-2024,NHTSA vPIC: VNX,MISSING_MODEL,,suv2,MISSING_MODEL,P3,Canonical model absent | low booking impact / legacy-commercial edge
