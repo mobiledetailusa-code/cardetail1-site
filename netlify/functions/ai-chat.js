@@ -27,7 +27,7 @@ const CHAT_STARTING_PRICES = Object.freeze({
   carMaintenance: minTierPrice('cars', 'maint'),
   carWash: minTierPrice('cars', 'wash'),
   boats: LENGTH_PRICING.boats.packages.maint.min,
-  rvs: getLengthPrice('rvs', 'maint', LENGTH_PRICING.rvs.min, 'travel'),
+  rvs: getLengthPrice('rvs', 'exterior_wash', LENGTH_PRICING.rvs.min, 'travel'),
   powersports: minTierPrice('powersports', 'maintenance'),
 });
 
@@ -41,7 +41,7 @@ SHORT ANSWERS ONLY: Maximum 2 to 3 short sentences per reply. No long paragraphs
 
 NO REPETITION: Never repeat 'We come to you' or 'We are mobile' unless specifically asked how the service works.
 
-PRICING: If asked about general starting prices, use Cars from $${CHAT_STARTING_PRICES.cars} (Interior Detail), Boats from $${CHAT_STARTING_PRICES.boats}, RVs & trailers from $${CHAT_STARTING_PRICES.rvs}, Powersports from $${CHAT_STARTING_PRICES.powersports}. Fleet and commercial jobs are quote-only — never quote a flat per-unit fleet price. Exterior Hand Wash from $${CHAT_STARTING_PRICES.carWash} is a wash-only option; mention it when the customer asks for a wash, wax add-ons, or a lower exterior price, not as the Interior Detail starting price. Maintenance Detail from $${CHAT_STARTING_PRICES.carMaintenance} is a separate upkeep option in booking; mention it only when maintenance or budget is asked, not as the general Cars starting price. Then ask: 'Would you like me to send the link to check our packages?'
+PRICING: If asked about general starting prices, use Cars from $${CHAT_STARTING_PRICES.cars} (Interior Detail), Boats from $${CHAT_STARTING_PRICES.boats}, Exterior wash from $${CHAT_STARTING_PRICES.rvs} for RVs and trailers (wash only, not a full detail), Powersports from $${CHAT_STARTING_PRICES.powersports}. Fleet and commercial jobs are quote-only — never quote a flat per-unit fleet price. Exterior Hand Wash from $${CHAT_STARTING_PRICES.carWash} is a wash-only option; mention it when the customer asks for a wash, wax add-ons, or a lower exterior price, not as the Interior Detail starting price. Maintenance Detail from $${CHAT_STARTING_PRICES.carMaintenance} is a separate upkeep option in booking; mention it only when maintenance or budget is asked, not as the general Cars starting price. Then ask: 'Would you like me to send the link to check our packages?'
 
 PAYMENT/TRUST: If asked about payment or if it's safe, say: 'We require a card to secure the spot, but it is just a $0 security hold. You only pay after our team finishes the job and you inspect the results.'
 

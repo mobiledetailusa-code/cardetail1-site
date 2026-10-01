@@ -62,7 +62,7 @@ test('25 ft at ZIP 07105 is the same service price for every RV type', () => {
   assert.equal(travel.bridgeSurcharge, 0);
 
   const expected = {
-    exterior_wash: 200,
+    exterior_wash: 225,
     maint: 360,
     premium: 890,
     maint_light: 570,
@@ -92,9 +92,9 @@ test('25 ft at ZIP 07105 is the same service price for every RV type', () => {
 
 test('wash formula: floor, per-foot, rounding, and invalid length', () => {
   const rule = LENGTH_PRICING.rvs.packages.exterior_wash;
-  assert.deepEqual(rule, { perFt: 8, min: 199, ratePerFoot: 8 });
+  assert.deepEqual(rule, { perFt: 9, min: 199, ratePerFoot: 9 });
   assert.equal(rule.base, undefined);
-  const cases = { 20: 199, 24: 199, 25: 200, 30: 240, 40: 320 };
+  const cases = { 12: 199, 20: 199, 22: 199, 23: 207, 24: 216, 25: 225, 30: 270, 40: 360, 45: 405 };
   for (const [ft, price] of Object.entries(cases)) {
     assert.equal(getLengthPrice('rvs', 'exterior_wash', Number(ft), 'travel'), price, ft);
   }
@@ -121,7 +121,7 @@ test('browser getLengthPrice matches the server for wash, protect, and polish', 
   assert.equal(browser('rvs', 'exterior_wash', 11, 'travel'), null);
 });
 
-test('historical Maintenance Wash stays $360 and nameless Exterior Wash stays the light package', () => {
+test('saved package ids keep their scope, and a bare Exterior Wash name does not pick a package', () => {
   const stored = computeVehicleSubtotal({
     cat: 'rvs',
     pkgId: 'maint',
@@ -133,18 +133,19 @@ test('historical Maintenance Wash stays $360 and nameless Exterior Wash stays th
   assert.equal(stored.pkgId, 'maint');
   assert.equal(stored.basePrice, 360);
 
-  assert.equal(inferPkgId({ cat: 'rvs', pkgName: 'Exterior Wash' }, { vehicleCategory: 'rvs' }), 'maint_light');
+  assert.equal(inferPkgId({ cat: 'rvs', pkgName: 'Exterior Wash' }, { vehicleCategory: 'rvs' }), null);
   const nameless = computeVehicleSubtotal({
     cat: 'rvs', pkgName: 'Exterior Wash', lengthFt: 25, rvType: 'travel', addons: [],
   }, '07105');
-  assert.equal(nameless.pkgId, 'maint_light');
-  assert.equal(nameless.basePrice, 570);
+  assert.equal(nameless.ok, false);
+  assert.equal(inferPkgId({ cat: 'rvs', pkgName: 'Exterior Wash & Protect' }, { vehicleCategory: 'rvs' }), 'maint_light');
+  assert.equal(inferPkgId({ cat: 'rvs', pkgId: 'exterior', pkgName: 'Exterior Wash' }, { vehicleCategory: 'rvs' }), 'maint_light');
 
   const basic = computeVehicleSubtotal({
     cat: 'rvs', pkgId: 'exterior_wash', pkgName: 'Exterior Wash', lengthFt: 25, addons: [],
   }, '07105');
   assert.equal(basic.pkgId, 'exterior_wash');
-  assert.equal(basic.basePrice, 200);
+  assert.equal(basic.basePrice, 225);
 
   assert.equal(inferPkgId({ cat: 'rvs', pkgName: 'Wash & Protect' }, {}), 'maint');
   assert.equal(inferPkgId({ cat: 'rvs', pkgName: 'Exterior Polish & Protect' }, {}), 'premium');
@@ -162,7 +163,7 @@ test('stored protection add-ons still reprice, and the booking UI hides them whe
     cat: 'rvs', pkgId: 'exterior_wash', lengthFt: 25,
     addons: [{ id: 'polymer' }],
   }, '07105');
-  assert.equal(wash.basePrice, 200);
+  assert.equal(wash.basePrice, 225);
   assert.equal(wash.addonTotal, 25);
   assert.match(indexHtml, /rvPackageIncludesProtection\(ST\.pkgId\) && \(a\.id==='polymer' \|\| a\.id==='wax1yr'\)/);
   assert.match(indexHtml, /function rvPackageIncludesProtection\(pkgId\)\{[\s\S]*?'maint'[\s\S]*?'premium'/);
@@ -172,17 +173,27 @@ test('stored protection add-ons still reprice, and the booking UI hides them whe
   );
 });
 
-test('duration estimate is 4 min/ft with a 90 minute floor and does not replace ceramic', () => {
-  assert.equal(estimateExteriorWashMinutes(20), 90);
-  assert.equal(estimateExteriorWashMinutes(25), 100);
-  assert.equal(estimateExteriorWashMinutes(30), 120);
-  assert.equal(estimateExteriorWashMinutes(40), 160);
+test('wash duration follows the 150 and 280 minute anchors and does not replace ceramic', () => {
+  const minutes = { 12: 38, 20: 107, 25: 150, 30: 194, 35: 237, 40: 280, 45: 324 };
+  const slots = { 12: 1, 20: 1, 25: 2, 30: 2, 35: 2, 40: 3, 45: 3 };
+  let previous = 0;
+  for (const [ft, expected] of Object.entries(minutes)) {
+    const got = estimateExteriorWashMinutes(Number(ft));
+    assert.equal(got, expected, ft);
+    assert.ok(got > previous, 'monotonic ' + ft);
+    previous = got;
+    const held = got <= 120 ? 1 : Math.ceil(got / 120);
+    assert.equal(held, slots[ft], 'slots ' + ft);
+  }
   assert.equal(estimateExteriorWashMinutes(0), null);
+  assert.match(indexHtml, /Math\.ceil\(\(130 \* n - 1000\) \/ 15\)/);
+  const ux = fs.readFileSync(path.join(root, 'assets/booking-conversion-ux.js'), 'utf8');
+  assert.match(ux, /Math\.ceil\(\(130 \* ft - 1000\) \/ 15\)/);
   const booking = applyRvExteriorWashDuration({
     lengthFt: 40,
     vehicles: [{ pkgId: 'exterior_wash', lengthFt: 40 }],
   });
-  assert.equal(booking.appointmentDurationMinutes, 160);
+  assert.equal(booking.appointmentDurationMinutes, 280);
   assert.equal(booking.durationSource, 'estimate_owner_review');
   const ceramic = applyRvExteriorWashDuration({
     appointmentDurationMinutes: 480,

@@ -15,13 +15,13 @@ const BOAT_PACKAGES = [
 ];
 
 const RV_PACKAGES = [
-  { id: 'exterior_wash', name: 'Exterior Wash', tag: 'Clean', duration: 'Estimate by length', description: 'Exterior wash and dry, light bug and road dirt, exterior glass, wheels, and tire finish when appropriate. No separate wax, polish, roof, awning, or interior.' },
-  { id: 'maint', name: 'Wash & Protect', tag: 'Clean and protect', duration: 'Depends on size', description: 'Exterior hand wash, windows, wheels, and a quick wax or sealant. Not a machine correction and not a promised durability term.' },
-  { id: 'maint_light', name: 'Maintenance Wash + Light Interior', tag: 'Exterior + quick interior', duration: 'Depends on size', description: 'Exterior maintenance plus light cabin refresh.' },
-  { id: 'interior', name: 'Interior Detail', tag: 'Full interior', duration: 'Depends on size', description: 'Complete interior. Driver cabin and windshield apply to motorhomes.' },
-  { id: 'full_basic', name: 'Full RV Detail', tag: 'Inside + outside', duration: 'Depends on size', description: 'Full interior plus exterior wash and protection.' },
-  { id: 'premium', name: 'Exterior Polish & Protect', tag: 'Restore gloss and protect', duration: 'Depends on size', description: 'One-step polish to restore gloss, plus exterior protection. Not complete oxidation or scratch removal.' },
-  { id: 'full', name: 'Premium Complete RV Detail', tag: 'Polish + full interior', duration: 'Depends on size', description: 'One-step exterior polish plus complete interior detail.' },
+  { id: 'exterior_wash', name: 'Exterior Wash', tag: 'A fresh exterior clean to remove everyday dirt and road grime.', duration: 'Planning estimate', description: 'Wash and dry, bugs and light road dirt, exterior windows, wheels, and tire dressing when it suits the tires. Roof, awnings, wax, polish, and the interior are not included.' },
+  { id: 'maint', name: 'Wash & Protect', tag: 'A thorough wash with added protection to help maintain the finish.', duration: 'Depends on size', description: 'Hand wash, windows, wheels, tire shine, and a wax or sealant. Roof, polish, and the interior are not included.' },
+  { id: 'maint_light', name: 'Maintenance Wash + Light Interior', tag: 'Wash and protect, plus a quick tidy inside.', duration: 'Depends on size', description: 'Outside wash and wax or sealant, plus vacuum and a wipe of surfaces you can reach. Driver cabin and windshield are for motorhomes.' },
+  { id: 'interior', name: 'Interior Detail', tag: 'A full clean of the living area.', duration: 'Depends on size', description: 'Vacuum, shampoo, and kitchen, bath, and living surfaces. Driver cabin and windshield are for motorhomes. The outside is not included.' },
+  { id: 'full_basic', name: 'Full RV Detail', tag: 'The whole RV cleaned, inside and out, without polish.', duration: 'Depends on size', description: 'Interior clean plus exterior wash and wax or sealant. Roof and polish are not included.' },
+  { id: 'premium', name: 'Exterior Polish & Protect', tag: 'For a dull exterior that needs more than a wash.', duration: 'Depends on size', description: 'One-step polish to improve gloss, light haze where the surface allows, then wax or sealant. Does not remove all scratches or heavy oxidation. Roof is separate.' },
+  { id: 'full', name: 'Premium Complete RV Detail', tag: 'Polish outside and a full clean inside.', duration: 'Depends on size', description: 'One-step polish, light oxidation and haze where the surface allows, wax or sealant, and a full interior clean. Heavy oxidation and the roof need a separate quote.' },
 ];
 
 function usesLengthPricing(category) {

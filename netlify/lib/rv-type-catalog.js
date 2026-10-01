@@ -137,27 +137,26 @@ function computeRvServicePrice(pkgId, lengthFt, typeKey) {
 }
 
 /**
- * Scheduling estimate for the basic exterior wash only.
- * There is no RV labor-minute table in this repository. Marine wash is the
- * closest published duration (~1.5–2h). This scales a shorter wash at
- * 4 minutes per foot with a 90 minute floor (25 ft = 100 min).
- * Owner validation is required before this is treated as a labor standard.
+ * Planning estimate for the basic exterior wash only. Not a guaranteed time.
+ * Line through two solo anchors: 150 min at 25 ft, 280 min at 40 ft.
+ * 280 is the 40 ft wash with roof (~360 min) minus ~60 min of interruptions
+ * and supply and ~20 min of roof. Those are not added back, and there is no
+ * second setup line. 12, 20, and 45 ft are straight-line extrapolations.
+ * Travel stays a separate fee. The 2-hour schedule grid rounds the hold up
+ * on its own (1 slot at or under 120 min, otherwise ceil(minutes / 120)).
  */
 const EXTERIOR_WASH_DURATION = Object.freeze({
   packageId: 'exterior_wash',
-  minutesPerFoot: 4,
-  minimumMinutes: 90,
+  anchorMinutes: Object.freeze({ 25: 150, 40: 280 }),
   ownerValidationRequired: true,
-  basis: 'Estimate only. No RV time study is on file. Marine wash copy is about 1.5–2 hours; this basic wash uses 4 min/ft and a 90 minute floor.',
+  guaranteed: false,
+  basis: 'Preliminary solo planning estimate. 150 minutes at 25 ft and about 280 minutes at 40 ft without roof. Not a promised finish time.',
 });
 
 function estimateExteriorWashMinutes(lengthFt) {
   const ft = Number(lengthFt);
   if (!Number.isFinite(ft) || ft <= 0) return null;
-  return Math.max(
-    EXTERIOR_WASH_DURATION.minimumMinutes,
-    Math.round(EXTERIOR_WASH_DURATION.minutesPerFoot * ft),
-  );
+  return Math.ceil((130 * ft - 1000) / 15);
 }
 
 function applyRvExteriorWashDuration(booking) {
@@ -209,14 +208,14 @@ const RV_PACKAGE_META = {
     name: 'Exterior Wash',
     group: 'outside',
     badge: null,
-    subtitle: 'Clean',
+    subtitle: 'A fresh exterior clean to remove everyday dirt and road grime.',
   },
   maint: {
     id: 'maint',
     name: 'Wash & Protect',
     group: 'outside',
     badge: null,
-    subtitle: 'Clean and protect',
+    subtitle: 'A thorough wash with added protection to help maintain the finish.',
   },
   maint_light: {
     id: 'maint_light',
@@ -244,7 +243,7 @@ const RV_PACKAGE_META = {
     name: 'Exterior Polish & Protect',
     group: 'outside',
     badge: null,
-    subtitle: 'Restore gloss and protect',
+    subtitle: 'For a dull exterior that needs more than a wash.',
   },
   full: {
     id: 'full',

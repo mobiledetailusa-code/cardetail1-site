@@ -515,9 +515,8 @@ const PACKAGE_DISPLAY = {
     premium: 'Premium Marine Detail',
   },
   rvs: {
-    // "Exterior Wash" does not round-trip by name alone. A nameless historical
-    // "Exterior Wash" still resolves to maint_light so older records do not
-    // become the cheaper basic wash. New bookings keep pkgId exterior_wash.
+    // "Exterior Wash" does not round-trip by name alone. A saved pkgId is
+    // required. Name-only text is not sent to maint_light or exterior_wash.
     exterior_wash: 'Exterior Wash',
     maint: 'Wash & Protect',
     maint_light: 'Maintenance Wash + Light Interior',

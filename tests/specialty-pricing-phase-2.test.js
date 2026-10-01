@@ -175,7 +175,7 @@ describe('phase 2 RV formulas unchanged', () => {
     const wash = packages.exterior_wash;
     delete packages.exterior_wash;
     assert.deepEqual(packages, UNCHANGED_RV_FORMULAS);
-    assert.deepEqual(wash, { perFt: 8, min: 199, ratePerFoot: 8 });
+    assert.deepEqual(wash, { perFt: 9, min: 199, ratePerFoot: 9 });
   });
 
   it('RV display tiers for travel remain prior amounts', () => {

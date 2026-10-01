@@ -232,7 +232,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
   const carInterior = Math.min(...Object.values(PRICING.cars.tiers).map((tier) => tier.interior));
   const carRefresh = Math.min(...Object.values(PRICING.cars.tiers).map((tier) => tier.refresh));
   const boat = LENGTH_PRICING.boats.packages.maint.min;
-  const rv = getLengthPrice('rvs', 'maint', LENGTH_PRICING.rvs.min, 'travel');
+  const rv = getLengthPrice('rvs', 'exterior_wash', LENGTH_PRICING.rvs.min, 'travel');
   const powersports = Math.min(
     ...Object.values(PRICING.powersports.tiers)
       .map((tier) => Number(tier.maintenance))
@@ -243,7 +243,7 @@ test('static starting-price surfaces are verified against the catalog', () => {
     const html = read(file);
     assert.match(html, new RegExp(`id="bkfrom-boats"[^>]*>From \\$${boat}<`), file);
     assert.match(html, new RegExp(`id="bkfrom-powersports"[^>]*>From \\$${powersports}<`), file);
-    assert.match(html, /id="bkfrom-rvs"[^>]*>(?:Price calculated from your vehicle details\.|Priced by length)</, file);
+    assert.match(html, /id="bkfrom-rvs"[^>]*>Exterior wash from \$199</, file);
     assert.match(html, new RegExp(`cars:\\s+\\{[^\\n]*from:'From \\$${carInterior}'`), file);
     assert.match(html, new RegExp(`boats:\\s+\\{[^\\n]*from:'From \\$${boat}'`), file);
     assert.match(html, new RegExp(`powersports:\\s*\\{[^\\n]*from:'From \\$${powersports}'`), file);
@@ -285,7 +285,7 @@ test('AI chat starting prices are derived from the same catalog', () => {
     carMaintenance: 160,
     carWash: 125,
     boats: 175,
-    rvs: 243,
+    rvs: 199,
     powersports: 180,
   });
   for (const price of Object.values(CHAT_STARTING_PRICES)) {

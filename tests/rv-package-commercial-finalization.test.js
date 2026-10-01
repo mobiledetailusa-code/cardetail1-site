@@ -90,7 +90,9 @@ test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
   assert.doesNotMatch(page, /Service duration depends|~\d+–\d+h/);
   assert.match(page, /Exterior hand wash/);
   assert.match(page, /Refrigerator interior when empty/);
-  assert.match(page, /Machine buffing &amp; shine enhancement|Exterior Gloss Restoration/);
+  assert.match(page, /One-step polish to improve gloss/);
+  assert.match(page, /Light oxidation and haze improvement where the surface allows/);
+  assert.doesNotMatch(page, /Machine buffing|Exterior Gloss Restoration|Oxidation removal &amp; paint revival|ultimate transformation|showroom perfection/i);
   assert.match(page, /MOST POPULAR/);
   assert.match(page, /BEST FINISH/);
 });
@@ -156,7 +158,7 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
-  assert.equal(prices.exterior_wash, 199);
+  assert.equal(prices.exterior_wash, 216);
   assert.equal(prices.maint, 351);
   assert.equal(prices.maint_light, 556);
   assert.equal(prices.interior, 580);
@@ -200,7 +202,7 @@ test('SYNC: RV pricing sync remains idempotent', () => {
 
 test('client and server LENGTH_PRICING.rvs stay synced', () => {
   const lengthBlock = extractRvLength(read('index.html'));
-  assert.match(lengthBlock, /exterior_wash:\s*\{ perFt: 8, min: 199, ratePerFoot: 8 \}/);
+  assert.match(lengthBlock, /exterior_wash:\s*\{ perFt: 9, min: 199, ratePerFoot: 9 \}/);
   for (const id of BASE_RATE_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
     assert.match(

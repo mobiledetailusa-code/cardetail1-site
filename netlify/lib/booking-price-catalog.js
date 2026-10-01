@@ -206,9 +206,10 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      // Proposed basic wash for owner review. Not a flat $200: $8/ft with a
-      // $199 floor. 25 ft = $200 before travel. No new type multiplier.
-      exterior_wash: { perFt: 8, min: 199, ratePerFoot: 8 },
+      // Exterior wash: $9/ft with a $199 floor, before travel.
+      // 20 ft = $199, 25 ft = $225, 30 ft = $270, 40 ft = $360.
+      // Roof and awnings stay separate. No new travel fee.
+      exterior_wash: { perFt: 9, min: 199, ratePerFoot: 9 },
       maint: { base: 135, ratePerFoot: 9 },
       maint_light: { base: 220, ratePerFoot: 14 },
       interior: { base: 220, ratePerFoot: 15 },
@@ -268,7 +269,8 @@ const PKG_ID_ALIASES = {
   'maintenance wash and light interior': 'maint_light',
   'maint light': 'maint_light',
   'maint_light': 'maint_light',
-  'exterior wash': 'maint_light',
+  // Bare "Exterior Wash" is intentionally not an alias. Name-only text must
+  // not become maint_light or exterior_wash. Saved pkgId still wins.
   'exterior wash & protect': 'maint_light',
   'exterior wash and protect': 'maint_light',
   'full rv detail': 'full_basic',
@@ -410,6 +412,9 @@ function inferPkgId(vehicle, booking) {
     if (name === 'premium detail') return 'premium';
   }
   if (PKG_ID_ALIASES[name]) return PKG_ID_ALIASES[name];
+  // Isolated name only. Do not send a new order to the light-interior package,
+  // and do not migrate an old record onto exterior_wash by this name alone.
+  if (name.replace(/\s+/g, ' ') === 'exterior wash') return null;
   const cat = vehicle.cat || booking.vehicleCategory;
   const pkgs = PRICING[cat];
   if (!pkgs) return null;

@@ -2029,7 +2029,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-rvs.webp" alt="RVs and travel trailers receiving mobile detailing" width="720" height="720" loading="lazy" decoding="async"></span>
             <div class="svc-name" style="font-size:22px">RVs & Trailers</div>
             <div class="svc-desc" style="font-size:12px">Trailers · 5th Wheels · Class A/C</div>
-            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Price calculated from your vehicle details.</div>
+            <div class="svc-from" id="bkfrom-rvs" style="font-size:12px">Exterior wash from $199</div>
           </div>
           <div class="svc-card locked" id="bkcat-powersports" onclick="selectCategory('powersports')">
             <span class="svc-ico-photo svc-ico-photo--3d"><img src="assets/icons/3d/cat-powersports.webp" alt="Motorcycle ATV and jet ski detailing" width="720" height="720" loading="lazy" decoding="async"></span>
@@ -3024,40 +3024,40 @@ const PRICING = {
       specialty:  {label:'Cargo, Horse or Custom Trailer', icon:'📦', desc:'Living quarters required for interior packages', maint:265, maint_light:0, interior:0, full_basic:0, premium:925, full:0},
     },
     packages:[
-      {id:'exterior_wash', name:'Exterior Wash', icon:'🪣', tag:'Clean the outside without a separate wax or sealant.', dur:'Estimate by length', popular:false, scope:'ext',
-        ext:['Exterior wash and dry','Bug and light road-dirt removal','Exterior glass','Wheels cleaned','Tire finish when appropriate'],
+      {id:'exterior_wash', name:'Exterior Wash', icon:'🪣', tag:'A fresh exterior clean to remove everyday dirt and road grime.', limit:'Roof, awnings, wax, and polish are not included.', dur:'Planning estimate', popular:false, scope:'ext',
+        ext:['Wash and dry the outside','Bugs and light road dirt','Exterior windows','Wheels cleaned','Tire dressing when it suits the tires'],
         int:[],
-        feats:['Exterior wash and dry','Bug and light road-dirt removal','Exterior glass','Wheels cleaned','Tire finish when appropriate'],
-        miss:['Separate wax or sealant','Polish and oxidation removal','Persistent stains and heavy black streaks','Roof, awnings, and interior']},
-      {id:'maint', name:'Wash & Protect', icon:'🪣', tag:'Clean and protect with a quick wax or sealant included in the wash.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
-        ext:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick wax or sealant for exterior protection','Final exterior inspection'],
+        feats:['Wash and dry the outside','Bugs and light road dirt','Exterior windows','Wheels cleaned','Tire dressing when it suits the tires'],
+        miss:['Wax or sealant','Polish and oxidation removal','Persistent stains and heavy black streaks','Roof, awnings, and interior']},
+      {id:'maint', name:'Wash & Protect', icon:'🪣', tag:'A thorough wash with added protection to help maintain the finish.', limit:'Roof, polish, and the interior are not included.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Wax or sealant included','Final exterior inspection'],
         int:[],
-        feats:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick wax or sealant for exterior protection','Final exterior inspection'],
-        miss:['Separate wax charged again','Machine polish','Promised months of durability','Roof','Heavy black streaks','Oxidation removal','Interior']},
-      {id:'maint_light', name:'Maintenance Wash + Light Interior', icon:'🪣', tag:'Exterior maintenance plus a quick interior refresh.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
-        ext:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant'],
+        feats:['Exterior hand wash','Bug and light road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Wax or sealant included','Final exterior inspection'],
+        miss:['A second wax charge','Polish','A promised protection term','Roof','Heavy black streaks','Oxidation removal','Interior']},
+      {id:'maint_light', name:'Maintenance Wash + Light Interior', icon:'🪣', tag:'Wash and protect outside, plus a quick tidy inside.', limit:'No shampoo, and no roof, fridge, or oven interior.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
+        ext:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Wax or sealant included'],
         int:['Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down (motorhomes only)','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors; windshield on motorhomes only','Accessible trash removal'],
-        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down (motorhomes only)','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors; windshield on motorhomes only','Accessible trash removal'],
+        feats:['Exterior hand wash','Exterior windows and mirrors','Wheels cleaned','Tire shine','Wax or sealant included','Vacuum accessible floors and seating areas','Driver cabin vacuum and wipe-down (motorhomes only)','Tables and countertops wiped clean','Kitchen surfaces and sink wiped clean','Stove exterior cleaned','Bathroom surfaces wiped clean','Interior mirrors; windshield on motorhomes only','Accessible trash removal'],
         miss:['Upholstery shampoo','Carpet extraction','Pet hair','Odor treatment','Refrigerator interior','Oven interior','Cabinet interiors','Bed making','Roof cleaning']},
-      {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'A complete interior cleaning from the driver cabin to the living area.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'int',
+      {id:'interior', name:'Interior Detail', icon:'🛋️', tag:'A full clean of the living area. Driver cabin work is for motorhomes.', limit:'The outside is not included. Heavy stains, pet hair, and strong odors may need an add-on.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'int',
         ext:[],
         int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         feats:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Exterior','Personal belongings left in place','Heavy staining without Super Interior','Excessive pet hair','Strong odors']},
-      {id:'full_basic', name:'Full RV Detail', icon:'🧽', tag:'Complete interior cleaning plus exterior wash and protection.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
-        ext:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection'],
+      {id:'full_basic', name:'Full RV Detail', icon:'🧽', tag:'The whole RV cleaned, inside and out, without polish.', limit:'Roof and polish are not included.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:true, scope:'both',
+        ext:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Wax or sealant included','Final exterior inspection'],
         int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
-        feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Quick machine-applied wax or sealant','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
-        miss:['Roof','One-step machine polishing','Oxidation correction']},
-      {id:'premium', name:'Exterior Polish & Protect', icon:'🏅', tag:'Restore gloss and protect with a one-step polish.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
-        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish to restore gloss','Light haze improvement where the surface allows','High-quality wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        feats:['Exterior hand wash','Bug and normal road-film removal','Exterior windows and mirrors','Wheels cleaned','Tire shine','Wax or sealant included','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        miss:['Roof','Polish','Oxidation treatment']},
+      {id:'premium', name:'Exterior Polish & Protect', icon:'🏅', tag:'For a dull exterior that needs more than a wash.', limit:'Does not remove all scratches or heavy oxidation. Roof is separate.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'ext',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step polish to improve gloss','Light haze improvement where the surface allows','Wax or sealant after the polish','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
         int:[],
-        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish to restore gloss','Light haze improvement where the surface allows','High-quality wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
-        miss:['Roof','Complete oxidation removal','Scratch removal','Heavy or multi-stage restoration','Interior']},
-      {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'One-Step Exterior Polish + Complete Interior Detail', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
-        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step polish to improve gloss','Light haze improvement where the surface allows','Wax or sealant after the polish','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
+        miss:['Roof','Complete oxidation removal','Complete scratch removal','Heavy or multi-stage restoration','Interior']},
+      {id:'full', name:'Premium Complete RV Detail', icon:'🧽', tag:'Polish outside and a full clean inside.', limit:'Heavy oxidation, deep scratches, and the roof need a separate quote.', dur:'Service duration depends on RV size, condition and crew assigned.', popular:false, scope:'both',
+        ext:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step polish to improve gloss','Light oxidation and haze improvement where the surface allows','Wax or sealant after the polish','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection'],
         int:['Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
-        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step machine polish','Light oxidation and haze improvement where achievable','High-quality machine-applied wax or sealant','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
+        feats:['Exterior hand wash','Bug, road-film and light black-streak removal','Exterior decontamination preparation','One-step polish to improve gloss','Light oxidation and haze improvement where the surface allows','Wax or sealant after the polish','Exterior windows and mirrors','Wheels cleaned','Tire shine','Entry-door jambs and accessible tracks','Final exterior inspection','Full interior vacuum','Carpet and upholstery shampoo','Driver cabin detailing (motorhomes only)','Dashboard and high-touch surfaces','Tables and countertops','Leather cleaning and conditioning where applicable','Kitchen sink and stove cleaning','Refrigerator interior when empty','Oven interior when empty and cool','Bathroom surfaces','Interior windows and mirrors','Cabinet exteriors','Cabinet interiors when completely emptied','Accessible floor mats','Bed neatly made when clean linens are provided','Final interior inspection'],
         miss:['Roof','Multi-stage correction','Severe oxidation without inspection','Deep scratches and damaged decals without inspection']}
     ],
     addons:[
@@ -3187,7 +3187,7 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
-      exterior_wash: { perFt: 8, min: 199, ratePerFoot: 8 },
+      exterior_wash: { perFt: 9, min: 199, ratePerFoot: 9 },
       maint:       { base: 135, ratePerFoot: 9 },
       maint_light: { base: 220, ratePerFoot: 14 },
       interior:    { base: 220, ratePerFoot: 15 },
@@ -5451,7 +5451,7 @@ function getCategoryFromBases(){
     cars:Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.interior)),
     trucks:Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)),
     boats:LENGTH_PRICING.boats.packages.maint.min,
-    rvs:LENGTH_PRICING.rvs.packages.maint.min,
+    rvs:getLengthPrice('rvs','exterior_wash',LENGTH_PRICING.rvs.min,'travel'),
     powersports:powersportsPublicFromPrice(),
   };
 }
@@ -5459,7 +5459,9 @@ function formatLocFrom(cat){
 
   syncTravelFromKnownZip();
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
-  return 'From $'+(applyRichPrice(getCategoryFromBases()[cat])+fee);
+  const price=applyRichPrice(getCategoryFromBases()[cat])+fee;
+  if(cat==='rvs') return 'Exterior wash from $'+price;
+  return 'From $'+price;
 }
 function chatStartingPricesReply(){
   const b=getCategoryFromBases();
@@ -5467,7 +5469,7 @@ function chatStartingPricesReply(){
     +"🚗 Cars & SUVs — from <b>$"+applyRichPrice(b.cars)+"</b> (Interior Detail)\n"
     +"🏍️ Powersports — from <b>$"+applyRichPrice(b.powersports)+"</b>\n"
     +"🛥️ Boats — from <b>$"+applyRichPrice(b.boats)+"</b>\n"
-    +"🏕️ RVs & Trailers — from <b>$"+applyRichPrice(b.rvs)+"</b>\n\n"
+    +"🏕️ RVs & Trailers — Exterior wash from <b>$"+applyRichPrice(b.rvs)+"</b> (not a full detail)\n\n"
     +"For an exact quote, start a booking and enter your vehicle + ZIP — pricing updates as you go.";
 }
 
@@ -5609,14 +5611,16 @@ function updateBkFromPrices(){
   const BASE = {
     trucks:     { price: Math.min(...Object.values(PRICING.trucks.tiers).map(t=>t.interior)) },
     boats:      { price: LENGTH_PRICING.boats.packages.maint.min },
-    rvs:        { price: LENGTH_PRICING.rvs.packages.maint.min },
+    rvs:        { copy: 'Exterior wash from $' + getLengthPrice('rvs','exterior_wash',LENGTH_PRICING.rvs.min,'travel') },
     powersports:{ price: powersportsPublicFromPrice() },
   };
   syncTravelFromKnownZip();
   const fee=getKnownZip5()&&activeZone?getTravelFeeAmount():0;
   Object.entries(BASE).forEach(([cat, info])=>{
     const el = document.getElementById('bkfrom-'+cat);
-    if(!el || info.price == null) return;
+    if(!el) return;
+    if(info.copy){ el.textContent = info.copy; return; }
+    if(info.price == null) return;
     el.textContent = 'From $'+(applyRichPrice(info.price)+fee);
   });
 }
@@ -6212,7 +6216,7 @@ function _updateHomeFromPrices(){
   const BASE = {
     cars:        { price: Math.min(...Object.values(PRICING.cars.tiers).map(t=>t.maint)), suffix:' · by vehicle size' },
     boats:       { price: LENGTH_PRICING.boats.packages.maint.min,     suffix:' · by vessel length' },
-    rvs:         { price: getLengthPrice('rvs','maint',LENGTH_PRICING.rvs.min,'travel'),    suffix:' · by RV length' },
+    rvs:         { fixed: 'Exterior wash from $' + getLengthPrice('rvs','exterior_wash',LENGTH_PRICING.rvs.min,'travel') },
     powersports: { price: powersportsPublicFromPrice(), suffix:' · by vehicle type' },
 
   };

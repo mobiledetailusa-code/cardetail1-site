@@ -165,21 +165,22 @@
 
   function rvExteriorWashMinutes(st) {
     if (!st) return 0;
-    const perFoot = 4;
-    const floor = 90;
     const vehicles = Array.isArray(st.vehicles) ? st.vehicles : [];
     let minutes = 0;
     let matchedCurrent = false;
+    function washMinutes(ft) {
+      return Math.ceil((130 * ft - 1000) / 15);
+    }
     vehicles.forEach(function (vehicle) {
       if (!vehicle || vehicle.pkgId !== 'exterior_wash') return;
       const ft = Number(vehicle.lengthFt || 0);
       if (!(ft > 0)) return;
-      minutes += Math.max(floor, Math.round(perFoot * ft));
+      minutes += washMinutes(ft);
       if (st.pkgId === 'exterior_wash' && Number(st.lengthFt || 0) === ft) matchedCurrent = true;
     });
     if (st.cat === 'rvs' && st.pkgId === 'exterior_wash' && !matchedCurrent) {
       const ft = Number(st.lengthFt || 0);
-      if (ft > 0) minutes += Math.max(floor, Math.round(perFoot * ft));
+      if (ft > 0) minutes += washMinutes(ft);
     }
     return minutes;
   }

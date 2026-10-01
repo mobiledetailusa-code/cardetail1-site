@@ -295,7 +295,7 @@ describe('phase 1 unchanged categories and public From$ surfaces', () => {
       carMaintenance: 160,
       carWash: 125,
       boats: 175,
-      rvs: 243,
+      rvs: 199,
       powersports: 180,
     });
   });
