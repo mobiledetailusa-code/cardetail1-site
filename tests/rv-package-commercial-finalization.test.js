@@ -24,13 +24,15 @@ const {
   computeAddonTotal,
 } = require('../netlify/lib/booking-price-catalog');
 
-const FINAL_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
+const FINAL_IDS = ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
+const BASE_RATE_IDS = ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'];
 const FINAL_NAMES = {
-  maint: 'Maintenance Wash',
+  exterior_wash: 'Exterior Wash',
+  maint: 'Wash & Protect',
   maint_light: 'Maintenance Wash + Light Interior',
   interior: 'Interior Detail',
   full_basic: 'Full RV Detail',
-  premium: 'Premium Exterior Detail',
+  premium: 'Exterior Polish & Protect',
   full: 'Premium Complete RV Detail',
 };
 
@@ -52,17 +54,18 @@ function extractRvLength(html) {
   return m[1];
 }
 
-test('PACKAGE STRUCTURE: six customer-visible RV packages', () => {
+test('PACKAGE STRUCTURE: seven customer-visible RV packages', () => {
   const html = read('index.html');
   const block = extractRvPackages(html);
   const ids = [...block.matchAll(/id:'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(ids, FINAL_IDS);
 
   const page = read('rv-detailing.html');
-  assert.equal((page.match(/data-rv-tier="/g) || []).length, 6);
+  assert.equal((page.match(/data-rv-tier="/g) || []).length, 7);
   for (const [id, name] of Object.entries(FINAL_NAMES)) {
     assert.match(page, new RegExp(`data-rv-tier="${id}"`));
-    assert.match(page, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    const visible = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/&/g, '(?:&|&amp;)');
+    assert.match(page, new RegExp(visible));
     assert.match(block, new RegExp(`id:'${id}'`));
   }
   assert.doesNotMatch(page, /One-Step Paint Correction \+|Exterior Wash &amp; Protect|Paint Improvement|Essential Care|Complete Care/);
@@ -87,7 +90,32 @@ test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
   assert.doesNotMatch(page, /Service duration depends|~\d+–\d+h/);
   assert.match(page, /Exterior hand wash/);
   assert.match(page, /Refrigerator interior when empty/);
-  assert.match(page, /Machine buffing &amp; shine enhancement|Exterior Gloss Restoration/);
+  assert.match(page, /One-step polish to improve gloss/);
+  const sharedExterior = 'One-step polishing to improve shine and reduce light oxidation.';
+  assert.match(page, new RegExp(sharedExterior));
+  assert.match(pkgs, new RegExp(sharedExterior));
+  assert.doesNotMatch(page, /Light haze improvement where the surface allows/);
+  assert.doesNotMatch(page, /Light oxidation and haze improvement where the surface allows/);
+  assert.doesNotMatch(pkgs, /Light haze improvement where the surface allows/);
+  assert.doesNotMatch(pkgs, /Light oxidation and haze improvement where the surface allows/);
+  assert.match(page, /A thorough clean of your RV's living space, from carpets and seating to the kitchen and bathroom/);
+  assert.match(page, /A complete interior clean, plus an exterior wash and protection/);
+  assert.match(page, /An exterior polish and protective finish, paired with a complete interior clean/);
+  assert.match(pkgs, /A thorough clean of your RV\\'s living space, from carpets and seating to the kitchen and bathroom/);
+  assert.match(pkgs, /A complete interior clean, plus an exterior wash and protection/);
+  assert.match(pkgs, /An exterior polish and protective finish, paired with a complete interior clean/);
+  const premium = pkgs.slice(pkgs.indexOf("id:'premium'"), pkgs.indexOf("id:'full'"));
+  const complete = pkgs.slice(pkgs.indexOf("id:'full'"));
+  const premiumExt = premium.slice(premium.indexOf('ext:['), premium.indexOf('],'));
+  const completeExt = complete.slice(complete.indexOf('ext:['), complete.indexOf('],'));
+  assert.equal(premiumExt, completeExt);
+  assert.match(page, /Driver cabin detailing \(motorhomes only\)/);
+  assert.match(pkgs, /Driver cabin detailing \(motorhomes only\)/);
+  assert.match(page, /Heavy oxidation and deep scratches require a separate quote/);
+  assert.match(page, /Roof is separate/);
+  assert.match(pkgs, /Heavy oxidation and deep scratches require a separate quote\. Roof is separate/);
+  assert.match(pkgs, /'Roof'/);
+  assert.doesNotMatch(page, /Machine buffing|Exterior Gloss Restoration|Oxidation removal &amp; paint revival|ultimate transformation|showroom perfection/i);
   assert.match(page, /MOST POPULAR/);
   assert.match(page, /BEST FINISH/);
 });
@@ -153,6 +181,7 @@ test('PRICING: six-package hierarchy and base+ratePerFoot math', () => {
 
   const ft = 24;
   const prices = Object.fromEntries(FINAL_IDS.map((id) => [id, getLengthPrice('rvs', id, ft, 'travel')]));
+  assert.equal(prices.exterior_wash, 216);
   assert.equal(prices.maint, 351);
   assert.equal(prices.maint_light, 556);
   assert.equal(prices.interior, 580);
@@ -196,7 +225,8 @@ test('SYNC: RV pricing sync remains idempotent', () => {
 
 test('client and server LENGTH_PRICING.rvs stay synced', () => {
   const lengthBlock = extractRvLength(read('index.html'));
-  for (const id of FINAL_IDS) {
+  assert.match(lengthBlock, /exterior_wash:\s*\{ perFt: 9, min: 199, ratePerFoot: 9 \}/);
+  for (const id of BASE_RATE_IDS) {
     const rule = LENGTH_PRICING.rvs.packages[id];
     assert.match(
       lengthBlock,

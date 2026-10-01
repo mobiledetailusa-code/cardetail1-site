@@ -3,7 +3,7 @@
 const { LENGTH_PRICING } = require('./booking-price-catalog');
 
 const RV_TYPE_MULTIPLIERS = {
-  travel: 1, fifthwheel: 1, classA: 1, classB: 1, classC: 1, classBC: 1,
+  travel: 1, fifthwheel: 1, motorhome: 1, classA: 1, classB: 1, classC: 1, classBC: 1,
   airstream: 1, cargo: 1, horse: 1, other: 1, specialty: 1,
 };
 
@@ -15,12 +15,13 @@ const BOAT_PACKAGES = [
 ];
 
 const RV_PACKAGES = [
-  { id: 'maint', name: 'Maintenance Wash', tag: 'Exterior upkeep', duration: 'Depends on size', description: 'Exterior hand wash, windows, wheels, quick wax/sealant.' },
-  { id: 'maint_light', name: 'Maintenance Wash + Light Interior', tag: 'Exterior + quick interior', duration: 'Depends on size', description: 'Exterior maintenance plus light cabin refresh.' },
-  { id: 'interior', name: 'Interior Detail', tag: 'Full interior', duration: 'Depends on size', description: 'Complete interior from cabin to living area.' },
-  { id: 'full_basic', name: 'Full RV Detail', tag: 'Inside + outside', duration: 'Depends on size', description: 'Full interior plus exterior wash and protection.' },
-  { id: 'premium', name: 'Premium Exterior Detail', tag: 'One-step polish', duration: 'Depends on size', description: 'Machine polish and premium exterior protection.' },
-  { id: 'full', name: 'Premium Complete RV Detail', tag: 'Polish + full interior', duration: 'Depends on size', description: 'One-step exterior polish plus complete interior detail.' },
+  { id: 'exterior_wash', name: 'Exterior Wash', tag: 'A fresh exterior clean to remove everyday dirt and road grime.', duration: 'Planning estimate', description: 'Wash and dry, bugs and light road dirt, exterior windows, wheels, and tire dressing when it suits the tires. Roof, awnings, wax, polish, and the interior are not included.' },
+  { id: 'maint', name: 'Wash & Protect', tag: 'A thorough wash with added protection to help maintain the finish.', duration: 'Depends on size', description: 'Hand wash, windows, wheels, tire shine, and a wax or sealant. Roof, polish, and the interior are not included.' },
+  { id: 'maint_light', name: 'Maintenance Wash + Light Interior', tag: 'Wash and protect, plus a quick tidy inside.', duration: 'Depends on size', description: 'Outside wash and wax or sealant, plus vacuum and a wipe of surfaces you can reach. Driver cabin and windshield are for motorhomes.' },
+  { id: 'interior', name: 'Interior Detail', tag: 'A thorough clean of your RV\'s living space, from carpets and seating to the kitchen and bathroom.', duration: 'Depends on size', description: 'A thorough clean of the living space, from carpets and seating to the kitchen and bathroom. Driver cabin and windshield are for motorhomes. The outside is not included.' },
+  { id: 'full_basic', name: 'Full RV Detail', tag: 'A complete interior clean, plus an exterior wash and protection.', duration: 'Depends on size', description: 'A complete interior clean, plus an exterior wash and wax or sealant. Roof and polish are not included.' },
+  { id: 'premium', name: 'Exterior Polish & Protect', tag: 'For a dull exterior that needs more than a wash.', duration: 'Depends on size', description: 'One-step polish to improve gloss. One-step polishing to improve shine and reduce light oxidation. Then wax or sealant. Heavy oxidation and deep scratches require a separate quote. Roof is separate. Interior is not included.' },
+  { id: 'full', name: 'Premium Complete RV Detail', tag: 'An exterior polish and protective finish, paired with a complete interior clean.', duration: 'Depends on size', description: 'An exterior polish and protective finish, paired with a complete interior clean. The exterior matches Exterior Polish & Protect, including one-step polishing to improve shine and reduce light oxidation. Heavy oxidation and deep scratches require a separate quote. Roof is separate.' },
 ];
 
 function usesLengthPricing(category) {
@@ -37,26 +38,12 @@ function normalizeLengthCategory(category) {
 }
 
 function getLengthPrice(cat, pkgId, ft, typeKey) {
-  const category = normalizeLengthCategory(cat);
-  const cfg = LENGTH_PRICING[category];
-  if (!cfg) return null;
-  let id = String(pkgId || '');
-  if (category === 'rvs') {
-    const legacy = { exterior: 'maint_light', correction: 'premium', correction_int: 'full' };
-    if (legacy[id]) id = legacy[id];
-  }
-  if (!cfg.packages[id]) return null;
-  const rule = cfg.packages[id];
-  const lengthFt = Number(ft || cfg.defaultFt);
-  if (!(lengthFt > 0)) return null;
-  if (category === 'rvs') {
-    const mult = Number(RV_TYPE_MULTIPLIERS[typeKey || 'travel']) || 1;
-    const base = Number(rule.base) || 0;
-    const rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
-    return Math.round((base + rate * lengthFt) * mult * 100) / 100;
-  }
-  const raw = Number(rule.perFt) * lengthFt;
-  return Math.max(Number(rule.min) || 0, Math.round(raw));
+  return require('./booking-price-catalog').getLengthPrice(
+    normalizeLengthCategory(cat),
+    pkgId,
+    ft,
+    typeKey,
+  );
 }
 
 function lengthConfigForClient(category) {

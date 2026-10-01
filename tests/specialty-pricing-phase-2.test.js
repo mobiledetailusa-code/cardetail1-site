@@ -170,8 +170,12 @@ describe('phase 2 boat rates unchanged; Premium Marine scope constrained', () =>
 });
 
 describe('phase 2 RV formulas unchanged', () => {
-  it('length formulas match the approved six-package matrix', () => {
-    assert.deepEqual(LENGTH_PRICING.rvs.packages, UNCHANGED_RV_FORMULAS);
+  it('existing six RV formulas stay on base + ratePerFoot', () => {
+    const packages = { ...LENGTH_PRICING.rvs.packages };
+    const wash = packages.exterior_wash;
+    delete packages.exterior_wash;
+    assert.deepEqual(packages, UNCHANGED_RV_FORMULAS);
+    assert.deepEqual(wash, { perFt: 9, min: 199, ratePerFoot: 9 });
   });
 
   it('RV display tiers for travel remain prior amounts', () => {

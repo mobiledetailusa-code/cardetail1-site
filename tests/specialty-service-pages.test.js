@@ -46,7 +46,7 @@ const CATEGORY_BY_PAGE = {
 
 const PACKAGE_BY_PAGE = {
   'boats-detailing.html': ['maint', 'essential', 'full', 'premium'],
-  'rv-detailing.html': ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+  'rv-detailing.html': ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
   'powersports-detailing.html': ['maintenance', 'restore'],
   'trucks-detailing.html': ['interior', 'int_wash', 'int_wash_wax'],
 };

@@ -262,7 +262,8 @@ describe('canonical category IDs (not rv/boat aliases)', () => {
 describe('shared first broken boundary: tryGenericConfirm uses ST.cat', () => {
   it('index.html dispatches specialty vehicle confirm on ST.cat, not undeclared cat', () => {
     const fn = extractFunction(index, 'tryGenericConfirm');
-    assert.match(fn, /if\(ST\.cat==='boats'\|\|ST\.cat==='rvs'\)/);
+    assert.match(fn, /if\(ST\.cat==='rvs'\)/);
+    assert.match(fn, /if\(ST\.cat==='boats'\)/);
     assert.doesNotMatch(fn, /if\(cat==='boats'\|\|cat==='rvs'\)/);
     assert.match(fn, /if\(ST\.cat==='fleet'\)/);
     assert.match(fn, /if\(!ST\.tierKey\)return/);

@@ -163,6 +163,9 @@ const PACKAGE_INCLUDED_ADDONS = Object.freeze({
     refresh: Object.freeze(['claybar', 'rainx']),
     premium: Object.freeze(['claybar', 'rainx']),
   }),
+  // RV wax/sealant upgrades stay billable on historical reprices. The booking
+  // UI hides polymer and 1-year wax when the selected package already includes
+  // protection, so a new reservation is not offered a second protection line.
 });
 
 function includedAddonIds(category, packageId) {
@@ -203,6 +206,10 @@ const LENGTH_PRICING = {
   rvs: {
     min: 12, max: 45, defaultFt: 20, estimateOver: 40,
     packages: {
+      // Exterior wash: $9/ft with a $199 floor, before travel.
+      // 20 ft = $199, 25 ft = $225, 30 ft = $270, 40 ft = $360.
+      // Roof and awnings stay separate. No new travel fee.
+      exterior_wash: { perFt: 9, min: 199, ratePerFoot: 9 },
       maint: { base: 135, ratePerFoot: 9 },
       maint_light: { base: 220, ratePerFoot: 14 },
       interior: { base: 220, ratePerFoot: 15 },
@@ -256,11 +263,14 @@ const PKG_ID_ALIASES = {
   'full marine detail': 'full',
   'premium marine': 'premium',
   'maintenance wash': 'maint',
+  'wash & protect': 'maint',
+  'wash and protect': 'maint',
   'maintenance wash + light interior': 'maint_light',
   'maintenance wash and light interior': 'maint_light',
   'maint light': 'maint_light',
   'maint_light': 'maint_light',
-  'exterior wash': 'maint_light',
+  // Bare "Exterior Wash" is intentionally not an alias. Name-only text must
+  // not become maint_light or exterior_wash. Saved pkgId still wins.
   'exterior wash & protect': 'maint_light',
   'exterior wash and protect': 'maint_light',
   'full rv detail': 'full_basic',
@@ -271,6 +281,9 @@ const PKG_ID_ALIASES = {
   'premium complete rv detail': 'full',
   'premium exterior': 'premium',
   'premium exterior detail': 'premium',
+  'exterior polish & protect': 'premium',
+  'exterior polish and protect': 'premium',
+  'polish & protect': 'premium',
   'one-step paint correction': 'premium',
   'one-step paint correction + interior': 'full',
   'one-step paint correction and interior': 'full',
@@ -334,6 +347,7 @@ function resolveRvTypeKey(vehicle, booking) {
   if (!raw || raw === 'length') return 'travel';
   if (RV_TYPES[raw]) return raw;
   const lower = raw.toLowerCase();
+  if (lower.startsWith('motorhome')) return 'motorhome';
   if (lower.includes('fifth')) return 'fifthwheel';
   if (lower.includes('airstream')) return 'airstream';
   if (lower.includes('horse')) return 'horse';
@@ -353,20 +367,30 @@ function getLengthPrice(cat, pkgId, ft, typeKey) {
   if (!cfg) return null;
   let id = pkgId;
   if (cat === 'rvs') {
+    // Historical ids only. exterior_wash is its own package and must not
+    // collapse onto maint_light. A bare name "Exterior Wash" without pkgId
+    // still resolves through PKG_ID_ALIASES to maint_light.
     const legacy = { exterior: 'maint_light', correction: 'premium', correction_int: 'full' };
     if (legacy[id]) id = legacy[id];
   }
   if (!cfg.packages[id]) return null;
   const rule = cfg.packages[id];
-  const lengthFt = Number(ft || cfg.defaultFt);
+  const explicit = ft != null && ft !== '';
+  const lengthFt = explicit ? Number(ft) : Number(cfg.defaultFt);
+  if (!Number.isFinite(lengthFt) || lengthFt <= 0) return null;
   if (cat === 'rvs') {
+    if (lengthFt < cfg.min || lengthFt > cfg.max) return null;
     const RV_TYPES = getRvTypes();
     const key = typeKey && RV_TYPES[typeKey] ? typeKey : 'travel';
     const mult = Number(RV_TYPES[key]?.multiplier) || 1;
-    const base = Number(rule.base) || 0;
-    const rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
-    const raw = (base + rate * lengthFt) * mult;
-    return Math.round(raw * 100) / 100;
+    if (rule.base != null) {
+      const base = Number(rule.base) || 0;
+      const rate = Number(rule.ratePerFoot != null ? rule.ratePerFoot : rule.perFt) || 0;
+      return Math.round((base + rate * lengthFt) * mult * 100) / 100;
+    }
+    const rate = Number(rule.perFt != null ? rule.perFt : rule.ratePerFoot) || 0;
+    const raw = Math.round(rate * lengthFt * mult * 100) / 100;
+    return Math.max(Number(rule.min) || 0, raw);
   }
   const raw = rule.perFt * lengthFt;
   return Math.max(rule.min, Math.round(raw));
@@ -376,6 +400,7 @@ function inferPkgId(vehicle, booking) {
   if (vehicle.pkgId) {
     const legacy = { exterior: 'maint_light', correction: 'premium', correction_int: 'full' };
     const cat = vehicle.cat || booking?.vehicleCategory;
+    if (cat === 'rvs' && vehicle.pkgId === 'exterior_wash') return 'exterior_wash';
     if (cat === 'rvs' && legacy[vehicle.pkgId]) return legacy[vehicle.pkgId];
     return vehicle.pkgId;
   }
@@ -387,6 +412,9 @@ function inferPkgId(vehicle, booking) {
     if (name === 'premium detail') return 'premium';
   }
   if (PKG_ID_ALIASES[name]) return PKG_ID_ALIASES[name];
+  // Isolated name only. Do not send a new order to the light-interior package,
+  // and do not migrate an old record onto exterior_wash by this name alone.
+  if (name.replace(/\s+/g, ' ') === 'exterior wash') return null;
   const cat = vehicle.cat || booking.vehicleCategory;
   const pkgs = PRICING[cat];
   if (!pkgs) return null;
@@ -533,7 +561,8 @@ function computeVehicleBasePrice(vehicle, zip, booking) {
 
   if (cat === 'boats' || cat === 'rvs') {
     const cfg = LENGTH_PRICING[cat];
-    const ft = parseLengthFt(vehicle, booking) || cfg.defaultFt;
+    const parsedFt = parseLengthFt(vehicle, booking);
+    const ft = (parsedFt == null || parsedFt === '') ? cfg.defaultFt : parsedFt;
     const typeKey = cat === 'rvs' ? resolveRvTypeKey(vehicle, booking) : null;
     const raw = getLengthPrice(cat, pkgId, ft, typeKey);
     if (raw == null) return { ok: false, error: 'invalid_pricing' };

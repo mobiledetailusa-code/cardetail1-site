@@ -7,23 +7,36 @@
 const RV_TYPES = {
   travel: {
     id: 'travel',
-    label: 'Travel Trailer',
+    label: 'Travel Trailer — rear hitch',
     multiplier: 1.0,
     minFt: 12,
     maxFt: 40,
     livingQuarters: true,
-    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    motorized: false,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Bumper-pull travel trailers',
   },
   fifthwheel: {
     id: 'fifthwheel',
-    label: 'Fifth Wheel',
+    label: 'Fifth Wheel — pickup-bed hitch',
     multiplier: 1.0,
     minFt: 20,
     maxFt: 45,
     livingQuarters: true,
-    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    motorized: false,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Fifth-wheel trailers — height and hitch clearance matter',
+  },
+  motorhome: {
+    id: 'motorhome',
+    label: 'Motorhome — Class A, B or C',
+    multiplier: 1.0,
+    minFt: 16,
+    maxFt: 45,
+    livingQuarters: true,
+    motorized: true,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Class A, B, and C share one price. Length bounds are the combined range (16–45 ft).',
   },
   classA: {
     id: 'classA',
@@ -32,8 +45,9 @@ const RV_TYPES = {
     minFt: 24,
     maxFt: 45,
     livingQuarters: true,
-    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
-    notes: 'Large motorhomes — access and height reviewed upfront',
+    motorized: true,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Kept for existing bookings. New bookings use motorhome. Price matches the other motorhome classes.',
   },
   classB: {
     id: 'classB',
@@ -42,8 +56,9 @@ const RV_TYPES = {
     minFt: 16,
     maxFt: 28,
     livingQuarters: true,
-    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
-    notes: 'Camper vans and Class B coaches',
+    motorized: true,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Camper vans and Class B coaches. Kept for existing bookings.',
   },
   classC: {
     id: 'classC',
@@ -52,8 +67,9 @@ const RV_TYPES = {
     minFt: 18,
     maxFt: 35,
     livingQuarters: true,
-    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
-    notes: 'Class C coaches with cab-over bunk',
+    motorized: true,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    notes: 'Class C coaches with cab-over bunk. Kept for existing bookings.',
   },
   airstream: {
     id: 'airstream',
@@ -62,7 +78,8 @@ const RV_TYPES = {
     minFt: 16,
     maxFt: 34,
     livingQuarters: true,
-    packages: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    motorized: false,
+    packages: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Polished aluminum may require inspection before polish scope',
     surfaceAware: true,
   },
@@ -73,8 +90,9 @@ const RV_TYPES = {
     minFt: 12,
     maxFt: 45,
     livingQuarters: 'ask',
-    packagesExterior: ['maint', 'premium'],
-    packagesLiving: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    motorized: false,
+    packagesExterior: ['exterior_wash', 'maint', 'premium'],
+    packagesLiving: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Finished living quarters required for residential interior packages',
   },
   horse: {
@@ -84,8 +102,9 @@ const RV_TYPES = {
     minFt: 12,
     maxFt: 45,
     livingQuarters: 'ask',
-    packagesExterior: ['maint', 'premium'],
-    packagesLiving: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    motorized: false,
+    packagesExterior: ['exterior_wash', 'maint', 'premium'],
+    packagesLiving: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Living-quarters horse trailers only for interior packages',
   },
   other: {
@@ -95,8 +114,9 @@ const RV_TYPES = {
     minFt: 12,
     maxFt: 45,
     livingQuarters: 'ask',
-    packagesExterior: ['maint', 'premium'],
-    packagesLiving: ['maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
+    motorized: false,
+    packagesExterior: ['exterior_wash', 'maint', 'premium'],
+    packagesLiving: ['exterior_wash', 'maint', 'maint_light', 'interior', 'full_basic', 'premium', 'full'],
     notes: 'Tell us about your unit — scope confirmed before service',
   },
 };
@@ -112,21 +132,111 @@ const ADJUSTED_RATES = Object.fromEntries(
 const RV_RATE_BASELINE = { ...ADJUSTED_RATES };
 
 function computeRvServicePrice(pkgId, lengthFt, typeKey) {
-  const rule = RV_RATE_TABLE[pkgId];
-  if (!rule) return null;
-  const t = RV_TYPES[typeKey] || RV_TYPES.travel;
-  const mult = Number(t?.multiplier) || 1;
-  const ft = Number(lengthFt) || 0;
-  return Math.round((rule.base + rule.ratePerFoot * ft) * mult * 100) / 100;
+  const { getLengthPrice } = require('./booking-price-catalog');
+  return getLengthPrice('rvs', pkgId, lengthFt, typeKey || 'travel');
+}
+
+/**
+ * Planning estimate for the basic exterior wash only. Not a guaranteed time.
+ * Line through two solo anchors: 150 min at 25 ft, 280 min at 40 ft.
+ * 280 is the 40 ft wash with roof (~360 min) minus ~60 min of interruptions
+ * and supply and ~20 min of roof. Those are not added back, and there is no
+ * second setup line. Lengths off those anchors are straight-line extrapolations.
+ * A 90-minute floor is a provisional planning decision, not a validated
+ * measurement. It only lifts results that would otherwise fall below 90.
+ * Travel stays a separate fee and is not reserved time between jobs.
+ * The 2-hour schedule grid rounds the hold up on its own
+ * (1 slot at or under 120 min, otherwise ceil(minutes / 120)).
+ */
+const EXTERIOR_WASH_DURATION = Object.freeze({
+  packageId: 'exterior_wash',
+  anchorMinutes: Object.freeze({ 25: 150, 40: 280 }),
+  minimumMinutes: 90,
+  minimumMinutesValidated: false,
+  ownerValidationRequired: true,
+  guaranteed: false,
+  basis: 'Preliminary solo planning estimate. 150 minutes at 25 ft and 280 minutes at 40 ft without roof. Results below 90 minutes use a provisional 90-minute planning floor, not a validated measurement. Not a promised finish time.',
+});
+
+function estimateExteriorWashMinutes(lengthFt) {
+  const ft = Number(lengthFt);
+  if (!Number.isFinite(ft) || ft <= 0) return null;
+  return Math.max(90, Math.ceil((130 * ft - 1000) / 15));
+}
+
+/**
+ * Customer-facing clock only. Rounds to the nearest 15 minutes for reading.
+ * Does not change appointmentDurationMinutes or the slot count.
+ */
+function formatApproxOnSiteDuration(minutes) {
+  const n = Number(minutes);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const shown = Math.round(n / 15) * 15;
+  const hours = Math.floor(shown / 60);
+  const mins = shown % 60;
+  let clock = `${mins} min`;
+  if (hours > 0 && mins > 0) clock = `${hours} hr ${mins} min`;
+  else if (hours > 0) clock = `${hours} hr`;
+  return `About ${clock} on site, depending on size and condition.`;
+}
+
+function applyRvExteriorWashDuration(booking) {
+  if (!booking) return booking;
+  const vehicles = Array.isArray(booking.vehicles) ? booking.vehicles : [];
+  const ceramicIds = new Set(['ceramic_1yr', 'ceramic_3yr']);
+  if (vehicles.some((v) => ceramicIds.has(String((v && (v.pkgId || v.packageId)) || '')))) {
+    return booking;
+  }
+  let minutes = 0;
+  let saw = false;
+  for (const vehicle of vehicles) {
+    const id = String((vehicle && (vehicle.pkgId || vehicle.packageId)) || '');
+    if (id !== 'exterior_wash') continue;
+    const ft = Number(
+      vehicle.lengthFt != null && vehicle.lengthFt !== '' ? vehicle.lengthFt : booking.lengthFt,
+    );
+    const est = estimateExteriorWashMinutes(ft);
+    if (!est) continue;
+    saw = true;
+    minutes += est;
+    vehicle.durationMinutes = est;
+    vehicle.durationSource = 'estimate_owner_review';
+  }
+  if (!saw) return booking;
+  booking.appointmentDurationMinutes = minutes;
+  booking.durationSource = 'estimate_owner_review';
+  return booking;
+}
+
+/** Manufacturer classification only. Does not invent year or length. */
+const RV_MODEL_TYPE_HINTS = Object.freeze({
+  'forest river': Object.freeze({
+    // Forest River Class C Division: Lexington is a Class C / B+ motorhome,
+    // not a travel trailer. Brochure: library.rvusa.com/brochure/13_Lexington.pdf
+    lexington: 'motorhome',
+  }),
+});
+
+function rvModelTypeHint(make, model) {
+  const byMake = RV_MODEL_TYPE_HINTS[String(make || '').trim().toLowerCase()];
+  if (!byMake) return '';
+  return byMake[String(model || '').trim().toLowerCase()] || '';
 }
 
 const RV_PACKAGE_META = {
-  maint: {
-    id: 'maint',
-    name: 'Maintenance Wash',
+  exterior_wash: {
+    id: 'exterior_wash',
+    name: 'Exterior Wash',
     group: 'outside',
     badge: null,
-    subtitle: 'Exterior maintenance with quick machine-applied protection.',
+    subtitle: 'A fresh exterior clean to remove everyday dirt and road grime.',
+  },
+  maint: {
+    id: 'maint',
+    name: 'Wash & Protect',
+    group: 'outside',
+    badge: null,
+    subtitle: 'A thorough wash with added protection to help maintain the finish.',
   },
   maint_light: {
     id: 'maint_light',
@@ -140,28 +250,28 @@ const RV_PACKAGE_META = {
     name: 'Interior Detail',
     group: 'inside',
     badge: null,
-    subtitle: 'Complete interior cleaning from the driver cabin to the living area.',
+    subtitle: 'A thorough clean of your RV\'s living space, from carpets and seating to the kitchen and bathroom.',
   },
   full_basic: {
     id: 'full_basic',
     name: 'Full RV Detail',
     group: 'inside_out',
     badge: 'MOST POPULAR',
-    subtitle: 'Complete interior cleaning plus exterior wash and protection.',
+    subtitle: 'A complete interior clean, plus an exterior wash and protection.',
   },
   premium: {
     id: 'premium',
-    name: 'Premium Exterior Detail',
+    name: 'Exterior Polish & Protect',
     group: 'outside',
     badge: null,
-    subtitle: 'One-Step Machine Polish + Premium Protection',
+    subtitle: 'For a dull exterior that needs more than a wash.',
   },
   full: {
     id: 'full',
     name: 'Premium Complete RV Detail',
     group: 'inside_out',
     badge: 'BEST FINISH',
-    subtitle: 'One-Step Exterior Polish + Complete Interior Detail',
+    subtitle: 'An exterior polish and protective finish, paired with a complete interior clean.',
   },
 };
 
@@ -189,7 +299,13 @@ module.exports = {
   RV_RATE_BASELINE,
   ADJUSTED_RATES,
   RV_PACKAGE_META,
+  EXTERIOR_WASH_DURATION,
+  RV_MODEL_TYPE_HINTS,
   computeRvServicePrice,
+  estimateExteriorWashMinutes,
+  formatApproxOnSiteDuration,
+  applyRvExteriorWashDuration,
+  rvModelTypeHint,
   eligiblePackagesForType,
   rateIncreasePct,
 };

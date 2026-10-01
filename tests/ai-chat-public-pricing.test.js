@@ -67,6 +67,8 @@ test('client chat and server AI prompt agree on public category starting prices'
   assert.match(pricing, /Boats from \$175/);
   assert.match(pricing, /Cars from \$200/);
   assert.match(pricing, /Powersports from \$180/);
+  assert.match(pricing, /Exterior wash from \$199/);
+  assert.match(pricing, /not a full detail/);
   assert.match(pricing, /Fleet[^$\n]*quote-only|quote-only[^$\n]*Fleet/i);
   assert.doesNotMatch(pricing, /\$60\/unit|\$60 per unit/i);
   assert.deepEqual(CHAT_STARTING_PRICES, {
@@ -74,7 +76,7 @@ test('client chat and server AI prompt agree on public category starting prices'
     carMaintenance: 160,
     carWash: 125,
     boats: 175,
-    rvs: 243,
+    rvs: 199,
     powersports: 180,
   });
 });

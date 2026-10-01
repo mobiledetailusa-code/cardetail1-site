@@ -12,6 +12,9 @@
 // rounded to the nearest $5 so quotes stay legible. Linear beyond the free radius
 // means no cliff edge — two neighbours never differ by $15 because a boundary runs
 // between them.
+//
+// This amount is a charge only. It does not reserve drive time between jobs.
+// The calendar holds appointmentDurationMinutes and does not add a travel gap.
 
 const COORDS = require('./data/service-area-zip-coords');
 
