@@ -164,16 +164,20 @@ function estimateExteriorWashMinutes(lengthFt) {
   return Math.max(90, Math.ceil((130 * ft - 1000) / 15));
 }
 
-/** Customer-facing clock for the wash estimate. Not a guaranteed finish time. */
+/**
+ * Customer-facing clock only. Rounds to the nearest 15 minutes for reading.
+ * Does not change appointmentDurationMinutes or the slot count.
+ */
 function formatApproxOnSiteDuration(minutes) {
   const n = Number(minutes);
   if (!Number.isFinite(n) || n <= 0) return '';
-  const hours = Math.floor(n / 60);
-  const mins = n % 60;
+  const shown = Math.round(n / 15) * 15;
+  const hours = Math.floor(shown / 60);
+  const mins = shown % 60;
   let clock = `${mins} min`;
   if (hours > 0 && mins > 0) clock = `${hours} hr ${mins} min`;
   else if (hours > 0) clock = `${hours} hr`;
-  return `About ${clock} on site. Approximate, not a guaranteed time. Travel is separate.`;
+  return `About ${clock} on site, depending on size and condition.`;
 }
 
 function applyRvExteriorWashDuration(booking) {

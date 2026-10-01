@@ -195,13 +195,24 @@ test('wash duration follows the 150 and 280 minute anchors and does not replace 
   const ux = fs.readFileSync(path.join(root, 'assets/booking-conversion-ux.js'), 'utf8');
   assert.match(ux, /Math\.max\(90, Math\.ceil\(\(130 \* ft - 1000\) \/ 15\)\)/);
   assert.match(indexHtml, /function rvApproxDurationLabel/);
-  assert.match(indexHtml, /About ' \+ clock \+ ' on site\. Approximate, not a guaranteed time\. Travel is separate\./);
-  assert.doesNotMatch(indexHtml, /Planning estimate: '\+mins\+' min on site/);
-  assert.equal(formatApproxOnSiteDuration(90), 'About 1 hr 30 min on site. Approximate, not a guaranteed time. Travel is separate.');
-  assert.equal(formatApproxOnSiteDuration(150), 'About 2 hr 30 min on site. Approximate, not a guaranteed time. Travel is separate.');
-  assert.equal(formatApproxOnSiteDuration(280), 'About 4 hr 40 min on site. Approximate, not a guaranteed time. Travel is separate.');
-  assert.equal(formatApproxOnSiteDuration(107), 'About 1 hr 47 min on site. Approximate, not a guaranteed time. Travel is separate.');
-  assert.doesNotMatch(formatApproxOnSiteDuration(estimateExteriorWashMinutes(12)), /38/);
+  assert.match(indexHtml, /Math\.round\(n \/ 15\) \* 15/);
+  assert.match(indexHtml, /About ' \+ clock \+ ' on site, depending on size and condition\./);
+  assert.doesNotMatch(indexHtml, /Travel is separate/);
+  const shown = {
+    90: 'About 1 hr 30 min on site, depending on size and condition.',
+    107: 'About 1 hr 45 min on site, depending on size and condition.',
+    150: 'About 2 hr 30 min on site, depending on size and condition.',
+    194: 'About 3 hr 15 min on site, depending on size and condition.',
+    237: 'About 4 hr on site, depending on size and condition.',
+    280: 'About 4 hr 45 min on site, depending on size and condition.',
+    324: 'About 5 hr 30 min on site, depending on size and condition.',
+  };
+  for (const [mins, label] of Object.entries(shown)) {
+    assert.equal(formatApproxOnSiteDuration(Number(mins)), label);
+  }
+  assert.equal(estimateExteriorWashMinutes(20), 107);
+  assert.equal(estimateExteriorWashMinutes(40), 280);
+  assert.doesNotMatch(formatApproxOnSiteDuration(estimateExteriorWashMinutes(12)), /38|Travel is separate/);
   assert.equal(EXTERIOR_WASH_DURATION.minimumMinutesValidated, false);
   assert.match(EXTERIOR_WASH_DURATION.basis, /provisional 90-minute planning floor/);
   const booking = applyRvExteriorWashDuration({
@@ -273,6 +284,7 @@ test('stored package snapshots keep the exterior scope that was contracted', () 
     packageName: 'Exterior Polish & Protect',
   });
   assert.equal(published.source, 'catalog');
-  assert.match(published.description, /light haze improvement and light oxidation care where the surface allows/);
-  assert.match(published.description, /does not remove all scratches, all haze, or all oxidation/i);
+  assert.match(published.description, /One-step polishing to improve shine and reduce light oxidation/);
+  assert.match(published.description, /Heavy oxidation and deep scratches require a separate quote/);
+  assert.match(published.description, /Roof is separate/);
 });

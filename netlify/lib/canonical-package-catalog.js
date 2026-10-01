@@ -52,8 +52,8 @@ const PACKAGE_DESCRIPTIONS = {
     maint_light: 'Wash and protect outside, plus a quick tidy of floors, seats, and kitchen and bath surfaces you can reach. Driver cabin and windshield are for motorhomes. No shampoo and no roof.',
     interior: 'A thorough clean of your RV\'s living space, from carpets and seating to the kitchen and bathroom. Driver cabin and windshield are for motorhomes. The outside is not included.',
     full_basic: 'A complete interior clean, plus an exterior wash and protection. Roof and polish are not included.',
-    premium: 'For a dull exterior that needs more than a wash. One-step polish to improve gloss, light haze improvement and light oxidation care where the surface allows, then wax or sealant. Does not remove all scratches, all haze, or all oxidation. Roof is separate. Interior is not included.',
-    full: 'An exterior polish and protective finish, paired with a complete interior clean. The exterior matches Exterior Polish & Protect: one-step polish, light haze improvement and light oxidation care where the surface allows, then wax or sealant. This does not remove all scratches, all haze, or all oxidation. Heavy oxidation, deep scratches, and the roof need a separate quote.',
+    premium: 'For a dull exterior that needs more than a wash. One-step polish to improve gloss. One-step polishing to improve shine and reduce light oxidation. Then wax or sealant. Heavy oxidation and deep scratches require a separate quote. Roof is separate. Interior is not included.',
+    full: 'An exterior polish and protective finish, paired with a complete interior clean. The exterior matches Exterior Polish & Protect, including one-step polishing to improve shine and reduce light oxidation. Heavy oxidation and deep scratches require a separate quote. Roof is separate.',
   },
   powersports: {
     wash: 'Wash and shine for powersports units.',

@@ -91,7 +91,7 @@ test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
   assert.match(page, /Exterior hand wash/);
   assert.match(page, /Refrigerator interior when empty/);
   assert.match(page, /One-step polish to improve gloss/);
-  const sharedExterior = 'Light haze improvement and light oxidation care where the surface allows';
+  const sharedExterior = 'One-step polishing to improve shine and reduce light oxidation.';
   assert.match(page, new RegExp(sharedExterior));
   assert.match(pkgs, new RegExp(sharedExterior));
   assert.doesNotMatch(page, /Light haze improvement where the surface allows/);
@@ -111,8 +111,10 @@ test('SCOPE CLARITY: banned vague phrases removed; surfaces listed', () => {
   assert.equal(premiumExt, completeExt);
   assert.match(page, /Driver cabin detailing \(motorhomes only\)/);
   assert.match(pkgs, /Driver cabin detailing \(motorhomes only\)/);
-  assert.match(page, /Does not remove all scratches or heavy oxidation/);
-  assert.match(page, /Heavy oxidation, deep scratches, and the roof need a separate quote/);
+  assert.match(page, /Heavy oxidation and deep scratches require a separate quote/);
+  assert.match(page, /Roof is separate/);
+  assert.match(pkgs, /Heavy oxidation and deep scratches require a separate quote\. Roof is separate/);
+  assert.match(pkgs, /'Roof'/);
   assert.doesNotMatch(page, /Machine buffing|Exterior Gloss Restoration|Oxidation removal &amp; paint revival|ultimate transformation|showroom perfection/i);
   assert.match(page, /MOST POPULAR/);
   assert.match(page, /BEST FINISH/);
