@@ -19,7 +19,9 @@ const {
 const { resolveTravelForZip } = require('../netlify/lib/travel-fee');
 const {
   RV_TYPES,
+  EXTERIOR_WASH_DURATION,
   estimateExteriorWashMinutes,
+  formatApproxOnSiteDuration,
   applyRvExteriorWashDuration,
   rvModelTypeHint,
   eligiblePackagesForType,
@@ -174,7 +176,7 @@ test('stored protection add-ons still reprice, and the booking UI hides them whe
 });
 
 test('wash duration follows the 150 and 280 minute anchors and does not replace ceramic', () => {
-  const minutes = { 12: 38, 20: 107, 25: 150, 30: 194, 35: 237, 40: 280, 45: 324 };
+  const minutes = { 12: 90, 20: 107, 25: 150, 30: 194, 35: 237, 40: 280, 45: 324 };
   const slots = { 12: 1, 20: 1, 25: 2, 30: 2, 35: 2, 40: 3, 45: 3 };
   let previous = 0;
   for (const [ft, expected] of Object.entries(minutes)) {
@@ -186,9 +188,22 @@ test('wash duration follows the 150 and 280 minute anchors and does not replace 
     assert.equal(held, slots[ft], 'slots ' + ft);
   }
   assert.equal(estimateExteriorWashMinutes(0), null);
+  assert.equal(estimateExteriorWashMinutes(12), 90);
+  assert.notEqual(estimateExteriorWashMinutes(12), 38);
+  assert.match(indexHtml, /Math\.max\(90, Math\.ceil\(\(130 \* n - 1000\) \/ 15\)\)/);
   assert.match(indexHtml, /Math\.ceil\(\(130 \* n - 1000\) \/ 15\)/);
   const ux = fs.readFileSync(path.join(root, 'assets/booking-conversion-ux.js'), 'utf8');
-  assert.match(ux, /Math\.ceil\(\(130 \* ft - 1000\) \/ 15\)/);
+  assert.match(ux, /Math\.max\(90, Math\.ceil\(\(130 \* ft - 1000\) \/ 15\)\)/);
+  assert.match(indexHtml, /function rvApproxDurationLabel/);
+  assert.match(indexHtml, /About ' \+ clock \+ ' on site\. Approximate, not a guaranteed time\. Travel is separate\./);
+  assert.doesNotMatch(indexHtml, /Planning estimate: '\+mins\+' min on site/);
+  assert.equal(formatApproxOnSiteDuration(90), 'About 1 hr 30 min on site. Approximate, not a guaranteed time. Travel is separate.');
+  assert.equal(formatApproxOnSiteDuration(150), 'About 2 hr 30 min on site. Approximate, not a guaranteed time. Travel is separate.');
+  assert.equal(formatApproxOnSiteDuration(280), 'About 4 hr 40 min on site. Approximate, not a guaranteed time. Travel is separate.');
+  assert.equal(formatApproxOnSiteDuration(107), 'About 1 hr 47 min on site. Approximate, not a guaranteed time. Travel is separate.');
+  assert.doesNotMatch(formatApproxOnSiteDuration(estimateExteriorWashMinutes(12)), /38/);
+  assert.equal(EXTERIOR_WASH_DURATION.minimumMinutesValidated, false);
+  assert.match(EXTERIOR_WASH_DURATION.basis, /provisional 90-minute planning floor/);
   const booking = applyRvExteriorWashDuration({
     lengthFt: 40,
     vehicles: [{ pkgId: 'exterior_wash', lengthFt: 40 }],
@@ -224,4 +239,40 @@ test('Lexington is a motorhome hint only, and motorized copy is type-specific', 
     assert.match(src, /premium: 'Exterior Polish & Protect'/);
     assert.match(src, /maint_light: 'Maintenance Wash \+ Light Interior'/);
   }
+});
+
+test('stored package snapshots keep the exterior scope that was contracted', () => {
+  const { resolvePackageDetailsForVehicle } = require('../netlify/lib/package-details-resolve');
+  const haze = resolvePackageDetailsForVehicle({
+    cat: 'rvs',
+    pkgId: 'premium',
+    packageName: 'Exterior Polish & Protect',
+    packageSnapshot: {
+      name: 'Exterior Polish & Protect',
+      includedServices: ['Light haze improvement where the surface allows'],
+      limitations: ['Does not remove all scratches or heavy oxidation. Roof is separate.'],
+    },
+  });
+  assert.equal(haze.source, 'snapshot');
+  assert.deepEqual(haze.includedServices, ['Light haze improvement where the surface allows']);
+  const oxidation = resolvePackageDetailsForVehicle({
+    cat: 'rvs',
+    pkgId: 'full',
+    packageName: 'Premium Complete RV Detail',
+    packageSnapshot: {
+      name: 'Premium Complete RV Detail',
+      includedServices: ['Light oxidation and haze improvement where the surface allows'],
+      limitations: ['Heavy oxidation, deep scratches, and the roof need a separate quote.'],
+    },
+  });
+  assert.equal(oxidation.source, 'snapshot');
+  assert.deepEqual(oxidation.includedServices, ['Light oxidation and haze improvement where the surface allows']);
+  const published = resolvePackageDetailsForVehicle({
+    cat: 'rvs',
+    pkgId: 'premium',
+    packageName: 'Exterior Polish & Protect',
+  });
+  assert.equal(published.source, 'catalog');
+  assert.match(published.description, /light haze improvement and light oxidation care where the surface allows/);
+  assert.match(published.description, /does not remove all scratches, all haze, or all oxidation/i);
 });

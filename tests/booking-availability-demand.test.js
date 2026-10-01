@@ -28,7 +28,17 @@ function booked(date, time, id) {
 
 const WEEKDAY = ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
 
-test('12-hour interior span matches submit: only the first slot fits, and continuation occupancy blocks it', () => {
+// Fixtures stay on 2026-09-30 and 2026-10-01. slotsForDate reads the clock
+// when it decides whether those dates are still open, so the review clock is
+// the afternoon of the previous Tuesday. Assertions stay the same.
+const REVIEW_CLOCK_MS = Date.parse('2026-09-29T15:00:00.000Z');
+
+function useReviewClock(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: REVIEW_CLOCK_MS });
+}
+
+test('12-hour interior span matches submit: only the first slot fits, and continuation occupancy blocks it', (t) => {
+  useReviewClock(t);
   const open = startFitsDemand('2026-10-05', '8:00 AM', {
     durationMinutes: 720,
     companionInterior: true,
@@ -77,7 +87,8 @@ test('12-hour interior span matches submit: only the first slot fits, and contin
   assert.equal(arrivalWindowForSlot('10:00 AM'), '10:00-13:00');
 });
 
-test('availability nearby and selection use the same span rules as submit', async () => {
+test('availability nearby and selection use the same span rules as submit', async (t) => {
+  useReviewClock(t);
   process.env.SLOT_INDEX_READS = '1';
   const keys = [];
   for (const time of WEEKDAY) keys.push(booked('2026-09-30', time, 'CD1-SEP30-' + time));

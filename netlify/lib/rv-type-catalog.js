@@ -141,22 +141,39 @@ function computeRvServicePrice(pkgId, lengthFt, typeKey) {
  * Line through two solo anchors: 150 min at 25 ft, 280 min at 40 ft.
  * 280 is the 40 ft wash with roof (~360 min) minus ~60 min of interruptions
  * and supply and ~20 min of roof. Those are not added back, and there is no
- * second setup line. 12, 20, and 45 ft are straight-line extrapolations.
- * Travel stays a separate fee. The 2-hour schedule grid rounds the hold up
- * on its own (1 slot at or under 120 min, otherwise ceil(minutes / 120)).
+ * second setup line. Lengths off those anchors are straight-line extrapolations.
+ * A 90-minute floor is a provisional planning decision, not a validated
+ * measurement. It only lifts results that would otherwise fall below 90.
+ * Travel stays a separate fee and is not reserved time between jobs.
+ * The 2-hour schedule grid rounds the hold up on its own
+ * (1 slot at or under 120 min, otherwise ceil(minutes / 120)).
  */
 const EXTERIOR_WASH_DURATION = Object.freeze({
   packageId: 'exterior_wash',
   anchorMinutes: Object.freeze({ 25: 150, 40: 280 }),
+  minimumMinutes: 90,
+  minimumMinutesValidated: false,
   ownerValidationRequired: true,
   guaranteed: false,
-  basis: 'Preliminary solo planning estimate. 150 minutes at 25 ft and about 280 minutes at 40 ft without roof. Not a promised finish time.',
+  basis: 'Preliminary solo planning estimate. 150 minutes at 25 ft and 280 minutes at 40 ft without roof. Results below 90 minutes use a provisional 90-minute planning floor, not a validated measurement. Not a promised finish time.',
 });
 
 function estimateExteriorWashMinutes(lengthFt) {
   const ft = Number(lengthFt);
   if (!Number.isFinite(ft) || ft <= 0) return null;
-  return Math.ceil((130 * ft - 1000) / 15);
+  return Math.max(90, Math.ceil((130 * ft - 1000) / 15));
+}
+
+/** Customer-facing clock for the wash estimate. Not a guaranteed finish time. */
+function formatApproxOnSiteDuration(minutes) {
+  const n = Number(minutes);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const hours = Math.floor(n / 60);
+  const mins = n % 60;
+  let clock = `${mins} min`;
+  if (hours > 0 && mins > 0) clock = `${hours} hr ${mins} min`;
+  else if (hours > 0) clock = `${hours} hr`;
+  return `About ${clock} on site. Approximate, not a guaranteed time. Travel is separate.`;
 }
 
 function applyRvExteriorWashDuration(booking) {
@@ -229,14 +246,14 @@ const RV_PACKAGE_META = {
     name: 'Interior Detail',
     group: 'inside',
     badge: null,
-    subtitle: 'Complete interior cleaning. Driver cabin applies to motorhomes.',
+    subtitle: 'A thorough clean of your RV\'s living space, from carpets and seating to the kitchen and bathroom.',
   },
   full_basic: {
     id: 'full_basic',
     name: 'Full RV Detail',
     group: 'inside_out',
     badge: 'MOST POPULAR',
-    subtitle: 'Complete interior cleaning plus exterior wash and protection.',
+    subtitle: 'A complete interior clean, plus an exterior wash and protection.',
   },
   premium: {
     id: 'premium',
@@ -250,7 +267,7 @@ const RV_PACKAGE_META = {
     name: 'Premium Complete RV Detail',
     group: 'inside_out',
     badge: 'BEST FINISH',
-    subtitle: 'One-Step Exterior Polish + Complete Interior Detail',
+    subtitle: 'An exterior polish and protective finish, paired with a complete interior clean.',
   },
 };
 
@@ -282,6 +299,7 @@ module.exports = {
   RV_MODEL_TYPE_HINTS,
   computeRvServicePrice,
   estimateExteriorWashMinutes,
+  formatApproxOnSiteDuration,
   applyRvExteriorWashDuration,
   rvModelTypeHint,
   eligiblePackagesForType,

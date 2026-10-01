@@ -169,7 +169,7 @@
     let minutes = 0;
     let matchedCurrent = false;
     function washMinutes(ft) {
-      return Math.ceil((130 * ft - 1000) / 15);
+      return Math.max(90, Math.ceil((130 * ft - 1000) / 15));
     }
     vehicles.forEach(function (vehicle) {
       if (!vehicle || vehicle.pkgId !== 'exterior_wash') return;
