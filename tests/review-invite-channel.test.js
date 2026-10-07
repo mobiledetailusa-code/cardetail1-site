@@ -40,9 +40,11 @@ test('dedicated reviews page exists and is linked from the homepage', () => {
   assert.match(page, /assets\/customer-reviews\.js/);
   assert.match(page, /assets\/reviews-page\.js/);
   assert.match(index, /href="\/reviews"/);
-  assert.match(toml, /from = "\/reviews"/);
-  assert.match(toml, /to = "\/reviews\.html"/);
-  assert.match(sitemap, /reviews\.html/);
+  assert.match(toml, /from = "\/reviews\.html"/);
+  assert.match(toml, /to = "\/reviews"/);
+  assert.match(toml, /status = 301/);
+  assert.match(sitemap, /<loc>https:\/\/cardetail1.com\/reviews<\/loc>/);
+  assert.doesNotMatch(sitemap, /reviews\.html/);
 });
 
 test('homepage carousel is a subset of the dedicated page list', () => {

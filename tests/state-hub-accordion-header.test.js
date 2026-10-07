@@ -102,7 +102,8 @@ for (const page of stateHubs) {
     const links = extractAccordionCityLinks(html);
     assert.ok(links.length > 0, 'expected city links in accordion HTML');
     for (const link of links) {
-      assert.match(link.href, /^\/[a-z0-9-]+\.html(#.+)?$/i);
+      assert.match(link.href, /^\/[a-z0-9-]+(#.+)?$/i);
+      assert.doesNotMatch(link.href, /\.html/);
       assert.ok(link.text.length > 0);
     }
   });
@@ -132,19 +133,20 @@ test('fleet-branch city URLs preserved on NJ/NY/CT state hubs', (t) => {
       return;
     }
     const dedicatedCityPages = {
-      'Palisades Park': '/palisades-park-mobile-detailing.html',
-      'Fort Lee': '/fort-lee-mobile-detailing.html',
-      'Edgewater': '/edgewater-mobile-detailing.html',
-      'Englewood': '/englewood-mobile-detailing.html',
-      'Teaneck': '/teaneck-mobile-detailing.html',
-      'Hackensack': '/hackensack-mobile-detailing.html',
-      'Paramus': '/paramus-mobile-detailing.html',
-      'Ridgewood': '/ridgewood-mobile-detailing.html',
+      'Palisades Park': '/palisades-park-mobile-detailing',
+      'Fort Lee': '/fort-lee-mobile-detailing',
+      'Edgewater': '/edgewater-mobile-detailing',
+      'Englewood': '/englewood-mobile-detailing',
+      'Teaneck': '/teaneck-mobile-detailing',
+      'Hackensack': '/hackensack-mobile-detailing',
+      'Paramus': '/paramus-mobile-detailing',
+      'Ridgewood': '/ridgewood-mobile-detailing',
     };
     const currentLinks = extractAccordionCityLinks(read(page));
     assert.equal(currentLinks.length, fleetLinks.length, `${page} link count`);
     for (let i = 0; i < fleetLinks.length; i++) {
-      const expectedHref = dedicatedCityPages[fleetLinks[i].text] || fleetLinks[i].href;
+      const historical = dedicatedCityPages[fleetLinks[i].text] || fleetLinks[i].href;
+      const expectedHref = historical.replace(/\.html(?=#|$)/, '');
       assert.equal(currentLinks[i].href, expectedHref, `${page} href[${i}]`);
       assert.equal(currentLinks[i].text, fleetLinks[i].text, `${page} text[${i}]`);
     }
@@ -157,7 +159,7 @@ test('PA hub keeps footer-derived service area links', () => {
   const texts = links.map((l) => l.text);
   assert.deepEqual(texts, ['Philadelphia', 'Allentown', 'King of Prussia', 'Scranton']);
   for (const link of links) {
-    assert.equal(link.href, '/pennsylvania-hub.html#eastern-pennsylvania');
+    assert.equal(link.href, '/pennsylvania-hub#eastern-pennsylvania');
   }
 });
 

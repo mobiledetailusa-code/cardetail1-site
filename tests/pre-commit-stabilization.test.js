@@ -30,7 +30,8 @@ function sitemapUrls() {
 
 function sitemapToFile(url) {
   const pathPart = url.replace('https://cardetail1.com/', '').replace(/\/$/, '');
-  return pathPart || 'index.html';
+  if (!pathPart) return 'index.html';
+  return pathPart.endsWith('.html') ? pathPart : `${pathPart}.html`;
 }
 
 function extractHomeServiceLinks(html) {
@@ -47,18 +48,19 @@ function extractHomeServiceLinks(html) {
 
 function resolveHref(href) {
   const [file, hash] = href.replace(/^\//, '').split('#');
-  const filePath = path.join(root, file);
+  const disk = !file ? 'index.html' : (file.endsWith('.html') ? file : `${file}.html`);
+  const filePath = path.join(root, disk);
   assert.ok(fs.existsSync(filePath), `missing destination for ${href}`);
   if (hash) {
-    const html = read(file);
+    const html = read(disk);
     assert.match(html, new RegExp(`id="${hash.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
   }
-  return file;
+  return disk;
 }
 
 test('sitemap reported count equals actual URL entries', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 32);
+  assert.equal(urls.length, 33);
 });
 
 test('every sitemap route file exists on disk', () => {
@@ -96,7 +98,7 @@ test('Boats RV Powersports share identical specialty-public-footer structure', (
     assert.match(html, /Motorcycles &amp; Powersports/);
     assert.match(html, /Commercial &amp; Fleet/);
     assert.match(html, /my-garage\.html/);
-    assert.match(html, /terms-conditions\.html/);
+    assert.match(html, /href="\/terms-conditions"/);
     const footer = html.match(/<footer class="specialty-public-footer"[\s\S]*?<\/footer>/);
     assert.ok(footer, `${page} missing shared footer`);
     const normalized = footer[0].replace(/\s+/g, ' ').trim();

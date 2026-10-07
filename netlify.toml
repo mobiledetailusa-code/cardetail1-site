@@ -120,33 +120,181 @@
   to = "/prototype/:splat"
   status = 302
 [[redirects]]
-  from = "/terms-conditions"
-  to = "/terms-conditions.html"
-  status = 200
-[[redirects]]
   from = "/resume"
   to = "/resume.html"
   status = 200
+
+# Public HTML duplicates. Extensionless is the canonical URL already served
+# at 200 (and trailing slashes already 301 there). force is required because
+# the .html file exists. There is no reverse rewrite back to .html: that pair
+# loops when Netlify Pretty URLs also rewrites the extensionless path.
+# Query strings (book, multi, utm_*, gclid, gbraid, wbraid) are preserved.
+# Operational portals are omitted so their existing 200 rewrites cannot loop.
 [[redirects]]
-  from = "/reviews"
-  to = "/reviews.html"
-  status = 200
+  from = "/index.html"
+  to = "/"
+  status = 301
+  force = true
 [[redirects]]
-  from = "/blog"
-  to = "/blog.html"
-  status = 200
+  from = "/boats-detailing.html"
+  to = "/boats-detailing"
+  status = 301
+  force = true
 [[redirects]]
-  from = "/detailing-vs-car-wash"
-  to = "/detailing-vs-car-wash.html"
-  status = 200
+  from = "/rv-detailing.html"
+  to = "/rv-detailing"
+  status = 301
+  force = true
 [[redirects]]
-  from = "/how-often-to-detail"
-  to = "/how-often-to-detail.html"
-  status = 200
+  from = "/powersports-detailing.html"
+  to = "/powersports-detailing"
+  status = 301
+  force = true
 [[redirects]]
-  from = "/mobile-detailing-what-to-expect"
-  to = "/mobile-detailing-what-to-expect.html"
-  status = 200
+  from = "/trucks-detailing.html"
+  to = "/trucks-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/fleet-services.html"
+  to = "/fleet-services"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/multi-vehicle-detailing.html"
+  to = "/multi-vehicle-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/new-jersey-hub.html"
+  to = "/new-jersey-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ny-metro-hub.html"
+  to = "/ny-metro-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/connecticut-hub.html"
+  to = "/connecticut-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/pennsylvania-hub.html"
+  to = "/pennsylvania-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/bergen-county-hub.html"
+  to = "/bergen-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/essex-county-hub.html"
+  to = "/essex-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/hudson-county-hub.html"
+  to = "/hudson-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/passaic-county-hub.html"
+  to = "/passaic-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/palisades-park-mobile-detailing.html"
+  to = "/palisades-park-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/fort-lee-mobile-detailing.html"
+  to = "/fort-lee-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/paramus-mobile-detailing.html"
+  to = "/paramus-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/hackensack-mobile-detailing.html"
+  to = "/hackensack-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/englewood-mobile-detailing.html"
+  to = "/englewood-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/teaneck-mobile-detailing.html"
+  to = "/teaneck-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/ridgewood-mobile-detailing.html"
+  to = "/ridgewood-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/edgewater-mobile-detailing.html"
+  to = "/edgewater-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/newark-mobile-detailing.html"
+  to = "/newark-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/trenton-mobile-detailing.html"
+  to = "/trenton-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/westchester-mobile-detailing.html"
+  to = "/westchester-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/blog.html"
+  to = "/blog"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/detailing-vs-car-wash.html"
+  to = "/detailing-vs-car-wash"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/how-often-to-detail.html"
+  to = "/how-often-to-detail"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/mobile-detailing-what-to-expect.html"
+  to = "/mobile-detailing-what-to-expect"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/reviews.html"
+  to = "/reviews"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/terms-conditions.html"
+  to = "/terms-conditions"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/privacy-policy.html"
+  to = "/privacy-policy"
+  status = 301
+  force = true
 
 [[headers]]
   for = "/customer.html"

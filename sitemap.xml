@@ -5,65 +5,66 @@
     <changefreq>monthly</changefreq>
   </url>
   <!-- Specialty service pages -->
-  <url><loc>https://cardetail1.com/boats-detailing.html</loc></url>
-  <url><loc>https://cardetail1.com/rv-detailing.html</loc></url>
-  <url><loc>https://cardetail1.com/powersports-detailing.html</loc></url>
-  <url><loc>https://cardetail1.com/fleet-services.html</loc></url>
-  <url><loc>https://cardetail1.com/multi-vehicle-detailing.html</loc></url>
+  <url><loc>https://cardetail1.com/boats-detailing</loc></url>
+  <url><loc>https://cardetail1.com/rv-detailing</loc></url>
+  <url><loc>https://cardetail1.com/powersports-detailing</loc></url>
+  <url><loc>https://cardetail1.com/fleet-services</loc></url>
+  <url><loc>https://cardetail1.com/trucks-detailing</loc></url>
+  <url><loc>https://cardetail1.com/multi-vehicle-detailing</loc></url>
   <!-- State hubs -->
-  <url><loc>https://cardetail1.com/new-jersey-hub.html</loc></url>
-  <url><loc>https://cardetail1.com/ny-metro-hub.html</loc></url>
-  <url><loc>https://cardetail1.com/connecticut-hub.html</loc></url>
-  <url><loc>https://cardetail1.com/pennsylvania-hub.html</loc></url>
+  <url><loc>https://cardetail1.com/new-jersey-hub</loc></url>
+  <url><loc>https://cardetail1.com/ny-metro-hub</loc></url>
+  <url><loc>https://cardetail1.com/connecticut-hub</loc></url>
+  <url><loc>https://cardetail1.com/pennsylvania-hub</loc></url>
   <!-- County hubs -->
-  <url><loc>https://cardetail1.com/bergen-county-hub.html</loc></url>
-  <url><loc>https://cardetail1.com/essex-county-hub.html</loc></url>
-  <url><loc>https://cardetail1.com/hudson-county-hub.html</loc></url>
-  <url><loc>https://cardetail1.com/passaic-county-hub.html</loc></url>
+  <url><loc>https://cardetail1.com/bergen-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/essex-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/hudson-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/passaic-county-hub</loc></url>
   <!-- City pages -->
-  <url><loc>https://cardetail1.com/palisades-park-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/fort-lee-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/paramus-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/hackensack-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/englewood-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/teaneck-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/ridgewood-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/edgewater-mobile-detailing.html</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://cardetail1.com/newark-mobile-detailing.html</loc></url>
-  <url><loc>https://cardetail1.com/trenton-mobile-detailing.html</loc></url>
-  <url><loc>https://cardetail1.com/westchester-mobile-detailing.html</loc></url>
+  <url><loc>https://cardetail1.com/palisades-park-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/fort-lee-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/paramus-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/hackensack-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/englewood-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/teaneck-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/ridgewood-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/edgewater-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://cardetail1.com/newark-mobile-detailing</loc></url>
+  <url><loc>https://cardetail1.com/trenton-mobile-detailing</loc></url>
+  <url><loc>https://cardetail1.com/westchester-mobile-detailing</loc></url>
   <!-- Guides / FAQ (search hub + articles Google should crawl) -->
   <url>
-    <loc>https://cardetail1.com/blog.html</loc>
+    <loc>https://cardetail1.com/blog</loc>
     <lastmod>2026-08-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardetail1.com/detailing-vs-car-wash.html</loc>
+    <loc>https://cardetail1.com/detailing-vs-car-wash</loc>
     <lastmod>2026-08-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardetail1.com/how-often-to-detail.html</loc>
+    <loc>https://cardetail1.com/how-often-to-detail</loc>
     <lastmod>2026-08-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://cardetail1.com/mobile-detailing-what-to-expect.html</loc>
+    <loc>https://cardetail1.com/mobile-detailing-what-to-expect</loc>
     <lastmod>2026-08-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://cardetail1.com/reviews.html</loc>
+    <loc>https://cardetail1.com/reviews</loc>
     <lastmod>2026-09-09</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <!-- Legal -->
-  <url><loc>https://cardetail1.com/terms-conditions.html</loc></url>
-  <url><loc>https://cardetail1.com/privacy-policy.html</loc></url>
+  <url><loc>https://cardetail1.com/terms-conditions</loc></url>
+  <url><loc>https://cardetail1.com/privacy-policy</loc></url>
 </urlset>

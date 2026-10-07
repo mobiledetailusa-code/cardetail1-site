@@ -282,7 +282,7 @@
       var ctx = gatherContext({ category: snapCat || '', source: 'resume_link' });
       var result = evaluateAndMaybeBlock(ctx);
       if (result.blocked) {
-        try { global.history.replaceState({}, '', 'index.html'); } catch (e) { /* ignore */ }
+        try { global.history.replaceState({}, '', '/'); } catch (e) { /* ignore */ }
         return;
       }
       if (global.CD1BookingProgress && typeof global.CD1BookingProgress.resumeFromQuery === 'function') {

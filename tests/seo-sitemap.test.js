@@ -15,28 +15,35 @@ test('robots.txt blocks portals and points to sitemap', () => {
 test('sitemap.xml lists homepage and public hub URLs', () => {
   const sitemap = fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8');
   assert.match(sitemap, /<loc>https:\/\/cardetail1\.com\/<\/loc>/);
-  assert.match(sitemap, /new-jersey-hub\.html/);
-  assert.match(sitemap, /ny-metro-hub\.html/);
-  assert.match(sitemap, /connecticut-hub\.html/);
-  assert.match(sitemap, /pennsylvania-hub\.html/);
-  assert.match(sitemap, /bergen-county-hub\.html/);
-  assert.match(sitemap, /passaic-county-hub\.html/);
-  assert.match(sitemap, /boats-detailing\.html/);
-  assert.match(sitemap, /rv-detailing\.html/);
-  assert.match(sitemap, /powersports-detailing\.html/);
-  assert.match(sitemap, /multi-vehicle-detailing\.html/);
-  assert.match(sitemap, /fleet-services\.html/);
-  assert.match(sitemap, /newark-mobile-detailing\.html/);
-  assert.match(sitemap, /palisades-park-mobile-detailing\.html/);
-  assert.match(sitemap, /fort-lee-mobile-detailing\.html/);
-  assert.match(sitemap, /paramus-mobile-detailing\.html/);
-  assert.match(sitemap, /hackensack-mobile-detailing\.html/);
-  assert.match(sitemap, /blog\.html/);
-  assert.match(sitemap, /detailing-vs-car-wash\.html/);
-  assert.match(sitemap, /how-often-to-detail\.html/);
-  assert.match(sitemap, /mobile-detailing-what-to-expect\.html/);
-  assert.doesNotMatch(sitemap, /admin\.html/);
-  assert.doesNotMatch(sitemap, /customer\.html/);
+  for (const stem of [
+    'new-jersey-hub',
+    'ny-metro-hub',
+    'connecticut-hub',
+    'pennsylvania-hub',
+    'bergen-county-hub',
+    'passaic-county-hub',
+    'boats-detailing',
+    'rv-detailing',
+    'powersports-detailing',
+    'trucks-detailing',
+    'multi-vehicle-detailing',
+    'fleet-services',
+    'newark-mobile-detailing',
+    'palisades-park-mobile-detailing',
+    'fort-lee-mobile-detailing',
+    'paramus-mobile-detailing',
+    'hackensack-mobile-detailing',
+    'blog',
+    'detailing-vs-car-wash',
+    'how-often-to-detail',
+    'mobile-detailing-what-to-expect',
+  ]) {
+    assert.match(sitemap, new RegExp(`<loc>https://cardetail1.com/${stem}</loc>`));
+    assert.doesNotMatch(sitemap, new RegExp(`${stem}\\.html`));
+  }
+  assert.doesNotMatch(sitemap, /\.html/);
+  assert.doesNotMatch(sitemap, /admin/);
+  assert.doesNotMatch(sitemap, /customer/);
 });
 
 test('index.html includes Google Search Console verification meta tag', () => {

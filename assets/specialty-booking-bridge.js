@@ -307,7 +307,7 @@
         settleFail('IFRAME_ERROR');
       };
 
-      frame.src = 'index.html?' + params.toString();
+      frame.src = '/?' + params.toString();
       overlay.style.display = 'flex';
       overlay.classList.add('is-open');
       document.body.style.overflow = 'hidden';
@@ -315,9 +315,15 @@
       loadWatchTimer = setTimeout(function () {
         if (settled) return;
         // Prefer success once overlay is visible — transient iframe probe races should not kill booking.
-        if (overlay && overlay.classList.contains('is-open') && frame && frame.src && frame.src.indexOf('index.html') >= 0) {
-          settleOk();
-          return;
+        if (overlay && overlay.classList.contains('is-open') && frame && frame.src) {
+          try {
+            var frameUrl = new URL(frame.src, window.location.href);
+            var framePath = frameUrl.pathname === '/index.html' ? '/' : frameUrl.pathname;
+            if (framePath === '/') {
+              settleOk();
+              return;
+            }
+          } catch (eFrame) { /* fall through to the blocked/success checks */ }
         }
         if (iframeLooksBlocked()) settleFail('IFRAME_TIMEOUT');
         else settleOk();

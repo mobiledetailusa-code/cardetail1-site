@@ -130,7 +130,7 @@ test('six-step checkout is authoritative on index; specialty pages keep process 
     assert.match(html, /Four clear steps|Start booking|Book Online/i);
   }
   const bridge = read('assets/specialty-booking-bridge.js');
-  assert.match(bridge, /index\.html\?/);
+  assert.match(bridge, /frame\.src = '\/\?'/);
   assert.match(bridge, /launchBooking/);
   const index = read('index.html');
   assert.match(index, /BK_VISIBLE_STEPS = 6/);

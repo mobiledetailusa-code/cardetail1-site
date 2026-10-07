@@ -146,7 +146,7 @@
           }
         }, 300);
       };
-      frame.src = 'index.html?' + params.toString();
+      frame.src = '/?' + params.toString();
       overlay.style.display = 'flex';
       overlay.classList.add('is-open');
       document.body.style.overflow = 'hidden';

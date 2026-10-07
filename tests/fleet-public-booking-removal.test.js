@@ -87,9 +87,9 @@ test('footer/contact uses Commercial fleet quote path (no instant fleet booking)
       `${page} still books fleet from footer`
     );
     if (page === 'index.html') {
-      assert.match(html, /href="fleet-services\.html"/, `${page} missing fleet-services link`);
+      assert.match(html, /href="\/fleet-services"/, `${page} missing fleet-services link`);
     } else {
-      assert.match(html, /openCommercialInquiry\(\)|href="fleet-services\.html"/, `${page} missing fleet quote path`);
+      assert.match(html, /openCommercialInquiry\(\)|href="\/fleet-services"/, `${page} missing fleet quote path`);
       assert.match(html, /function openCommercialInquiry\(/, `${page} missing openCommercialInquiry definition`);
     }
   }

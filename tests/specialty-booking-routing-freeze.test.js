@@ -247,7 +247,7 @@ describe('canonical category IDs (not rv/boat aliases)', () => {
 
   it('specialty pages delegate to homepage booking overlay, not a second wizard', () => {
     assert.match(bridge, /openCategoryPackageBooking/);
-    assert.match(bridge, /frame\.src = 'index\.html\?' \+ params\.toString\(\)/);
+    assert.match(bridge, /frame\.src = '\/\?' \+ params\.toString\(\)/);
     assert.match(rvPage, /assets\/specialty-booking-bridge\.js/);
     assert.match(boatsPage, /assets\/specialty-booking-bridge\.js/);
     assert.match(psPage, /assets\/specialty-booking-bridge\.js/);

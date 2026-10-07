@@ -81,7 +81,7 @@ describe('Phase 1 greeting and empty state', () => {
     assert.match(js, /Book with 10% off/);
     assert.match(js, /Book a service/);
     assert.match(js, /up to \$40/);
-    assert.match(js, /terms-conditions\.html#welcome-offer/);
+    assert.match(js, /\/terms-conditions#welcome-offer/);
   });
 
   it('pay home card only scrolls to payments', () => {

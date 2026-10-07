@@ -121,7 +121,7 @@
 
     if (count >= 7) {
       closeGaragePlan();
-      global.location.href = '/fleet-services.html';
+      global.location.href = '/fleet-services';
       return;
     }
     if (count < 2) {
@@ -131,7 +131,7 @@
         bookOne.onclick = function () {
           closeGaragePlan();
           if (typeof global.openBooking === 'function') global.openBooking(null);
-          else global.location.href = '/index.html';
+          else global.location.href = '/';
         };
       }
       return;
@@ -177,7 +177,7 @@
         return;
       }
       if (data.route === 'fleet_quote') {
-        global.location.href = data.fleetUrl || '/fleet-services.html';
+        global.location.href = data.fleetUrl || '/fleet-services';
         return;
       }
       if (global.Cardetail1Revenue) {

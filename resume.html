@@ -15,7 +15,7 @@ a{color:#4da3ff}
 <div class="box">
   <h1 style="font-size:20px;margin-bottom:10px">Resume your booking</h1>
   <p id="msg" style="color:#8a9bb0;font-size:14px">Validating secure link…</p>
-  <p style="margin-top:16px"><a href="index.html">Return to homepage</a></p>
+  <p style="margin-top:16px"><a href="/">Return to homepage</a></p>
 </div>
 <script src="assets/consent-manager.js"></script>
 <script src="assets/revenue-events.js"></script>
@@ -34,7 +34,7 @@ a{color:#4da3ff}
       }
       if(window.Cardetail1Revenue) window.Cardetail1Revenue.track('booking_resumed',{booking_step:data.bookingStep});
       msg.textContent='Link verified. Opening booking…';
-      location.href='index.html?resume=1&step='+(data.bookingStep||1);
+      location.href='/?resume=1&step='+(data.bookingStep||1);
     })
     .catch(function(){ msg.textContent='Could not validate link. Please try again or call us.'; });
 })();
