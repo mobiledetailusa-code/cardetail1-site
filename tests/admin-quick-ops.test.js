@@ -5,7 +5,7 @@
  * GET never mutates. Tokens are admin_quick_ops only. Direct getBookingRecord.
  */
 
-const { describe, it, before, beforeEach, afterEach } = require('node:test');
+const { describe, it, before, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('path');
@@ -14,6 +14,12 @@ const ROOT = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
+const { installFrozenBookingClock, restoreFrozenBookingClock } = require('./helpers/frozen-booking-clock');
+
+const [SOURCE_DATE, APPROVE_DATE] = installFrozenBookingClock().futureFullWeekdays(2);
+after(() => {
+  restoreFrozenBookingClock();
+});
 const { canonicalBookingSmsConsent } = require('../netlify/lib/sms-program');
 const { TEMPLATE_KEYS, renderSmsTemplate, measureSms } = require('../netlify/lib/sms-templates');
 const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
@@ -547,11 +553,13 @@ describe('quick ops page + actions', () => {
       status: 'Confirmed',
       appointmentStatus: 'confirmed',
       jobStatus: 'confirmed',
+      preferredDate: SOURCE_DATE,
+      confirmedDate: SOURCE_DATE,
       changeRequests: [{
         requestId: 'cr_qo_2',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-10-06', requestedTime: '8:00 AM' },
+        delta: { requestedDate: APPROVE_DATE, requestedTime: '8:00 AM' },
         embeddedBookingVersion: 1,
       }],
     });

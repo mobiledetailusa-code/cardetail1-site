@@ -75,13 +75,16 @@ for (const page of CITY_PAGES) {
     const html = read(page);
     assert.equal((html.match(/<h1\b/gi) || []).length, 1);
     assert.match(html, /<h1>Mobile Car Detailing in /);
-    assert.match(html, new RegExp(`<link rel="canonical" href="https://cardetail1.com/${page}">`));
+    const stem = page.replace(/\.html$/, '');
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://cardetail1.com/${stem}">`));
+    assert.doesNotMatch(html, new RegExp(`rel="canonical" href="https://cardetail1.com/${stem}\\.html"`));
     const about = html.match(/<div class="city-copy">([\s\S]*?)<\/div>/);
     assert.ok(about, 'city copy missing');
     const words = about[1].replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
     assert.ok(words >= 300, `${page} copy has ${words} words`);
     assert.match(html, /name="zip"/);
-    assert.match(html, /index\.html\?book=cars/);
+    assert.match(html, /href="\/\?book=cars/);
+    assert.doesNotMatch(html, /href="index\.html\?book=cars/);
     const nodes = flatten(jsonLdBlocks(html));
     assert.ok(nodes.some((b) => typesOf(b).includes('LocalBusiness')));
     assert.ok(nodes.some((b) => typesOf(b).includes('Service')));
@@ -103,7 +106,9 @@ test('city pages do not share titles or H1s', () => {
 test('existing city pages self-canonicalize', () => {
   for (const page of ['newark-mobile-detailing.html', 'trenton-mobile-detailing.html', 'westchester-mobile-detailing.html']) {
     const html = read(page);
-    assert.match(html, new RegExp(`<link rel="canonical" href="https://cardetail1.com/${page}">`));
+    const stem = page.replace(/\.html$/, '');
+    assert.match(html, new RegExp(`<link rel="canonical" href="https://cardetail1.com/${stem}">`));
+    assert.doesNotMatch(html, new RegExp(`${stem}\\.html`));
   }
 });
 
@@ -131,8 +136,11 @@ test('homepage and Bergen hub link to dedicated city pages', () => {
   const index = read('index.html');
   const bergen = read('bergen-county-hub.html');
   for (const page of CITY_PAGES) {
-    assert.match(index, new RegExp(page));
-    assert.match(bergen, new RegExp(page));
+    const stem = page.replace(/\.html$/, '');
+    assert.match(index, new RegExp(`/${stem}`));
+    assert.match(bergen, new RegExp(`/${stem}`));
+    assert.doesNotMatch(index, new RegExp(`${stem}\\.html`));
+    assert.doesNotMatch(bergen, new RegExp(`${stem}\\.html`));
   }
 });
 
@@ -146,7 +154,9 @@ test('llms.txt describes Palisades Park services and prices', () => {
 test('sitemap lists Bergen city landings', () => {
   const xml = read('sitemap.xml');
   for (const page of CITY_PAGES) {
-    assert.match(xml, new RegExp(page));
+    const stem = page.replace(/\.html$/, '');
+    assert.match(xml, new RegExp(`https://cardetail1.com/${stem}</loc>`));
+    assert.doesNotMatch(xml, new RegExp(`${stem}\\.html`));
   }
   assert.doesNotMatch(xml, /template-city/);
   assert.doesNotMatch(xml, /admin\.html/);

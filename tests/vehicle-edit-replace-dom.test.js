@@ -396,17 +396,17 @@ describe('BB-02 homepage specialty CTA is not Boats-only', () => {
 
   it('dedicated specialty nav links keep Trucks / RV / Boat / Powersports destinations', () => {
     const nav = index.match(/<nav class="specialty-service-nav"[\s\S]*?<\/nav>/)[0];
-    assert.match(nav, /href="trucks-detailing\.html"/);
-    assert.match(nav, /href="rv-detailing\.html"/);
-    assert.match(nav, /href="boats-detailing\.html"/);
-    assert.match(nav, /href="powersports-detailing\.html"/);
+    assert.match(nav, /href="\/trucks-detailing"/);
+    assert.match(nav, /href="\/rv-detailing"/);
+    assert.match(nav, /href="\/boats-detailing"/);
+    assert.match(nav, /href="\/powersports-detailing"/);
     const win = mountBooking();
     const hrefs = [...win.document.querySelectorAll('.specialty-service-link')].map((a) => a.getAttribute('href'));
     assert.deepEqual(hrefs, [
-      'trucks-detailing.html',
-      'rv-detailing.html',
-      'boats-detailing.html',
-      'powersports-detailing.html',
+      '/trucks-detailing',
+      '/rv-detailing',
+      '/boats-detailing',
+      '/powersports-detailing',
     ]);
   });
 });

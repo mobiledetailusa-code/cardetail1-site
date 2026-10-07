@@ -206,8 +206,8 @@ describe('P0-5 / P0-6 funnel copy', () => {
 describe('P0-7 multi-vehicle #book', () => {
   it('routes through the homepage booking opener instead of a dead #book hash', () => {
     assert.doesNotMatch(multi, /#book/);
-    assert.match(multi, /index\.html\?book=cars&amp;multi=1/);
-    assert.match(multi, /href="index\.html\?book=cars"/);
+    assert.match(multi, /\/\?book=cars&amp;multi=1/);
+    assert.match(multi, /href="\/\?book=cars"/);
     assert.match(index, /params\.get\('multi'\)==='1'/);
   });
 });

@@ -2020,9 +2020,9 @@
           '<div class="card portal-empty-book" id="portal-empty-book">' +
           '<div class="card-kicker">Welcome offer</div>' +
           '<h2 class="card-title">No upcoming appointment</h2>' +
-          '<p class="pack-desc">New customers get 10% off the eligible service subtotal, up to $40. No promo code. One redemption per household. <a href="terms-conditions.html#welcome-offer">Terms apply</a>.</p>' +
-          '<a class="btn primary" href="index.html">Book with 10% off</a>' +
-          '<p class="hint"><a href="index.html">Book a service</a> without the offer copy if you already redeemed.</p>' +
+          '<p class="pack-desc">New customers get 10% off the eligible service subtotal, up to $40. No promo code. One redemption per household. <a href="/terms-conditions#welcome-offer">Terms apply</a>.</p>' +
+          '<a class="btn primary" href="/">Book with 10% off</a>' +
+          '<p class="hint"><a href="/">Book a service</a> without the offer copy if you already redeemed.</p>' +
           '</div>';
       }
       if (global.CD1GarageDashboard) CD1GarageDashboard.render();

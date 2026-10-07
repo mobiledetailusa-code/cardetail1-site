@@ -52,10 +52,10 @@ const PACKAGE_BY_PAGE = {
 };
 
 const SPECIALTY_NAV_HREFS = [
-  'trucks-detailing.html',
-  'rv-detailing.html',
-  'boats-detailing.html',
-  'powersports-detailing.html',
+  '/trucks-detailing',
+  '/rv-detailing',
+  '/boats-detailing',
+  '/powersports-detailing',
 ];
 
 /** Approved real-work / category media (no car filler). */
@@ -200,10 +200,10 @@ describe('specialty-service-nav shared component', () => {
       const html = read(page);
       const block = html.match(/<nav class="specialty-service-nav"[\s\S]*?<\/nav>/)[0];
       assert.doesNotMatch(block, /onclick=/);
-      assert.match(block, /<a class="specialty-service-link" href="trucks-detailing\.html"/);
-      assert.match(block, /<a class="specialty-service-link" href="rv-detailing\.html"/);
-      assert.match(block, /<a class="specialty-service-link" href="boats-detailing\.html"/);
-      assert.match(block, /<a class="specialty-service-link" href="powersports-detailing\.html"/);
+      assert.match(block, /<a class="specialty-service-link" href="\/trucks-detailing"/);
+      assert.match(block, /<a class="specialty-service-link" href="\/rv-detailing"/);
+      assert.match(block, /<a class="specialty-service-link" href="\/boats-detailing"/);
+      assert.match(block, /<a class="specialty-service-link" href="\/powersports-detailing"/);
     });
 
     it(`${page} specialty nav has no promotional title label`, () => {
@@ -298,23 +298,23 @@ describe('homepage specialty switcher placement and state', () => {
 describe('aria-current on dedicated pages', () => {
   it('boats page marks Boats as current', () => {
     const html = read('boats-detailing.html');
-    assert.match(html, /href="boats-detailing\.html" aria-current="page"/);
-    assert.doesNotMatch(html, /href="rv-detailing\.html" aria-current="page"/);
-    assert.doesNotMatch(html, /href="powersports-detailing\.html" aria-current="page"/);
-    assert.doesNotMatch(html, /href="trucks-detailing\.html" aria-current="page"/);
+    assert.match(html, /href="\/boats-detailing" aria-current="page"/);
+    assert.doesNotMatch(html, /href="\/rv-detailing" aria-current="page"/);
+    assert.doesNotMatch(html, /href="\/powersports-detailing" aria-current="page"/);
+    assert.doesNotMatch(html, /href="\/trucks-detailing" aria-current="page"/);
   });
   it('powersports page marks Powersports as current', () => {
     const html = read('powersports-detailing.html');
-    assert.match(html, /href="powersports-detailing\.html" aria-current="page"/);
+    assert.match(html, /href="\/powersports-detailing" aria-current="page"/);
   });
   it('rv page marks RV & Trailers as current', () => {
     const html = read('rv-detailing.html');
-    assert.match(html, /href="rv-detailing\.html" aria-current="page"/);
+    assert.match(html, /href="\/rv-detailing" aria-current="page"/);
   });
   it('trucks page marks Trucks as current', () => {
     const html = read('trucks-detailing.html');
-    assert.match(html, /href="trucks-detailing\.html" aria-current="page"/);
-    assert.doesNotMatch(html, /href="boats-detailing\.html" aria-current="page"/);
+    assert.match(html, /href="\/trucks-detailing" aria-current="page"/);
+    assert.doesNotMatch(html, /href="\/boats-detailing" aria-current="page"/);
   });
   it('generic hubs do not set aria-current', () => {
     const html = read('new-jersey-hub.html');
@@ -447,11 +447,12 @@ describe('local booking CTAs (no homepage redirect)', () => {
 
     it(`${page} Book CTAs use overlay bridge with href fallback`, () => {
       const html = read(page);
-      // Progressive enhancement: primary Book links may include index.html?book=…
-      // but must also carry data-booking-category so the specialty bridge opens overlay.
-      assert.match(html, new RegExp(`href="index\\.html\\?book=${cat}"[^>]*data-booking-category="${cat}"|data-booking-category="${cat}"[^>]*href="index\\.html\\?book=${cat}"`));
+      // Progressive enhancement: primary Book links point at the canonical homepage
+      // with the booking query, and carry data-booking-category so the overlay opens.
+      assert.match(html, new RegExp(`href="/\\?book=${cat}"[^>]*data-booking-category="${cat}"|data-booking-category="${cat}"[^>]*href="/\\?book=${cat}"`));
       assert.doesNotMatch(html, /href="\/#booking"/);
       assert.doesNotMatch(html, /href="index\.html#booking"/);
+      assert.doesNotMatch(html, new RegExp(`href="index\\.html\\?book=${cat}"`));
       assert.match(html, /assets\/specialty-booking-bridge\.js/);
     });
 

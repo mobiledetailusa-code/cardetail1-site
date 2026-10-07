@@ -37,10 +37,11 @@ function extractHubLinks(section) {
 
 function hrefExists(href) {
   const [file, hash] = href.replace(/^\//, '').split('#');
-  const filePath = path.join(root, file);
+  const disk = !file ? 'index.html' : (file.endsWith('.html') ? file : `${file}.html`);
+  const filePath = path.join(root, disk);
   assert.ok(fs.existsSync(filePath), `missing file for href ${href}`);
   if (hash) {
-    const html = read(file);
+    const html = read(disk);
     assert.match(html, new RegExp(`id="${hash}"`));
   }
 }
@@ -50,15 +51,15 @@ const cityLinks = extractCityLinks(section);
 const hubLinks = extractHubLinks(section);
 
 const expectedCityHrefs = [
-  '/palisades-park-mobile-detailing.html',
-  '/fort-lee-mobile-detailing.html',
-  '/paramus-mobile-detailing.html',
-  '/hackensack-mobile-detailing.html',
-  '/englewood-mobile-detailing.html',
-  '/teaneck-mobile-detailing.html',
-  '/ridgewood-mobile-detailing.html',
-  '/edgewater-mobile-detailing.html',
-  '/bergen-county-hub.html',
+  '/palisades-park-mobile-detailing',
+  '/fort-lee-mobile-detailing',
+  '/paramus-mobile-detailing',
+  '/hackensack-mobile-detailing',
+  '/englewood-mobile-detailing',
+  '/teaneck-mobile-detailing',
+  '/ridgewood-mobile-detailing',
+  '/edgewater-mobile-detailing',
+  '/bergen-county-hub',
 ];
 
 test('homepage contains the Mobile Detailing Near You section', () => {
@@ -83,7 +84,8 @@ test('section contains 8 to 12 city links', () => {
 
 test('every city link is an anchor with a valid href in raw HTML', () => {
   for (const link of cityLinks) {
-    assert.match(link.href, /^\/[a-z0-9-]+\.html(#.+)?$/i);
+    assert.match(link.href, /^\/[a-z0-9-]+(#.+)?$/i);
+    assert.doesNotMatch(link.href, /\.html/);
     assert.ok(link.text.length > 0);
     hrefExists(link.href);
   }
@@ -110,9 +112,9 @@ test('homepage uses confirmed existing city and county URLs only', () => {
 
 test('state hub links for NJ, NY and CT exist', () => {
   const hrefs = hubLinks.map((l) => l.href);
-  assert.ok(hrefs.includes('/new-jersey-hub.html'));
-  assert.ok(hrefs.includes('/ny-metro-hub.html'));
-  assert.ok(hrefs.includes('/connecticut-hub.html'));
+  assert.ok(hrefs.includes('/new-jersey-hub'));
+  assert.ok(hrefs.includes('/ny-metro-hub'));
+  assert.ok(hrefs.includes('/connecticut-hub'));
   assert.equal(hubLinks.length, 3);
 });
 

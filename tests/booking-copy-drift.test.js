@@ -227,7 +227,13 @@ function sitemapPaths() {
   return locs.map((loc) => {
     const pathname = /^[a-z][a-z0-9+.-]*:/i.test(loc) ? new URL(loc).pathname : loc;
     const rel = pathname.replace(/^\/+/, '');
-    return rel === '' ? roleEvidence.rootDocument : rel;
+    if (rel === '') return roleEvidence.rootDocument;
+    // Sitemap advertises the extensionless canonical URL. The published source
+    // file is still stem.html, so role evidence maps that URL back to the file.
+    if (!rel.endsWith('.html') && fs.existsSync(path.join(root, `${rel}.html`))) {
+      return `${rel}.html`;
+    }
+    return rel;
   });
 }
 

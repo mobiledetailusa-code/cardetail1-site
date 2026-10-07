@@ -481,7 +481,22 @@
     });
   }
 
+  function isProductionAdsHost() {
+    try {
+      var loc = global.location || {};
+      var host = loc.hostname ? String(loc.hostname) : '';
+      if (!host && loc.href) {
+        host = String(loc.href).replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').split('/')[0].split(':')[0];
+      }
+      host = host.toLowerCase();
+      return host === 'cardetail1.com' || host === 'www.cardetail1.com';
+    } catch (eHost) {
+      return false;
+    }
+  }
+
   function initGoogleAds(consent) {
+    if (!isProductionAdsHost()) return;
     var adsId = global.CD1_GOOGLE_ADS_ID || 'AW-11321647982';
     if (!adsId) return;
     var adsPageViewSendTo = global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq';
@@ -574,6 +589,7 @@
     var inFlightKey = null;
     try {
       // Prefer explicit booking send_to; fall back to legacy PURCHASE env name.
+      if (!isProductionAdsHost()) return false;
       var sendTo = global.CD1_GOOGLE_ADS_BOOKING_SEND_TO
         || global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO
         || 'AW-11321647982/yrODCJGL998YEO7GypYq';

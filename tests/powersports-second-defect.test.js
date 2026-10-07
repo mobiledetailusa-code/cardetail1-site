@@ -258,7 +258,7 @@ async function post(store, body) {
 describe('Powersports public entry + package IDs', () => {
   it('generic Book This Service opens powersports without a package id', () => {
     assert.match(psPage, /data-booking-category="powersports">Book This Service/);
-    assert.match(psPage, /href="index\.html\?book=powersports"/);
+    assert.match(psPage, /href="\/\?book=powersports"/);
     assert.doesNotMatch(
       psPage.slice(psPage.indexOf('Book This Service') - 180, psPage.indexOf('Book This Service') + 40),
       /data-booking-package=/

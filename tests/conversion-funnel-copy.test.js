@@ -161,7 +161,7 @@ test('the ZIP button no longer claims to book', () => {
 test('discovery CTAs still open the same booking flow', () => {
   for (const page of bookingPages) {
     const html = read(page);
-    assert.match(html, /class="nav-cta[^"]*"[^>]*onclick="openBooking\(null\)"|class="nav-cta" href="index\.html"/,
+    assert.match(html, /class="nav-cta[^"]*"[^>]*onclick="openBooking\(null\)"|class="nav-cta" href="\/(?:\?[^"]*)?"/,
       `${page} nav CTA lost its booking entry point`);
     assert.match(html, /function openBooking\(/, `${page} lost openBooking()`);
   }

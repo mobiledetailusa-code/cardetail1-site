@@ -112,25 +112,26 @@ test('fleet-services.html is quote-only (no public unit pricing or fleet booking
 
 test('sitemap lists canonical public routes and excludes admin/customer portals', () => {
   const urls = extractSitemapUrls();
-  assert.equal(urls.length, 32);
+  assert.equal(urls.length, 33);
   assert.ok(urls.includes('https://cardetail1.com/'));
   for (const slug of [
-    'boats-detailing.html',
-    'rv-detailing.html',
-    'powersports-detailing.html',
-    'fleet-services.html',
-    'multi-vehicle-detailing.html',
-    'new-jersey-hub.html',
-    'connecticut-hub.html',
-    'pennsylvania-hub.html',
-    'newark-mobile-detailing.html',
-    'privacy-policy.html',
-    'blog.html',
-    'detailing-vs-car-wash.html',
-    'how-often-to-detail.html',
-    'mobile-detailing-what-to-expect.html',
+    'boats-detailing',
+    'rv-detailing',
+    'powersports-detailing',
+    'trucks-detailing',
+    'fleet-services',
+    'multi-vehicle-detailing',
+    'new-jersey-hub',
+    'connecticut-hub',
+    'pennsylvania-hub',
+    'newark-mobile-detailing',
+    'privacy-policy',
+    'blog',
+    'detailing-vs-car-wash',
+    'how-often-to-detail',
+    'mobile-detailing-what-to-expect',
   ]) {
-    assert.ok(urls.some((u) => u.endsWith('/' + slug)), `missing sitemap url ${slug}`);
+    assert.ok(urls.includes(`https://cardetail1.com/${slug}`), `missing sitemap url ${slug}`);
   }
   for (const bad of ['admin.html', 'customer.html', 'technician.html', 'admin-ops.html']) {
     assert.ok(!urls.some((u) => u.includes(bad)), `sitemap must not include ${bad}`);
@@ -139,8 +140,8 @@ test('sitemap lists canonical public routes and excludes admin/customer portals'
 
 test('every sitemap HTML target exists on disk', () => {
   for (const url of extractSitemapUrls()) {
-    const file = url.replace('https://cardetail1.com/', '').replace(/\/$/, 'index.html') || 'index.html';
-    const resolved = file === '' ? 'index.html' : file;
+    const pathPart = url.replace('https://cardetail1.com/', '').replace(/\/$/, '');
+    const resolved = !pathPart ? 'index.html' : (pathPart.endsWith('.html') ? pathPart : `${pathPart}.html`);
     assert.ok(fs.existsSync(path.join(root, resolved)), `missing file for ${url}`);
   }
 });
@@ -158,9 +159,9 @@ test('netlify CSP allows same-origin booking iframe', () => {
 
 test('index footer links to dedicated specialty pages', () => {
   const footer = read('index.html').slice(read('index.html').indexOf('<footer'));
-  assert.match(footer, /href="boats-detailing\.html"/);
-  assert.match(footer, /href="rv-detailing\.html"/);
-  assert.match(footer, /href="powersports-detailing\.html"/);
-  assert.match(footer, /href="fleet-services\.html"/);
+  assert.match(footer, /href="\/boats-detailing"/);
+  assert.match(footer, /href="\/rv-detailing"/);
+  assert.match(footer, /href="\/powersports-detailing"/);
+  assert.match(footer, /href="\/fleet-services"/);
   assert.match(footer, /Commercial &amp; Fleet/);
 });

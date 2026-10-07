@@ -107,8 +107,8 @@ describe('trucks booking checkout recalculation', () => {
 describe('trucks public surface english-only + home option', () => {
   it('homepage specialty nav and footer expose trucks outside cars', () => {
     const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.match(index, /href="trucks-detailing\.html">Semi Trucks</);
-    assert.match(index, /href="trucks-detailing\.html">Trucks \/ Semis</);
+    assert.match(index, /href="\/trucks-detailing">Semi Trucks</);
+    assert.match(index, /href="\/trucks-detailing">Trucks \/ Semis</);
     assert.match(index, /id="bkcat-trucks"/);
     assert.match(index, /svc-name[^>]*>Cars &amp; SUVs</);
     assert.doesNotMatch(index, /carretas/i);
@@ -120,7 +120,7 @@ describe('trucks public surface english-only + home option', () => {
     assert.match(index, /ZONE_POPULAR[\s\S]*nj_a:\s*\['cars','boats','trucks'\]/);
     assert.match(index, /default:\s*\['cars','boats','rvs','powersports','trucks'\]/);
     assert.match(index, /cats = \['cars', \.\.\.cats\.filter\(c=>c!=='cars'&&c!=='trucks'\), 'trucks'\]/);
-    assert.match(index, /cat === 'trucks' \? 'trucks-detailing\.html'/);
+    assert.match(index, /cat === 'trucks' \? '\/trucks-detailing'/);
     assert.ok(fs.existsSync(path.join(root, 'assets/icons/3d/cat-trucks.webp')));
     assert.ok(fs.existsSync(path.join(root, 'assets/icons/3d/pack-trucks-family.webp')));
     const icon3d = fs.readFileSync(path.join(root, 'assets/icon-3d.js'), 'utf8');

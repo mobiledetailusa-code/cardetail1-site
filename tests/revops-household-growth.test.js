@@ -402,7 +402,7 @@ test('CSP allows Google Ads gtag domains', () => {
 test('multi-vehicle landing page books via working checkout CTA', () => {
   const html = fs.readFileSync(path.join(root, 'multi-vehicle-detailing.html'), 'utf8');
   assert.match(html, /Book Multiple Vehicles/);
-  assert.match(html, /index\.html\?book=cars&amp;multi=1/);
+  assert.match(html, /\/\?book=cars&amp;multi=1/);
   assert.doesNotMatch(html, /index\.html\?multi=1#book/);
   assert.doesNotMatch(html, /data-cd1-garage-cta|Request Garage Plan|Build Your Garage Plan/);
 });
@@ -416,7 +416,8 @@ test('multi-vehicle landing page exists and is indexable', () => {
 
 test('sitemap includes multi-vehicle page', () => {
   const sitemap = fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8');
-  assert.match(sitemap, /multi-vehicle-detailing\.html/);
+  assert.match(sitemap, /<loc>https:\/\/cardetail1.com\/multi-vehicle-detailing<\/loc>/);
+  assert.doesNotMatch(sitemap, /multi-vehicle-detailing\.html/);
 });
 
 test('customer segments module exists', () => {

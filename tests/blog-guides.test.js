@@ -42,9 +42,9 @@ function attr(tag, name) {
 
 test('homepage and footer expose Guides', () => {
   const index = read('index.html');
-  assert.match(index, /href="blog\.html">Guides<\/a>/);
+  assert.match(index, /href="\/blog">Guides<\/a>/);
   const footer = read('assets/partials/specialty-public-footer.html');
-  assert.match(footer, /href="blog\.html">Guides &amp; FAQ<\/a>/);
+  assert.match(footer, /href="\/blog">Guides &amp; FAQ<\/a>/);
 });
 
 test('guide pages are indexable public HTML with title, H1, and canonical', () => {
@@ -56,7 +56,7 @@ test('guide pages are indexable public HTML with title, H1, and canonical', () =
     assert.equal((html.match(/<h1[\s>]/gi) || []).length, 1, `${page} must have exactly one H1`);
     assert.match(html, /rel="canonical"/, `${page} missing canonical`);
     assert.doesNotMatch(html, /id="bk-ov"/, `${page} must not embed the booking modal`);
-    assert.match(html, /href="blog\.html"/, `${page} missing guides hub link`);
+    assert.match(html, /href="\/blog"/, `${page} missing guides hub link`);
     assert.match(html, /id="cd1-public-footer"/, `${page} missing canonical footer`);
     assert.match(html, /assets\/back-to-top\.js/, `${page} missing back-to-top`);
     assert.match(html, /Cardetail1/, `${page} missing brand`);
@@ -64,7 +64,7 @@ test('guide pages are indexable public HTML with title, H1, and canonical', () =
     assert.doesNotMatch(html, /noindex/i, `${page} is noindexed`);
     assert.doesNotMatch(html, /Vehicles detailed/, `${page} claims a vehicle count`);
     assert.doesNotMatch(html, /Lock Your Slot/i, `${page} uses forbidden slot copy`);
-    assert.match(html, /href="index\.html"/, `${page} missing booking/home CTA`);
+    assert.match(html, /href="\/"/, `${page} missing booking/home CTA`);
   }
 });
 
@@ -90,7 +90,7 @@ test('guides hub is a crawlable search destination', () => {
   const html = read('blog.html');
   assert.match(html, /<form[^>]*id="guide-search-form"[^>]*method="get"/);
   assert.match(html, /name="q"/);
-  assert.match(html, /action="blog\.html"/);
+  assert.match(html, /action="\/blog"/);
   assert.match(html, /What are you trying to figure out\?/);
   assert.match(html, /placeholder="Search car care questions\.\.\."/);
   assert.match(html, /Car Wash vs\. Car Detailing/);
@@ -103,7 +103,7 @@ test('guides hub is a crawlable search destination', () => {
   const website = jsonLdBlocks(html).find((block) => [].concat(block['@type'] || []).includes('WebSite'));
   assert.equal(
     website.potentialAction.target.urlTemplate,
-    'https://cardetail1.com/blog.html?q={search_term_string}',
+    'https://cardetail1.com/blog?q={search_term_string}',
   );
   const collection = jsonLdBlocks(html).find((block) => [].concat(block['@type'] || []).includes('CollectionPage'));
   assert.equal(collection.mainEntity['@type'], 'ItemList');
@@ -118,7 +118,7 @@ test('homepage WebSite SearchAction points at the guides hub', () => {
   assert.equal(website.name, 'Cardetail1');
   assert.equal(
     website.potentialAction.target.urlTemplate,
-    'https://cardetail1.com/blog.html?q={search_term_string}',
+    'https://cardetail1.com/blog?q={search_term_string}',
   );
 });
 
@@ -142,8 +142,8 @@ test('detailing vs car wash page has comparison, Article schema, and contextual 
   assert.match(html, /class="vs-pair"/);
   assert.match(html, /Typical car wash/);
   assert.match(html, /Professional detail/);
-  assert.match(html, /href="mobile-detailing-what-to-expect\.html"/);
-  assert.match(html, /href="how-often-to-detail\.html"/);
+  assert.match(html, /href="\/mobile-detailing-what-to-expect"/);
+  assert.match(html, /href="\/how-often-to-detail"/);
   const types = typeList(html);
   assert.ok(types.includes('Article'));
   assert.ok(types.includes('BlogPosting'));
@@ -180,19 +180,20 @@ test('sitemap lists guides with lastmod so Google can recrawl the hub', () => {
   const robots = read('robots.txt');
   assert.doesNotMatch(robots, /Disallow: \/blog/);
   for (const slug of GUIDE_PAGES) {
-    const block = sitemap.split('<url>').find((chunk) => chunk.includes(slug));
-    assert.ok(block, `missing sitemap url ${slug}`);
+    const stem = slug.replace(/\.html$/, '');
+    const block = sitemap.split('<url>').find((chunk) => chunk.includes(`https://cardetail1.com/${stem}<`));
+    assert.ok(block, `missing sitemap url ${stem}`);
     assert.match(block, /<lastmod>2026-08-30<\/lastmod>/);
+    assert.doesNotMatch(block, /\.html/);
   }
 });
 
-test('pretty URLs for guides are wired in netlify.toml', () => {
+test('guide .html URLs 301 to the extensionless canonical without a reverse rewrite', () => {
   const toml = read('netlify.toml');
-  assert.match(toml, /from = "\/blog"/);
-  assert.match(toml, /to = "\/blog\.html"/);
-  assert.match(toml, /from = "\/detailing-vs-car-wash"/);
-  assert.match(toml, /from = "\/how-often-to-detail"/);
-  assert.match(toml, /from = "\/mobile-detailing-what-to-expect"/);
+  for (const slug of ['blog', 'detailing-vs-car-wash', 'how-often-to-detail', 'mobile-detailing-what-to-expect']) {
+    assert.match(toml, new RegExp(`from = "/${slug}\\.html"\\s+to = "/${slug}"\\s+status = 301\\s+force = true`));
+    assert.doesNotMatch(toml, new RegExp(`from = "/${slug}"\\s+to = "/${slug}\\.html"`));
+  }
 });
 
 test('guide search script is wired to cards, FAQ, and filter chips', () => {

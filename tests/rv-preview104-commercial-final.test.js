@@ -94,7 +94,7 @@ test('compact tabbed packages with booking CTAs', () => {
 
 test('hero and bottom CTA book online not funnel', () => {
   const page = read('rv-detailing.html');
-  assert.match(page, /href="index\.html\?book=rvs"/);
+  assert.match(page, /href="\/\?book=rvs"/);
   assert.match(page, /data-booking-package="full_basic"/);
   assert.match(page, /Length-based pricing/);
   assert.doesNotMatch(page, /ZIP-first estimates/);

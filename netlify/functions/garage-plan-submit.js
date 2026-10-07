@@ -59,7 +59,7 @@ function buildSuccessResponse({
       zip: validated.zip,
       sameLocationSameVisit: validated.sameLocationSameVisit,
     } : null,
-    fleetUrl: route === 'fleet_quote' ? '/fleet-services.html' : null,
+    fleetUrl: route === 'fleet_quote' ? '/fleet-services' : null,
   });
 }
 
@@ -198,7 +198,7 @@ exports.handler = async (event) => {
         ok: true,
         route: 'fleet_quote',
         message: 'Commercial and fleet inquiries are routed to our quote team.',
-        fleetUrl: '/fleet-services.html',
+        fleetUrl: '/fleet-services',
       });
     }
     const status = validated.error === 'rate_limited' ? 429 : 400;

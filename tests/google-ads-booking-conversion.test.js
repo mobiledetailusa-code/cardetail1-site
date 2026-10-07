@@ -487,6 +487,32 @@ describe('Ceramic coating Google Ads conversion', () => {
     later.cleanup();
   });
 
+  it('does not send production Ads events from preview or local hosts', () => {
+    const { ctx, conversions } = harness;
+    ctx.location.href = 'https://deploy-preview-346--cardetail1.netlify.app/';
+    ctx.location.hostname = 'deploy-preview-346--cardetail1.netlify.app';
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-PREVIEW',
+      approvedFinalAmount: 250,
+    })), false);
+    ctx.location.href = 'http://127.0.0.1:8765/';
+    ctx.location.hostname = '127.0.0.1';
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-LOCAL',
+      approvedFinalAmount: 250,
+    })), false);
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+    assert.equal(conversions.filter((c) => c.send_to === PAGE_VIEW_SEND_TO).length, 0);
+
+    ctx.location.href = 'https://www.cardetail1.com/';
+    ctx.location.hostname = 'www.cardetail1.com';
+    assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({
+      id: 'CD1-WWW',
+      approvedFinalAmount: 250,
+    })), true);
+    assert.equal(conversions.filter((c) => c.transaction_id === 'CD1-WWW').length, 1);
+  });
+
   it('leaves non-ceramic cash conversion unchanged', () => {
     const { ctx, conversions } = harness;
     assert.equal(ctx.Cardetail1Revenue.trackGoogleAdsBookingConversion(successEvidence({

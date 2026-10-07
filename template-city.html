@@ -1289,10 +1289,10 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <nav class="specialty-service-nav" aria-label="Specialty detailing services">
   <div class="specialty-service-nav-inner">
     <div class="specialty-service-links">
-      <a class="specialty-service-link" href="trucks-detailing.html">Trucks</a>
-      <a class="specialty-service-link" href="rv-detailing.html">RV &amp; Trailers</a>
-      <a class="specialty-service-link" href="boats-detailing.html">Boats</a>
-      <a class="specialty-service-link" href="powersports-detailing.html">Powersports</a>
+      <a class="specialty-service-link" href="/trucks-detailing">Trucks</a>
+      <a class="specialty-service-link" href="/rv-detailing">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="/boats-detailing">Boats</a>
+      <a class="specialty-service-link" href="/powersports-detailing">Powersports</a>
     </div>
   </div>
 </nav>
@@ -1310,7 +1310,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <span>Request driveway service online — no card required</span>
     </div>
 
-    <a class="hero-tel-mobile" href="tel:+15513893986">📍ž Call or Text: (551) 389-3986</a>
+    <a class="hero-tel-mobile" href="tel:+15513893986">📍 Call or Text: (551) 389-3986</a>
   </div>
   <div class="hero-scroll">↓ Scroll</div>
 </section>
@@ -1793,7 +1793,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <div class="section">
     <div class="phone-cta-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
       <div class="phone-cta" style="text-align:left">
-        <div class="pc-ico">📍ž</div>
+        <div class="pc-ico">📍</div>
         <div class="pc-title">CALL OR TEXT US</div>
         <a class="pc-number" href="tel:+15513893986">(551) 389-3986</a>
         <div class="pc-note">Mon–Fri 8AM–5PM · Bergen County, NJ and nearby areas</div>
@@ -1813,7 +1813,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
   <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check price</button>
   <button class="msc-portal" onclick="openPortal()">My Booking</button>
-  <a class="msc-call" href="tel:+15513893986">📍ž Call</a>
+  <a class="msc-call" href="tel:+15513893986">📍 Call</a>
 </div>
 
 <!-- FOOTER -->
@@ -1826,32 +1826,32 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </div>
       <div class="foot-col">
         <h4>Services</h4>
-        <a href="index.html">Cars &amp; SUVs</a>
-        <a href="trucks-detailing.html">Trucks / Semis</a>
-        <a href="boats-detailing.html">Boats &amp; Marine</a>
-        <a href="rv-detailing.html">RVs &amp; Trailers</a>
-        <a href="powersports-detailing.html">Motorcycles &amp; Powersports</a>
-        <a href="multi-vehicle-detailing.html">Multi-Vehicle Detailing</a>
-        <a href="fleet-services.html">Commercial &amp; Fleet</a>
+        <a href="/">Cars &amp; SUVs</a>
+        <a href="/trucks-detailing">Trucks / Semis</a>
+        <a href="/boats-detailing">Boats &amp; Marine</a>
+        <a href="/rv-detailing">RVs &amp; Trailers</a>
+        <a href="/powersports-detailing">Motorcycles &amp; Powersports</a>
+        <a href="/multi-vehicle-detailing">Multi-Vehicle Detailing</a>
+        <a href="/fleet-services">Commercial &amp; Fleet</a>
       </div>
       <div class="foot-col">
         <h4>Service Areas</h4>
-        <a href="new-jersey-hub.html">New Jersey</a>
-        <a href="ny-metro-hub.html">New York Metro</a>
-        <a href="connecticut-hub.html">Connecticut</a>
-        <a href="pennsylvania-hub.html">Pennsylvania</a>
-        <a href="bergen-county-hub.html">Bergen County</a>
-        <a href="index.html#service-areas">Extended Areas by Quote</a>
+        <a href="/new-jersey-hub">New Jersey</a>
+        <a href="/ny-metro-hub">New York Metro</a>
+        <a href="/connecticut-hub">Connecticut</a>
+        <a href="/pennsylvania-hub">Pennsylvania</a>
+        <a href="/bergen-county-hub">Bergen County</a>
+        <a href="/#service-areas">Extended Areas by Quote</a>
       </div>
       <div class="foot-col">
         <h4>Customer</h4>
         <a href="my-garage.html">My Garage</a>
-        <a href="reviews.html">Reviews</a>
+        <a href="/reviews">Reviews</a>
         <a href="my-garage.html#lookup">View or Manage Booking</a>
         <a href="my-garage.html#payments">Pay a Balance</a>
-        <a href="index.html">Book Another Service</a>
-        <a href="blog.html">Guides &amp; FAQ</a>
-        <a href="terms-conditions.html">Terms &amp; Policies</a>
+        <a href="/">Book Another Service</a>
+        <a href="/blog">Guides &amp; FAQ</a>
+        <a href="/terms-conditions">Terms &amp; Policies</a>
       </div>
       <div class="foot-col">
         <h4>Contact</h4>
@@ -5535,10 +5535,10 @@ function renderLocationCarousel(zoneKey){
       <div class="loc-name">${d.name}</div>
       <div class="loc-req">${d.desc}</div>
       <div class="loc-from">${formatLocFrom(cat)}</div>`;
-    const seoHref = cat === 'rvs' ? 'rv-detailing.html'
-      : cat === 'trucks' ? 'trucks-detailing.html'
-      : cat === 'boats' ? 'boats-detailing.html'
-      : cat === 'powersports' ? 'powersports-detailing.html'
+    const seoHref = cat === 'rvs' ? '/rv-detailing'
+      : cat === 'trucks' ? '/trucks-detailing'
+      : cat === 'boats' ? '/boats-detailing'
+      : cat === 'powersports' ? '/powersports-detailing'
       : null;
     if(seoHref){
       return `<a href="${seoHref}" class="loc-card loc-card-link">${inner}</a>`;
@@ -6295,7 +6295,7 @@ try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
     {label:'🚗 Quote my vehicle',q:'How much does it cost?'},
     {label:'📍 Do you come to me?',q:'What areas do you serve?'},
     {label:'📅 Secure my spot',act:'book'},
-    {label:'📍ž Reach the team',act:'human'}
+    {label:'📍 Reach the team',act:'human'}
   ];
 
   // ── open / close ──
@@ -6403,7 +6403,7 @@ try{ if(typeof seedDefaultTechs==='function') seedDefaultTechs(); }catch(e){}
       chips:[{label:'📅 See times',act:'book'},{label:'💵 Pricing',q:'How much does it cost?'}] }) },
 
     { keys:['human','agent','person','representative','call','phone','contact','speak','talk to','someone','manager','owner','real person'], fn:()=>({
-      reply:"Happy to connect you! 📍ž Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
+      reply:"Happy to connect you! 📍 Call or text us at "+telLink()+" (Mon–Fri 8AM–5PM), or leave your question here and our team will get back to you.",
       chips:[{label:'📍¨ Send my question',act:'human'},{label:'📅 Book now',act:'book'}] }) },
 
     { keys:['thank','thanks','obrigado','appreciate','great','awesome','perfect'], fn:()=>({
