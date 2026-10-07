@@ -1,12 +1,23 @@
 'use strict';
 
-const { describe, it, beforeEach, afterEach } = require('node:test');
+const { describe, it, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { decideChangeRequestCommand } = require('../netlify/lib/booking-commands');
 const { setBookingStoreOverride, getBookingRecord } = require('../netlify/lib/booking-repository');
 const { setSlotIndexStoreOverride, slotIndexKey } = require('../netlify/lib/slot-index');
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
+const { installFrozenBookingClock, restoreFrozenBookingClock, addIsoDays } = require('./helpers/frozen-booking-clock');
+
+const dates = installFrozenBookingClock();
+const [OLD, TARGET, SHIFT, LATER] = dates.spanStarts(4);
+const OLD_NEXT = addIsoDays(OLD, 1);
+const TARGET_NEXT = addIsoDays(TARGET, 1);
+const CLOSED_SUNDAY = dates.futureClosedSunday();
+
+after(() => {
+  restoreFrozenBookingClock();
+});
 
 const WEEKDAY = ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
 
@@ -80,9 +91,9 @@ function baseBooking(overrides = {}) {
     lastName: 'Rivera',
     email: 'alex@example.test',
     phone: '2015550100',
-    preferredDate: '2026-10-13',
+    preferredDate: OLD,
     preferredTime: '8:00 AM',
-    confirmedDate: '2026-10-13',
+    confirmedDate: OLD,
     confirmedTime: '8:00 AM',
     status: 'Confirmed',
     appointmentStatus: 'confirmed',
@@ -103,7 +114,7 @@ function baseBooking(overrides = {}) {
       requestId: 'cr_span',
       requestType: 'reschedule_request',
       status: 'pending',
-      delta: { requestedDate: '2026-10-06', requestedTime: '8:00 AM' },
+      delta: { requestedDate: TARGET, requestedTime: '8:00 AM' },
     }],
     ...overrides,
   };
@@ -138,12 +149,12 @@ afterEach(() => {
 describe('reschedule span occupancy', () => {
   it('moves a multi-day service, including the continuation day', async () => {
     const oldDays = [
-      { date: '2026-10-13', slots: WEEKDAY.slice() },
-      { date: '2026-10-14', slots: ['8:00 AM', '10:00 AM', '12:00 PM'] },
+      { date: OLD, slots: WEEKDAY.slice() },
+      { date: OLD_NEXT, slots: ['8:00 AM', '10:00 AM', '12:00 PM'] },
     ];
     const newDays = [
-      { date: '2026-10-06', slots: WEEKDAY.slice() },
-      { date: '2026-10-07', slots: ['8:00 AM', '10:00 AM', '12:00 PM'] },
+      { date: TARGET, slots: WEEKDAY.slice() },
+      { date: TARGET_NEXT, slots: ['8:00 AM', '10:00 AM', '12:00 PM'] },
     ];
     const record = baseBooking({
       appointmentDurationMinutes: 720,
@@ -167,7 +178,7 @@ describe('reschedule span occupancy', () => {
     const result = await approve(record.id);
     assert.equal(result.ok, true, result.error);
     const stored = await getBookingRecord(record.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-06');
+    assert.equal(stored.booking.preferredDate, TARGET);
     assert.equal(stored.booking.preferredTime, '8:00 AM');
     assert.equal(stored.booking.appointmentDurationMinutes, 765);
     assert.equal(stored.booking.companionInterior, true);
@@ -183,8 +194,8 @@ describe('reschedule span occupancy', () => {
 
   it('rejects when only the continuation day is taken and keeps the old span', async () => {
     const oldDays = [
-      { date: '2026-10-13', slots: WEEKDAY.slice() },
-      { date: '2026-10-14', slots: ['8:00 AM', '10:00 AM', '12:00 PM'] },
+      { date: OLD, slots: WEEKDAY.slice() },
+      { date: OLD_NEXT, slots: ['8:00 AM', '10:00 AM', '12:00 PM'] },
     ];
     const record = baseBooking({
       companionInterior: true,
@@ -202,7 +213,7 @@ describe('reschedule span occupancy', () => {
       },
     });
     const oldKeys = seedSpan(record.id, oldDays);
-    const blocker = bookedKey('2026-10-07', '12:00 PM', 'CD1-OTHER');
+    const blocker = bookedKey(TARGET_NEXT, '12:00 PM', 'CD1-OTHER');
     const index = memoryIndex([...oldKeys, blocker]);
     install(record, index);
 
@@ -212,7 +223,7 @@ describe('reschedule span occupancy', () => {
     assert.equal(result.error, 'booking_slot_unavailable');
     assert.equal(index.jsonWrites(), 0);
     const stored = await getBookingRecord(record.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-13');
+    assert.equal(stored.booking.preferredDate, OLD);
     assert.equal(stored.booking.changeRequests[0].status, 'pending');
     for (const key of oldKeys) assert.equal(index.raw(key), 'KEEP');
     assert.equal(index.raw(blocker), 'KEEP');
@@ -220,9 +231,9 @@ describe('reschedule span occupancy', () => {
 
   it('keeps the overlapping slots and another customer when the new span shifts', async () => {
     const record = baseBooking({
-      preferredDate: '2026-10-06',
+      preferredDate: TARGET,
       preferredTime: '8:00 AM',
-      confirmedDate: '2026-10-06',
+      confirmedDate: TARGET,
       confirmedTime: '8:00 AM',
       appointmentDurationMinutes: 360,
       appointmentSchedule: null,
@@ -230,16 +241,16 @@ describe('reschedule span occupancy', () => {
         requestId: 'cr_span',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-10-06', requestedTime: '10:00 AM' },
+        delta: { requestedDate: TARGET, requestedTime: '10:00 AM' },
       }],
     });
     const keep = [
-      bookedKey('2026-10-06', '10:00 AM', record.id),
-      bookedKey('2026-10-06', '12:00 PM', record.id),
+      bookedKey(TARGET, '10:00 AM', record.id),
+      bookedKey(TARGET, '12:00 PM', record.id),
     ];
-    const release = bookedKey('2026-10-06', '2:00 PM', record.id);
-    const oldStart = bookedKey('2026-10-06', '8:00 AM', record.id);
-    const other = bookedKey('2026-10-07', '8:00 AM', 'CD1-OTHER');
+    const release = bookedKey(TARGET, '2:00 PM', record.id);
+    const oldStart = bookedKey(TARGET, '8:00 AM', record.id);
+    const other = bookedKey(TARGET_NEXT, '8:00 AM', 'CD1-OTHER');
     const index = memoryIndex([oldStart, ...keep, other]);
     install(record, index);
 
@@ -257,19 +268,19 @@ describe('reschedule span occupancy', () => {
   });
 
   it('rolls back a partial index write and completes on retry', async () => {
-    const oldDays = [{ date: '2026-10-06', slots: ['8:00 AM', '10:00 AM', '12:00 PM'] }];
-    const newDays = [{ date: '2026-10-08', slots: ['8:00 AM', '10:00 AM', '12:00 PM'] }];
+    const oldDays = [{ date: TARGET, slots: ['8:00 AM', '10:00 AM', '12:00 PM'] }];
+    const newDays = [{ date: LATER, slots: ['8:00 AM', '10:00 AM', '12:00 PM'] }];
     const record = baseBooking({
-      preferredDate: '2026-10-06',
+      preferredDate: TARGET,
       preferredTime: '8:00 AM',
-      confirmedDate: '2026-10-06',
+      confirmedDate: TARGET,
       confirmedTime: '8:00 AM',
       appointmentDurationMinutes: 360,
       changeRequests: [{
         requestId: 'cr_span',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-10-08', requestedTime: '8:00 AM' },
+        delta: { requestedDate: LATER, requestedTime: '8:00 AM' },
       }],
     });
     const oldKeys = seedSpan(record.id, oldDays);
@@ -282,7 +293,7 @@ describe('reschedule span occupancy', () => {
     assert.equal(failed.statusCode, 503);
     assert.equal(failed.error, 'occupancy_incomplete');
     let stored = await getBookingRecord(record.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-06');
+    assert.equal(stored.booking.preferredDate, TARGET);
     assert.equal(stored.booking.changeRequests[0].status, 'pending');
     for (const key of oldKeys) assert.equal(index.raw(key), 'KEEP');
     for (const key of seedSpan(record.id, newDays)) assert.equal(index.raw(key), undefined);
@@ -291,7 +302,7 @@ describe('reschedule span occupancy', () => {
     const retried = await approve(record.id);
     assert.equal(retried.ok, true, retried.error);
     stored = await getBookingRecord(record.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-08');
+    assert.equal(stored.booking.preferredDate, LATER);
     assert.equal(stored.booking.preferredTime, '8:00 AM');
     for (const key of oldKeys) assert.equal(index.raw(key), undefined);
     for (const key of seedSpan(record.id, newDays)) assert.ok(index.raw(key));
@@ -299,7 +310,7 @@ describe('reschedule span occupancy', () => {
   });
 
   it('lets one of two concurrent requests take the new period', async () => {
-    const target = [{ date: '2026-10-20', slots: WEEKDAY.slice() }];
+    const target = [{ date: SHIFT, slots: WEEKDAY.slice() }];
     function contender(id, oldDate) {
       return baseBooking({
         id,
@@ -317,15 +328,15 @@ describe('reschedule span occupancy', () => {
           requestId: 'cr_span',
           requestType: 'reschedule_request',
           status: 'pending',
-          delta: { requestedDate: '2026-10-20', requestedTime: '8:00 AM' },
+          delta: { requestedDate: SHIFT, requestedTime: '8:00 AM' },
         }],
       });
     }
-    const first = contender('CD1-RACE-A', '2026-10-13');
-    const second = contender('CD1-RACE-B', '2026-10-15');
+    const first = contender('CD1-RACE-A', OLD);
+    const second = contender('CD1-RACE-B', TARGET);
     const index = memoryIndex([
-      ...seedSpan(first.id, [{ date: '2026-10-13', slots: WEEKDAY.slice() }]),
-      ...seedSpan(second.id, [{ date: '2026-10-15', slots: WEEKDAY.slice() }]),
+      ...seedSpan(first.id, [{ date: OLD, slots: WEEKDAY.slice() }]),
+      ...seedSpan(second.id, [{ date: TARGET, slots: WEEKDAY.slice() }]),
     ]);
     setSlotIndexStoreOverride(index);
     setBookingStoreOverride(createCasMemoryStore({
@@ -345,8 +356,8 @@ describe('reschedule span occupancy', () => {
     const loserId = winnerId === first.id ? second.id : first.id;
     const winner = await getBookingRecord(winnerId);
     const loser = await getBookingRecord(loserId);
-    assert.equal(winner.booking.preferredDate, '2026-10-20');
-    assert.notEqual(loser.booking.preferredDate, '2026-10-20');
+    assert.equal(winner.booking.preferredDate, SHIFT);
+    assert.notEqual(loser.booking.preferredDate, SHIFT);
     for (const key of seedSpan(winnerId, target)) assert.ok(index.raw(key));
     for (const key of seedSpan(loserId, target)) assert.equal(index.raw(key), undefined);
     for (const key of seedSpan(loserId, [{ date: loser.booking.preferredDate, slots: WEEKDAY.slice() }])) {
@@ -361,20 +372,20 @@ describe('reschedule span occupancy', () => {
         requestId: 'cr_span',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-10-21', requestedTime: '10:00 AM' },
+        delta: { requestedDate: LATER, requestedTime: '10:00 AM' },
       }],
     });
-    const twinOld = bookedKey('2026-10-13', '8:00 AM', twin.id);
+    const twinOld = bookedKey(OLD, '8:00 AM', twin.id);
     const twinIndex = memoryIndex([twinOld]);
     setSlotIndexStoreOverride(twinIndex);
     setBookingStoreOverride(createCasMemoryStore({ [twin.id]: twin }));
     const raced = await Promise.all([approve(twin.id), approve(twin.id)]);
     assert.equal(raced.filter((result) => result.ok).length, 2);
     const saved = await getBookingRecord(twin.id);
-    assert.equal(saved.booking.preferredDate, '2026-10-21');
+    assert.equal(saved.booking.preferredDate, LATER);
     assert.equal(saved.booking.preferredTime, '10:00 AM');
     assert.equal(twinIndex.raw(twinOld), undefined);
-    assert.ok(twinIndex.raw(bookedKey('2026-10-21', '10:00 AM', twin.id)));
+    assert.ok(twinIndex.raw(bookedKey(LATER, '10:00 AM', twin.id)));
     assert.equal(
       twinIndex.keys().filter((key) => key.endsWith(`/${twin.id}`) && !key.startsWith('span-claim/')).length,
       1
@@ -387,7 +398,7 @@ describe('reschedule span occupancy', () => {
         requestId: 'cr_span',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-10-04', requestedTime: '8:00 AM' },
+        delta: { requestedDate: CLOSED_SUNDAY, requestedTime: '8:00 AM' },
       }],
     });
     const oldKey = bookedKey(record.preferredDate, record.preferredTime, record.id);
@@ -400,7 +411,7 @@ describe('reschedule span occupancy', () => {
     assert.equal(index.jsonWrites(), 0);
     assert.equal(index.raw(oldKey), 'KEEP');
     let stored = await getBookingRecord(record.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-13');
+    assert.equal(stored.booking.preferredDate, OLD);
 
     const open = baseBooking();
     const openKey = bookedKey(open.preferredDate, open.preferredTime, open.id);
@@ -413,7 +424,7 @@ describe('reschedule span occupancy', () => {
     assert.equal(unavailable.error, 'booking_verification_unavailable');
     assert.equal(down.jsonWrites(), 0);
     stored = await getBookingRecord(open.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-13');
+    assert.equal(stored.booking.preferredDate, OLD);
     assert.equal(down.raw(openKey), 'KEEP');
 
     process.env.SLOT_INDEX_READS = '0';
@@ -425,15 +436,15 @@ describe('reschedule span occupancy', () => {
     assert.equal(disabled.error, 'booking_verification_unavailable');
     assert.equal(disabledIndex.jsonWrites(), 0);
     stored = await getBookingRecord(open.id);
-    assert.equal(stored.booking.preferredDate, '2026-10-13');
+    assert.equal(stored.booking.preferredDate, OLD);
     assert.equal(disabledIndex.raw(openKey), 'KEEP');
   });
 
   it('moves a one-slot service without leaving the old slot booked', async () => {
     const record = baseBooking({
-      preferredDate: '2026-10-06',
+      preferredDate: TARGET,
       preferredTime: '8:00 AM',
-      confirmedDate: '2026-10-06',
+      confirmedDate: TARGET,
       confirmedTime: '8:00 AM',
       appointmentDurationMinutes: 90,
       appointmentSchedule: null,
@@ -441,11 +452,11 @@ describe('reschedule span occupancy', () => {
         requestId: 'cr_span',
         requestType: 'reschedule_request',
         status: 'pending',
-        delta: { requestedDate: '2026-10-06', requestedTime: '10:00 AM' },
+        delta: { requestedDate: TARGET, requestedTime: '10:00 AM' },
       }],
     });
-    const oldKey = bookedKey('2026-10-06', '8:00 AM', record.id);
-    const nextKey = bookedKey('2026-10-06', '10:00 AM', record.id);
+    const oldKey = bookedKey(TARGET, '8:00 AM', record.id);
+    const nextKey = bookedKey(TARGET, '10:00 AM', record.id);
     const index = memoryIndex([oldKey]);
     install(record, index);
 

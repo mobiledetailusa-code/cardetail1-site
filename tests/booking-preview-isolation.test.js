@@ -1,6 +1,6 @@
 'use strict';
 
-const { test, beforeEach, afterEach } = require('node:test');
+const { test, beforeEach, afterEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
@@ -11,8 +11,17 @@ const { BlobsServer } = require('@netlify/blobs/server');
 const SUBMIT_PATH = require.resolve('../netlify/functions/submit-booking');
 const { setSlotIndexStoreOverride, indexedOccupancyForDates } = require('../netlify/lib/slot-index');
 const { DRAFT_SLOT_HOLD_MS } = require('../netlify/lib/booking-schedule');
+const { installFrozenBookingClock, restoreFrozenBookingClock, addIsoDays } = require('./helpers/frozen-booking-clock');
 
-const WEEKDAY = '2026-10-05';
+const dates = installFrozenBookingClock();
+const SPAN_STARTS = dates.spanStarts(6);
+const WEEKDAY = SPAN_STARTS[0];
+const NEXT_DAY = addIsoDays(WEEKDAY, 1);
+const DAY_AFTER = addIsoDays(WEEKDAY, 2);
+
+after(() => {
+  restoreFrozenBookingClock();
+});
 const TOKEN = 'isolated-blobs-token';
 
 function ceramicBody(extra = {}) {
@@ -214,20 +223,20 @@ test('isolated blobs keep a confirmed 12-hour span and a retry does not duplicat
   const bookedKeys = await collectKeys(slots);
   const decodedBooked = bookedKeys.map((key) => decodeURIComponent(key));
   assert.equal(bookedKeys.length, 6, bookedKeys.join('\n'));
-  assert.ok(decodedBooked.every((key) => key.startsWith(`${WEEKDAY}/`) || key.startsWith('2026-10-06/')), decodedBooked.join('\n'));
+  assert.ok(decodedBooked.every((key) => key.startsWith(`${WEEKDAY}/`) || key.startsWith(`${NEXT_DAY}/`)), decodedBooked.join('\n'));
   assert.ok(decodedBooked.every((key) => key.includes('/booked/') && key.endsWith('/' + saved.id)), decodedBooked.join('\n'));
-  assert.ok(decodedBooked.some((key) => key.startsWith('2026-10-06/8:00 AM/')), decodedBooked.join('\n'));
-  assert.ok(decodedBooked.some((key) => key.startsWith('2026-10-06/10:00 AM/')), decodedBooked.join('\n'));
+  assert.ok(decodedBooked.some((key) => key.startsWith(`${NEXT_DAY}/8:00 AM/`)), decodedBooked.join('\n'));
+  assert.ok(decodedBooked.some((key) => key.startsWith(`${NEXT_DAY}/10:00 AM/`)), decodedBooked.join('\n'));
   const afterHold = Date.now() + DRAFT_SLOT_HOLD_MS + 60 * 1000;
-  const occupancy = await indexedOccupancyForDates([WEEKDAY, '2026-10-06', '2026-10-07'], { nowMs: afterHold });
+  const occupancy = await indexedOccupancyForDates([WEEKDAY, NEXT_DAY, DAY_AFTER], { nowMs: afterHold });
   assert.equal(occupancy.ok, true, JSON.stringify(occupancy));
   for (const time of ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM']) {
     assert.equal(occupancy.occupancy[`${WEEKDAY}|${time}`], 1, time);
   }
-  assert.equal(occupancy.occupancy['2026-10-06|8:00 AM'], 1);
-  assert.equal(occupancy.occupancy['2026-10-06|10:00 AM'], 1);
-  assert.equal(occupancy.occupancy['2026-10-06|12:00 PM'], undefined);
-  assert.equal(occupancy.occupancy['2026-10-07|8:00 AM'], undefined);
+  assert.equal(occupancy.occupancy[`${NEXT_DAY}|8:00 AM`], 1);
+  assert.equal(occupancy.occupancy[`${NEXT_DAY}|10:00 AM`], 1);
+  assert.equal(occupancy.occupancy[`${NEXT_DAY}|12:00 PM`], undefined);
+  assert.equal(occupancy.occupancy[`${DAY_AFTER}|8:00 AM`], undefined);
 
   const again = await post(finalizeBody(payload, draft.body), '203.0.113.62');
   assert.equal(again.status, 200, JSON.stringify(again.body));
@@ -238,7 +247,7 @@ test('isolated blobs keep a confirmed 12-hour span and a retry does not duplicat
 
   const conflict = await post(ceramicBody({
     phone: '2015550143',
-    preferredDate: '2026-10-06',
+    preferredDate: NEXT_DAY,
     preferredArrivalWindow: '08:00-11:00',
   }), '203.0.113.63');
   assert.equal(conflict.status, 409);
@@ -281,8 +290,6 @@ test('a failed booking write stays unconfirmed and retry finalizes once', async 
   assert.equal((await bookingRecordKeys(realBookings)).length, 1);
   assert.equal((await collectKeys(slots)).filter((key) => key.includes('/booked/')).length, 6);
 });
-
-const SPAN_STARTS = ['2026-10-05', '2026-10-07', '2026-10-13', '2026-10-15', '2026-10-19', '2026-10-21'];
 
 function nextWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number);
@@ -363,7 +370,7 @@ test('each of the six index writes can fail without confirming, and retry finish
 });
 
 test('a crash after the pending record is stored does not confirm, and retry occupies the same id', async () => {
-  const payload = ceramicBody({ phone: '2015550301', preferredDate: '2026-10-13', email: 'crash-pending@example.com' });
+  const payload = ceramicBody({ phone: '2015550301', preferredDate: WEEKDAY, email: 'crash-pending@example.com' });
   const draft = await post(payload, '203.0.113.130');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
   let pendingSeen = false;
@@ -440,7 +447,7 @@ test('two concurrent requests for the same period confirm only one booking', asy
 });
 
 test('two concurrent customers for the same period confirm only one booking', async () => {
-  const date = '2026-10-27';
+  const date = WEEKDAY;
   const firstBody = ceramicBody({
     phone: '2015550310',
     email: 'span-a@example.com',
@@ -501,10 +508,10 @@ test('two concurrent customers for the same period confirm only one booking', as
 });
 
 test('a foreign hold on a required slot is kept and blocks confirmation', async () => {
-  const payload = ceramicBody({ phone: '2015550304', preferredDate: '2026-10-14', email: 'foreign-hold@example.com' });
+  const payload = ceramicBody({ phone: '2015550304', preferredDate: WEEKDAY, email: 'foreign-hold@example.com' });
   const draft = await post(payload, '203.0.113.150');
   assert.equal(draft.status, 200, JSON.stringify(draft.body));
-  const foreignKey = '2026-10-15/8:00 AM/booked/0/CD1-OTHER-HOLD';
+  const foreignKey = `${NEXT_DAY}/8:00 AM/booked/0/CD1-OTHER-HOLD`;
   await slots.setJSON(foreignKey, 1);
   submitBooking.__test.resetNotificationAttempts();
   const failed = await post(finalizeBody(payload, draft.body), '203.0.113.151');
@@ -528,7 +535,7 @@ async function deleteKeysForBooking(id) {
 }
 
 test('retry restores slots for a pending-protocol record and leaves a legacy finalized record untouched', async () => {
-  const recoverablePayload = ceramicBody({ phone: '2015550321', preferredDate: '2026-10-22', email: 'recover@example.com' });
+  const recoverablePayload = ceramicBody({ phone: '2015550321', preferredDate: WEEKDAY, email: 'recover@example.com' });
   const recoverableDraft = await post(recoverablePayload, '203.0.113.190');
   assert.equal(recoverableDraft.status, 200, JSON.stringify(recoverableDraft.body));
   const recoverableId = recoverableDraft.body.id;
@@ -554,7 +561,7 @@ test('retry restores slots for a pending-protocol record and leaves a legacy fin
   assert.equal(restoredAgain.body.idempotent, true);
   assert.equal(submitBooking.__test.notificationAttempts(), 1);
 
-  const legacyPayload = ceramicBody({ phone: '2015550322', preferredDate: '2026-10-26', email: 'legacy@example.com' });
+  const legacyPayload = ceramicBody({ phone: '2015550322', preferredDate: SPAN_STARTS[1], email: 'legacy@example.com' });
   const legacyDraft = await post(legacyPayload, '203.0.113.193');
   assert.equal(legacyDraft.status, 200, JSON.stringify(legacyDraft.body));
   const legacyId = legacyDraft.body.id;
@@ -602,7 +609,7 @@ test('occupancy failure before payment does not charge, and retry finalizes the 
   const payload = ceramicBody({
     phone: '2015550330',
     email: 'occupancy-before-pay@example.com',
-    preferredDate: '2026-10-08',
+    preferredDate: WEEKDAY,
     ceramicPaymentPlan: 'prepay_full',
   });
   const draft = await post(payload, '203.0.113.210');
@@ -674,7 +681,7 @@ test('ceramic card at service stays uncharged when occupancy fails, and retry do
   const payload = ceramicBody({
     phone: '2015550331',
     email: 'card-then-occupancy@example.com',
-    preferredDate: '2026-10-09',
+    preferredDate: WEEKDAY,
     paymentMethodPreference: 'card_onsite',
     cardOnFileRequired: false,
     acceptedCardOnFilePolicy: false,
