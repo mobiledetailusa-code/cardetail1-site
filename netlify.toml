@@ -296,6 +296,52 @@
   status = 301
   force = true
 
+# Legacy Search Console paths. Each rule ends on the HTTPS apex canonical.
+# Host-specific rules are listed first so a www or http request can finish in
+# one hop when Netlify evaluates them before the automatic domain redirect.
+# `to` has no query string, so the original parameters are kept.
+# /app/cms, /submit-inquiry, and /'+mailto+' stay 404 on purpose.
+[[redirects]]
+  from = "http://www.cardetail1.com/personal-watercraft-packages"
+  to = "https://cardetail1.com/boats-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "https://www.cardetail1.com/personal-watercraft-packages"
+  to = "https://cardetail1.com/boats-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "http://cardetail1.com/personal-watercraft-packages"
+  to = "https://cardetail1.com/boats-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/personal-watercraft-packages"
+  to = "https://cardetail1.com/boats-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "http://www.cardetail1.com/rv-detailing-packages"
+  to = "https://cardetail1.com/rv-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "https://www.cardetail1.com/rv-detailing-packages"
+  to = "https://cardetail1.com/rv-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "http://cardetail1.com/rv-detailing-packages"
+  to = "https://cardetail1.com/rv-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/rv-detailing-packages"
+  to = "https://cardetail1.com/rv-detailing"
+  status = 301
+  force = true
+
 [[headers]]
   for = "/customer.html"
   [headers.values]
