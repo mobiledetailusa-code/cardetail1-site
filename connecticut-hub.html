@@ -3891,7 +3891,7 @@ const GOOGLE_REVIEW_URL = 'https://g.page/r/CTJwfJerrQeCEAI/review';
 // o assistente local (base de conhecimento do site). Deixe '' para forÃ§ar só o local.
 const AI_CHAT_URL    = BACKEND_BASE + '/ai-chat';
 // Para onde vÃ£o as dúvidas quando o cliente pede atendimento humano.
-const INQUIRY_URL    = BACKEND_BASE + '/submit-inquiry';
+const INQUIRY_URL    = '/.netlify/functions/submit-inquiry';
 
 // ── MAKE.COM / ZAPIER WEBHOOK (booking → email/SMS) ────
 // Cole aqui o webhook URL gerado no Make.com ou Zapier.
@@ -7767,7 +7767,8 @@ initCarPkgDetailModal();
     const mailto=adminEmail?('mailto:'+adminEmail+'?subject='+subject+'&body='+body):'';
     cdCancelHandoff();
     push("✅ Thanks, <b>"+esc(name)+"</b>! Your question is on its way to our team - we'll reply to <b>"+esc(phone)+"</b> soon.",'bot');
-    let extra="Want it instantly? "+(mailto?'<a href="'+mailto+'">email us</a> or ':'')+'<a href="sms:'+adminSms+'?&body='+body+'">text us</a> - or call '+telLink()+'.';
+    let emailOffer=mailto?'<a href="'.concat(mailto,'">email us</a> or '):'';
+    let extra="Want it instantly? "+emailOffer+'<a href="sms:'+adminSms+'?&body='+body+'">text us</a> - or call '+telLink()+'.';
     push(extra,'bot');
     setChips([{label:'📅 Book now',act:'book'},{label:'💬 Ask something else',q:'hi'}]);
     $('cd-h-name').value=$('cd-h-phone').value=$('cd-h-email').value=$('cd-h-msg').value='';
