@@ -42,6 +42,7 @@
   }
 
   function closeBooking() {
+    document.documentElement.classList.remove('cc-booking-open');
     if (!overlay) return;
     overlay.classList.remove('is-open');
     overlay.hidden = true;
@@ -52,6 +53,7 @@
 
   function openBooking(pkg, trigger) {
     lastFocus = trigger || document.activeElement;
+    document.documentElement.classList.add('cc-booking-open');
     var el = ensureOverlay();
     el.hidden = false;
     el.classList.add('is-open');
@@ -93,6 +95,17 @@
     compare.addEventListener('input', function () {
       compare.setAttribute('aria-valuetext', compare.value + ' percent before');
     });
+  }
+
+  var sticky = document.querySelector('[data-cc-sticky]');
+  var heroCta = document.querySelector('.cc-hero .cc-btn-primary');
+  if (sticky && heroCta && 'IntersectionObserver' in window) {
+    var stickyObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        sticky.classList.toggle('is-on', !entry.isIntersecting);
+      });
+    }, { threshold: 0.15 });
+    stickyObserver.observe(heroCta);
   }
 
   if (window.Cardetail1Consent && typeof window.Cardetail1Consent.renderBanner === 'function') {
