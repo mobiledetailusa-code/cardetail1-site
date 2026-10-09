@@ -295,6 +295,11 @@
   to = "/privacy-policy"
   status = 301
   force = true
+[[redirects]]
+  from = "/ceramic-coating.html"
+  to = "/ceramic-coating"
+  status = 301
+  force = true
 
 # Legacy Search Console paths. Each rule ends on the HTTPS apex canonical.
 # Host-specific rules are listed first so a www or http request can finish in
