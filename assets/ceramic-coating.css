@@ -58,9 +58,13 @@ a{color:inherit}
 .cc-chip{padding:4px 10px;border-radius:999px;background:rgba(77,143,217,.12);color:#b9d4f5;font-size:13px}
 .cc-card .cc-btn{margin-top:auto}
 .cc-fine{margin:18px 0 0;color:var(--mu);font-size:14px}
-.cc-projects{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.75fr);gap:16px;align-items:start}
+.cc-projects{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
 .cc-project{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--bg1);overflow:hidden}
-.cc-project--feature{grid-row:span 3}
+.cc-project--feature{grid-column:span 2;grid-row:span 2}
+.cc-shots{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#0a0e14}
+.cc-shots--one{grid-template-columns:1fr}
+.cc-shots img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}
+.cc-project--feature .cc-shots img{aspect-ratio:16/10}
 .cc-side{display:flex;flex-direction:column;gap:16px}
 .cc-side .cc-figure{aspect-ratio:16/10;overflow:hidden}
 .cc-side .cc-figure img{width:100%;height:100%;object-fit:cover}
@@ -122,7 +126,7 @@ html.cc-booking-open #cd1-consent-banner{display:none!important}
   .cc-hero-media img{position:static;width:100%;height:100%;object-fit:cover}
   .cc-split,.cc-cards,.cc-steps{grid-template-columns:1fr}
   .cc-projects{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px}
-  .cc-project,.cc-project--feature{flex:0 0 100%;scroll-snap-align:start}
+  .cc-project,.cc-project--feature{flex:0 0 100%;scroll-snap-align:start;grid-column:auto;grid-row:auto}
   .cc-side{display:contents}
   .cc-project-nav{display:flex;justify-content:space-between;gap:10px;margin-top:12px}
   .cc-nav-links a:not(.cc-nav-phone){display:none}
