@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { JSDOM } = require('jsdom');
 
 const {
   computeVehicleSubtotal,
@@ -129,7 +130,8 @@ describe('ceramic coating landing page', () => {
 
   it('has one H1, the canonical URL, and both catalog packages', () => {
     assert.equal((page.match(/<h1\b/gi) || []).length, 1);
-    assert.match(page, /<h1[^>]*>Professional Ceramic Coating at Your Location<\/h1>/);
+    assert.match(page, /<h1[^>]*>Keep That Freshly Detailed Look for Years<\/h1>/);
+    assert.match(page, /<title>Professional Ceramic Coating at Your Location \| Cardetail1<\/title>/);
     assert.match(page, /<link rel="canonical" href="https:\/\/cardetail1\.com\/ceramic-coating">/);
     assert.match(page, /Professional Ceramic Protection — Up to 1 Year/);
     assert.match(page, /Professional Ceramic Protection — Up to 3 Years/);
@@ -157,8 +159,23 @@ describe('ceramic coating landing page', () => {
     assert.match(read('assets/ceramic-coating-page.js'), /book', 'cars'/);
   });
 
-  it('does not add longer terms or banned protection claims', () => {
-    assert.doesNotMatch(page, /5-year|9-year|10H|scratch-proof|guaranteed|permanent protection/i);
+  it('keeps 5- and 9-year options as consultation only and avoids absolute claims', () => {
+    assert.doesNotMatch(page, /scratch-proof|\bpermanent\b|\bguaranteed\b|\b10H\b/i);
+    assert.doesNotMatch(page, /outdoor application is always|always applied outdoors|garage is never/i);
+    assert.match(page, /If conditions are not suitable/);
+    assert.match(page, /We don’t treat every outdoor space as suitable/);
+    const five = page.slice(page.indexOf('id="cc-card-5"'), page.indexOf('id="cc-long-term"'));
+    const nine = page.slice(page.indexOf('id="cc-long-term"'), page.indexOf('class="cc-trust"'));
+    for (const block of [five, nine]) {
+      assert.doesNotMatch(block, /\$\d|data-ceramic-book|pkg=|pkgId|submit-booking|ceramic_5|ceramic_9/);
+      assert.match(block, /sms:\+15513893986/);
+    }
+    assert.match(five, /Ask About 5 Years/);
+    assert.match(five, /5-year%20ceramic%20coating%20option/);
+    assert.match(nine, /up to 9 years/);
+    assert.match(nine, /long-term%20ceramic%20protection/);
+    assert.doesNotMatch(page, /data-ceramic-book="(?!ceramic_1yr|ceramic_3yr|")/);
+    assert.doesNotMatch(read('assets/ceramic-coating-page.js'), /submit-booking|localStorage|sessionStorage|gtag\(/);
     assert.doesNotMatch(page, /AggregateRating|"@type":\s*"Review"|@type": "Review"/);
     const nodes = jsonLd(page);
     assert.equal(nodes.some((node) => [].concat(node['@type']).includes('Review')), false);
@@ -202,5 +219,100 @@ describe('ceramic coating landing page', () => {
     assert.equal(threeYear, 1050);
     assert.equal(fs.readFileSync(path.join(root, 'netlify/lib/ceramic-coating.js'), 'utf8').includes('depositDollars: 150'), true);
     assert.equal(fs.readFileSync(path.join(root, 'netlify/lib/ceramic-coating.js'), 'utf8').includes('depositDollars: 250'), true);
+  });
+
+  it('shows eight projects without undocumented terms or missing-info captions', () => {
+    const projects = page.slice(page.indexOf('id="projects"'), page.indexOf('id="process"'));
+    const names = [
+      'Audi Q8',
+      'Toyota Sequoia',
+      'BMW X7',
+      'Ford Bronco',
+      'Toyota Corolla Cross',
+      'Toyota Highlander',
+      'Mercedes-Benz GLC',
+    ];
+    assert.equal((projects.match(/class="cc-project"/g) || []).length, 8);
+    for (const name of names) assert.equal(projects.includes(name), true, name);
+    assert.match(projects, /data-vehicle="BMW"/);
+    assert.match(projects, /Surface preparation in progress/);
+    assert.equal((projects.match(/Finished ceramic coating result/g) || []).length, 7);
+    assert.match(projects, /Take a Closer Look/);
+    assert.doesNotMatch(projects, /Not labeled|Not itemized|Initial condition|booked term|Up to \d Year/i);
+    assert.doesNotMatch(page, /Not labeled|Not itemized/);
+    const css = read('assets/ceramic-coating.css');
+    assert.match(css, /@media \(min-width:1360px\)/);
+    assert.match(css, /repeat\(4,minmax\(0,1fr\)\)/);
+    assert.match(css, /prefers-reduced-motion:\s*reduce/);
+    assert.match(css, /scroll-behavior:\s*auto/);
+    assert.match(css, /aspect-ratio:4\/3/);
+    assert.doesNotMatch(css, /cc-project--feature|cc-compare/);
+  });
+
+  it('highlights a recommendation without storing it, and closes the closer look with Escape', () => {
+    const dom = new JSDOM(page, {
+      url: 'http://127.0.0.1/ceramic-coating',
+      runScripts: 'outside-only',
+    });
+    const { window } = dom;
+    const { document } = window;
+    window.IntersectionObserver = class {
+      observe() {}
+      disconnect() {}
+    };
+    window.eval(read('assets/ceramic-coating-page.js'));
+    const guide = document.getElementById('guide');
+    assert.equal(guide.querySelector('form, input, textarea'), null);
+
+    const mid = document.querySelector('[data-keep="mid"]');
+    mid.click();
+    assert.equal(mid.getAttribute('aria-pressed'), 'true');
+    assert.equal(document.querySelector('[data-keep="short"]').getAttribute('aria-pressed'), 'false');
+    assert.equal(document.querySelector('[data-recommend="year3"]').classList.contains('is-recommended'), true);
+    assert.equal(document.querySelector('[data-recommend="year1"]').classList.contains('is-recommended'), false);
+    assert.equal(document.querySelector('[data-recommend="year5"]').classList.contains('is-recommended'), false);
+    assert.equal(
+      document.getElementById('cc-guide-result').textContent,
+      'Up to 3 Years is our most popular balance of protection and value.',
+    );
+    assert.equal(window.localStorage.length, 0);
+
+    document.querySelector('[data-keep="long"]').click();
+    assert.equal(document.querySelector('[data-recommend="year5"]').classList.contains('is-recommended'), true);
+    assert.equal(document.querySelector('[data-recommend="year9"]').classList.contains('is-recommended'), true);
+    assert.equal(document.querySelector('[data-recommend="year3"]').classList.contains('is-recommended'), false);
+    assert.match(document.getElementById('cc-guide-result').textContent, /long-term options/);
+
+    const audiBtn = document.querySelector('[data-vehicle="Audi Q8"] [data-look]');
+    audiBtn.focus();
+    audiBtn.click();
+    const dialog = document.getElementById('cc-look');
+    assert.equal(dialog.hidden, false);
+    assert.equal(dialog.getAttribute('aria-modal'), 'true');
+    assert.equal(document.getElementById('cc-look-title').textContent, 'Audi Q8');
+    assert.match(document.getElementById('cc-look-line').textContent, /Dark paint/);
+    assert.equal(document.getElementById('cc-look-photos').querySelectorAll('img').length, 2);
+    assert.match(dialog.textContent, /Additional paint correction is performed only when quoted and approved/);
+    const close = document.getElementById('cc-look-close');
+    const ask = dialog.querySelector('a[href^="sms:"]');
+    assert.equal(document.activeElement, close);
+    ask.focus();
+    const tab = new window.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    document.dispatchEvent(tab);
+    assert.equal(tab.defaultPrevented, true);
+    assert.equal(document.activeElement, close);
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    assert.equal(dialog.hidden, true);
+    assert.equal(document.activeElement, audiBtn);
+
+    const yearBtn = document.querySelector('[data-ceramic-book="ceramic_1yr"]');
+    yearBtn.click();
+    const frame = document.querySelector('#cc-booking-overlay iframe');
+    assert.match(frame.getAttribute('src'), /book=cars/);
+    assert.match(frame.getAttribute('src'), /pkg=ceramic_1yr/);
+    assert.match(frame.getAttribute('src'), /embed=1/);
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(frame.getAttribute('src'), 'about:blank');
+    assert.equal(window.localStorage.length, 0);
   });
 });

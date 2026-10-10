@@ -1,7 +1,8 @@
 /**
- * Ceramic landing booking launcher.
- * Opens the existing homepage booking UI in an overlay iframe.
+ * Ceramic landing interactions.
+ * Booking opens the existing homepage UI in an overlay iframe.
  * Stripe and Google Ads stay on that booking page and are not loaded here.
+ * The ownership guide only highlights a package. It stores nothing.
  */
 (function () {
   'use strict';
@@ -9,6 +10,27 @@
   var overlay = null;
   var frame = null;
   var lastFocus = null;
+  var lastLookFocus = null;
+  var look = document.getElementById('cc-look');
+
+  var guideCopy = {
+    short: {
+      text: 'Up to 1 Year is a simple place to start.',
+      targets: ['year1']
+    },
+    mid: {
+      text: 'Up to 3 Years is our most popular balance of protection and value.',
+      targets: ['year3']
+    },
+    long: {
+      text: 'Take a look at our long-term options. We’ll confirm what fits the vehicle and application location.',
+      targets: ['year5', 'year9']
+    },
+    unsure: {
+      text: 'No problem. The 3-Year option is a good place to compare, or you can ask us before choosing.',
+      targets: ['year3']
+    }
+  };
 
   function bookingUrl(pkg) {
     var params = new URLSearchParams();
@@ -63,39 +85,120 @@
     if (closeBtn) closeBtn.focus();
   }
 
+  function lookOpen() {
+    return !!(look && !look.hidden);
+  }
+
+  function lookFocusable() {
+    if (!look) return [];
+    return Array.prototype.filter.call(
+      look.querySelectorAll('button, a[href]'),
+      function (el) {
+        return !el.disabled && !el.closest('[hidden]');
+      }
+    );
+  }
+
+  function openLook(article, trigger) {
+    if (!look || !article) return;
+    lastLookFocus = trigger || document.activeElement;
+    var photos = document.getElementById('cc-look-photos');
+    photos.replaceChildren();
+    article.querySelectorAll('img').forEach(function (img) {
+      var copy = document.createElement('img');
+      copy.src = img.getAttribute('src');
+      copy.alt = img.getAttribute('alt') || '';
+      copy.width = Number(img.getAttribute('width')) || img.width;
+      copy.height = Number(img.getAttribute('height')) || img.height;
+      copy.decoding = 'async';
+      photos.appendChild(copy);
+    });
+    document.getElementById('cc-look-title').textContent = article.getAttribute('data-vehicle') || '';
+    document.getElementById('cc-look-line').textContent = article.getAttribute('data-line') || '';
+    look.hidden = false;
+    document.documentElement.classList.add('cc-look-open');
+    document.body.style.overflow = 'hidden';
+    var closeBtn = document.getElementById('cc-look-close');
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closeLook() {
+    if (!lookOpen()) return;
+    look.hidden = true;
+    document.documentElement.classList.remove('cc-look-open');
+    if (!overlay || !overlay.classList.contains('is-open')) document.body.style.overflow = '';
+    var photos = document.getElementById('cc-look-photos');
+    if (photos) photos.replaceChildren();
+    if (lastLookFocus && lastLookFocus.focus) lastLookFocus.focus();
+  }
+
+  function selectGuide(button) {
+    var choice = guideCopy[button.getAttribute('data-keep')];
+    if (!choice) return;
+    document.querySelectorAll('.cc-guide-btn').forEach(function (item) {
+      item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-recommend]').forEach(function (card) {
+      card.classList.toggle('is-recommended', choice.targets.indexOf(card.getAttribute('data-recommend')) !== -1);
+    });
+    var result = document.getElementById('cc-guide-result');
+    if (result) result.textContent = choice.text;
+  }
+
   document.addEventListener('click', function (event) {
+    var guideBtn = event.target.closest('.cc-guide-btn');
+    if (guideBtn) {
+      selectGuide(guideBtn);
+      return;
+    }
+    var lookBtn = event.target.closest('[data-look]');
+    if (lookBtn) {
+      openLook(lookBtn.closest('.cc-project'), lookBtn);
+      return;
+    }
     var link = event.target.closest('[data-ceramic-book]');
     if (!link) return;
     event.preventDefault();
     openBooking(link.getAttribute('data-ceramic-book') || '', link);
   });
 
+  if (look) {
+    look.addEventListener('click', function (event) {
+      if (event.target === look) closeLook();
+    });
+    var lookClose = document.getElementById('cc-look-close');
+    if (lookClose) lookClose.addEventListener('click', closeLook);
+  }
+
   document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') closeBooking();
+    if (event.key === 'Escape') {
+      if (lookOpen()) {
+        event.preventDefault();
+        closeLook();
+        return;
+      }
+      closeBooking();
+      return;
+    }
+    if (event.key !== 'Tab' || !lookOpen()) return;
+    var items = lookFocusable();
+    if (!items.length) return;
+    var first = items[0];
+    var last = items[items.length - 1];
+    var active = document.activeElement;
+    if (event.shiftKey && (active === first || !look.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (active === last || !look.contains(active))) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 
   window.addEventListener('message', function (event) {
     if (!event.data || event.data.type !== 'cd1-booking-closed') return;
     closeBooking();
   });
-
-  var scroller = document.getElementById('cc-projects');
-  document.querySelectorAll('[data-project-nav]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (!scroller) return;
-      var card = scroller.querySelector('.cc-project');
-      var width = card ? card.getBoundingClientRect().width : scroller.clientWidth;
-      var dir = btn.getAttribute('data-project-nav') === 'next' ? 1 : -1;
-      scroller.scrollBy({ left: dir * (width + 12), behavior: 'smooth' });
-    });
-  });
-
-  var compare = document.querySelector('.cc-compare input[type="range"]');
-  if (compare) {
-    compare.addEventListener('input', function () {
-      compare.setAttribute('aria-valuetext', compare.value + ' percent before');
-    });
-  }
 
   var sticky = document.querySelector('[data-cc-sticky]');
   var heroCta = document.querySelector('.cc-hero .cc-btn-primary');
