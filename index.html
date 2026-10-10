@@ -282,8 +282,8 @@
   --shadow-sm:0 2px 8px rgba(0,0,0,.22);--shadow-md:0 12px 32px rgba(0,0,0,.32);
   --fd:'Bebas Neue',sans-serif;--fb:'DM Sans',sans-serif;
   --r:16px;--rs:12px;--rx:20px;
-  --section-pad-desktop:clamp(64px, 7vw, 96px);
-  --section-pad-mobile:56px;
+  --section-pad-desktop:clamp(48px, 4vw, 64px);
+  --section-pad-mobile:40px;
   --cd1-surface-base:#12181f;
   --cd1-surface-raised:#13191f;
   --cd1-surface-media:#11171e;
@@ -1966,11 +1966,16 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .luxury-surface #reviews.cd1-tone-base{background:var(--cd1-surface-base)!important}
 .luxury-surface .results-section{
   background:var(--cd1-surface-base)!important;
-  padding-top:32px;
+  padding-top:24px;
   padding-bottom:var(--section-pad-desktop);
   border:none!important;
 }
-.luxury-surface .cd1-sameday{padding-bottom:32px}
+/* Compact joins: the controls, same-day banner, and recent-work label sit closer than a full section break. */
+.luxury-surface #before-after.cd1-tone-media{padding-bottom:24px}
+.luxury-surface .cd1-sameday{padding-top:32px;padding-bottom:32px}
+/* Compact join: the closing call block meets the footer without a full section pad. */
+.luxury-surface .section-full.cd1-tone-base{padding-bottom:16px}
+.luxury-surface #cd1-public-footer{padding-top:40px}
 .luxury-surface .results-section .cred-row{
   margin-top:20px;
   padding:0;
@@ -2008,8 +2013,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .luxury-surface .cd1-tone-raised,
   .luxury-surface .cd1-tone-media{padding-top:var(--section-pad-mobile);padding-bottom:var(--section-pad-mobile)}
   .luxury-surface .cd1-sameday{padding-left:16px;padding-right:16px}
-  .luxury-surface .cd1-sameday{padding-bottom:24px}
-  .luxury-surface .results-section{padding-top:24px;padding-bottom:var(--section-pad-mobile)}
+  .luxury-surface #before-after.cd1-tone-media{padding-bottom:28px}
+  .luxury-surface .cd1-sameday{padding-top:28px;padding-bottom:28px}
+  .luxury-surface .results-section{padding-top:28px;padding-bottom:var(--section-pad-mobile)}
+  .luxury-surface .section-full.cd1-tone-base{padding-bottom:16px}
+  .luxury-surface #cd1-public-footer{padding-top:40px}
   .luxury-surface .results-section .cred-item{flex:0 0 auto;width:100%;min-width:0}
   .luxury-surface .home-service-areas{padding-top:var(--section-pad-mobile);padding-bottom:var(--section-pad-mobile)}
   .luxury-surface .home-service-areas{padding-left:0;padding-right:0}
