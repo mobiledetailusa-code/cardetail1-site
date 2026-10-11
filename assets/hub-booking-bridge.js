@@ -113,7 +113,12 @@
     var params = new URLSearchParams();
     params.set('embed', '1');
     if (cat) params.set('book', cat);
-    if (pkgId) params.set('pkg', pkgId);
+    if (pkgId) {
+      params.set('pkg', pkgId);
+      params.set('start', 'vehicle');
+    } else if (cat) {
+      params.set('start', 'package');
+    }
     var zip = resolveZip();
     if (zip) params.set('zip', zip);
     return params;
@@ -185,7 +190,7 @@
         return openDelegatedBooking(args[0] || null, null);
       }
       if (name === 'openBookingCarPkg') {
-        return openDelegatedBooking(null, args[0] || null);
+        return openDelegatedBooking('cars', args[0] || null);
       }
       return openDelegatedBooking(args[0] || null, null);
     };

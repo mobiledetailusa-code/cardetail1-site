@@ -1,8 +1,8 @@
 'use strict';
 
 /**
- * Homepage Popular Services: package intent ≠ vehicle category.
- * Homepage CTAs must not silently choose Cars.
+ * Homepage Popular Services: a package CTA is Cars plus that catalog id.
+ * In-modal category clicks still do not invent a package.
  */
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
@@ -130,6 +130,8 @@ function loadSelectCategory() {
       querySelectorAll() { return []; },
     },
     openCommercialInquiry() {},
+    logBookingIntent() {},
+    setZipOnlyGate() {},
     renderPackages() {},
     renderTierChips() {},
     renderVehicleCart() {},
@@ -187,20 +189,19 @@ describe('canonical package ids (no invented products)', () => {
   });
 });
 
-describe('1–3 homepage package CTA keeps intent, not Cars', () => {
+describe('1–3 homepage package CTA keeps Cars and the chosen package', () => {
   for (const pkgId of ['interior', 'full', 'refresh']) {
-    it(`Homepage ${pkgId} CTA retains package intent and does not force Cars`, () => {
+    it(`Homepage ${pkgId} CTA opens Cars with that package`, () => {
       assert.match(index, new RegExp(`class="car-pkg-cta" onclick="openBookingCarPkg\\('${pkgId}'\\)"`));
       const fn = extractFunction(index, 'openBookingCarPkg');
       assert.match(fn, /ST\._packageIntent\s*=\s*pkgId/);
-      assert.match(fn, /openBookingFromHome\(null\)/);
-      assert.doesNotMatch(fn, /openBookingFromHome\('cars'\)/);
-      assert.doesNotMatch(fn, /ST\._startStep\s*=\s*3/);
-      assert.match(fn, /ST\.cat\s*=\s*''/);
+      assert.match(fn, /openBookingFromHome\('cars'\)/);
+      assert.match(fn, /ST\._startStep\s*=\s*3/);
+      assert.doesNotMatch(fn, /openBookingFromHome\(null\)/);
 
       const opened = [];
       const sandbox = {
-        ST: { cat: 'cars', pkgId: 'wash', pkg: { id: 'wash' }, _pendingCat: 'cars', _startStep: 3 },
+        ST: { cat: 'cars', pkgId: 'wash', pkg: { id: 'wash' }, _pendingCat: 'cars', _startStep: null },
         window: {},
         CD1BookingProgress: {
           showPendingIntent(cat, pkg) { sandbox.shown = [cat, pkg]; },
@@ -213,12 +214,12 @@ describe('1–3 homepage package CTA keeps intent, not Cars', () => {
       vm.runInContext(fn, sandbox);
       sandbox.openBookingCarPkg(pkgId);
       assert.equal(sandbox.ST.cat, '');
-      assert.equal(sandbox.ST._pendingCat, '');
       assert.equal(sandbox.ST._packageIntent, pkgId);
       assert.equal(sandbox.ST._prefillPkgId, pkgId);
-      assert.equal(sandbox.ST._startStep, null);
-      assert.deepEqual(opened, [null]);
-      assert.deepEqual(sandbox.shown, ['', pkgId]);
+      assert.equal(sandbox.ST._startStep, 3);
+      assert.equal(sandbox.ST._intentLocked, true);
+      assert.deepEqual(opened, ['cars']);
+      assert.deepEqual(sandbox.shown, ['cars', pkgId]);
       assert.equal(sandbox.persisted, true);
     });
   }
@@ -228,12 +229,12 @@ describe('1–3 homepage package CTA keeps intent, not Cars', () => {
     assert.doesNotMatch(modalJs, /openBookingFromHome\('cars'\)/);
   });
 
-  it('routing gate no longer classifies homepage package CTAs as Cars', () => {
+  it('routing gate reads the CTA before Cars is applied; hub iframe keeps cars and the package', () => {
     assert.match(gateSrc, /source: 'openBookingCarPkg'/);
     assert.doesNotMatch(gateSrc, /category: 'cars', source: 'openBookingCarPkg'/);
     assert.match(gateSrc, /category: '', source: 'openBookingCarPkg'/);
-    assert.match(hubBridge, /openDelegatedBooking\(null, args\[0\]/);
-    assert.doesNotMatch(hubBridge, /openDelegatedBooking\('cars', args\[0\]/);
+    assert.match(hubBridge, /openDelegatedBooking\('cars', args\[0\]/);
+    assert.doesNotMatch(hubBridge, /openDelegatedBooking\(null, args\[0\]/);
   });
 });
 
@@ -271,7 +272,7 @@ describe('4–5 customer chooses category after homepage intent', () => {
     const r = loadResolver();
     assert.equal(r.resolvePackageIntentForCategory('rvs', 'interior'), 'interior');
     assert.equal(r.resolvePackageIntentForCategory('rvs', 'full'), 'full');
-    assert.equal(r.resolvePackageIntentForCategory('rvs', 'refresh'), 'premium');
+    assert.equal(r.resolvePackageIntentForCategory('rvs', 'refresh'), '');
     const box = loadSelectCategory();
     box.ST._packageIntent = 'interior';
     box.selectCategory('rvs');
@@ -287,8 +288,8 @@ describe('4–5 customer chooses category after homepage intent', () => {
     assert.equal(r.resolvePackageIntentForCategory('powersports', 'full'), 'full');
     assert.equal(r.resolvePackageIntentForCategory('boats', 'interior'), '');
     assert.equal(r.resolvePackageIntentForCategory('powersports', 'interior'), '');
-    assert.equal(r.resolvePackageIntentForCategory('boats', 'refresh'), 'premium');
-    assert.equal(r.resolvePackageIntentForCategory('powersports', 'refresh'), 'premium');
+    assert.equal(r.resolvePackageIntentForCategory('boats', 'refresh'), '');
+    assert.equal(r.resolvePackageIntentForCategory('powersports', 'refresh'), '');
     const box = loadSelectCategory();
     box.ST._packageIntent = 'interior';
     box.selectCategory('boats');
@@ -304,14 +305,15 @@ describe('6–7 explicit category deep links stay preselected', () => {
     assert.match(index, /ST\._pendingCat=book/);
     assert.match(index, /allowed=\{cars:1,trucks:1,boats:1,rvs:1,powersports:1\}/);
     const q = index.slice(index.indexOf('function openBookingFromQuery'), index.indexOf('__cd1PendingBookQuery={book:book'));
-    assert.match(q, /if\(pkg\)/);
+    assert.match(q, /applyBookingQueryIntent\(book, pkg, startQ\)/);
+    assert.match(index, /function applyBookingQueryIntent\(book, pkg, startQ\)/);
     assert.doesNotMatch(index, /ST\._pendingCat\s*=\s*'cars'/);
   });
 
   it('Boat deep-link and specialty openBookingPkg still preselect category', () => {
     const pkgFn = extractFunction(index, 'openBookingPkg');
     assert.match(pkgFn, /openBookingFromHome\(cat\)/);
-    assert.match(pkgFn, /ST\._startStep=3/);
+    assert.match(pkgFn, /ST\._startStep=pkgId\?3:2/);
     assert.match(index, /params\.get\('book'\)/);
     assert.match(gateSrc, /ST\._pendingCat = pending\.book/);
   });

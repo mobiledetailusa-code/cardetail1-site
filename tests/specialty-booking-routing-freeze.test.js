@@ -384,7 +384,7 @@ describe('package compatibility per specialty category', () => {
     vm.runInContext(extractFunction(index, 'resolvePackageIntentForCategory'), sandbox);
     assert.equal(sandbox.resolvePackageIntentForCategory('boats', 'interior'), '');
     assert.equal(sandbox.resolvePackageIntentForCategory('rvs', 'interior'), 'interior');
-    assert.equal(sandbox.resolvePackageIntentForCategory('powersports', 'refresh'), 'premium');
+    assert.equal(sandbox.resolvePackageIntentForCategory('powersports', 'refresh'), '');
   });
 });
 
