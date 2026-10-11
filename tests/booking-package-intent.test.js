@@ -719,6 +719,168 @@ describe('query string', () => {
   });
 });
 
+describe('resume keeps the in-progress booking', () => {
+  it('a URL package does not replace the saved vehicle, package, booking, or contact fields', () => {
+    const store = {};
+    const fields = {};
+    const snap = {
+      v: 1,
+      savedAt: Date.now(),
+      step: 4,
+      zip: '07601',
+      packageIntent: 'interior',
+      pendingCat: 'cars',
+      ST: {
+        cat: 'cars',
+        pkgId: 'interior',
+        vehicleLabel: '2022 Hyundai Palisade',
+        tierKey: 'suv3',
+        vehicles: [{ vehicleLabel: '2022 Hyundai Palisade', pkgId: 'interior', basePrice: 255, subtotal: 255 }],
+        addons: [{ id: 'rainx', name: 'Rain-X Windshield Treatment', price: 25 }],
+        lengthFt: 0,
+      },
+      draft: { bookingId: 'CD1-RESUME1', draftSaveToken: 'tok-resume', draftRegistered: true },
+      fields: { 'f-first': 'Ada', 'f-last': 'Lovelace', 'f-email': 'ada@example.com', 'f-phone': '5513893986' },
+    };
+    store.cd1_booking_progress = JSON.stringify(snap);
+    const ctx = {
+      window: {},
+      document: {
+        readyState: 'complete',
+        addEventListener() {},
+        getElementById(id) {
+          if (id === 'bk-zip') return { value: '07601', addEventListener() {} };
+          if (!fields[id]) fields[id] = { id, type: 'text', value: '', addEventListener() {} };
+          return fields[id];
+        },
+      },
+      localStorage: {
+        getItem: (k) => (k in store ? store[k] : null),
+        setItem: (k, v) => { store[k] = String(v); },
+        removeItem: (k) => { delete store[k]; },
+      },
+      sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+      location: { search: '?resume=1&book=boats&pkg=full&start=vehicle&zip=10001', pathname: '/' },
+      URLSearchParams,
+      ST: {
+        cat: 'boats', pkgId: 'full', _packageIntent: 'full', _prefillPkgId: 'full',
+        _pendingCat: 'boats', _startStep: 3, vehicleLabel: '', tierKey: '',
+        vehicles: [], addons: [], bookingId: '', basePrice: 0,
+      },
+      currentBkStep: 1,
+      activeZone: { key: 'nj_a' },
+      setTimeout(fn) { if (typeof fn === 'function') fn(); return 0; },
+      openBooking() {},
+      bkGoTo() {},
+      selectCategory(cat) {
+        ctx.selected = cat;
+        ctx.ST.cat = cat;
+        ctx.ST.pkgId = '';
+        ctx.ST.vehicleLabel = '';
+        ctx.ST.tierKey = '';
+        ctx.ST.vehicles = [];
+        ctx.ST.addons = [];
+        ctx.ST.basePrice = 0;
+      },
+      selectPkg(id) {
+        ctx.ST.pkgId = id;
+        ctx.ST.addons = [];
+      },
+      setBasePrice() {
+        const tier = PRICING[ctx.ST.cat] && PRICING[ctx.ST.cat].tiers[ctx.ST.tierKey];
+        ctx.ST.basePrice = tier && tier[ctx.ST.pkgId] ? tier[ctx.ST.pkgId] : 0;
+      },
+      console,
+    };
+    ctx.window = ctx;
+    ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    vm.runInContext(progressSrc, ctx);
+    const result = ctx.CD1BookingProgress.resumeFromQuery();
+    assert.equal(result.restored, true);
+    assert.equal(ctx.selected, 'cars');
+    assert.notEqual(ctx.ST.cat, 'boats');
+    assert.equal(ctx.ST.pkgId, 'interior');
+    assert.notEqual(ctx.ST.pkgId, 'full');
+    assert.equal(ctx.ST.vehicleLabel, '2022 Hyundai Palisade');
+    assert.equal(ctx.ST.tierKey, 'suv3');
+    assert.equal(ctx.ST.bookingId, 'CD1-RESUME1');
+    assert.equal(ctx.ST.draftSaveToken, 'tok-resume');
+    assert.equal(ctx.ST.basePrice, 255);
+    assert.equal(fields['f-first'].value, 'Ada');
+    assert.equal(fields['f-email'].value, 'ada@example.com');
+    assert.equal(ctx.ST.vehicles[0].vehicleLabel, '2022 Hyundai Palisade');
+    assert.equal(ctx.ST.addons[0].id, 'rainx');
+    const queryFn = index.slice(index.indexOf('(function openBookingFromQuery(){'), index.indexOf('})();', index.indexOf('(function openBookingFromQuery(){')));
+    const resumeAt = queryFn.indexOf("if(params.get('resume')==='1') return;");
+    assert.ok(resumeAt > 0);
+    assert.ok(resumeAt < queryFn.indexOf('if(zipQ.length===5)'));
+    assert.ok(resumeAt < queryFn.indexOf('applyBookingQueryIntent(book, pkg, startQ)'));
+    const pending = extractFunction(read('assets/booking-routing-gate.js'), 'processPendingBookQuery');
+    assert.match(pending, /get\('resume'\) === '1'/);
+    assert.ok(pending.indexOf("get('resume') === '1'") < pending.indexOf('openBookingFromHome'));
+  });
+});
+
+describe('provisional zero is not a confirmed total', () => {
+  it('shows a blank total before the vehicle and the catalog price after', () => {
+    assert.match(index, /id="ah-total">—</);
+    assert.match(index, /id="bs2-sticky-price">—</);
+    assert.match(index, /id="s5-total">—</);
+    assert.match(index, /id="vcart-sum">—</);
+    assert.match(index, /id="rv-subtotal-amt">—</);
+    assert.match(index, /class="bk-charged-amt">\$0\.00</);
+    const els = {
+      'ah-total': { textContent: '$0' },
+      'ah-total-lbl': { textContent: 'Estimated total' },
+      'ah-total-est': { textContent: '', style: {} },
+    };
+    const ctx = {
+      ST: {
+        cat: 'cars', pkgId: 'interior', pkg: { id: 'interior' }, tierKey: '', tier: null,
+        vehicleLabel: '', basePrice: 0, addonTotal: 0, _priceResolveFailed: false,
+      },
+      PRICING,
+      document: { getElementById(id) { return els[id] || null; } },
+      getTravelFeeAmount() { return 25; },
+      updateVcPriceDisplay() {},
+      syncContinueGate() {},
+      applyRichPrice(base) { return base ? Math.round(base) : 0; },
+      CD1PowersportsBookingSafety: { resolvePriceTier(key) { return key; } },
+    };
+    ctx.window = ctx;
+    ctx.globalThis = ctx;
+    vm.createContext(ctx);
+    vm.runInContext([
+      extractFunction(index, 'bkMoney'),
+      extractFunction(index, 'isPublishedPricedPackage'),
+      extractFunction(index, 'updateTotal'),
+      extractFunction(index, 'compactPackagePriceLabel'),
+      extractFunction(index, 'resolveTierPackagePrice'),
+      extractFunction(index, 'setBasePrice'),
+    ].join('\n'), ctx);
+    ctx.updateTotal();
+    assert.equal(els['ah-total'].textContent, '—');
+    assert.equal(/\$0(\.00)?|free/i.test(els['ah-total'].textContent), false);
+    assert.equal(ctx.compactPackagePriceLabel('cars', { id: 'interior' }, PRICING.cars), 'From $225');
+    ctx.getTravelFeeAmount = () => 0;
+    assert.equal(ctx.compactPackagePriceLabel('cars', { id: 'interior' }, PRICING.cars), 'From $200');
+    ctx.ST.vehicleLabel = '2020 Civic';
+    ctx.ST.tierKey = 'small';
+    ctx.ST.tier = PRICING.cars.tiers.small;
+    ctx.setBasePrice();
+    assert.equal(ctx.ST.basePrice, 200);
+    assert.equal(els['ah-total'].textContent, '$200.00');
+    ctx.ST.vehicleLabel = '2022 Palisade';
+    ctx.ST.tierKey = 'suv3';
+    ctx.ST.tier = PRICING.cars.tiers.suv3;
+    ctx.setBasePrice();
+    assert.equal(ctx.ST.basePrice, 255);
+    assert.equal(els['ah-total'].textContent, '$255.00');
+    assert.equal(ctx.compactPackagePriceLabel('cars', { id: 'interior' }, PRICING.cars), '$255');
+  });
+});
+
 describe('CTA map stays on existing ids', () => {
   it('homepage, hub, and specialty bridges pass catalog ids and no price', () => {
     assert.match(index, /openBookingCarPkg\('interior'\)/);
