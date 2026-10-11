@@ -196,8 +196,8 @@ describe('P0-5 / P0-6 funnel copy', () => {
   });
 
   it('homepage features 3 packages and offers a path to the full list', () => {
-    assert.match(index, /Featured packages/);
-    assert.match(index, /Popular services/);
+    assert.match(index, /Packages &amp; prices/);
+    assert.match(index, /The price depends on the vehicle/);
     assert.match(index, />View all packages</);
     assert.equal((index.match(/data-pkg="(interior|full|refresh)"/g) || []).length, 3);
     assert.doesNotMatch(index.slice(index.indexOf('id="services"'), index.indexOf('id="ceramic-coating"')), /data-pkg="wash"/);

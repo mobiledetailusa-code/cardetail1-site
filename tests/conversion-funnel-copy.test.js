@@ -123,15 +123,17 @@ test('neither utility field is required to advance past the contact step', () =>
 // ── C. CTA hierarchy: discovery at cold entry, booking still reachable ────────
 
 test('cold-traffic entry points use discovery language', () => {
+  const index = read('index.html');
   assert.match(
-    read('index.html'),
-    /hero-zip-btn-lbl">Check Price &amp; Availability<\/span>/,
-    'index hero ZIP CTA is not the discovery CTA',
+    index,
+    /class="btn-primary hero-primary"[^>]*>See packages &amp; prices<\/a>/,
+    'homepage primary CTA should lead to packages and prices',
   );
+  assert.match(index, /href="#services"/);
   assert.match(
-    read('index.html'),
+    index,
     /function onHeroZipSubmit\(\)\{[\s\S]*?openBooking\(null\)/,
-    'index hero ZIP submit must open the booking flow',
+    'ZIP submit must still open the booking flow when a ZIP field is used',
   );
   for (const page of bookingPages) {
     const html = read(page);
@@ -224,29 +226,20 @@ test('the fabricated vehicle counter is gone from every public page', () => {
   }
 });
 
-test('the hero trust line carries only claims that can be checked', () => {
+test('the hero does not invent a tally or an owner-always promise', () => {
   const index = read('index.html');
-  assert.match(index, /class="hero-trust-line"/, 'hero trust line missing');
+  const hero = /<section class="hero"[\s\S]*?<\/section>/.exec(index);
+  assert.ok(hero, 'homepage hero missing');
+  const html = hero[0];
 
-  const line = /<ul class="hero-trust-line"[\s\S]*?<\/ul>/.exec(index);
-  assert.ok(line, 'could not isolate the hero trust line');
-  const html = line[0];
-
-  for (const claim of ['5+ Years Experience', 'Owner-Operated', 'Mobile Detailing', 'Same-day available']) {
-    assert.ok(html.includes(claim), `hero trust line lost "${claim}"`);
-  }
+  assert.doesNotMatch(html, /The person you book is the person who shows up/);
   assert.doesNotMatch(html, /5\.0 Google|9 reviews/);
-
-  // Transparent highlight chips — not opaque cards.
-  assert.match(html, /class="hero-trust-chip"/);
-  assert.match(index, /hero-trust-chip\{[^}]*background:rgba\(255,255,255,\.08\)/);
-
-  // Nothing derived from a counter, a visit count or an invented total.
-  assert.doesNotMatch(html, /\d+(\.\d+)?k\+/, 'hero trust line shows a k+ style count');
-  assert.doesNotMatch(html, /detailed|vehicles/i, 'hero trust line claims a vehicle tally');
-
+  assert.doesNotMatch(html, /Vehicles detailed/);
+  assert.doesNotMatch(html, /\d+(\.\d+)?k\+/, 'hero shows a k+ style count');
+  assert.doesNotMatch(html, /Same-day available/);
   assert.match(index, /id="reviews"/, 'the reviews anchor target is missing');
-  assert.match(index, /The person you book is the person who shows up\./);
+  assert.match(index, /<h3>Same-day when slots remain<\/h3>/);
+  assert.match(index, /hero-trust-chip\{[^}]*background:rgba\(255,255,255,\.08\)/);
 });
 
 test('homepage hero no longer leads with interior/exterior water-power subcopy', () => {

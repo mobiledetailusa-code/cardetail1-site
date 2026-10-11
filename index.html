@@ -344,7 +344,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .hero-quote-call-btn--text:hover,.hero-quote-call-btn--text:focus-visible{background:rgba(77,163,255,.34);border-color:rgba(77,163,255,.8);color:#e8f3ff}
 @keyframes heroQuoteIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.hero-quote-call{animation:none}}
-.hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:40px max(20px, min(6vw, 72px)) 48px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);min-height:min(72vh,640px)}
+.hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:28px max(20px, min(6vw, 72px)) 28px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);min-height:0}
 .hero-media{position:absolute;inset:0;z-index:0;pointer-events:none}
 .hero-media picture,.hero-media-img{display:block;width:100%;height:100%}
 .hero-media-img{object-fit:cover;object-position:right center;width:100%;height:100%}
@@ -1365,7 +1365,7 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
 .ba-section.is-carousel .ba-card{flex:0 0 100%;max-width:100%;min-width:0;scroll-snap-align:start}
 .ba-section.is-carousel .ba-card.is-more{display:none !important}
 .ba-section.is-carousel.is-expanded .ba-card.is-more{display:block !important}
-.ba-section.is-carousel .ba-caption{display:none}
+.ba-section.is-carousel .ba-caption{display:block;margin:8px 0 0;font-size:13px;line-height:1.45;color:var(--ink-soft)}
 .ba-section.is-carousel .ba-compare,.ba-section.is-carousel .ba-showcase{aspect-ratio:4/3;overflow:hidden}
 .ba-section.is-carousel .ba-compare img,.ba-section.is-carousel .ba-showcase img{width:100%;height:100%;object-fit:cover}
 .ba-carousel-nav{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;max-width:100%;flex-wrap:wrap}
@@ -1853,11 +1853,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .svc-lock-gate-ico{font-size:40px;margin-bottom:10px}
 
 @media(max-width:680px){
-  .hero{text-align:left;min-height:min(78vh,720px)}
+  .hero{text-align:left;min-height:0}
   .hero::before{background:
-    linear-gradient(180deg,rgba(15,20,28,.92) 0%,rgba(18,24,33,.78) 42%,rgba(18,24,33,.55) 68%,rgba(18,24,33,.88) 100%),
-    linear-gradient(105deg,rgba(15,20,28,.88) 0%,rgba(18,24,33,.55) 48%,rgba(18,24,33,.18) 100%) !important}
-  .hero-media-img{object-position:68% center}
+    linear-gradient(180deg,rgba(8,12,18,.55) 0%,rgba(8,12,18,.42) 100%) !important}
+  .hero-media-img{object-position:72% 42%}
+  .hero-inner{background:rgba(8,12,18,.97);border-radius:16px;padding:14px 14px 12px}
   .hero-inner{margin:0;max-width:100%}
   .hero-sub{margin-left:0;margin-right:0}
   .hero-zip-wrap{margin-left:0;margin-right:0;max-width:100%}
@@ -1878,20 +1878,23 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 /* ── MOBILE CONVERSION PASS (hero, nav, packages, tap targets) ── */
 @media(max-width:768px){
-  .hero{padding:28px 16px 36px;min-height:min(78vh,720px);align-items:flex-start;justify-content:flex-start;background:#12181f!important}
+  .hero{padding:20px 16px 22px;min-height:0;align-items:flex-start;justify-content:flex-start;background:#12181f!important}
   .hero::before{display:block!important;background:
-    linear-gradient(180deg,rgba(15,20,28,.92) 0%,rgba(18,24,33,.78) 42%,rgba(18,24,33,.55) 68%,rgba(18,24,33,.88) 100%),
-    linear-gradient(105deg,rgba(15,20,28,.88) 0%,rgba(18,24,33,.55) 48%,rgba(18,24,33,.18) 100%) !important}
-  .hero-media-img{object-position:68% center}
-  .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0}
+    linear-gradient(180deg,rgba(8,12,18,.35) 0%,rgba(8,12,18,.28) 100%) !important}
+  .hero h1,.hero-sub,.hero-badge,.hero-quote-call,.hero-assure{text-shadow:none}
+  .hero-sub{color:#e7eef6}
+  .hero-media-img{object-position:78% 40%}
+  .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0;background:rgba(8,12,18,.97);border-radius:16px;padding:14px 14px 12px}
+  .hero-quote-call{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px}
+  .hero-call-line{white-space:nowrap}
   .hero-badge{align-self:flex-start;font-size:10.5px;padding:4px 10px;margin-bottom:10px}
   .hero h1{font-size:clamp(28px,7.4vw,34px);line-height:1.12;margin-bottom:10px;text-align:left;overflow-wrap:break-word}
   .hero-assure{text-align:left;margin-top:10px}
   .hero-trust-line{justify-content:flex-start;margin-top:12px;gap:7px}
   .hero-trust-chip{padding:7px 10px;font-size:12px}
   .hero-packages-link{align-self:flex-start;margin-top:14px}
-  .hero-quote-call{max-width:100%;margin-top:12px;padding:14px 14px}
-  .hero-quote-call-number{font-size:clamp(30px,8.5vw,36px)}
+  .hero-quote-call{max-width:100%;margin-top:10px;padding:0;background:none;border:none;box-shadow:none}
+  .hero-quote-call-number{font-size:14px;font-weight:600;margin:0 0 0 6px}
   .hero-quote-call-btn{flex:1;min-height:48px}
   #zip-section{width:100%;min-width:0;margin-top:0;max-width:100%}
   .hero-zip-wrap{padding:12px;margin-bottom:0;max-width:100%}
@@ -1915,6 +1918,30 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 @media(max-width:768px){
   .loc-scroll,.loc-inner,.section,.hero-inner,.car-pkg-grid{max-width:100%;min-width:0}
   .loc-scroll{padding-bottom:4px;margin:0 -4px;padding-left:4px;padding-right:4px}
+}
+a.hero-primary{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:48px;width:fit-content;margin:2px 0 0}
+.hero-quote-call{background:none;border:none;box-shadow:none;padding:0;margin:12px 0 0;max-width:none;backdrop-filter:none;-webkit-backdrop-filter:none;animation:none}
+.hero-quote-call-label{display:inline;margin:0;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;color:#d7e4f2}
+.hero-quote-call-number{display:inline;margin:0 0 0 6px;font-size:14px;font-weight:600;line-height:1.4;letter-spacing:0;color:#e8f3ff;text-shadow:none}
+.hero-quote-sms{margin-left:8px;font-size:14px;font-weight:600;color:#9ec4ef;text-decoration:underline;text-underline-offset:2px}
+.hero-assure{margin-top:8px}
+.car-pkg-points{list-style:none;margin:0 0 4px;padding:0}
+.car-pkg-points li{position:relative;padding:2px 0 2px 14px;font-size:13px;line-height:1.4;color:var(--ink-soft)}
+.car-pkg-points li::before{content:'·';position:absolute;left:2px;top:1px;color:var(--blue);font-weight:700}
+#services .car-pkg-price-note{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.home-more-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.home-more-list li{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;padding:12px 14px;background:var(--bg0);border:1px solid var(--line);border-radius:var(--r)}
+.home-more-list a{font-weight:700;color:var(--ink);text-decoration:none}
+.home-more-list a:hover,.home-more-list a:focus-visible{color:var(--blue)}
+.home-more-list span{font-size:14px;line-height:1.45;color:var(--ink-soft)}
+.home-more-actions{display:flex;flex-wrap:wrap;gap:8px 14px;width:100%}
+.home-more-book{padding:0;border:none;background:none;color:#1d4ed8;font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.luxury-surface #services,.luxury-surface #reviews,.luxury-surface #before-after{padding-top:28px;padding-bottom:28px}
+@media(max-width:768px){
+  a.hero-primary{width:100%}
+  .luxury-surface #services,.luxury-surface #reviews,.luxury-surface .ba-section{padding-top:18px!important;padding-bottom:18px!important}
+  .section{padding:28px 16px}
+  #services .car-pkg-intro{margin-bottom:14px}
 }
 
 </style>
@@ -2088,92 +2115,42 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 <div class="hero-inner">
     <div class="hero-badge">Palisades Park, NJ · Mobile Detailing</div>
-    <h1>Mobile Car Detailing<br>at Your Home or Office</h1>
-
-    <div id="zip-section" aria-label="Check price and availability by ZIP code">
-      <div class="hero-zip-wrap hero-zip-wrap--compact">
-        <label class="hero-zip-label" for="hero-zip">ZIP code</label>
-        <div class="hero-zip-row">
-          <input
-            class="hero-zip-input"
-            id="hero-zip"
-            type="text"
-            inputmode="numeric"
-            maxlength="5"
-            placeholder="ZIP code"
-            autocomplete="postal-code"
-            oninput="onHeroZipInput(this.value)"
-            onkeydown="if(event.key==='Enter')onHeroZipSubmit()"
-          >
-          <button class="hero-zip-btn booking-popup-trigger" id="hero-zip-btn" type="button" onclick="onHeroZipSubmit()"><span class="hero-zip-spin" aria-hidden="true"></span><span class="hero-zip-btn-lbl">Check Price &amp; Availability</span></button>
-        </div>
-        <div class="hero-zip-feedback" id="hero-zip-feedback" aria-live="polite"></div>
-      </div>
+    <h1>A clean car, without rearranging your day.</h1>
+    <p class="hero-sub">We come to your home or workplace. Choose the clean your car needs, see your price, and pick a time.</p>
+    <a class="btn-primary hero-primary" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages &amp; prices</a>
+    <div class="hero-quote-call">
+      <span class="hero-quote-call-label">Call or text for a quote</span>
+      <span class="hero-call-line"><a class="hero-quote-call-number" href="tel:+15513893986">(551) 389-3986</a> <a class="hero-quote-sms" href="sms:+15513893986">Text</a></span>
     </div>
-
     <p class="hero-assure">
       <span class="hero-assure-val">No payment today</span>
       <span class="hero-assure-sep" aria-hidden="true">·</span>
       <span class="hero-assure-lbl">Request first, pay later</span>
     </p>
-
-    <div class="hero-quote-call">
-      <p class="hero-quote-call-label">Call or text for a quote</p>
-      <a class="hero-quote-call-number" href="tel:+15513893986">(551) 389-3986</a>
-      <div class="hero-quote-call-actions">
-        <a class="hero-quote-call-btn hero-quote-call-btn--call" href="tel:+15513893986">Call now</a>
-        <a class="hero-quote-call-btn hero-quote-call-btn--text" href="sms:+15513893986">Text us</a>
-      </div>
-    </div>
-
-    <ul class="hero-trust-line" aria-label="Why customers book Cardetail1">
-      <li><span class="hero-trust-chip">5+ Years Experience</span></li>
-      <li><span class="hero-trust-chip">Owner-Operated</span></li>
-      <li><span class="hero-trust-chip">Mobile Detailing</span></li>
-      <li><span class="hero-trust-chip hero-trust-chip--accent">Same-day available</span></li>
-    </ul>
-    <p class="hero-owner-line">The person you book is the person who shows up.</p>
-
-    <a class="hero-packages-link" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages</a>
   </div>
 </section>
-
-<!-- LOCATION CAROUSEL -->
-<div class="loc-section cd1-tone-base" id="loc-section">
-  <div class="loc-inner">
-    <div class="loc-header">
-      <div class="cd1-head">
-        <div class="sec-eye" style="text-align:left;margin-bottom:6px">Service area</div>
-        <div class="sec-title" style="font-family:var(--fb);font-size:clamp(22px,3.5vw,32px);font-weight:600;color:var(--ink);letter-spacing:-.02em;line-height:1.2;text-align:left">Mobile detailing<br><span style="color:var(--blue)">near you</span></div>
-        <p class="loc-area-desc">Based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. <span class="loc-area-ext">Extended service areas available by quote.</span></p>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
-        <div id="loc-zone-pill" class="loc-zone-pill" style="display:none">📍 <span id="loc-pill-text">Detected</span></div>
-        <div id="loc-surcharge-msg" class="loc-surcharge" style="display:none"></div>
-      </div>
-    </div>
-    <div class="loc-scroll" id="loc-scroll"></div>
-  </div>
-</div>
 
 <!-- SERVICES — car-first purchase path -->
 <div id="services" class="cd1-tone-raised">
   <div class="section">
     <div class="car-pkg-intro cd1-head">
-      <div class="sec-eye">Featured packages</div>
-      <h2 class="sec-title">Popular services</h2>
-      <p class="sec-desc">The three packages customers book most. Price follows the vehicle.</p>
+      <h2 class="sec-title">Packages &amp; prices</h2>
+      <p class="sec-desc">The starting price is for a small car. The price depends on the vehicle.</p>
     </div>
 
     <div class="car-pkg-grid">
       <article class="car-pkg-card" data-pkg="interior">
         <div class="car-pkg-top">
-          <div class="car-pkg-badge-slot"></div>
           <span class="car-pkg-scope">Interior only</span>
           <h3 class="car-pkg-name">Interior Detail</h3>
-          <p class="car-pkg-desc">Deep clean inside — vacuum, shampoo, steam, and protectant.</p>
+          <p class="car-pkg-desc">For the crumbs, dust, and everyday mess that build up inside.</p>
+          <ul class="car-pkg-points">
+            <li>Deep vacuum of seats, floors, and trunk</li>
+            <li>Fabric seat and carpet shampoo</li>
+            <li>Steam clean of vents, panels, and crevices</li>
+          </ul>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">⏱ ~1.5–2 hrs</span>
+            <span class="car-pkg-chip">About 1.5–2 hours</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('interior', event)">See what's included</button>
         </div>
@@ -2188,14 +2165,18 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Book this package</button>
         </div>
       </article>
-      <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
+      <article class="car-pkg-card" data-pkg="full">
         <div class="car-pkg-top">
-          <div class="car-pkg-badge-slot"><span class="car-pkg-popular">Most booked</span></div>
-          <span class="car-pkg-scope">Inside &amp; out</span>
+          <span class="car-pkg-scope">Inside and out</span>
           <h3 class="car-pkg-name">Premium Full Detail</h3>
-          <p class="car-pkg-desc">Interior plus exterior wash, protection, and light paint cleaning.</p>
+          <p class="car-pkg-desc">A thorough clean inside and out, all in one visit.</p>
+          <ul class="car-pkg-points">
+            <li>Interior vacuum, shampoo, and steam</li>
+            <li>Exterior hand wash, wheels, and tires</li>
+            <li>Light paint cleaning and exterior protection</li>
+          </ul>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">⏱ ~2.5–3 hrs</span>
+            <span class="car-pkg-chip">About 2.5–3 hours</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('full', event)">See what's included</button>
         </div>
@@ -2212,12 +2193,16 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
         <div class="car-pkg-top">
-          <div class="car-pkg-badge-slot"></div>
-          <span class="car-pkg-scope">Premium exterior</span>
+          <span class="car-pkg-scope">Exterior only</span>
           <h3 class="car-pkg-name">Exterior Refresh &amp; Protect</h3>
-          <p class="car-pkg-desc">Exterior only — clay, polish, sealant, and gloss.</p>
+          <p class="car-pkg-desc">Clean away road grime and bring back a cared-for finish.</p>
+          <ul class="car-pkg-points">
+            <li>Hand wash, wheels, and tires</li>
+            <li>Clay bar and decontamination</li>
+            <li>Polish and sealant</li>
+          </ul>
           <div class="car-pkg-meta">
-            <span class="car-pkg-chip">⏱ ~3.5–4 hrs</span>
+            <span class="car-pkg-chip">About 3.5–4 hours</span>
           </div>
           <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('refresh', event)">See what's included</button>
         </div>
@@ -2241,81 +2226,12 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
-<div class="cd1-tone-base">
-  <div class="section">
-    <div id="ceramic-coating" class="car-pkg-intro cd1-head">
-      <div class="sec-eye">Ceramic Coating</div>
-      <h2 class="sec-title">Ceramic Coating</h2>
-      <p class="sec-desc">Painted exterior only. Durability is up to the term you book and depends on maintenance.</p>
-    </div>
-    <div class="car-pkg-grid car-pkg-grid--ceramic">
-      <article class="car-pkg-card">
-        <div class="car-pkg-top">
-          <span class="car-pkg-scope">Up to 1 year</span>
-          <h3 class="car-pkg-name">Professional Ceramic Protection — Up to 1 Year</h3>
-          <p class="car-pkg-desc">Prep, gloss, and a hydrophobic finish. Up to 1 year with maintenance.</p>
-          <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Passenger cars &amp; pickups</span>
-            <span class="car-pkg-chip">⏱ 8 hours</span>
-          </div>
-          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('ceramic_1yr', event)">See what's included</button>
-        </div>
-        <div class="car-pkg-foot">
-          <div class="car-pkg-price-row">
-            <div class="car-pkg-price">
-              <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-ceramic_1yr">$650</span>
-              <span class="car-pkg-price-note" id="home-from-ceramic_1yr-note">priced by vehicle size</span>
-            </div>
-          </div>
-          <button type="button" class="car-pkg-cta" onclick="openHomeCeramic('ceramic_1yr')">Book Up to 1 Year</button>
-        </div>
-      </article>
-      <article class="car-pkg-card">
-        <div class="car-pkg-top">
-          <span class="car-pkg-scope">Up to 3 years</span>
-          <h3 class="car-pkg-name">Professional Ceramic Protection — Up to 3 Years</h3>
-          <p class="car-pkg-desc">Prep, gloss, and a hydrophobic finish. Up to 3 years with maintenance.</p>
-          <div class="car-pkg-meta">
-            <span class="car-pkg-chip">Passenger cars &amp; pickups</span>
-            <span class="car-pkg-chip">⏱ 10 hours</span>
-          </div>
-          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('ceramic_3yr', event)">See what's included</button>
-        </div>
-        <div class="car-pkg-foot">
-          <div class="car-pkg-price-row">
-            <div class="car-pkg-price">
-              <span class="car-pkg-price-label">From</span>
-              <span class="car-pkg-price-amt" id="home-from-ceramic_3yr">$1050</span>
-              <span class="car-pkg-price-note" id="home-from-ceramic_3yr-note">priced by vehicle size</span>
-            </div>
-          </div>
-          <button type="button" class="car-pkg-cta" onclick="openHomeCeramic('ceramic_3yr')">Book Up to 3 Years</button>
-        </div>
-      </article>
-    </div>
-
-<div class="car-addons-block">
-      <p class="car-addons-sub">Compatible add-ons are shown during booking.</p>
-      <button type="button" class="btn-outline" onclick="openBooking(null)">Check price and options</button>
-    </div>
-
-    <div class="car-services-cta">
-      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
-      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Semi trucks, boats, RVs &amp; powersports</button>
-    </div>
-  </div>
-</div>
-
-<!-- Radar widget removed — now lives in admin.html dispatch board -->
-
 <!-- BEFORE & AFTER -->
 <section class="ba-section cd1-tone-media" id="before-after" aria-labelledby="ba-heading">
   <div class="ba-inner">
     <div class="cd1-head">
-    <div class="sec-eye">Before &amp; after</div>
-    <h2 class="sec-title" id="ba-heading">Before &amp; after mobile detailing near you</h2>
-    <div class="sec-desc">Recent results from customer driveways and offices.</div>
+    <h2 class="sec-title" id="ba-heading">Recent work</h2>
+    <div class="sec-desc">A few jobs from customer driveways and offices. Open the full gallery for the rest.</div>
     </div>
 
     <div class="ba-grid">
@@ -2334,7 +2250,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Subaru Crosstrek</div>
           <div class="ba-service">Exterior Detail &amp; Paint Enhancement</div>
-          <p class="ba-caption">Road film and brake dust cleared off the blue paint, trim restored to a deep black, and the whole finish brought back to a clean, reflective shine — right in the customer's driveway.</p>
+          <p class="ba-caption">Subaru Crosstrek, exterior, Palisades Park. Road film and brake dust were cleaned off the paint. Trim and tires were cleaned in the driveway.</p>
         </div>
       </article>
 
@@ -2352,7 +2268,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">John Deere Gator XUV835M</div>
           <div class="ba-service">Utility Vehicle Interior Deep Clean</div>
-          <p class="ba-caption">Work vehicles take a beating. We pulled the dust out of every vent and crevice, scrubbed the rubber floor mats, and left the cab ready for the next job — not the last one.</p>
+          <p class="ba-caption">John Deere Gator XUV835M, interior. Dust was cleaned from the dash, vents, and floor mats.</p>
         </div>
       </article>
 
@@ -2370,7 +2286,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">GMC Terrain</div>
           <div class="ba-service">Exterior Wash &amp; Paint Decontamination</div>
-          <p class="ba-caption">Weeks of driveway dust and road film dulled this white SUV. Same front angle after the wash — paint back to a clean white, black trim deep again, and the whole front end looking like it just left the lot.</p>
+          <p class="ba-caption">GMC Terrain, exterior, Bergen County. Road film was washed off the white paint. The grille and trim were cleaned.</p>
         </div>
       </article>
 
@@ -2388,7 +2304,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Crossover Rear Bench</div>
           <div class="ba-service">Pet Hair Removal &amp; Interior Deep Clean</div>
-          <p class="ba-caption">Dog hair woven into every crease of the honeycomb fabric — the kind of mess that doesn't come out with a household vacuum. We extracted it from the seats, mats, and seams until the whole rear cabin looked and smelled fresh again.</p>
+          <p class="ba-caption">Crossover rear bench, interior, Bergen County. Dog hair was removed from the fabric seats, mats, and seams.</p>
         </div>
       </article>
 
@@ -2406,7 +2322,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper S</div>
           <div class="ba-service">Exterior Detail &amp; Gloss Restoration</div>
-          <p class="ba-caption">Pollen, dust, and dried spots had flattened the black paint on this Clubman. One pass through our full exterior process and the hood was reflecting the sky again — tight body, small car, same standard of finish.</p>
+          <p class="ba-caption">Mini Cooper S, exterior, Palisades Park. Dust and dried spots were cleaned off the black paint.</p>
         </div>
       </article>
 
@@ -2424,7 +2340,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper Clubman</div>
           <div class="ba-service">Full Exterior Detail</div>
-          <p class="ba-caption">Road grime had worked its way up the lower doors and rear quarter. Side-by-side from the same profile — dust gone, dark paint brought back to a wet-look shine, wheels and trim cleaned up to match.</p>
+          <p class="ba-caption">Mini Cooper Clubman, exterior, Bergen County. Road grime was cleaned off the lower doors, wheels, and trim.</p>
         </div>
       </article>
 
@@ -2442,7 +2358,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Mini Cooper Clubman</div>
           <div class="ba-service">Rear Detail &amp; Trim Restoration</div>
-          <p class="ba-caption">The barn doors and rear windshield were coated in a thick layer of dust — easy to miss until you walk around back. Same rear angle after the job: clean windshield, sharp reflections, and trim that actually looks black again.</p>
+          <p class="ba-caption">Mini Cooper Clubman, rear exterior, Bergen County. Dust was cleaned off the barn doors, rear windshield, and bumper.</p>
         </div>
       </article>
 
@@ -2460,7 +2376,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Renegade Vienna (Mercedes Sprinter RV)</div>
           <div class="ba-service">RV Front Cap &amp; Windshield Detail</div>
-          <p class="ba-caption">Mud streaks ran down the entire front cap and windshield after weeks on the road. We cut through the grime on the black fiberglass and windshield until the front of this coach looked like it did the day it rolled off the lot.</p>
+          <p class="ba-caption">Renegade Vienna on a Mercedes Sprinter, front cap, Palisades Park. Mud streaks were cleaned off the black cap and windshield.</p>
         </div>
       </article>
 
@@ -2478,7 +2394,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Renegade Vienna (Mercedes Sprinter RV)</div>
           <div class="ba-service">Roof Wash &amp; Solar Panel Cleaning</div>
-          <p class="ba-caption">Tree debris, grime, and oxidation on the roof don't just look bad — they cut into solar output. Same overhead angle after we cleared the panels and white roof membrane back to a clean, uniform finish.</p>
+          <p class="ba-caption">Renegade Vienna, roof. Debris was cleaned off the solar panels and the white roof.</p>
         </div>
       </article>
 
@@ -2496,7 +2412,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Land Rover Defender</div>
           <div class="ba-service">Exterior Detail &amp; Wheel Clean</div>
-          <p class="ba-caption">City driving had dulled the white panels and loaded brake dust into the alloys. Same front-quarter angle after the detail — crisp white paint, deep black trim, and wheels that actually match the rest of the truck.</p>
+          <p class="ba-caption">Land Rover Defender, exterior, Bergen County. Road film and brake dust were cleaned off the paint and wheels.</p>
         </div>
       </article>
 
@@ -2514,7 +2430,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Land Rover Defender</div>
           <div class="ba-service">Interior Deep Clean</div>
-          <p class="ba-caption">Mud on the rubber mat, dust in the vents, grime in the console — typical NYC daily-driver wear. Before and after from slightly different angles, same cabin: cleaned, vacuumed, and wiped down until it felt new inside.</p>
+          <p class="ba-caption">Land Rover Defender, interior, Bergen County. Mud was cleaned off the floor mat. Dust was wiped from the dash and console.</p>
         </div>
       </article>
 
@@ -2532,7 +2448,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Volvo XC90</div>
           <div class="ba-service">Exterior Wash &amp; Decontamination</div>
-          <p class="ba-caption">Spring pollen had turned this black SUV matte overnight. Same front angle after we washed and decontaminated the paint — deep gloss back, trees reflecting off the hood like a mirror.</p>
+          <p class="ba-caption">Volvo XC90, exterior, Palisades Park. Pollen and dust were washed off the black paint.</p>
         </div>
       </article>
 
@@ -2542,7 +2458,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
     <div class="ba-featured-head">
       <div class="sec-eye">Featured work</div>
-      <div class="sec-desc">A few standout jobs from the route — cars, RVs, and specialty vehicles.</div>
+      <div class="sec-desc">More jobs from the same route: cars, an RV, and a utility vehicle.</div>
     </div>
 
     <div class="ba-showcase-row">
@@ -2567,7 +2483,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Lamborghini Urus &amp; Porsche Lineup</div>
           <div class="ba-service">Exotic &amp; Luxury Exterior Detail</div>
-          <p class="ba-caption">Three exotics, one driveway — a Urus and two Porsches lined up after a full exterior refresh. Paint decontaminated, wheels detailed, and every panel brought back to a deep, wet gloss without leaving the property.</p>
+          <p class="ba-caption">Lamborghini Urus and two Porsches after exterior detailing. Paint, wheels, and trim were cleaned.</p>
         </div>
       </article>
 
@@ -2578,7 +2494,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Two Porsches &amp; Range Rover</div>
           <div class="ba-service">Multi-Vehicle Premium Detail</div>
-          <p class="ba-caption">Three cars, one visit — two Porsches and a Range Rover detailed back-to-back in the same driveway. Full exterior refresh on every vehicle without a second trip or shop drop-off.</p>
+          <p class="ba-caption">Two Porsches and a Range Rover after exterior detailing in the same Palisades Park driveway.</p>
         </div>
       </article>
 
@@ -2589,7 +2505,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">Jayco Eagle &ldquo;Dolly&rdquo;</div>
           <div class="ba-service">Fifth-Wheel Front Cap &amp; Exterior Detail</div>
-          <p class="ba-caption">This Jayco Eagle wears a custom &ldquo;Dolly&rdquo; decal on the front cap. We cut through road film and oxidation on the white fiberglass until the whole front end was reflecting the sky again — logo, decal, and tinted cap all cleaned up.</p>
+          <p class="ba-caption">Jayco Eagle fifth-wheel, front cap. Road film was cleaned off the white fiberglass, including the Dolly decal.</p>
         </div>
       </article>
 
@@ -2600,7 +2516,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="ba-meta">
           <div class="ba-vehicle">John Deere Gator XUV835M</div>
           <div class="ba-service">UTV Full Exterior Detail</div>
-          <p class="ba-caption">Same Gator, outside this time — green panels polished, knobby tires dressed, and those yellow wheels popping again. Built for mud and job sites; finished like it just rolled off the lot.</p>
+          <p class="ba-caption">John Deere Gator XUV835M, exterior, Bergen County. Panels, tires, and wheels were cleaned.</p>
         </div>
       </article>
 
@@ -2608,13 +2524,82 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </section>
 
+
+<!-- REVIEWS -->
+<div id="reviews" class="cd1-tone-base">
+  <div class="section">
+    <div class="cd1-head">
+    <div class="sec-eye">Customer Feedback</div>
+    <h2 class="sec-title">Customer experiences with Cardetail1</h2>
+    <p class="sec-desc">A selection of recent reviews. Open the full reviews page to read Cardetail1, Google, and Thumbtack reviews. New verified reviews are submitted after completed services.</p>
+    </div>
+
+    <div class="rv-carousel" id="rv-carousel" aria-roledescription="carousel" aria-label="Customer reviews">
+      <div class="rv-viewport" id="rv-viewport" tabindex="0">
+        <div class="rv-track" id="rv-track"></div>
+      </div>
+      <div class="rv-nav">
+        <button type="button" class="rv-btn" id="rv-prev" aria-label="Previous reviews" onclick="rvMove(-1)">&#8592;</button>
+        <div class="rv-dots" id="rv-dots"></div>
+        <button type="button" class="rv-btn" id="rv-next" aria-label="Next reviews" onclick="rvMove(1)">&#8594;</button>
+      </div>
+    </div>
+
+    <div class="rv-actions">
+      <a class="btn-outline" id="rv-view-all" href="/reviews">View all reviews</a>
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
+      <a class="btn-outline" href="my-garage.html#lookup">Leave a Cardetail1 review</a>
+      <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="cd1-tone-base">
+  <div class="section">
+    <div id="ceramic-coating" class="car-pkg-intro cd1-head">
+      <h2 class="sec-title">Ceramic, boats, RVs, and more</h2>
+      <p class="sec-desc">Separate from the three car packages. Ceramic price depends on vehicle size. Durability is up to the term you book and depends on maintenance.</p>
+    </div>
+    <ul class="home-more-list">
+      <li>
+        <a href="/ceramic-coating">Ceramic</a>
+        <span>Painted exterior. From <span id="home-from-ceramic_1yr">$650</span> for up to 1 year, or <span id="home-from-ceramic_3yr">$1050</span> for up to 3 years.</span>
+        <span class="home-more-actions">
+          <button type="button" class="home-more-book" onclick="openHomeCeramic('ceramic_1yr')">Book up to 1 year</button>
+          <button type="button" class="home-more-book" onclick="openHomeCeramic('ceramic_3yr')">Book up to 3 years</button>
+          <button type="button" class="car-pkg-see-btn" onclick="openHomePkgDetailModal('ceramic_1yr', event)">See what's included</button>
+        </span>
+      </li>
+      <li><a href="/boats-detailing">Boats</a></li>
+      <li><a href="/rv-detailing">RV</a></li>
+      <li><a href="/powersports-detailing">Powersports</a></li>
+      <li><a href="/trucks-detailing">Trucks</a></li>
+      <li><a href="/fleet-services">Fleet</a></li>
+    </ul>
+
+<div class="car-addons-block">
+      <p class="car-addons-sub">Compatible add-ons are shown during booking.</p>
+      <button type="button" class="btn-outline" onclick="openBooking(null)">Check price and options</button>
+    </div>
+
+    <div class="car-services-cta">
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
+      <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Semi trucks, boats, RVs &amp; powersports</button>
+    </div>
+  </div>
+</div>
+
+<!-- Radar widget removed — now lives in admin.html dispatch board -->
+
 <!-- AVAIL. BANNER -->
 <div class="cd1-tone-base cd1-sameday">
   <div style="max-width:1100px;margin:0 auto">
     <div class="sameday-banner">
       <div class="sd-left">
         <h3>Same-day when slots remain</h3>
-        <p>Pick today or another open day online. Remaining same-day windows need about 2 hours' notice. We'll contact you once the route and access at your location are confirmed. If you opted in for SMS, that update may be sent by text.</p>
+        <p>Pick today or another open day online. Remaining same-day windows need about 2 hours' notice. We'll review your request before confirming an appointment. We'll contact you once the route and access at your location are confirmed. We'll contact you with updates — SMS only if you opted in.</p>
       </div>
       <div class="sd-badge">
         <div class="sdb">Same-day available</div>
@@ -2627,27 +2612,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
     </div>
   </div>
 </div>
-
-<!-- VISUAL PROOF -->
-<section class="visual-proof">
-  <div class="visual-proof-in">
-    <div class="visual-panel">
-      <div class="visual-panel-img" role="img" aria-label="Mobile detailing for auto, marine, RV and powersports"></div>
-    </div>
-    <div class="visual-panel">
-      <div class="visual-panel-copy">
-        <h3>Your vehicle is an investment — we treat it like one.</h3>
-        <p>We bring the water, the power, and the expertise directly to your driveway. No waiting rooms, no hassle—just a showroom finish at your doorstep.</p>
-        <div class="visual-checks">
-          <span><b>✓</b> We detail at your home, office, marina, or approved spot</span>
-          <span><b>✓</b> Pro equipment on every job — no shop drop-off</span>
-          <span><b>✓</b> We'll review your request before confirming an appointment</span>
-          <span><b>✓</b> We'll contact you with updates — SMS only if you opted in</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- REAL RESULTS -->
 <div class="results-section">
@@ -2676,39 +2640,24 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
       <div class="cred-item"><span>📋</span><span><b>Clear packages</b> — know what you're booking</span></div>
       <div class="cred-item"><span>🔒</span><span><b>Secure checkout</b> — payment terms shown before confirmation</span></div>
     </div>
-    <div class="results-cta">
-      <button class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
-      <button class="btn-outline" onclick="openBooking(null)">View all packages</button>
-    </div>
   </div>
 </div>
 
-<!-- REVIEWS -->
-<div id="reviews" class="cd1-tone-base">
-  <div class="section">
-    <div class="cd1-head">
-    <div class="sec-eye">Customer Feedback</div>
-    <h2 class="sec-title">Customer experiences with Cardetail1</h2>
-    <p class="sec-desc">A selection of recent reviews. Open the full reviews page to read Cardetail1, Google, and Thumbtack reviews. New verified reviews are submitted after completed services.</p>
-    </div>
-
-    <div class="rv-carousel" id="rv-carousel" aria-roledescription="carousel" aria-label="Customer reviews">
-      <div class="rv-viewport" id="rv-viewport" tabindex="0">
-        <div class="rv-track" id="rv-track"></div>
+<!-- LOCATION CAROUSEL -->
+<div class="loc-section cd1-tone-base" id="loc-section">
+  <div class="loc-inner">
+    <div class="loc-header">
+      <div class="cd1-head">
+        <div class="sec-eye" style="text-align:left;margin-bottom:6px">Service area</div>
+        <div class="sec-title" style="font-family:var(--fb);font-size:clamp(22px,3.5vw,32px);font-weight:600;color:var(--ink);letter-spacing:-.02em;line-height:1.2;text-align:left">Mobile detailing<br><span style="color:var(--blue)">near you</span></div>
+        <p class="loc-area-desc">Based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. <span class="loc-area-ext">Extended service areas available by quote.</span></p>
       </div>
-      <div class="rv-nav">
-        <button type="button" class="rv-btn" id="rv-prev" aria-label="Previous reviews" onclick="rvMove(-1)">&#8592;</button>
-        <div class="rv-dots" id="rv-dots"></div>
-        <button type="button" class="rv-btn" id="rv-next" aria-label="Next reviews" onclick="rvMove(1)">&#8594;</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div id="loc-zone-pill" class="loc-zone-pill" style="display:none">📍 <span id="loc-pill-text">Detected</span></div>
+        <div id="loc-surcharge-msg" class="loc-surcharge" style="display:none"></div>
       </div>
     </div>
-
-    <div class="rv-actions">
-      <a class="btn-outline" id="rv-view-all" href="/reviews">View all reviews</a>
-      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
-      <a class="btn-outline" href="my-garage.html#lookup">Leave a Cardetail1 review</a>
-      <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
-    </div>
+    <div class="loc-scroll" id="loc-scroll"></div>
   </div>
 </div>
 
@@ -9261,7 +9210,7 @@ function initHomeWorkCarousel(){
     row.remove();
   }
   const cards=[...grid.querySelectorAll('.ba-card')];
-  cards.forEach((card,i)=>{ if(i>=6) card.classList.add('is-more'); });
+  cards.forEach((card,i)=>{ if(i>=3) card.classList.add('is-more'); });
   cards.forEach(card=>{
     card.querySelectorAll('img').forEach(img=>{ img.loading='lazy'; img.decoding='async'; });
   });
@@ -9275,7 +9224,7 @@ function initHomeWorkCarousel(){
     moreBtn.type='button';
     moreBtn.id='ba-more';
     moreBtn.className='btn-outline';
-    moreBtn.textContent='View more work';
+    moreBtn.textContent='See the full gallery';
     nav.insertAdjacentElement('afterend', moreBtn);
     moreBtn.addEventListener('click', ()=>{
       section.classList.add('is-expanded');

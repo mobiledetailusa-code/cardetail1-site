@@ -337,7 +337,7 @@ describe('home page compression', () => {
 
   it('builds one work carousel instead of a vertical gallery dump', () => {
     assert.match(html, /initHomeWorkCarousel/);
-    assert.match(html, /View more work/);
+    assert.match(html, /See the full gallery/);
     assert.match(html, /prefers-reduced-motion/);
     assert.match(css, /scroll-snap-type:x mandatory/);
     assert.match(css, /aspect-ratio:4\/3/);
