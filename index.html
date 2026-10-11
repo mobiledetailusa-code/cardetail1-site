@@ -413,6 +413,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .svc-card.locked{opacity:.35;pointer-events:none;filter:grayscale(.8);transform:none!important}
 .svc-card.locked .svc-btn{opacity:.4}
 #bk-cat-grid .svc-card.pending-cat{box-shadow:0 0 0 2px var(--blue);opacity:.9!important;filter:none!important}
+#bs1.bk-zip-only #bk-cat-grid{display:none}
 /* Unlock animation */
 @keyframes unlock-pop{0%{opacity:.35;transform:translateY(10px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
 .svc-card.unlocking{animation:unlock-pop .35s ease forwards}
@@ -2962,7 +2963,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div id="bs2-addons-host" class="bs2-addons-host" hidden></div>
         <p class="bs2-disclaimer" id="bs2-disclaimer" style="font-size:11px;color:var(--mu);text-align:center;margin-bottom:14px">Final price depends on vehicle size, condition, location, and selected add-ons. Heavy pet hair, odor treatment, biohazard, excessive stains, and oversized vehicles may require additional charges.</p>
         <div class="btn-row" id="bs2-btn-row">
-          <button type="button" class="btn-b" id="back2" onclick="bkBackFromPackage()">← Back</button>
+          <button type="button" class="btn-b" id="back2" onclick="bkExitPackageStep()">← Back</button>
           <button type="button" class="btn-n" id="next2" disabled onclick="bkContinueFromPackage()">Continue to vehicle →</button>
         </div>
         <div id="bs2-sticky" class="bs2-sticky" hidden>
@@ -2970,7 +2971,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <strong id="bs2-sticky-pkg">—</strong>
             <span id="bs2-sticky-car">—</span>
           </div>
-          <div class="bs2-sticky-price" id="bs2-sticky-price">$0</div>
+          <div class="bs2-sticky-price" id="bs2-sticky-price">—</div>
           <button type="button" class="btn-n" id="bs2-sticky-next" disabled onclick="bkContinueFromPackage()">Continue to Info →</button>
         </div>
       </div>
@@ -3124,7 +3125,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           </div>
           <div class="length-note" id="length-note">Large boats, RVs, fifth wheels, severe oxidation, height restrictions, or difficult access may require estimate confirmation.</div>
           <div class="rv-service-subtotal" id="rv-service-subtotal" hidden>
-            Estimated service price: <strong id="rv-subtotal-amt">$0</strong>
+            Estimated service price: <strong id="rv-subtotal-amt">—</strong>
             <span class="rv-subtotal-note">Travel and location adjustments are calculated after the service ZIP is entered.</span>
             <span id="rv-duration-note" class="rv-subtotal-note"></span>
           </div>
@@ -3161,7 +3162,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="beye" style="margin-top:0">Enhance your service</div>
           <div class="addon-header">
             <div><div class="ah-pkg" id="ah-pkg">—</div><div class="ah-car" id="ah-car">—</div></div>
-            <div style="text-align:right"><div class="ah-total-lbl" id="ah-total-lbl">Estimated total</div><div class="ah-total" id="ah-total">$0</div><div class="ah-total-est" id="ah-total-est"></div></div>
+            <div style="text-align:right"><div class="ah-total-lbl" id="ah-total-lbl">Estimated total</div><div class="ah-total" id="ah-total">—</div><div class="ah-total-est" id="ah-total-est"></div></div>
           </div>
           <div class="addon-grid" id="addon-grid"></div>
 
@@ -3170,7 +3171,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="vcart-title">🛒 Vehicles in this booking</div>
             <div id="vcart-items"><div class="vcart-empty">Configure this vehicle then add to cart</div></div>
             <div class="vcart-total" id="vcart-total" style="display:none">
-              <span>Cart Total</span><span id="vcart-sum">$0</span>
+              <span>Cart Total</span><span id="vcart-sum">—</span>
             </div>
           </div>
 
@@ -3191,7 +3192,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
         <div class="bdesc">We'll review your request and contact you by email or phone. Transactional texts are optional below.</div>
         <div class="strip show" id="strip5">
           <div class="strip-info"><strong id="s5-pkg">—</strong> · <span id="s5-car">—</span></div>
-          <div class="strip-price" id="s5-total">$0</div>
+          <div class="strip-price" id="s5-total">—</div>
         </div>
         <!-- BK_DETAILS_FORM_START -->
         <div class="fgrid bk-details-compact">
@@ -5275,12 +5276,45 @@ function launchBooking(opts){
   return openBooking(cat);
 }
 window.launchBooking = launchBooking;
+function setZipOnlyGate(on){
+  const bs1=document.getElementById('bs1');
+  const grid=document.getElementById('bk-cat-grid');
+  if(bs1) bs1.classList.toggle('bk-zip-only', !!on);
+  if(grid) grid.hidden=!!on;
+  const eye=bs1&&bs1.querySelector('.beye');
+  const title=bs1&&bs1.querySelector('.btitle');
+  const desc=bs1&&bs1.querySelector('.bdesc');
+  if(on){
+    if(eye) eye.textContent='Your ZIP';
+    if(title) title.textContent='Confirm your ZIP';
+    if(desc) desc.textContent='Enter your ZIP code. The package you chose stays selected.';
+  }else if(bs1){
+    if(eye) eye.textContent='Step 01 — Category';
+    if(title) title.innerHTML='WHAT ARE WE<br>DETAILING?';
+    if(desc) desc.textContent="Enter your ZIP code first — we'll detect your area and show accurate pricing for your location.";
+  }
+}
+function logBookingIntent(code, cat, pkg){
+  try{ console.info('[cd1-booking]', { code:code, categoryId:cat||'', packageId:pkg||'' }); }catch(e){}
+}
+function clearPendingCategoryForDirectOpen(cat){
+  if(cat && typeof ST==='object' && ST && ST._pendingCat===cat) ST._pendingCat='';
+}
 function openBooking(cat){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
+  clearPendingCategoryForDirectOpen(cat);
   syncBookingZipFromHero();
   document.getElementById('bk-ov').classList.add('open');
   document.body.style.overflow='hidden';
-  if(cat){selectCategory(cat)}else{bkGoTo(1)}
+  if(cat){
+    ST._intentLocked=true;
+    if(ST._startStep==null && !(ST._prefillPkgId || ST._packageIntent)) ST._startStep=2;
+    selectCategory(cat);
+  }else{
+    ST._intentLocked=false;
+    setZipOnlyGate(false);
+    bkGoTo(1);
+  }
 }
 function closeBooking(){
   if(bookingHasProgress() && !confirm('Close booking? Your progress will be lost.')) return;
@@ -5535,7 +5569,7 @@ function syncBs2StickyBar() {
   if (carEl) carEl.textContent = carLine;
   const total = bookingServiceTotalForSticky();
   if (priceEl) {
-    priceEl.textContent = active.hasPackage && total > 0
+    priceEl.textContent = active.hasPackage && active.currentService > 0 && total > 0
       ? (typeof bkMoney === 'function' ? bkMoney(total) : ('$' + total))
       : '—';
   }
@@ -5652,7 +5686,21 @@ function bkBackFromPackage() {
     bkGoTo(3);
     return;
   }
+  ST._returnFromPackageToCategory=false;
+  ST._intentLocked=false;
+  if(typeof setZipOnlyGate==='function') setZipOnlyGate(false);
   bkGoTo(1);
+}
+
+function bkExitPackageStep() {
+  if (ST._returnFromPackageToCategory) {
+    ST._returnFromPackageToCategory=false;
+    ST._intentLocked=false;
+    if(typeof setZipOnlyGate==='function') setZipOnlyGate(false);
+    bkGoTo(1);
+    return;
+  }
+  bkBackFromPackage();
 }
 
 function bkBackFromVehicle() {
@@ -5660,6 +5708,7 @@ function bkBackFromVehicle() {
     bkGoTo(1);
     return;
   }
+  ST._returnFromPackageToCategory=true;
   bkGoTo(2);
 }
 
@@ -5707,11 +5756,6 @@ function resolvePackageIntentForCategory(cat, intentId){
   if(!cat || !intentId) return '';
   const pkgs=(PRICING[cat] && PRICING[cat].packages) || [];
   if(pkgs.some(function(p){ return p.id===intentId; })) return intentId;
-  const CLOSEST={
-    refresh:{ rvs:'premium', boats:'premium', powersports:'premium' }
-  };
-  const mapped=CLOSEST[intentId] && CLOSEST[intentId][cat];
-  if(mapped && pkgs.some(function(p){ return p.id===mapped; })) return mapped;
   return '';
 }
 
@@ -5724,6 +5768,7 @@ function selectCategory(cat){
   if(zip.length < 5 || !activeZone){
     // Remember intended category/package so specialty-page deep links survive ZIP entry
     ST._pendingCat=cat;
+    if(typeof setZipOnlyGate==='function') setZipOnlyGate(!!ST._intentLocked);
     bkGoTo(1);
     document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
     const pendingCard=document.getElementById('bkcat-'+cat);
@@ -5737,6 +5782,7 @@ function selectCategory(cat){
     return;
   }
   ST._pendingCat='';
+  if(typeof setZipOnlyGate==='function') setZipOnlyGate(false);
   document.querySelectorAll('#bk-cat-grid .svc-card').forEach(c=>c.classList.remove('pending-cat'));
   if(window.CD1BookingProgress) CD1BookingProgress.hidePendingIntent();
   // Cart intent: normal category switch REPLACES the active vehicle.
@@ -5762,11 +5808,16 @@ function selectCategory(cat){
   syncBookingProgressLabels();
   const intentId=ST._prefillPkgId || ST._packageIntent || '';
   const pid=resolvePackageIntentForCategory(cat, intentId);
+  if(intentId && !pid){
+    logBookingIntent('package_intent_rejected', cat, intentId);
+    ST._packageIntent='';
+  }
   ST._prefillPkgId='';
-  const goVehicle = ST._startStep === 3 || ST._startStep === 'vehicle';
-  const forcePackage = ST._startStep === 2 || ST._startStep === 'package';
+  const wantsVehicle = ST._startStep === 3 || ST._startStep === 'vehicle';
+  const goVehicle = wantsVehicle && !!pid;
+  const forcePackage = ST._startStep === 2 || ST._startStep === 'package' || (wantsVehicle && !pid);
   const carsDefaultVehicleFirst = cat==='cars' && !pid && !forcePackage;
-  if(carsDefaultVehicleFirst && !goVehicle){
+  if(goVehicle || carsDefaultVehicleFirst){
     syncVehicleStepChrome();
     bkGoTo(3);
   } else {
@@ -5872,11 +5923,15 @@ function compactPackagePriceLabel(cat, p, d) {
   const fee = typeof getTravelFeeAmount === 'function' ? getTravelFeeAmount() : 0;
   if (cat === 'cars' || cat === 'trucks') {
     if (ST.tierKey && d.tiers[ST.tierKey] && d.tiers[ST.tierKey][p.id] != null) {
-      return '$' + (applyRichPrice(d.tiers[ST.tierKey][p.id]) + fee);
+      const exact = applyRichPrice(d.tiers[ST.tierKey][p.id]) + fee;
+      return exact > 0 ? ('$' + exact) : 'Select vehicle';
     }
     const sampleTiers = Object.values(d.tiers)[0] || {};
     const sample = sampleTiers[p.id] || sampleTiers.maint || sampleTiers.wash || sampleTiers.interior || sampleTiers.int_wash;
-    if (sample != null) return 'From $' + (applyRichPrice(sample) + fee);
+    if (sample != null) {
+      const from = applyRichPrice(sample) + fee;
+      if (from > 0) return 'From $' + from;
+    }
     return 'Select vehicle';
   }
   if (cat === 'boats' && LENGTH_PRICING.boats && LENGTH_PRICING.boats.packages[p.id]) {
@@ -7012,10 +7067,11 @@ function updateTotal(){
   if(!el) return;
   const isSignature = ST.cat==='cars'&&ST.pkgId==='premium';
   if(lbl) lbl.textContent = 'Estimated total';
+  // A provisional base of 0 is not a free service and is not a confirmed total.
   if(isSignature && ST.basePrice>0){
     el.textContent = bkMoney(ST.basePrice+fee+(ST.addonTotal||0));
-  }else if(total > 0){
-    el.textContent = bkMoney(total);
+  }else if(serviceTotal > 0){
+    el.textContent = bkMoney(serviceTotal + fee);
   }else if(ST._priceResolveFailed || (isPublishedPricedPackage() && ST.vehicleLabel && !(ST.basePrice > 0))){
     // Published packages always have catalog prices — never silence a miss as "Estimate".
     el.textContent = "We couldn't load this package price. Please retry.";
@@ -7023,10 +7079,10 @@ function updateTotal(){
     el.textContent = '—';
   }
   if(estEl){
-    if(total > 0 && fee > 0){
+    if(serviceTotal > 0 && fee > 0){
       estEl.textContent = 'Includes mobile adjustment '+bkMoney(fee);
       estEl.style.display = 'block';
-    }else if(total > 0){
+    }else if(serviceTotal > 0){
       estEl.textContent = 'Mobile service included';
       estEl.style.display = 'block';
     }else if(ST._priceResolveFailed || (isPublishedPricedPackage() && ST.vehicleLabel && !(ST.basePrice > 0))){
@@ -7170,11 +7226,11 @@ function renderBkFinancialSummary(o){
     : 'Mobile service included.';
   const lines = document.getElementById('bk-financial-lines');
   if(lines){
-    let html = bkFinRow('Service price', bkMoney(service));
+    let html = bkFinRow('Service price', service > 0 ? bkMoney(service) : '—');
     if(addons > 0)   html += bkFinRow('Selected add-ons', bkMoney(addons));
     if(fee > 0)      html += bkFinRow('Mobile service adjustment', bkMoney(fee));
     if(discount > 0) html += bkFinRow(o.discountLabel || 'Applied discount', '-' + bkMoney(discount), 'discount');
-    html += bkFinRow('Estimated total', bkMoney(total), 'total');
+    html += bkFinRow('Estimated total', total > 0 ? bkMoney(total) : '—', 'total');
     lines.innerHTML = html;
   }
   return total;
@@ -9298,7 +9354,8 @@ function openHomeCeramic(pkgId){
   ST.pkg=null;
   ST._packageIntent=pkgId||'';
   ST._prefillPkgId=pkgId||'';
-  ST._startStep=2;
+  ST._startStep=3;
+  ST._intentLocked=true;
   openBookingFromHome('cars');
   if(window.CD1BookingProgress){
     CD1BookingProgress.showPendingIntent('cars', ST._packageIntent);
@@ -9310,29 +9367,70 @@ function openBookingCarPkg(pkgId){
   ST.cat='';
   ST.pkgId='';
   ST.pkg=null;
-  ST._pendingCat='';
   ST._packageIntent=pkgId||'';
   ST._prefillPkgId=pkgId||'';
-  ST._startStep=null;
-  openBookingFromHome(null);
+  ST._startStep=3;
+  ST._intentLocked=true;
+  openBookingFromHome('cars');
   if(window.CD1BookingProgress){
-    CD1BookingProgress.showPendingIntent('', ST._packageIntent);
+    CD1BookingProgress.showPendingIntent('cars', ST._packageIntent);
     CD1BookingProgress.persist();
   }
 }
 
 function openBookingPkg(cat, pkgId){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
+  ST._packageIntent=pkgId||'';
   ST._prefillPkgId=pkgId||'';
-  ST._startStep=3;
+  ST._startStep=pkgId?3:2;
+  ST._intentLocked=true;
   openBookingFromHome(cat);
 }
 
 // Opens booking — always allowed, but pre-fills ZIP if already entered on hero
 function openBookingFromHome(cat){
   if(cat==='fleet'){ openCommercialInquiry(); return; }
+  clearPendingCategoryForDirectOpen(cat);
   syncBookingZipFromHero();
   openBooking(cat);
+}
+
+function applyBookingQueryIntent(book, pkg, startQ){
+  const allowed={cars:1,trucks:1,boats:1,rvs:1,powersports:1};
+  if(book && !allowed[book]){
+    ST._prefillPkgId='';
+    ST._packageIntent='';
+    ST._startStep=null;
+    ST._intentLocked=false;
+    ST._pendingCat='';
+    logBookingIntent('category_intent_rejected', book, pkg);
+    return {open:false, pkg:''};
+  }
+  let resolved='';
+  if(book && pkg){
+    resolved=resolvePackageIntentForCategory(book, pkg)||'';
+    if(!resolved){
+      ST._prefillPkgId='';
+      ST._packageIntent='';
+      logBookingIntent('package_intent_rejected', book, pkg);
+    }else{
+      ST._prefillPkgId=resolved;
+      ST._packageIntent=resolved;
+    }
+  }else if(pkg && !book){
+    ST._prefillPkgId=pkg;
+    ST._packageIntent=pkg;
+  }
+  if(!book) return {open:false, pkg:pkg||''};
+  if(!startQ){
+    ST._startStep = resolved ? 3 : 2;
+  }else{
+    const startMap={vehicle:3,package:2,category:1,'3':3,'2':2,'1':1};
+    ST._startStep=startMap[String(startQ)]!=null?startMap[String(startQ)]:startQ;
+    if((ST._startStep===3 || ST._startStep==='vehicle') && pkg && !resolved) ST._startStep=2;
+  }
+  ST._intentLocked=true;
+  return {open:true, pkg:resolved||''};
 }
 
 (function initHeroZipDetails(){
@@ -9478,6 +9576,7 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
         if(typeof prevForce==='function') prevForce();
       };
     }
+    if(params.get('resume')==='1') return;
     if(zipQ.length===5){
       const heroZip=document.getElementById('hero-zip')||document.getElementById('zip-input');
       const bkZip=document.getElementById('bk-zip');
@@ -9487,16 +9586,9 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
       if(typeof onBkZipInput==='function') onBkZipInput(zipQ);
     }
     const startQ=String(params.get('start')||'');
-    if(startQ){
-      const startMap={vehicle:3,package:2,category:1,'3':3,'2':2,'1':1};
-      ST._startStep=startMap[startQ]!=null?startMap[startQ]:startQ;
-    }
-    if(pkg){
-      ST._prefillPkgId=pkg;
-      ST._packageIntent=pkg;
-    }
-    if(!allowed[book]){
-      if(pkg){
+    const intent=applyBookingQueryIntent(book, pkg, startQ);
+    if(!intent.open){
+      if(!book && pkg){
         window.__cd1PendingBookQuery={book:'',pkg:pkg,zipQ:zipQ,length:lengthQ||null,embed:embed,multi:multi,allowed:allowed};
       }
       return;
@@ -9524,7 +9616,7 @@ if(osPreviewRequested()){ osBootstrapPreview(); } else { osRunBookingPricingInit
       ST._forceMultiVehicle=true;
       try{ ST.units=Math.max(2, Number(ST.units||1)); }catch(e){}
     }
-    window.__cd1PendingBookQuery={book:book,pkg:pkg,zipQ:zipQ,length:lengthQ||null,embed:embed,multi:multi,allowed:allowed};
+    window.__cd1PendingBookQuery={book:book,pkg:intent.pkg||'',zipQ:zipQ,length:lengthQ||null,embed:embed,multi:multi,allowed:allowed};
   }catch(e){
     try{
       if(window.parent && window.parent!==window){

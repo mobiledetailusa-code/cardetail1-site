@@ -230,6 +230,13 @@
   }
 
   function processPendingBookQuery() {
+    try {
+      var resumeParams = new URLSearchParams(global.location.search || '');
+      if (resumeParams.get('resume') === '1') {
+        global.__cd1PendingBookQuery = null;
+        return;
+      }
+    } catch (eResume) { /* ignore */ }
     var pending = global.__cd1PendingBookQuery;
     if (!pending || (!pending.book && !pending.pkg)) return;
     global.__cd1PendingBookQuery = null;

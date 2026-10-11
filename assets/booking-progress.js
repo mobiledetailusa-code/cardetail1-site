@@ -215,6 +215,28 @@
     }
   }
 
+  function copySavedVehicle(ST, st) {
+    if (!ST || !st) return;
+    if (st.lengthFt) ST.lengthFt = st.lengthFt;
+    if (st.rvType) ST.rvType = st.rvType;
+    if (st.boatType) ST.boatType = st.boatType;
+    if (st.rvLiving) ST.rvLiving = st.rvLiving;
+    if (st.units) ST.units = st.units;
+    if (st.vehicleLabel) ST.vehicleLabel = st.vehicleLabel;
+    if (st.tierKey) ST.tierKey = st.tierKey;
+    if (Array.isArray(st.vehicles)) ST.vehicles = st.vehicles.slice();
+    if (Array.isArray(st.addons)) ST.addons = st.addons.slice();
+  }
+
+  function applyDraftIdentity(ST, draft) {
+    if (!ST || !draft || typeof draft !== 'object') return;
+    if (draft.bookingId) ST.bookingId = draft.bookingId;
+    if (draft.draftSaveToken) ST.draftSaveToken = draft.draftSaveToken;
+    if (draft.draftSaveTokenExp) ST.draftSaveTokenExp = draft.draftSaveTokenExp;
+    if (draft.draftRegistered) ST.draftRegistered = true;
+    if (draft.draftBookingVersion != null) ST.draftBookingVersion = draft.draftBookingVersion;
+  }
+
   function applySnapshot(snap) {
     if (!snap) return false;
     var ST = global.ST;
@@ -237,15 +259,7 @@
       var st = snap.ST || {};
       if (snap.packageIntent) ST._packageIntent = snap.packageIntent;
       else if (st.pkgId && !st.cat && !snap.pendingCat) ST._packageIntent = st.pkgId;
-      if (st.lengthFt) ST.lengthFt = st.lengthFt;
-      if (st.rvType) ST.rvType = st.rvType;
-      if (st.boatType) ST.boatType = st.boatType;
-      if (st.rvLiving) ST.rvLiving = st.rvLiving;
-      if (st.units) ST.units = st.units;
-      if (st.vehicleLabel) ST.vehicleLabel = st.vehicleLabel;
-      if (st.tierKey) ST.tierKey = st.tierKey;
-      if (Array.isArray(st.vehicles)) ST.vehicles = st.vehicles;
-      if (Array.isArray(st.addons)) ST.addons = st.addons;
+      copySavedVehicle(ST, st);
       var cat = st.cat || snap.pendingCat || '';
       if (cat && typeof global.selectCategory === 'function') {
         if (st.pkgId) ST._prefillPkgId = st.pkgId;
@@ -255,18 +269,17 @@
       } else if (ST._packageIntent) {
         ST._prefillPkgId = ST._packageIntent;
       }
-      var draft = snap.draft;
-      if (draft && typeof draft === 'object') {
-        if (draft.bookingId) ST.bookingId = draft.bookingId;
-        if (draft.draftSaveToken) ST.draftSaveToken = draft.draftSaveToken;
-        if (draft.draftSaveTokenExp) ST.draftSaveTokenExp = draft.draftSaveTokenExp;
-        if (draft.draftRegistered) ST.draftRegistered = true;
-        if (draft.draftBookingVersion != null) ST.draftBookingVersion = draft.draftBookingVersion;
-      }
+      // selectCategory replaces the active vehicle. Put the saved one back.
+      copySavedVehicle(ST, st);
       if (st.pkgId && ST.cat && typeof global.selectPkg === 'function') {
         global.selectPkg(st.pkgId);
       }
+      copySavedVehicle(ST, st);
+      applyDraftIdentity(ST, snap.draft);
       applyContactFields(snap.fields, doc);
+      if (typeof global.setBasePrice === 'function' && ST.pkgId && ST.tierKey) {
+        global.setBasePrice();
+      }
       if (typeof global.renderVehicleCart === 'function') global.renderVehicleCart();
       return true;
     } finally {
@@ -291,6 +304,13 @@
       global.__cd1SkipRoutingGate = true;
       try { global.openBooking(null); }
       finally { global.__cd1SkipRoutingGate = false; }
+    }
+    if (global.ST) {
+      global.ST._prefillPkgId = '';
+      global.ST._packageIntent = '';
+      global.ST._pendingCat = '';
+      global.ST._startStep = null;
+      global.ST._intentLocked = false;
     }
     if (!snap) {
       if (typeof global.bkGoTo === 'function') global.bkGoTo(1);

@@ -66,8 +66,9 @@ describe('P0-1 package CTA identity', () => {
     assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('refresh'\)"/g) || []).length, 1);
     assert.doesNotMatch(index, /class="car-pkg-cta" onclick="openBooking\(null\)"/);
     const carPkgFn = index.slice(index.indexOf('function openBookingCarPkg'), index.indexOf('function openBookingPkg'));
-    assert.match(carPkgFn, /openBookingFromHome\(null\)/);
-    assert.doesNotMatch(carPkgFn, /openBookingFromHome\('cars'\)/);
+    assert.match(carPkgFn, /openBookingFromHome\('cars'\)/);
+    assert.match(carPkgFn, /ST\._startStep=3/);
+    assert.doesNotMatch(carPkgFn, /openBookingFromHome\(null\)/);
   });
 
   it('See what\'s included and Book this package share the same package ids', () => {
