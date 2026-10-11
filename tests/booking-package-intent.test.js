@@ -293,6 +293,7 @@ function boot(opts) {
     'bkGoTo',
     'bkContinueFromPackage',
     'bkBackFromPackage',
+    'bkExitPackageStep',
     'bkBackFromVehicle',
     'resolvePackageIntentForCategory',
     'applyBookingQueryIntent',
@@ -311,7 +312,7 @@ function boot(opts) {
   vm.createContext(sandbox);
   vm.runInContext(names.map((name) => extractFunction(index, name)).join('\n'), sandbox);
   sandbox.document.getElementById('back3').onclick = () => sandbox.bkBackFromVehicle();
-  sandbox.document.getElementById('back2').onclick = () => sandbox.bkBackFromPackage();
+  sandbox.document.getElementById('back2').onclick = () => sandbox.bkExitPackageStep();
   sandbox.api = api;
   sandbox.logs = logs;
   sandbox.sections = sections;
@@ -512,7 +513,24 @@ describe('14 Back', () => {
     assert.equal(box.document.getElementById('bk-cat-grid').hidden, false);
     assert.match(box.document.getElementById('bs1-title').innerHTML, /WHAT ARE WE/);
     assert.match(index, /id="back3" onclick="bkBackFromVehicle\(\)"/);
-    assert.match(index, /id="back2" onclick="bkBackFromPackage\(\)"/);
+    assert.match(index, /id="back2" onclick="bkExitPackageStep\(\)"/);
+    assert.match(index, /class="bk-veh-edit" onclick="bkBackFromPackage\(\)"/);
+  });
+
+  it('a second Back reaches categories after a vehicle is already entered', () => {
+    const box = boot({ zip: '07601' });
+    openPackage(box, 'cars', 'interior');
+    box.ST.vehicleLabel = '2022 Hyundai Palisade';
+    box.ST.tierKey = 'suv3';
+    box.api.activate(box.document.getElementById('back3'), 'Enter');
+    assert.equal(box.currentBkStep, 2);
+    assert.equal(box.ST.pkgId, 'interior');
+    box.bkBackFromPackage();
+    assert.equal(box.currentBkStep, 3);
+    box.api.activate(box.document.getElementById('back3'), 'Enter');
+    box.api.activate(box.document.getElementById('back2'), 'Enter');
+    assert.equal(box.currentBkStep, 1);
+    assert.equal(box.document.getElementById('bk-cat-grid').hidden, false);
   });
 });
 
