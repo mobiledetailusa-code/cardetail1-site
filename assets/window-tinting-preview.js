@@ -168,7 +168,7 @@
     return null;
   }
 
-  function showStep(step) {
+  function showStep(step, focusHeading) {
     state.step = step;
     STEPS.forEach(function (name) {
       var panel = document.querySelector('[data-wt-step="' + name + '"]');
@@ -182,6 +182,7 @@
     renderVehicleRecap();
     renderPaymentHelp();
     renderTotal();
+    if (!focusHeading) return;
     var heading = document.querySelector('[data-wt-step="' + step + '"] h3');
     if (heading) heading.focus();
   }
@@ -189,12 +190,12 @@
   function go(step) {
     var blocked = validateThrough(step);
     if (blocked) {
-      showStep(blocked.step);
+      showStep(blocked.step, true);
       setError(blocked.message);
       return;
     }
     setError('');
-    showStep(step);
+    showStep(step, true);
   }
 
   function next() {
@@ -205,13 +206,13 @@
     }
     setError('');
     var index = STEPS.indexOf(state.step);
-    if (index < STEPS.length - 1) showStep(STEPS[index + 1]);
+    if (index < STEPS.length - 1) showStep(STEPS[index + 1], true);
   }
 
   function back() {
     setError('');
     var index = STEPS.indexOf(state.step);
-    if (index > 0) showStep(STEPS[index - 1]);
+    if (index > 0) showStep(STEPS[index - 1], true);
   }
 
   function fillMakes() {
@@ -363,18 +364,18 @@
   function finish() {
     var blocked = validateThrough('review');
     if (blocked) {
-      showStep(blocked.step);
+      showStep(blocked.step, true);
       setError(blocked.message);
       return;
     }
     var message = validate('contact');
     if (message) {
-      showStep('contact');
+      showStep('contact', true);
       setError(message);
       return;
     }
     setError('');
-    showStep('review');
+    showStep('review', true);
     var quote = currentQuote();
     var vehicle = vehicleInput();
     var result = $('wt-demo-result');
