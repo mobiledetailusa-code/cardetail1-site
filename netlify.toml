@@ -300,6 +300,11 @@
   to = "/ceramic-coating"
   status = 301
   force = true
+[[redirects]]
+  from = "/window-tinting.html"
+  to = "/window-tinting"
+  status = 301
+  force = true
 
 # Legacy Search Console paths. Each rule ends on the HTTPS apex canonical.
 # Host-specific rules are listed first so a www or http request can finish in
@@ -413,6 +418,14 @@
     Referrer-Policy = "no-referrer"
     Cache-Control = "no-store"
     X-Robots-Tag = "noindex"
+[[headers]]
+  for = "/window-tinting"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+[[headers]]
+  for = "/window-tinting.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
 [[headers]]
   for = "/reviews"
   [headers.values]
