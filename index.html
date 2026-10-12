@@ -295,6 +295,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .nav{position:fixed;top:0;left:0;right:0;z-index:900;background:rgba(23,33,47,.94);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;transition:.3s}
 /* Homepage only: clear fixed header so the shared specialty switcher is visible (dedicated pages use sticky nav). */
 .specialty-service-nav{margin-top:60px}
+.specialty-service-nav[data-home-place="after-packages"]{margin-top:0!important}
 .nav-logo{height:46px;width:auto}
 .nav-links{display:flex;gap:24px;align-items:center}
 .nav-link{font-size:14px;font-weight:500;color:rgba(255,255,255,.72);text-decoration:none;letter-spacing:0;transition:.2s;cursor:pointer}
@@ -344,7 +345,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
 .hero-quote-call-btn--text:hover,.hero-quote-call-btn--text:focus-visible{background:rgba(77,163,255,.34);border-color:rgba(77,163,255,.8);color:#e8f3ff}
 @keyframes heroQuoteIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.hero-quote-call{animation:none}}
-.hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:28px max(20px, min(6vw, 72px)) 28px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);min-height:0}
+.hero{background:#12181f;display:flex;align-items:center;justify-content:flex-start;text-align:left;padding:36px max(24px, min(5vw, 64px)) 40px;position:relative;overflow:hidden;border-bottom:1px solid var(--line);margin-top:60px;min-height:520px}
 .hero-media{position:absolute;inset:0;z-index:0;pointer-events:none}
 .hero-media picture,.hero-media-img{display:block;width:100%;height:100%}
 .hero-media-img{object-fit:cover;object-position:right center;width:100%;height:100%}
@@ -353,7 +354,7 @@ body{background:var(--bg0);color:var(--tx);font-family:var(--fb);font-size:15px;
   radial-gradient(circle at 82% 20%,rgba(77,163,255,.10),transparent 34%),
   linear-gradient(180deg,transparent 78%,#12181f 100%)}
 .hero > *:not(.hero-media){position:relative;z-index:1}
-.hero-inner{max-width:520px;width:100%;position:relative;z-index:1;margin:0;text-align:left}
+.hero-inner{max-width:420px;width:100%;position:relative;z-index:1;margin:0;text-align:left;background:transparent}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);border:1px solid var(--bbr);background:var(--bdim);border-radius:999px;padding:5px 12px;margin-bottom:12px}
 .hero-facts{list-style:none;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 16px;padding:0}
 .hero-facts li{font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--bg0);border:1px solid var(--line);border-radius:999px;padding:6px 12px;line-height:1.25}
@@ -1228,9 +1229,8 @@ footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.08);padding
   background:#12181f !important;
 }
 .hero::before{background:
-  linear-gradient(105deg,rgba(15,20,28,.94) 0%,rgba(18,24,33,.82) 38%,rgba(18,24,33,.45) 58%,rgba(18,24,33,.12) 78%,rgba(18,24,33,.04) 100%),
-  radial-gradient(circle at 82% 20%,rgba(77,163,255,.10),transparent 34%),
-  linear-gradient(180deg,transparent 78%,#12181f 100%) !important}
+  linear-gradient(100deg,rgba(18,24,31,.78) 0%,rgba(18,24,31,.42) 18%,rgba(18,24,31,.08) 34%,rgba(18,24,31,0) 46%),
+  linear-gradient(180deg,transparent 88%,#12181f 100%) !important}
 .hero > *:not(.hero-media){position:relative;z-index:1}
 .hero-brand-mark{display:none}
 .visual-proof{display:none}
@@ -1854,10 +1854,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 @media(max-width:680px){
   .hero{text-align:left;min-height:0}
-  .hero::before{background:
-    linear-gradient(180deg,rgba(8,12,18,.55) 0%,rgba(8,12,18,.42) 100%) !important}
-  .hero-media-img{object-position:72% 42%}
-  .hero-inner{background:rgba(8,12,18,.97);border-radius:16px;padding:14px 14px 12px}
+  .hero::before{display:none!important}
+  .hero-inner{background:#12181f;border-radius:0;padding:0}
   .hero-inner{margin:0;max-width:100%}
   .hero-sub{margin-left:0;margin-right:0}
   .hero-zip-wrap{margin-left:0;margin-right:0;max-width:100%}
@@ -1878,13 +1876,13 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 
 /* ── MOBILE CONVERSION PASS (hero, nav, packages, tap targets) ── */
 @media(max-width:768px){
-  .hero{padding:20px 16px 22px;min-height:0;align-items:flex-start;justify-content:flex-start;background:#12181f!important}
-  .hero::before{display:block!important;background:
-    linear-gradient(180deg,rgba(8,12,18,.35) 0%,rgba(8,12,18,.28) 100%) !important}
+  .hero{margin-top:52px;padding:0 0 18px;min-height:0;align-items:stretch;justify-content:flex-start;background:#12181f!important;flex-direction:column}
+  .hero::before{display:none!important}
   .hero h1,.hero-sub,.hero-badge,.hero-quote-call,.hero-assure{text-shadow:none}
   .hero-sub{color:#e7eef6}
-  .hero-media-img{object-position:78% 40%}
-  .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0;background:rgba(8,12,18,.97);border-radius:16px;padding:14px 14px 12px}
+  .hero-media{position:relative;inset:auto;width:100%;height:auto}
+  .hero-media picture,.hero-media-img{width:100%;height:auto}
+  .hero-inner{display:flex;flex-direction:column;align-items:stretch;width:100%;max-width:100%;min-width:0;background:#12181f;border-radius:0;padding:16px 16px 0}
   .hero-quote-call{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px}
   .hero-call-line{white-space:nowrap}
   .hero-badge{align-self:flex-start;font-size:10.5px;padding:4px 10px;margin-bottom:10px}
@@ -1920,6 +1918,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   .loc-scroll{padding-bottom:4px;margin:0 -4px;padding-left:4px;padding-right:4px}
 }
 a.hero-primary{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:48px;width:fit-content;margin:2px 0 0}
+.hero-packages-link{display:inline-block;margin:12px 0 0;font-size:14px;font-weight:600;color:#9ec4ef;text-decoration:underline;text-underline-offset:3px}
+.hero-packages-link:hover,.hero-packages-link:focus-visible{color:#fff}
 .hero-quote-call{background:none;border:none;box-shadow:none;padding:0;margin:12px 0 0;max-width:none;backdrop-filter:none;-webkit-backdrop-filter:none;animation:none}
 .hero-quote-call-label{display:inline;margin:0;font-size:14px;font-weight:500;letter-spacing:0;text-transform:none;color:#d7e4f2}
 .hero-quote-call-number{display:inline;margin:0 0 0 6px;font-size:14px;font-weight:600;line-height:1.4;letter-spacing:0;color:#e8f3ff;text-shadow:none}
@@ -2069,18 +2069,6 @@ a.hero-primary{display:inline-flex;align-items:center;justify-content:center;tex
   <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
 </nav>
 
-<nav class="specialty-service-nav" aria-label="Specialty detailing services">
-  <div class="specialty-service-nav-inner">
-    <div class="specialty-service-links">
-      <a class="specialty-service-link" href="/trucks-detailing">Semi Trucks</a>
-      <a class="specialty-service-link" href="/rv-detailing">RV &amp; Trailers</a>
-      <a class="specialty-service-link" href="/boats-detailing">Boats</a>
-      <a class="specialty-service-link" href="/powersports-detailing">Powersports</a>
-    </div>
-  </div>
-</nav>
-
-
 <!-- HERO -->
 <section class="hero">
   <div class="hero-media" aria-hidden="true">
@@ -2115,9 +2103,29 @@ a.hero-primary{display:inline-flex;align-items:center;justify-content:center;tex
   </div>
 <div class="hero-inner">
     <div class="hero-badge">Palisades Park, NJ · Mobile Detailing</div>
-    <h1>A clean car, without rearranging your day.</h1>
-    <p class="hero-sub">We come to your home or workplace. Choose the clean your car needs, see your price, and pick a time.</p>
-    <a class="btn-primary hero-primary" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages &amp; prices</a>
+    <h1>Mobile detailing, right in your driveway.</h1>
+    <p class="hero-sub">At home or at work, we come to you.</p>
+    <div id="zip-section" aria-label="Check price and availability by ZIP code">
+      <div class="hero-zip-wrap hero-zip-wrap--compact">
+        <label class="hero-zip-label" for="hero-zip">ZIP code</label>
+        <div class="hero-zip-row">
+          <input
+            class="hero-zip-input"
+            id="hero-zip"
+            type="text"
+            inputmode="numeric"
+            maxlength="5"
+            placeholder="ZIP code"
+            autocomplete="postal-code"
+            oninput="onHeroZipInput(this.value)"
+            onkeydown="if(event.key==='Enter')onHeroZipSubmit()"
+          >
+          <button class="hero-zip-btn booking-popup-trigger" id="hero-zip-btn" type="button" onclick="onHeroZipSubmit()"><span class="hero-zip-spin" aria-hidden="true"></span><span class="hero-zip-btn-lbl">Check availability</span></button>
+        </div>
+        <div class="hero-zip-feedback" id="hero-zip-feedback" aria-live="polite"></div>
+      </div>
+    </div>
+    <a class="hero-packages-link" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages &amp; prices</a>
     <div class="hero-quote-call">
       <span class="hero-quote-call-label">Call or text for a quote</span>
       <span class="hero-call-line"><a class="hero-quote-call-number" href="tel:+15513893986">(551) 389-3986</a> <a class="hero-quote-sms" href="sms:+15513893986">Text</a></span>
@@ -2225,6 +2233,17 @@ a.hero-primary{display:inline-flex;align-items:center;justify-content:center;tex
     </div>
   </div>
 </div>
+
+<nav class="specialty-service-nav" data-home-place="after-packages" aria-label="Specialty detailing services">
+  <div class="specialty-service-nav-inner">
+    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="/trucks-detailing">Semi Trucks</a>
+      <a class="specialty-service-link" href="/rv-detailing">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="/boats-detailing">Boats</a>
+      <a class="specialty-service-link" href="/powersports-detailing">Powersports</a>
+    </div>
+  </div>
+</nav>
 
 <!-- BEFORE & AFTER -->
 <section class="ba-section cd1-tone-media" id="before-after" aria-labelledby="ba-heading">
@@ -9125,7 +9144,7 @@ function setHeroZipLoading(on){
     btn.disabled = on;
     btn.classList.toggle('loading', on);
     const lbl = btn.querySelector('.hero-zip-btn-lbl');
-    if(lbl) lbl.textContent = on ? 'Loading…' : 'Check Price & Availability';
+    if(lbl) lbl.textContent = on ? 'Loading…' : 'Check availability';
   }
   if(inp) inp.disabled = on;
 }

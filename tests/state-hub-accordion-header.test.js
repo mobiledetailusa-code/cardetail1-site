@@ -116,7 +116,7 @@ for (const page of stateHubs) {
 
 test('homepage uses the new clear H1', () => {
   const html = read('index.html');
-  assert.match(html, /<h1>A clean car, without rearranging your day\.<\/h1>/);
+  assert.match(html, /<h1>Mobile detailing, right in your driveway\.<\/h1>/);
   assert.equal(countH1(html), 1);
 });
 
@@ -210,7 +210,7 @@ test('homepage uses optimized driveway hero picture with object-fit cover', () =
   assert.match(index, /assets\/hero\/homepage-hero-1671\.webp/);
   assert.match(index, /assets\/hero\/homepage-hero-mobile-900\.webp/);
   assert.doesNotMatch(index, /homepage-hero-source\.png/);
-  assert.match(index, /<h1>A clean car, without rearranging your day\.<\/h1>/);
+  assert.match(index, /<h1>Mobile detailing, right in your driveway\.<\/h1>/);
   assert.match(read('assets/luxury-theme.css'), /body\.luxury-surface/);
   assert.doesNotMatch(read('assets/luxury-theme.css'), /hero--home/);
 });

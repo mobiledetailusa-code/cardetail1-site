@@ -126,10 +126,14 @@ test('cold-traffic entry points use discovery language', () => {
   const index = read('index.html');
   assert.match(
     index,
-    /class="btn-primary hero-primary"[^>]*>See packages &amp; prices<\/a>/,
-    'homepage primary CTA should lead to packages and prices',
+    /class="hero-zip-btn-lbl">Check availability</,
+    'homepage primary action checks ZIP coverage',
   );
-  assert.match(index, /href="#services"/);
+  assert.match(
+    index,
+    /class="hero-packages-link"[^>]*href="#services"[^>]*>See packages &amp; prices<\/a>/,
+    'packages stay one link below the ZIP check',
+  );
   assert.match(
     index,
     /function onHeroZipSubmit\(\)\{[\s\S]*?openBooking\(null\)/,

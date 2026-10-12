@@ -365,8 +365,8 @@
       "discovery": [
         {
           "id": "hero-cta",
-          "selector": ".hero .hero-primary",
-          "text": "See packages & prices",
+          "selector": ".hero .hero-zip-btn-lbl",
+          "text": "Check availability",
           "why": "Cold-traffic entry is discovery-level, not a commitment to book."
         }
       ],

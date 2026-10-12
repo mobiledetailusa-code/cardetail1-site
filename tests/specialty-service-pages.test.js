@@ -230,12 +230,15 @@ describe('homepage specialty switcher placement and state', () => {
     assert.equal(blocks.length, 1);
   });
 
-  it('homepage switcher appears after global header and before hero', () => {
+  it('homepage switcher appears after the main packages', () => {
     const html = read('index.html');
     const mainNav = html.indexOf('id="main-nav"');
-    const specialty = html.indexOf('class="specialty-service-nav"');
     const hero = html.indexOf('<section class="hero">');
-    assert.ok(mainNav >= 0 && specialty > mainNav && hero > specialty);
+    const services = html.indexOf('id="services"');
+    const specialty = html.indexOf('class="specialty-service-nav"');
+    const gallery = html.indexOf('id="before-after"');
+    assert.ok(mainNav >= 0 && hero > mainNav);
+    assert.ok(services > hero && specialty > services && gallery > specialty);
   });
 
   it('homepage switcher has exactly four links in Trucks / RV / Boats / Powersports order', () => {
