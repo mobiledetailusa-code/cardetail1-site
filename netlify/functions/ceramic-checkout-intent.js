@@ -65,6 +65,9 @@ exports.handler = async (event) => {
   const tintBooking = require('../lib/window-tint-guard').windowTintBlock(booking) 
     || require('../lib/window-tint-guard').windowTintBlock(p);
   if (tintBooking) return json(403, tintBooking);
+  const residentialBooking = require('../lib/residential-window-film-guard').residentialWindowFilmBlock(booking)
+    || require('../lib/residential-window-film-guard').residentialWindowFilmBlock(p);
+  if (residentialBooking) return json(403, residentialBooking);
   if (!booking || booking.serviceFamily !== 'ceramic_coating') {
     return json(400, { ok: false, error: 'not_ceramic_booking' });
   }

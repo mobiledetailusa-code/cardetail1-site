@@ -28,7 +28,8 @@ function windowTintBlock(value) {
   const found = new Set();
   mentions(value, found, 0);
   if (!found.size) return null;
-  if (typeof catalog.commercialReady === 'function' && catalog.commercialReady()) return null;
+  // Readiness comes from the server copy of the catalog. Payload flags are not read.
+  if (typeof catalog.commercialReady === 'function' && catalog.commercialReady() === true) return null;
   return {
     ok: false,
     bookingCreated: false,

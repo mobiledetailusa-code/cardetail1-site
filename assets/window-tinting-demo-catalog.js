@@ -180,7 +180,7 @@
     rows: DEMO_PRICE_ROWS,
   };
 
-  var URL_PRICE_KEYS = ['price', 'total', 'amount', 'cents', 'pkg', 'pkgid', 'package', 'duration', 'minutes'];
+  var URL_PRICE_KEYS = ['price', 'total', 'amount', 'cents', 'pkg', 'pkgid', 'package', 'duration', 'minutes', 'enabled', 'commercialReady', 'bookable', 'compatible'];
   var FILM_PARAM = {
     carbon: 'wt_film_carbon',
     wt_film_carbon: 'wt_film_carbon',
@@ -218,7 +218,9 @@
   }
 
   function commercialReady() {
+    // Caller arguments are ignored. Readiness is this file's configuration.
     if (COMMERCIAL.enabled !== true) return false;
+    if (String(COMMERCIAL.installerResourceId || '').indexOf('rwf_') === 0) return false;
     if (!positiveCents(COMMERCIAL.durationMinutes)) return false;
     if (!COMMERCIAL.installerResourceId) return false;
     if (COMMERCIAL.usesDetailingCapacity !== false) return false;
@@ -314,7 +316,7 @@
     var removal = String(src.removal || '');
     var extraIds = Array.isArray(src.extraGlassIds) ? src.extraGlassIds.map(String) : [];
     var ignoredInputs = [];
-    ['price', 'total', 'amountCents', 'durationMinutes', 'pkg', 'pkgId'].forEach(function (key) {
+    ['price', 'total', 'amountCents', 'durationMinutes', 'pkg', 'pkgId', 'enabled', 'commercialReady', 'bookable', 'compatible'].forEach(function (key) {
       if (src[key] != null && src[key] !== '') ignoredInputs.push(key);
     });
 
@@ -394,6 +396,16 @@
       fictionalWindows: complete ? DEMO.fictionalWindows.slice() : [],
     };
   }
+
+  function freeze(value) {
+    if (!value || typeof value !== 'object' || Object.isFrozen(value)) return;
+    Object.keys(value).forEach(function (key) { freeze(value[key]); });
+    Object.freeze(value);
+  }
+  freeze(COMMERCIAL);
+  freeze(COMMERCIAL_PRICE_ROWS);
+  freeze(DEMO_PRICE_ROWS);
+  freeze(DEMO);
 
   function formatDollars(cents) {
     var amount = positiveCents(cents);

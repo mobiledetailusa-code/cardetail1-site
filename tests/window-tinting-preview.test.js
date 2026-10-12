@@ -367,4 +367,75 @@ describe('window tint server refusal', () => {
     assert.equal(slots.statusCode, 403);
     assert.equal(JSON.parse(slots.body).error, 'window_tint_disabled');
   });
+
+  it('ignores a browser, URL, or payload attempt to turn the service on', async () => {
+    assert.throws(() => { demo.COMMERCIAL.enabled = true; }, TypeError);
+    assert.equal(demo.COMMERCIAL.enabled, false);
+    assert.equal(demo.commercialReady({ enabled: true, commercialReady: true, amountCents: 39900 }), false);
+    const forced = quote({ enabled: true, commercialReady: true, bookable: true, price: 100 });
+    assert.equal(forced.enabled, false);
+    assert.equal(forced.bookable, false);
+    assert.equal(forced.totalCents, 39900);
+    assert.equal(forced.durationMinutes, null);
+    const fromLink = demo.selectionFromSearch('?film=carbon&commercialReady=true&enabled=true&price=100');
+    assert.ok(fromLink.ignoredPriceKeys.includes('commercialReady'));
+    assert.ok(fromLink.ignoredPriceKeys.includes('enabled'));
+
+    const submit = require('../netlify/functions/submit-booking');
+    const setup = require('../netlify/functions/create-setup-intent');
+    const availability = require('../netlify/functions/booking-availability');
+    const forged = await submit.handler({
+      httpMethod: 'POST',
+      headers: { host: 'localhost' },
+      body: JSON.stringify({
+        firstName: 'Ana',
+        phone: '2015550100',
+        zipCode: '07650',
+        serviceFamily: 'window_tint',
+        filmId: 'wt_film_carbon',
+        enabled: true,
+        commercialReady: true,
+        bookable: true,
+        amountCents: 39900,
+        durationMinutes: 30,
+      }),
+    });
+    assert.equal(forged.statusCode, 403);
+    assert.equal(JSON.parse(forged.body).error, 'window_tint_disabled');
+    assert.equal(JSON.parse(forged.body).bookingCreated, false);
+
+    const card = await setup.handler({
+      httpMethod: 'POST',
+      headers: { host: 'localhost' },
+      body: JSON.stringify({
+        bookingId: 'CD1-1',
+        filmId: 'wt_film_carbon',
+        commercialReady: true,
+        enabled: true,
+        amountCents: 39900,
+      }),
+    });
+    assert.equal(card.statusCode, 403);
+    assert.equal(JSON.parse(card.body).paymentCreated, false);
+
+    const slots = await availability.handler({
+      httpMethod: 'GET',
+      headers: { host: 'localhost' },
+      queryStringParameters: {
+        commercialReady: 'true',
+        enabled: 'true',
+        price: '39900',
+        packageId: 'wt_cov_sides_rear',
+      },
+    });
+    assert.equal(slots.statusCode, 403);
+    assert.equal(JSON.parse(slots.body).error, 'window_tint_disabled');
+
+    const detailing = await submit.handler({
+      httpMethod: 'POST',
+      headers: { host: 'localhost' },
+      body: JSON.stringify({ cat: 'cars', pkgId: 'full', commercialReady: true, enabled: true, amountCents: 39900 }),
+    });
+    assert.notEqual(JSON.parse(detailing.body).error, 'window_tint_disabled');
+  });
 });

@@ -67,6 +67,9 @@ exports.handler = async (event) => {
   const windowTintBlock = require('../lib/window-tint-guard').windowTintBlock;
   const tintRequest = windowTintBlock(p);
   if (tintRequest) return json(403, tintRequest);
+  const residentialWindowFilmBlock = require('../lib/residential-window-film-guard').residentialWindowFilmBlock;
+  const residentialRequest = residentialWindowFilmBlock(p);
+  if (residentialRequest) return json(403, residentialRequest);
 
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'create-setup-intent',
@@ -100,6 +103,8 @@ exports.handler = async (event) => {
 
   const tintBooking = windowTintBlock(booking);
   if (tintBooking) return json(403, tintBooking);
+  const residentialBooking = residentialWindowFilmBlock(booking);
+  if (residentialBooking) return json(403, residentialBooking);
 
   const tokenCheck = verifyDraftSaveToken({
     token: draftSaveToken,

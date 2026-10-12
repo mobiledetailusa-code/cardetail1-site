@@ -65,6 +65,9 @@ exports.handler = async (event) => {
   const tintBooking = require('../lib/window-tint-guard').windowTintBlock(booking)
     || require('../lib/window-tint-guard').windowTintBlock(p);
   if (tintBooking) return json(403, tintBooking);
+  const residentialBooking = require('../lib/residential-window-film-guard').residentialWindowFilmBlock(booking)
+    || require('../lib/residential-window-film-guard').residentialWindowFilmBlock(p);
+  if (residentialBooking) return json(403, residentialBooking);
   if (booking.isDraft) {
     return json(200, { ok: false, error: 'booking_not_ready', message: 'Finalize your booking request first.' });
   }

@@ -16,6 +16,6 @@ Arquivo: `assets/window-tinting-demo-catalog.js`.
 | Para-brisa, teto e vidros dianteiros | `COMMERCIAL.glassExceptions` | Avaliação pendente, `amountCents: null`. Um checkbox não confirma. |
 | Horários reais | Agenda do instalador, depois que a duração e o recurso existirem | A preview só lista `DEMO.fictionalWindows`. |
 
-`commercialReady()` só fica verdadeiro quando `enabled` é `true` e há duração, local, recurso próprio e pelo menos um preço comercial maior que zero. Até lá a preview mostra “Demo pricing — not available for booking” e o servidor recusa os IDs `wt_film_`, `wt_glass_`, `wt_cov_` e `wt_resource_`.
+`commercialReady()` só fica verdadeiro quando `enabled` é `true` e há duração, local, recurso próprio e pelo menos um preço comercial maior que zero. A função ignora argumentos. O servidor chama essa cópia do arquivo e não lê `enabled`, `commercialReady`, preço ou duração vindos do JavaScript do navegador, da URL ou do payload. Até lá a preview mostra “Demo pricing — not available for booking” e o servidor recusa os IDs `wt_film_`, `wt_glass_`, `wt_cov_` e `wt_resource_`.
 
 Não reutilize preço, duração ou ID de ceramic coating. Não aplique o multiplicador de tamanho do detailing: a classe do veículo só escolhe a linha sedan, SUV de duas fileiras ou SUV grande/minivan.

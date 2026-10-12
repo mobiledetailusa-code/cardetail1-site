@@ -305,6 +305,11 @@
   to = "/window-tinting"
   status = 301
   force = true
+[[redirects]]
+  from = "/residential-window-film.html"
+  to = "/residential-window-film"
+  status = 301
+  force = true
 
 # Legacy Search Console paths. Each rule ends on the HTTPS apex canonical.
 # Host-specific rules are listed first so a www or http request can finish in
@@ -424,6 +429,14 @@
     X-Robots-Tag = "noindex, nofollow"
 [[headers]]
   for = "/window-tinting.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+[[headers]]
+  for = "/residential-window-film"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+[[headers]]
+  for = "/residential-window-film.html"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
 [[headers]]

@@ -95,6 +95,15 @@ exports.handler = async (event) => {
         paymentCreated: false,
       });
     }
+    const residentialBlock = require('../lib/residential-window-film-guard').residentialWindowFilmBlock(queryOf(event));
+    if (residentialBlock) {
+      return publicJson(403, {
+        ok: false,
+        error: 'residential_window_film_disabled',
+        bookingCreated: false,
+        paymentCreated: false,
+      });
+    }
 
     const rate = await enforcePublicRateLimit(event, {
       endpoint: 'booking-availability',
