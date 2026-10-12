@@ -60,6 +60,14 @@ exports.handler = async (event) => {
     });
   }
 
+  let p;
+  try { p = JSON.parse(event.body || '{}'); }
+  catch { return json(400, { ok: false, error: 'invalid_json' }); }
+
+  const windowTintBlock = require('../lib/window-tint-guard').windowTintBlock;
+  const tintRequest = windowTintBlock(p);
+  if (tintRequest) return json(403, tintRequest);
+
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'create-setup-intent',
     cors: true,
@@ -70,10 +78,6 @@ exports.handler = async (event) => {
   if (!secretStatus.ok) {
     return json(503, { ok: false, error: 'missing_draft_token_secret' });
   }
-
-  let p;
-  try { p = JSON.parse(event.body || '{}'); }
-  catch { return json(400, { ok: false, error: 'invalid_json' }); }
 
   const bookingId = String(p.bookingId || '').replace(/[^A-Za-z0-9\-]/g, '').slice(0, 48);
   const draftSaveToken = String(p.draftSaveToken || '').trim();
@@ -93,6 +97,9 @@ exports.handler = async (event) => {
   if (!booking) {
     return json(403, { ok: false, error: 'invalid_draft_token' });
   }
+
+  const tintBooking = windowTintBlock(booking);
+  if (tintBooking) return json(403, tintBooking);
 
   const tokenCheck = verifyDraftSaveToken({
     token: draftSaveToken,

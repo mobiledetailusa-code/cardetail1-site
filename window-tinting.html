@@ -28,7 +28,7 @@
   <nav class="wt-nav-links" aria-label="Window tint preview">
     <a href="#films">Films</a>
     <a href="#guidance">Guidance</a>
-    <a href="#quote">Quote</a>
+    <a href="#coverage">Coverage</a>
     <a href="#faq">FAQ</a>
     <a class="wt-nav-phone" href="tel:+15513893986">Call / Text</a>
   </nav>
@@ -40,13 +40,14 @@
       <h1 id="wt-title">A cooler ride. A look that feels right.</h1>
       <p class="wt-lead">Explore window tint options for your vehicle, with clear guidance on film, shade, and coverage.</p>
       <div class="wt-actions">
-        <a class="wt-btn wt-btn-primary" href="#quote">Get my tint quote</a>
+        <a class="wt-btn wt-btn-primary" href="#coverage">Get my tint quote</a>
       </div>
     </div>
-    <div class="wt-hero-visual" aria-hidden="true">
-      <div class="wt-glass wt-glass-light"><span>Lighter look</span></div>
-      <div class="wt-glass wt-glass-mid"><span>Medium look</span></div>
-      <div class="wt-glass wt-glass-dark"><span>Darker look</span></div>
+    <div class="wt-hero-visual">
+      <div class="wt-glass wt-glass-light" aria-hidden="true"><span>Lighter look</span></div>
+      <div class="wt-glass wt-glass-mid" aria-hidden="true"><span>Medium look</span></div>
+      <div class="wt-glass wt-glass-dark" aria-hidden="true"><span>Darker look</span></div>
+      <p class="wt-illustration-label">Illustration only. Not a Cardetail1 window tint installation.</p>
       <p class="wt-glass-note">Shade is how dark the glass looks. Heat control is a different property. None of these looks is a permitted darkness.</p>
     </div>
   </section>
@@ -54,7 +55,7 @@
   <section class="wt-section" id="films" aria-labelledby="wt-films-title">
     <div class="wt-wrap">
       <h2 id="wt-films-title">Two films to compare</h2>
-      <p class="wt-sub">Carbon and ceramic window film are different products. Prices are not published in this preview.</p>
+      <p class="wt-sub">Carbon and ceramic are different films. The comparison below uses demo pricing for this preview. It is not a price you can book.</p>
       <div class="wt-cards">
         <article class="wt-card">
           <h3>Carbon Window Tint</h3>
@@ -91,147 +92,17 @@
     </div>
   </section>
 
-  <section class="wt-section" id="quote" aria-labelledby="wt-quote-title">
+  <section class="wt-section" id="coverage" aria-labelledby="wt-coverage-title">
     <div class="wt-wrap">
-      <h2 id="wt-quote-title">Quote preview</h2>
-      <p class="wt-sub">This walkthrough uses the detailing ZIP check, vehicle catalog, contact fields, service address, and payment choices. It is not connected to live booking. Window tint stays separate from a detailing appointment.</p>
-      <form id="wt-quote" class="wt-flow" novalidate onsubmit="event.preventDefault(); return false;">
-        <p class="wt-url-note" id="wt-url-note" hidden></p>
-        <ol class="wt-progress">
-          <li><button type="button" data-wt-tab="zip">ZIP</button></li>
-          <li><button type="button" data-wt-tab="vehicle">Vehicle</button></li>
-          <li><button type="button" data-wt-tab="film">Film</button></li>
-          <li><button type="button" data-wt-tab="details">Details</button></li>
-          <li><button type="button" data-wt-tab="contact">Contact</button></li>
-          <li><button type="button" data-wt-tab="review">Review</button></li>
-        </ol>
-        <div class="wt-total" id="wt-total" aria-live="polite"></div>
-        <p class="wt-error" id="wt-error" role="alert"></p>
-
-        <div class="wt-panel" data-wt-step="zip">
-          <h3 tabindex="-1">ZIP code</h3>
-          <p class="wt-note">Same ZIP field the detailing request uses to recognize an area. It does not set a window tint price.</p>
-          <label class="wt-field">
-            <span>ZIP code</span>
-            <input id="wt-zip" name="zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" placeholder="07650">
-          </label>
-          <p class="wt-note" id="wt-zip-note"></p>
-          <div class="wt-row"><button type="button" class="wt-btn wt-btn-primary" data-wt-next>Continue</button></div>
-        </div>
-
-        <div class="wt-panel" data-wt-step="vehicle" hidden>
-          <h3 tabindex="-1">Vehicle</h3>
-          <p class="wt-note">Make, model, and year come from the current car catalog. Later steps reuse this vehicle.</p>
-          <div class="wt-grid">
-            <label class="wt-field">
-              <span>Make</span>
-              <select id="wt-make" name="make"></select>
-            </label>
-            <label class="wt-field">
-              <span>Model</span>
-              <select id="wt-model" name="model" disabled></select>
-            </label>
-            <label class="wt-field">
-              <span>Year</span>
-              <select id="wt-year" name="year" disabled></select>
-            </label>
-          </div>
-          <p class="wt-note" id="wt-vehicle-note"></p>
-          <div class="wt-row">
-            <button type="button" class="wt-btn wt-btn-ghost" data-wt-back>Back</button>
-            <button type="button" class="wt-btn wt-btn-primary" data-wt-next>Continue</button>
-          </div>
-        </div>
-
-        <div class="wt-panel" data-wt-step="film" hidden>
-          <h3 tabindex="-1">Film and coverage</h3>
-          <fieldset class="wt-choices">
-            <legend class="wt-note">Film</legend>
-            <label class="wt-choice"><input type="radio" name="wt-film" value="wt_film_carbon"><strong>Carbon Window Tint</strong><small>Color film. Heat control is not stated as a number.</small></label>
-            <label class="wt-choice"><input type="radio" name="wt-film" value="wt_film_ceramic"><strong>Ceramic Window Tint</strong><small>Different from carbon, and different from ceramic coating.</small></label>
-            <label class="wt-choice"><input type="radio" name="wt-film" value="wt_film_help"><strong>Help me choose</strong><small>No recommendation is generated in this preview.</small></label>
-          </fieldset>
-          <fieldset class="wt-choices">
-            <legend class="wt-note">Glass to consider</legend>
-            <label class="wt-choice"><input type="checkbox" name="wt-glass" value="wt_glass_front_sides"><strong>Front side windows</strong><small>Not treated as allowed at every shade. This is not a confirmed selection.</small></label>
-            <label class="wt-choice"><input type="checkbox" name="wt-glass" value="wt_glass_rear_sides"><strong>Rear side windows</strong><small>Requested coverage only. A shade is not chosen here.</small></label>
-            <label class="wt-choice"><input type="checkbox" name="wt-glass" value="wt_glass_rear"><strong>Rear window</strong><small>Requested coverage only. A shade is not chosen here.</small></label>
-            <label class="wt-choice"><input type="checkbox" name="wt-glass" value="wt_glass_windshield"><strong>Windshield</strong><small>Specific evaluation. Checking this does not confirm windshield film.</small></label>
-            <label class="wt-choice"><input type="checkbox" name="wt-glass" value="wt_glass_roof"><strong>Roof glass</strong><small>Specific evaluation. Checking this does not confirm sunroof or panoramic film.</small></label>
-            <label class="wt-choice"><input type="checkbox" name="wt-glass" value="wt_glass_unsure"><strong>Not sure which glass</strong><small>The glass still has to be matched.</small></label>
-          </fieldset>
-          <div class="wt-row">
-            <button type="button" class="wt-btn wt-btn-ghost" data-wt-back>Back</button>
-            <button type="button" class="wt-btn wt-btn-primary" data-wt-next>Continue</button>
-          </div>
-        </div>
-
-        <div class="wt-panel" data-wt-step="details" hidden>
-          <h3 tabindex="-1">Registration and existing film</h3>
-          <p class="wt-recap" id="wt-vehicle-recap"></p>
-          <p class="wt-note">The vehicle above is already filled in. These two answers are the window tint questions.</p>
-          <label class="wt-field">
-            <span>State of registration</span>
-            <select id="wt-state" name="registration-state" autocomplete="address-level1">
-              <option value="">Select a state</option>
-            </select>
-          </label>
-          <fieldset class="wt-choices">
-            <legend class="wt-note">Is there film to remove?</legend>
-            <label class="wt-choice"><input type="radio" name="wt-removal" value="no"><strong>No existing film</strong></label>
-            <label class="wt-choice"><input type="radio" name="wt-removal" value="yes"><strong>Existing film needs to come off</strong><small>Removal is a separate review. It is not priced or confirmed here.</small></label>
-            <label class="wt-choice"><input type="radio" name="wt-removal" value="unsure"><strong>Not sure</strong></label>
-          </fieldset>
-          <div class="wt-row">
-            <button type="button" class="wt-btn wt-btn-ghost" data-wt-back>Back</button>
-            <button type="button" class="wt-btn wt-btn-primary" data-wt-next>Continue</button>
-          </div>
-        </div>
-
-        <div class="wt-panel" data-wt-step="contact" hidden>
-          <h3 tabindex="-1">Contact, address, and payment</h3>
-          <p class="wt-note">These fields match the detailing request. Submitting this preview does not send them.</p>
-          <div class="wt-grid">
-            <label class="wt-field"><span>First name</span><input id="wt-first" name="given-name" autocomplete="given-name"></label>
-            <label class="wt-field"><span>Last name</span><input id="wt-last" name="family-name" autocomplete="family-name"></label>
-            <label class="wt-field"><span>Phone</span><input id="wt-phone" name="tel" type="tel" autocomplete="tel"></label>
-            <label class="wt-field"><span>Email</span><input id="wt-email" name="email" type="email" autocomplete="email"></label>
-            <label class="wt-field wt-field-wide"><span>Service address</span><input id="wt-address" name="street-address" autocomplete="street-address" placeholder="Street address"></label>
-          </div>
-          <fieldset class="wt-choices">
-            <legend class="wt-note">Preferred contact</legend>
-            <label class="wt-choice"><input type="radio" name="wt-contact" value="phone"><strong>Phone</strong></label>
-            <label class="wt-choice"><input type="radio" name="wt-contact" value="text"><strong>Text</strong></label>
-            <label class="wt-choice"><input type="radio" name="wt-contact" value="email"><strong>Email</strong></label>
-          </fieldset>
-          <fieldset class="wt-choices">
-            <legend class="wt-note">Payment preference</legend>
-            <label class="wt-choice"><input type="radio" name="wt-payment" value="online_after_service"><strong>Card online — charged after service</strong></label>
-            <label class="wt-choice"><input type="radio" name="wt-payment" value="card_onsite"><strong>Card at service</strong></label>
-            <label class="wt-choice"><input type="radio" name="wt-payment" value="cash_onsite"><strong>Cash at service</strong></label>
-          </fieldset>
-          <p class="wt-note" id="wt-payment-help"></p>
-          <div class="wt-row">
-            <button type="button" class="wt-btn wt-btn-ghost" data-wt-back>Back</button>
-            <button type="button" class="wt-btn wt-btn-primary" data-wt-next>Review</button>
-          </div>
-        </div>
-
-        <div class="wt-panel" data-wt-step="review" hidden>
-          <h3 tabindex="-1">Review the demonstration</h3>
-          <p class="wt-note">Window tint is not combined with detailing in this preview. That can be considered later without using this page as a live booking.</p>
-          <div class="wt-schedule">
-            <h3>Schedule</h3>
-            <p>No times are listed. The detailing calendar counts open slots for the current crew. It does not identify a window-film installer or a job length, so this preview does not offer a date.</p>
-          </div>
-          <div class="wt-row">
-            <button type="button" class="wt-btn wt-btn-ghost" data-wt-back>Back</button>
-            <button type="button" class="wt-btn wt-btn-primary" id="wt-finish">Show the demonstration</button>
-          </div>
-          <div class="wt-result" id="wt-demo-result" role="status" aria-live="polite" hidden></div>
-        </div>
-      </form>
-      <noscript><p>This preview needs JavaScript to walk through the quote. Nothing is sent either way.</p></noscript>
+      <h2 id="wt-coverage-title">Coverage</h2>
+      <p class="wt-sub">Pick the glass for this preview. The booking form keeps that choice and asks only for the window tint details it does not already have. ZIP, vehicle, contact, and address stay in the existing form.</p>
+      <p class="wt-url-note" id="wt-url-note" hidden></p>
+      <div id="wt-compare"></div>
+      <div class="wt-coverage" id="wt-coverage-choices"></div>
+      <div class="wt-actions">
+        <button type="button" class="wt-btn wt-btn-primary" id="wt-open-booking" disabled>Continue in the booking form</button>
+      </div>
+      <noscript><p>This preview needs JavaScript to show the demo comparison and open the booking form. Nothing is sent either way.</p></noscript>
     </div>
   </section>
 
@@ -240,7 +111,7 @@
       <h2 id="wt-faq-title">Questions</h2>
       <details>
         <summary><h3>How is the film installed?</h3></summary>
-        <p>Where the work happens, and how long it takes, are not set. This preview does not offer a date and does not promise a visit to every address.</p>
+        <p>Where the work happens, and how long a real job takes, are not set. The booking preview can show fictional times. Those times are not openings, and this page does not promise a visit to every address.</p>
       </details>
       <details>
         <summary><h3>What if the glass already has film?</h3></summary>
@@ -270,9 +141,6 @@
     <span>Preview only. Window tint is not a live service on this page.</span>
   </div>
 </footer>
-<script src="assets/generated/cars-vehicle-catalog.generated.js"></script>
-<script src="assets/vehicle-catalog.js"></script>
-<script src="assets/travel-fee-client.js"></script>
 <script src="assets/window-tinting-demo-catalog.js"></script>
 <script src="assets/window-tinting-preview.js"></script>
 </body>

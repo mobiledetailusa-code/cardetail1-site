@@ -221,6 +221,8 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/payment-resume.js',
     // Ceramic coating checkout prices the deposit on the server.
     'netlify/functions/ceramic-checkout-intent.js',
+    // Window tint preview refuses capacity lookups while the service is disabled.
+    'netlify/functions/booking-availability.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

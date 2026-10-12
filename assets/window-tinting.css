@@ -40,7 +40,8 @@ button,input,select{font:inherit}
 .wt-glass-light{background:linear-gradient(180deg,rgba(196,214,232,.55),rgba(77,143,217,.18))}
 .wt-glass-mid{background:linear-gradient(180deg,rgba(70,92,120,.72),rgba(18,24,31,.55))}
 .wt-glass-dark{background:linear-gradient(180deg,rgba(18,28,40,.2),rgba(8,10,14,.92))}
-.wt-glass-note{grid-column:1/-1;margin:0;color:var(--mu);font-size:13px}
+.wt-glass-note,.wt-illustration-label{grid-column:1/-1;margin:0;color:var(--mu);font-size:13px}
+.wt-illustration-label{font-weight:700;color:var(--gold)}
 .wt-section{padding:56px 0}
 .wt-section h2{margin:0 0 10px;font-family:var(--fd);font-size:clamp(32px,4vw,48px);font-weight:400;letter-spacing:.03em;line-height:.95;color:var(--ink)}
 .wt-sub{margin:0 0 22px;max-width:44rem;color:var(--mu)}
@@ -97,6 +98,16 @@ button,input,select{font:inherit}
 .wt-foot-row{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
 .wt-foot a{color:var(--gold);text-decoration:none}
 .wt-url-note{margin:0 0 12px;color:var(--warn);font-size:14px;font-weight:700}
+.wt-compare{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px}
+.wt-compare caption{caption-side:bottom;padding-top:8px;text-align:left;color:var(--gold);font-weight:700;font-size:13px}
+.wt-compare th,.wt-compare td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left}
+.wt-compare th{color:var(--ink);font-size:13px;letter-spacing:.04em}
+.wt-compare-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:#161d26}
+.wt-coverage{display:grid;gap:10px;margin:0 0 16px}
+.wt-overlay{position:fixed;inset:0;z-index:100000;display:none;background:rgba(2,4,10,.78)}
+.wt-overlay.is-open{display:block}
+.wt-overlay iframe{width:100%;height:100%;border:0;background:#02040a}
+.wt-overlay-close{position:absolute;top:10px;right:12px;z-index:2;width:44px;height:44px;border:0;border-radius:999px;background:#121922;color:#fff;font-size:24px;line-height:1;cursor:pointer}
 @media (max-width:800px){
   .wt-hero,.wt-cards,.wt-points,.wt-grid{grid-template-columns:1fr}
   .wt-hero-visual{order:-1}

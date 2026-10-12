@@ -19,6 +19,7 @@ const { buildOccupancyMap, hasSlotConflict, startFitsDemand, pickEligibleStart }
 const { resolveOperationalSlot, arrivalWindowForSlot } = require('../lib/arrival-windows');
 const { listBookingsForSlotLock } = require('../lib/ops-db');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { windowTintBlock } = require('../lib/window-tint-guard');
 
 const MAX_NEARBY_LIMIT = 8;
 const MAX_NEARBY_HORIZON_DAYS = 28;
@@ -83,6 +84,16 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') return publicJson(204, {});
     if (event.httpMethod !== 'GET') {
       return safeError(405, 'method_not_allowed');
+    }
+
+    const tintBlock = windowTintBlock(queryOf(event));
+    if (tintBlock) {
+      return publicJson(403, {
+        ok: false,
+        error: 'window_tint_disabled',
+        bookingCreated: false,
+        paymentCreated: false,
+      });
     }
 
     const rate = await enforcePublicRateLimit(event, {
