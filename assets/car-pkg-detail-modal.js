@@ -220,8 +220,14 @@ function openHomePkgDetailModal(pkgId, e) {
     }
   }
   bodyEl.innerHTML = buildCarPkgDetailSectionsHtml(d);
+  const ceramicPage = pkgId === "ceramic_1yr" || pkgId === "ceramic_3yr";
+  bookBtn.textContent = ceramicPage ? "View ceramic coating options" : "Book this package";
   bookBtn.onclick = function () {
     closeHomePkgDetailModal();
+    if (ceramicPage) {
+      window.location.assign("/ceramic-coating");
+      return;
+    }
     if (typeof openBookingCarPkg === "function") openBookingCarPkg(pkgId);
   };
   ov.hidden = false;

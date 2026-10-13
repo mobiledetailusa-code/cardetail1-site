@@ -1674,6 +1674,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 .car-pkg-price-note{font-size:11px;color:#475569;line-height:1.35}
 .car-pkg-price--tiered .car-pkg-price-note--primary{font-size:clamp(13px,2.2vw,15px);font-weight:600;color:var(--ink);line-height:1.45}
 .car-pkg-cta{width:100%;height:44px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid rgba(154,178,210,.75);background:rgba(255,255,255,.03);color:#e7eef8;font-family:var(--fb);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
+a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;box-sizing:border-box;text-transform:none;letter-spacing:0;height:auto;line-height:1.3;padding:10px 14px}
 .car-pkg-cta:hover,.car-pkg-cta:focus-visible{background:rgba(77,143,217,.16);border-color:rgba(185,210,240,.9);color:#f7fbff}
 .car-pkg-cta:focus-visible{outline:2px solid #b9d4f8;outline-offset:2px}
 .car-pkg-card--popular .car-pkg-cta{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:none}
@@ -2032,7 +2033,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Palisades Park NJ" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
-    <a class="nav-link" href="#ceramic-coating" onclick="document.getElementById('nav-links').classList.remove('open')">Ceramic Coating</a>
+    <a class="nav-link" href="/ceramic-coating" onclick="document.getElementById('nav-links').classList.remove('open')">Ceramic Coating</a>
     <a class="nav-link" href="/blog">Guides</a>
     <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" href="tel:+15513893986">Call / Text</a>
@@ -2268,7 +2269,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="car-pkg-price-note" id="home-from-ceramic_1yr-note">priced by vehicle size</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openHomeCeramic('ceramic_1yr')">Book Up to 1 Year</button>
+          <a class="car-pkg-cta" href="/ceramic-coating">View ceramic coating options</a>
         </div>
       </article>
       <article class="car-pkg-card">
@@ -2290,7 +2291,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <span class="car-pkg-price-note" id="home-from-ceramic_3yr-note">priced by vehicle size</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openHomeCeramic('ceramic_3yr')">Book Up to 3 Years</button>
+          <a class="car-pkg-cta" href="/ceramic-coating">View ceramic coating options</a>
         </div>
       </article>
     </div>

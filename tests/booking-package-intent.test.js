@@ -886,8 +886,9 @@ describe('CTA map stays on existing ids', () => {
     assert.match(index, /openBookingCarPkg\('interior'\)/);
     assert.match(index, /openBookingCarPkg\('full'\)/);
     assert.match(index, /openBookingCarPkg\('refresh'\)/);
-    assert.match(index, /openHomeCeramic\('ceramic_1yr'\)/);
-    assert.match(index, /openHomeCeramic\('ceramic_3yr'\)/);
+    const ceramic = index.slice(index.indexOf('id="ceramic-coating"'), index.indexOf('class="car-addons-block"'));
+    assert.equal((ceramic.match(/href="\/ceramic-coating">View ceramic coating options</g) || []).length, 2);
+    assert.doesNotMatch(ceramic, /openHomeCeramic|openBooking|pkg=|price=/);
     const hub = read('assets/hub-booking-bridge.js');
     assert.match(hub, /openDelegatedBooking\('cars', args\[0\] \|\| null\)/);
     assert.match(hub, /params\.set\('start', 'vehicle'\)/);

@@ -316,3 +316,60 @@ describe('ceramic coating landing page', () => {
     assert.equal(window.localStorage.length, 0);
   });
 });
+
+describe('homepage ceramic entry', () => {
+  const index = read('index.html');
+  const ceramic = index.slice(index.indexOf('id="ceramic-coating"'), index.indexOf('class="car-addons-block"'));
+
+  it('sends the nav and both card actions to /ceramic-coating', () => {
+    assert.match(index, /<a class="nav-link" href="\/ceramic-coating"[^>]*>Ceramic Coating<\/a>/);
+    const links = [...ceramic.matchAll(/<a class="car-pkg-cta" href="([^"]*)">([^<]*)<\/a>/g)];
+    assert.equal(links.length, 2);
+    for (const link of links) {
+      assert.equal(link[1], '/ceramic-coating');
+      assert.equal(link[2], 'View ceramic coating options');
+    }
+    assert.doesNotMatch(ceramic, /<a class="car-pkg-cta"[^>]*onclick/);
+    assert.doesNotMatch(ceramic, /openHomeCeramic|openBooking\(|pkg=|price=/);
+  });
+
+  it('does not open booking or carry a package from the generic homepage control', () => {
+    const dom = new JSDOM(index, { url: 'http://127.0.0.1/', runScripts: 'outside-only' });
+    const { document, window } = dom.window;
+    let booked = 0;
+    window.openBooking = () => { booked += 1; };
+    window.openHomeCeramic = () => { booked += 1; };
+    window.openBookingCarPkg = () => { booked += 1; };
+    const link = document.querySelector('#ceramic-coating ~ .car-pkg-grid a.car-pkg-cta, .car-pkg-grid--ceramic a.car-pkg-cta');
+    assert.ok(link);
+    link.addEventListener('click', (event) => event.preventDefault());
+    link.click();
+    assert.equal(booked, 0);
+    assert.equal(link.getAttribute('href'), '/ceramic-coating');
+    assert.equal(link.search, '');
+    assert.equal(document.getElementById('bk-ov').classList.contains('open'), false);
+  });
+
+  it('leaves the other homepage package cards on their booking actions', () => {
+    for (const pkgId of ['interior', 'full', 'refresh']) {
+      assert.match(index, new RegExp(`class="car-pkg-cta" onclick="openBookingCarPkg\\('${pkgId}'\\)"`));
+    }
+    assert.equal((index.match(/class="car-pkg-cta" onclick="openBookingCarPkg\('/g) || []).length, 3);
+  });
+
+  it('keeps dedicated-page package buttons on the existing catalog ids', () => {
+    assert.match(page, /href="\/\?book=cars&amp;pkg=ceramic_1yr"[^>]*data-ceramic-book="ceramic_1yr"/);
+    assert.match(page, /href="\/\?book=cars&amp;pkg=ceramic_3yr"[^>]*data-ceramic-book="ceramic_3yr"/);
+    assert.doesNotMatch(page, /pkg=ceramic_(?!1yr|3yr)/);
+  });
+
+  it('sends the ceramic detail action to the page and leaves other packages booking', () => {
+    const modal = read('assets/car-pkg-detail-modal.js');
+    assert.match(modal, /window\.location\.assign\("\/ceramic-coating"\)/);
+    assert.match(modal, /openBookingCarPkg\(pkgId\)/);
+    assert.match(modal, /ceramic_1yr/);
+    assert.match(modal, /ceramic_3yr/);
+    assert.doesNotMatch(modal, /price=/);
+    assert.doesNotMatch(modal, /submit-booking|gtag\(|stripe/i);
+  });
+});
