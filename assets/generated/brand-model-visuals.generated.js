@@ -141,6 +141,7 @@
       "Grand Caravan": "family_minivan",
       "Hornet": "compact_crossover",
       "Journey": "midsize_crossover",
+      "Magnum": "executive_sedan",
       "Sprinter": "cargo_van"
     },
     "Ferrari": {
@@ -633,6 +634,7 @@
     "dodge|grand caravan": "family_minivan",
     "dodge|hornet": "compact_crossover",
     "dodge|journey": "midsize_crossover",
+    "dodge|magnum": "executive_sedan",
     "dodge|sprinter": "cargo_van",
     "ferrari|296 gtb": "supercar",
     "ferrari|296 gts": "convertible",
@@ -944,6 +946,6 @@
     "volvo|xc60": "luxury_crossover",
     "volvo|xc90": "family_suv3"
   },
-  "count": 423
+  "count": 424
 };
 });

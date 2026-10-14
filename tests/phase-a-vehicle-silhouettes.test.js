@@ -390,6 +390,17 @@ test('Ram ProMaster is a van, not Ferrari Roma supercar', () => {
   assert.equal(api.getVehicleVisualKey(), 'supercar');
 });
 
+test('Dodge Magnum is in the public selector and maps to the Charger silhouette', () => {
+  assert.match(index, /"Magnum":"small"/);
+  const { api, ST } = loadVisualRuntime();
+  ST.cat = 'cars';
+  ST.tierKey = 'small';
+  ST.make = 'Dodge';
+  ST.model = 'Magnum';
+  ST.vehicleLabel = '2005 Dodge Magnum';
+  assert.equal(api.getVehicleVisualKey(), 'executive_sedan');
+});
+
 test('Dodge Dart is in the catalog and maps to compact sedan', () => {
   assert.match(index, /"Dodge":\{m:\[[^\]]*Dart/);
   const { api, ST } = loadVisualRuntime();

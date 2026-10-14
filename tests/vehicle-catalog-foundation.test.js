@@ -177,6 +177,96 @@ test('valid year resolves; invalid year detectable (strict optional)', () => {
   assert.equal(loose.yearValid, false);
 });
 
+test('Dodge Magnum 2005–2008 is a public small car', () => {
+  for (const year of [2005, 2006, 2007, 2008]) {
+    const r = Catalog.resolveVehicle({ make: 'Dodge', model: 'Magnum', year });
+    assert.equal(r.ok, true, String(year));
+    assert.equal(r.yearValid, true, String(year));
+    assert.equal(r.canonicalMake, 'Dodge');
+    assert.equal(r.canonicalModel, 'Magnum');
+    assert.equal(r.pricingClass, 'small', String(year));
+    assert.equal(r.displayClass, 'small', String(year));
+    assert.equal(r.tierKey, 'small', String(year));
+    assert.equal(r.public, true);
+  }
+  const projected = Catalog.toLegacyModelsMap();
+  assert.ok(projected.Dodge.m.includes('Magnum'));
+  assert.equal(projected.Dodge.t.Magnum, 'small');
+  const priced = computeVehicleSubtotal(
+    {
+      cat: 'cars',
+      pkgId: 'full',
+      tierKey: 'small',
+      tierLabel: 'Small Car',
+      make: 'Dodge',
+      model: 'Magnum',
+      year: '2005',
+      vehicleLabel: '2005 Dodge Magnum',
+      addons: [],
+    },
+    '07601'
+  );
+  assert.equal(priced.ok, true);
+  assert.equal(priced.basePrice, 250);
+  assert.equal(priced.basePrice, PRICING.cars.tiers.small.full);
+});
+
+test('Toyota Sequoia 2006 stays suv3 at the existing full price', () => {
+  const r = Catalog.resolveVehicle({ make: 'Toyota', model: 'Sequoia', year: 2006 });
+  assert.equal(r.ok, true);
+  assert.equal(r.yearValid, true);
+  assert.equal(r.pricingClass, 'suv3');
+  assert.equal(r.displayClass, 'suv3');
+  assert.equal(r.tierKey, 'suv3');
+  const priced = computeVehicleSubtotal(
+    {
+      cat: 'cars',
+      pkgId: 'full',
+      tierKey: r.tierKey,
+      tierLabel: PRICING.cars.tiers[r.tierKey].label,
+      make: 'Toyota',
+      model: 'Sequoia',
+      year: '2006',
+      vehicleLabel: '2006 Toyota Sequoia',
+      addons: [],
+    },
+    '07601'
+  );
+  assert.equal(priced.ok, true);
+  assert.equal(priced.tierKey, 'suv3');
+  assert.equal(priced.basePrice, 310);
+  assert.equal(priced.basePrice, PRICING.cars.tiers.suv3.full);
+  assert.equal(PRICING.cars.tiers.suv3.premium, 570);
+});
+
+test('car base prices stay on the published tier table', () => {
+  assert.deepEqual(
+    Object.fromEntries(
+      Object.entries(PRICING.cars.tiers).map(([key, tier]) => [
+        key,
+        {
+          wash: tier.wash,
+          maint: tier.maint,
+          interior: tier.interior,
+          full: tier.full,
+          refresh: tier.refresh,
+          premium: tier.premium,
+        },
+      ])
+    ),
+    {
+      small: { wash: 125, maint: 160, interior: 200, full: 250, refresh: 335, premium: 400 },
+      suv2: { wash: 145, maint: 195, interior: 225, full: 285, refresh: 385, premium: 495 },
+      suv3: { wash: 165, maint: 225, interior: 255, full: 310, refresh: 430, premium: 570 },
+      compact_van: { wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+      midsize_van: { wash: 165, maint: 225, interior: 255, full: 300, refresh: 430, premium: 570 },
+      full_size_van: { wash: 185, maint: 255, interior: 285, full: 335, refresh: 470, premium: 625 },
+      full_size_van_passenger: { wash: 195, maint: 265, interior: 300, full: 350, refresh: 490, premium: 650 },
+      truck: { wash: 165, maint: 225, interior: 255, full: 300, refresh: 420, premium: 555 },
+    }
+  );
+});
+
 test('year-sensitive schema supported (Santa Fe)', () => {
   const y2022 = Catalog.resolveVehicle({ make: 'Hyundai', model: 'Santa Fe', year: 2022 });
   const y2025 = Catalog.resolveVehicle({ make: 'Hyundai', model: 'Santa Fe', year: 2025 });
