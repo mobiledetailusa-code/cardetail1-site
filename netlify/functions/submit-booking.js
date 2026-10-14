@@ -41,6 +41,9 @@ const CLIENT_BLOCKED_FIELDS = [
   // only send the boolean acceptedAfterServiceChargeConsent.
   'afterServiceChargeConsentVersion', 'afterServiceChargeConsentAt',
   'finalizedAt', 'occupancyStatus', 'occupancyPendingAt', 'notificationsClaimedAt',
+  // Vehicle class is resolved from the official catalog. The browser cannot
+  // select the server mode or authorize a class override.
+  'catalogTierMode', 'catalogTierOverride', 'adminTierOverride',
 ];
 
 const PAYMENT_PREFERENCES = new Set([
@@ -69,6 +72,7 @@ function resolveCardOnFileRequired(preference, requestedFlag) {
 }
 
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const { stripClientCatalogTierAuthority } = require('../lib/car-catalog-tier');
 const {
   enforcePublicRateLimit,
   identifySubmitBookingAction,
@@ -1214,10 +1218,11 @@ exports.handler = async (event) => {
   }
 
   const isDraftRequest = !!b.isDraft;
-  const travelApplied = applyServerTravelAndTotal(
-    b,
-    isDraftRequest ? { skipMismatchCheck: true } : {}
-  );
+  stripClientCatalogTierAuthority(b);
+  const travelApplied = applyServerTravelAndTotal(b, {
+    ...(isDraftRequest ? { skipMismatchCheck: true } : {}),
+    catalogTierMode: 'require_identity',
+  });
   if (!travelApplied.ok) {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });
   }

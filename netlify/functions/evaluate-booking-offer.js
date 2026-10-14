@@ -2,6 +2,7 @@
 
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const { stripClientCatalogTierAuthority } = require('../lib/car-catalog-tier');
 const { evaluateBookingOfferPreview, stripClientOfferFields } = require('../lib/booking-offers');
 const { setOfferDeployHost, clearOfferDeployHost } = require('../lib/revenue-offers');
 
@@ -27,8 +28,12 @@ exports.handler = async (event) => {
 
   const booking = { ...body };
   stripClientOfferFields(booking);
+  stripClientCatalogTierAuthority(booking);
 
-  const travel = applyServerTravelAndTotal(booking, { skipMismatchCheck: true });
+  const travel = applyServerTravelAndTotal(booking, {
+    skipMismatchCheck: true,
+    catalogTierMode: 'require_identity',
+  });
   if (!travel.ok) {
     return json(400, { ok: false, error: travel.error || 'invalid_booking' });
   }
