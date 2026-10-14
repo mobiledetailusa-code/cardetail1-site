@@ -1873,6 +1873,22 @@
     },
     {
       "make": "Dodge",
+      "model": "Magnum",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2005,
+          "to": 2008,
+          "class": "small",
+          "rows": null
+        }
+      ],
+      "pricingClass": "small",
+      "displayClass": "small",
+      "public": true
+    },
+    {
+      "make": "Dodge",
       "model": "Sprinter",
       "aliases": [
         "Dodge Sprinter Cargo",

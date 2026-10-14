@@ -456,6 +456,7 @@ const MODEL_OVERRIDES = {
   Dodge: {
     dart: 'compact_sedan',
     charger: 'executive_sedan',
+    magnum: 'executive_sedan',
     challenger: 'sport_coupe',
     hornet: 'compact_crossover',
     durango: 'family_suv3',
