@@ -56,8 +56,14 @@ function paymentEvent(type, bookingId, purpose = 'authoritative_balance', extra 
         id: `pi_${bookingId}`,
         amount: 5000,
         amount_received: type === 'payment_intent.succeeded' ? 5000 : 0,
+        status: {
+          'payment_intent.succeeded': 'succeeded',
+          'payment_intent.payment_failed': 'requires_payment_method',
+          'payment_intent.canceled': 'canceled',
+          'payment_intent.requires_action': 'requires_action',
+          'payment_intent.amount_capturable_updated': 'requires_capture',
+        }[type] || 'requires_payment_method',
         currency: 'usd',
-        status: type.split('.').pop(),
         metadata: {
           booking_id: bookingId,
           ...(purpose == null ? {} : { purpose }),
@@ -144,7 +150,12 @@ test('legacy succeeded, failed, canceled, and requires_action events remain oper
   ];
   for (const [type, expected] of cases) {
     const bookingId = `BK-${expected.toUpperCase()}`;
-    stores['cd1-bookings'].values.set(bookingId, { id: bookingId, paymentStatus: 'authorization_pending' });
+    stores['cd1-bookings'].values.set(bookingId, {
+      id: bookingId,
+      paymentStatus: 'authorization_pending',
+      totalPrice: 50,
+      quoteVersion: 1,
+    });
     const response = await webhook.handler(signedRequest(paymentEvent(type, bookingId)));
     assert.equal(response.statusCode, 200, `${type}: ${response.body}`);
     assert.equal(JSON.parse(response.body).route, 'legacy_operational');
@@ -154,11 +165,18 @@ test('legacy succeeded, failed, canceled, and requires_action events remain oper
 
 test('missing purpose uses bounded legacy compatibility; unknown purpose is ignored without mutation', async () => {
   const legacyId = 'BK-NO-PURPOSE';
-  stores['cd1-bookings'].values.set(legacyId, { id: legacyId, paymentStatus: 'authorization_pending' });
+  stores['cd1-bookings'].values.set(legacyId, {
+    id: legacyId,
+    paymentStatus: 'authorization_pending',
+    totalPrice: 50,
+    quoteVersion: 1,
+  });
   const legacy = await webhook.handler(signedRequest(paymentEvent('payment_intent.succeeded', legacyId, null)));
-  assert.equal(legacy.statusCode, 200);
+  assert.equal(legacy.statusCode, 200, legacy.body);
   assert.equal(JSON.parse(legacy.body).route, 'legacy_operational_unmarked');
-  assert.equal(stores['cd1-bookings'].values.get(legacyId).paymentStatus, 'paid');
+  assert.equal(JSON.parse(legacy.body).quarantined, true);
+  assert.equal(JSON.parse(legacy.body).error, 'legacy_purpose_missing');
+  assert.equal(stores['cd1-bookings'].values.get(legacyId).paymentStatus, 'authorization_pending');
 
   const unknownId = 'BK-UNKNOWN-PURPOSE';
   stores['cd1-bookings'].values.set(unknownId, { id: unknownId, paymentStatus: 'authorization_pending' });

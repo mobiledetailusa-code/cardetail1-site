@@ -604,16 +604,55 @@ async function chargeSavedCardAfterService({
   const eventType = outcome === 'succeeded'
     ? 'payment_intent.succeeded'
     : (outcome === 'requires_action' ? 'payment_intent.requires_action' : 'payment_intent.payment_failed');
-  const next = cloneBooking(booking);
-  const applied = applyAfterServiceStripeEvent(next, {
+  const observedIntent = {
     ...paymentIntent,
+    currency: paymentIntent.currency || 'usd',
     metadata: {
       ...(paymentIntent.metadata || {}),
       purpose: PURPOSE,
       bookingId: bookingIdOf(booking),
       booking_id: bookingIdOf(booking),
+      quoteVersion: String(quoteVersionOf(booking)),
     },
-  }, { eventType });
+  };
+  const { postgresPaymentEnabled } = require('./db/operational-payment');
+  if (!postgresPaymentEnabled(env)) {
+    if (outcome === 'succeeded') {
+      return {
+        ok: false,
+        charged: false,
+        stripeCalled: true,
+        persisted: false,
+        paymentIntentId: paymentIntent.id,
+        amountCents: gate.amountCents,
+        error: 'postgres_payment_disabled',
+        booking,
+      };
+    }
+  } else if (outcome === 'succeeded' || outcome === 'requires_action' || outcome === 'declined') {
+    const { observeProviderPaymentIntent } = require('./db/payment-authority-service');
+    const observed = await observeProviderPaymentIntent({
+      booking,
+      paymentIntent: observedIntent,
+      stripeEventId: `charge_${paymentIntent.id}_${eventType}`,
+      type: eventType,
+    });
+    if (outcome === 'succeeded' && !observed.ok) {
+      return {
+        ok: false,
+        charged: false,
+        stripeCalled: true,
+        persisted: false,
+        quarantined: !!observed.quarantined,
+        paymentIntentId: paymentIntent.id,
+        amountCents: gate.amountCents,
+        error: observed.error || 'payment_not_reconciled',
+        booking,
+      };
+    }
+  }
+  const next = cloneBooking(booking);
+  const applied = applyAfterServiceStripeEvent(next, observedIntent, { eventType });
   if (applied.recoveryUrl == null && outcome !== 'succeeded') {
     applied.recoveryUrl = recoveryUrlFor(booking, env);
     if (next.afterServiceCharge) next.afterServiceCharge.recoveryUrl = applied.recoveryUrl;
