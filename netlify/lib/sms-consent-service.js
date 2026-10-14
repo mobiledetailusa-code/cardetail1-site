@@ -30,8 +30,12 @@ function phoneHash(phone) {
 async function assertCustomerSmsConsent({ customerAccountId, toE164, booking } = {}, opts = {}) {
   const dest = normalizeUsPhoneE164(toE164);
   if (!dest) return { ok: false, reason: 'invalid_sms_recipient' };
-  const { isPhoneSuppressed } = require('./sms-suppression');
-  if (await isPhoneSuppressed(dest)) return { ok: false, reason: 'sms_suppressed' };
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(dest);
+  if (suppression.ok && suppression.suppressed) return { ok: false, reason: 'sms_suppressed' };
+  if (!suppression.ok) {
+    console.warn('[sms-consent] suppression_unavailable');
+  }
 
   const bookingPhone = normalizeUsPhoneE164(booking?.phone || booking?.customerPhone || '');
   const bookingConsentApplies = bookingSmsConsentGranted(booking) && !!bookingPhone && bookingPhone === dest;

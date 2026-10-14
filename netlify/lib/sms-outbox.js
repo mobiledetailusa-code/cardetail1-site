@@ -217,8 +217,34 @@ async function processClaimedSms(row, opts = {}) {
   } catch {
     // Lookup failure must not block a timely send.
   }
-  const { isPhoneSuppressed } = require('./sms-suppression');
-  if (await isPhoneSuppressed(row.toE164)) {
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(row.toE164);
+  if (!suppression.ok) {
+    const now = new Date();
+    const retryable = row.attemptCount < row.maxAttempts;
+    const errorCode = 'suppression_unavailable';
+    const outbox = await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: retryable
+        ? {
+          status: 'accepted',
+          availableAt: new Date(now.getTime() + retryDelayMs(row.attemptCount)),
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastErrorCode: errorCode,
+        }
+        : {
+          status: 'failed',
+          failedAt: now,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastErrorCode: errorCode,
+        },
+    });
+    safeOutboxLog(retryable ? 'retry_scheduled' : 'failed', outbox, { errorCode });
+    return { ok: false, retryable, reason: errorCode, outbox };
+  }
+  if (suppression.suppressed) {
     const suppressed = await prisma.smsOutbox.update({
       where: { id: row.id },
       data: {

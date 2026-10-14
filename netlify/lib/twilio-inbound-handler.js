@@ -117,8 +117,13 @@ async function handleInboundSms(params = {}, opts = {}) {
   if (type === 'HELP') {
     return { statusCode: 200, twiml: emptyTwiml(), action: 'help' };
   }
-  const { isPhoneSuppressed } = require('./sms-suppression');
-  if (await isPhoneSuppressed(params.From)) {
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(params.From);
+  if (!suppression.ok) {
+    console.warn('[twilio-inbound] suppression_unavailable');
+    return { statusCode: 503, twiml: emptyTwiml(), action: 'suppression_unavailable' };
+  }
+  if (suppression.suppressed) {
     return { statusCode: 200, twiml: emptyTwiml(), action: 'suppressed' };
   }
 

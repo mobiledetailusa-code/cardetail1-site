@@ -5,6 +5,11 @@ const { normalizeUsPhoneE164 } = require('./phone-auth');
 
 const STORE = 'cd1-sms-suppression';
 const memory = new Map();
+let readOverride = null;
+
+function setSuppressionReadOverride(fn) {
+  readOverride = typeof fn === 'function' ? fn : null;
+}
 
 function runningInNetlifyFunction() {
   return !!(process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY);
@@ -56,23 +61,43 @@ async function clearSuppression(rawPhone) {
   }
 }
 
-async function isPhoneSuppressed(rawPhone) {
+async function readPhoneSuppression(rawPhone) {
   const key = suppressionKey(rawPhone);
-  if (!key) return false;
-  if (!runningInNetlifyFunction()) return memory.has(key);
+  if (!key) return { ok: true, suppressed: false };
+  if (readOverride) {
+    try {
+      return await readOverride(rawPhone, key);
+    } catch (err) {
+      console.warn('[sms-suppression] read_failed', err && err.message ? err.message : err);
+      return { ok: false, error: 'suppression_unavailable' };
+    }
+  }
+  if (!runningInNetlifyFunction()) return { ok: true, suppressed: memory.has(key) };
   try {
     const store = await blobStore();
     const row = await store.get(key, { type: 'json' });
-    if (!row || row.suppressed === false || row.clearedAt) return false;
-    return !!row.suppressedAt;
+    if (!row || row.suppressed === false || row.clearedAt) return { ok: true, suppressed: false };
+    return { ok: true, suppressed: !!row.suppressedAt };
   } catch (err) {
     console.warn('[sms-suppression] read_failed', err && err.message ? err.message : err);
-    return false;
+    return { ok: false, error: 'suppression_unavailable' };
   }
+}
+
+async function isPhoneSuppressed(rawPhone) {
+  const read = await readPhoneSuppression(rawPhone);
+  if (!read.ok) {
+    const error = new Error('suppression_unavailable');
+    error.code = 'suppression_unavailable';
+    throw error;
+  }
+  return !!read.suppressed;
 }
 
 module.exports = {
   suppressPhone,
   clearSuppression,
+  readPhoneSuppression,
   isPhoneSuppressed,
+  setSuppressionReadOverride,
 };

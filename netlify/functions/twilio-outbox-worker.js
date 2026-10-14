@@ -3,6 +3,9 @@
 const crypto = require('crypto');
 const { processSmsOutbox } = require('../lib/sms-outbox');
 const { outboundTwilioPolicy } = require('../lib/twilio-runtime-policy');
+const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+
+let processOverride = null;
 
 const NEXT_RUN_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
@@ -47,8 +50,8 @@ function isIsoNextRun(value) {
   return NEXT_RUN_ISO.test(String(value || '').trim());
 }
 
-// Netlify scheduled invocations send next_run AND X-NF-Event: schedule.
-// A body that only contains next_run is not a scheduler call.
+// Netlify's scheduler sets X-NF-Event and next_run, but a public request can
+// set those same fields. They are logged only. They never authenticate.
 function isScheduledInvocation(event = {}) {
   const eventName = header(event, 'x-nf-event').trim().toLowerCase();
   if (eventName !== 'schedule') return false;
@@ -78,18 +81,48 @@ function safeWorkerLog(payload = {}) {
 
 exports.handler = async (event = {}) => {
   const scheduled = isScheduledInvocation(event);
-  if (!scheduled) {
-    const expected = String(process.env.TWILIO_WORKER_SECRET || '');
-    const supplied = header(event, 'x-worker-secret');
-    if (!secretMatches(expected, supplied)) {
-      const response = json(401, { ok: false, error: 'unauthorized' });
-      safeWorkerLog({
-        scheduled: false,
-        statusCode: 401,
-        error: 'unauthorized',
-      });
-      return response;
-    }
+  const expected = String(process.env.TWILIO_WORKER_SECRET || '');
+  const supplied = header(event, 'x-worker-secret');
+  if (!secretMatches(expected, supplied)) {
+    const response = json(401, { ok: false, error: 'unauthorized', processed: 0 });
+    safeWorkerLog({
+      scheduled,
+      statusCode: 401,
+      error: 'unauthorized',
+      processed: 0,
+    });
+    return response;
+  }
+  let rate;
+  try {
+    rate = await enforcePublicRateLimit(event, {
+      endpoint: 'twilio-outbox-worker',
+      action: 'run',
+    });
+  } catch {
+    const response = json(503, { ok: false, error: 'rate_limit_unavailable', processed: 0 });
+    safeWorkerLog({
+      scheduled,
+      statusCode: 503,
+      error: 'rate_limit_unavailable',
+      processed: 0,
+    });
+    return response;
+  }
+  if (rate.blocked) {
+    const response = json(429, {
+      ok: false,
+      error: 'rate_limited',
+      processed: 0,
+      retryAfterSec: rate.retryAfterSec || 1,
+    });
+    safeWorkerLog({
+      scheduled,
+      statusCode: 429,
+      error: 'rate_limited',
+      processed: 0,
+    });
+    return response;
   }
   const policy = outboundTwilioPolicy(process.env);
   if (!policy.ok) {
@@ -108,7 +141,8 @@ exports.handler = async (event = {}) => {
     });
     return response;
   }
-  const result = await processSmsOutbox({ limit: 10 });
+  const runOutbox = processOverride || processSmsOutbox;
+  const result = await runOutbox({ limit: 10 });
   const response = json(result.ok ? 200 : 503, {
     ok: result.ok,
     disabled: !!result.disabled,
@@ -130,3 +164,8 @@ exports.config = { schedule: '*/2 * * * *' };
 exports.secretMatches = secretMatches;
 exports.isScheduledInvocation = isScheduledInvocation;
 exports.isIsoNextRun = isIsoNextRun;
+exports.__test = {
+  setProcessOverride(fn) {
+    processOverride = typeof fn === 'function' ? fn : null;
+  },
+};
