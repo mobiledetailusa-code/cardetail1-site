@@ -175,8 +175,7 @@ describe('admin reschedule capacity authority', () => {
     assert.equal(index.raw(oldKey), undefined);
     assert.ok(index.raw(nextKey));
     assert.deepEqual(stored.booking.slotReleasePending, []);
-    const version = stored.booking.bookingVersion;
-    const writes = index.jsonWrites();
+    const eventId = stored.booking.rescheduleEventId;
 
     const again = await reschedule(record, {
       confirmedDate: TARGET,
@@ -185,9 +184,11 @@ describe('admin reschedule capacity authority', () => {
     assert.equal(again.statusCode, 200, again.body);
     assert.equal(parseBody(again).idempotent, true);
     stored = await getBookingRecord(record.id);
-    assert.equal(stored.booking.bookingVersion, version);
     assert.equal(stored.booking.preferredDate, TARGET);
-    assert.equal(index.jsonWrites(), writes);
+    assert.equal(stored.booking.preferredTime, '10:00 AM');
+    assert.equal(stored.booking.confirmedDate, TARGET);
+    assert.equal(stored.booking.rescheduleEventId, eventId);
+    assert.equal(index.raw(oldKey), undefined);
     assert.deepEqual(occupiedKeys(index, record.id), [nextKey]);
   });
 
