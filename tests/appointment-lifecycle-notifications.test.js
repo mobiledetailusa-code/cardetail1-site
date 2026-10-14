@@ -222,7 +222,7 @@ describe('wiring: lifecycle emits from authoritative mutations', () => {
     assert.doesNotMatch(confirmBlock, /\{\s*event,/);
     const rescheduleBlock = admin.slice(admin.indexOf("action === 'reschedule'"), admin.indexOf("action === 'update_address'"));
     assert.match(rescheduleBlock, /notifyRescheduled/);
-    assert.match(rescheduleBlock, /persistMutation/);
+    assert.match(rescheduleBlock, /applyAuthoritativeReschedule/);
     assert.doesNotMatch(rescheduleBlock, /store\.setJSON/);
     const cancelBlock = admin.slice(admin.indexOf("action === 'cancel_booking'"), admin.indexOf("action === 'resolve_cancellation'"));
     assert.match(cancelBlock, /notifyCancelled/);

@@ -563,6 +563,194 @@ async function prepareRescheduleMove(aggregate, cr) {
   return { ok: true, fieldPatches, added: moved.added || [] };
 }
 
+/**
+ * Map an admin window or catalog slot onto one known arrival slot.
+ * A window contributes only its start when that start is itself a catalog
+ * slot. Unknown text is not snapped to a nearby slot.
+ */
+function capacitySlotFromAdminTime(raw) {
+  const { normalizePreferredTime } = require('./operational-availability');
+  const direct = normalizePreferredTime(raw);
+  if (direct) return direct;
+  const text = String(raw || '').trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+  const windowMatch = /^(\d{1,2}:\d{2})\s*[–—-]\s*\d{1,2}:\d{2}\s*(AM|PM)$/i.exec(text);
+  if (!windowMatch) return null;
+  return normalizePreferredTime(`${windowMatch[1]} ${String(windowMatch[2]).toUpperCase()}`);
+}
+
+function resolveAdminCapacitySlot(booking, requestedTime, timeWindow) {
+  const supplied = [requestedTime, timeWindow]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  if (supplied.length) {
+    for (const raw of [requestedTime, timeWindow]) {
+      if (!String(raw || '').trim()) continue;
+      const slot = capacitySlotFromAdminTime(raw);
+      if (slot) return slot;
+    }
+    return null;
+  }
+  return capacitySlotFromAdminTime(booking && booking.preferredTime)
+    || capacitySlotFromAdminTime(booking && booking.confirmedTime)
+    || capacitySlotFromAdminTime(booking && booking.confirmedTimeWindow);
+}
+
+function adminRescheduleAlreadyApplied(booking, target) {
+  const { normalizePreferredTime } = require('./operational-availability');
+  if (!booking || !target) return false;
+  if (String(booking.preferredDate || '') !== target.isoDate) return false;
+  if (String(booking.confirmedDate || '') !== target.isoDate) return false;
+  if (normalizePreferredTime(booking.preferredTime) !== target.slot) return false;
+  return String(booking.rescheduleEventId || '') === target.eventId;
+}
+
+/**
+ * The new span is already claimed. If this attempt did not become the stored
+ * record, drop only the keys it added. A record that already names this
+ * exact move is settled instead of moved again.
+ */
+async function recoverRescheduleAttempt(bookingId, prepared, target) {
+  const again = await getBookingRecord(bookingId);
+  const { dropSpanKeysUnlessNeeded } = require('./slot-index');
+  const dropped = await dropSpanKeysUnlessNeeded(prepared.added, again.booking);
+  if (!dropped.ok) return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+  if (!again.booking || !adminRescheduleAlreadyApplied(again.booking, target)) return null;
+  const settled = await settleStoredReschedule(again.booking);
+  if (!settled.ok) return settled;
+  return {
+    ok: true,
+    idempotent: true,
+    booking: settled.booking,
+    bookingVersion: settled.booking.bookingVersion,
+  };
+}
+
+/**
+ * Admin drawer and customer-request approval share the canonical reschedule
+ * authority. Capacity is rechecked immediately before the record changes.
+ * The previous span stays until the new record is stored, then settle
+ * releases it. A repeated decision for the same date, slot, and event id
+ * only finishes an incomplete release.
+ */
+async function applyAuthoritativeReschedule({
+  booking,
+  requestedDate,
+  requestedTime = '',
+  timeWindow = '',
+  mode = 'admin',
+  now = '',
+}) {
+  const bookingId = booking && (booking.id || booking.bookingId);
+  if (!bookingId) return { ok: false, error: 'not_found', statusCode: 404 };
+
+  const { isoDateParts } = require('./operational-availability');
+  const dateParts = isoDateParts(requestedDate);
+  if (!dateParts) {
+    const missing = !String(requestedDate || '').trim();
+    if (missing) {
+      return {
+        ok: false,
+        error: mode === 'apply' ? 'no_reschedule_request' : 'date_required',
+        statusCode: 400,
+      };
+    }
+    return { ok: false, error: 'booking_date_unavailable', statusCode: 409 };
+  }
+  const isoDate = dateParts.iso;
+  const slot = resolveAdminCapacitySlot(booking, requestedTime, timeWindow);
+  if (!slot) return { ok: false, error: 'booking_time_unavailable', statusCode: 409 };
+
+  const rawTime = String(requestedTime || '').trim();
+  const rawWindow = String(timeWindow || '').trim();
+  const eventLabel = rawWindow || rawTime || slot;
+  const eventId = buildRescheduleEventId(bookingId, isoDate, eventLabel);
+  const target = { isoDate, slot, eventId };
+
+  const current = await getBookingRecord(bookingId);
+  if (!current.exists || !current.booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  const fresh = current.booking;
+
+  if (adminRescheduleAlreadyApplied(fresh, target)) {
+    const settled = await settleStoredReschedule(fresh);
+    if (!settled.ok) return settled;
+    return {
+      ok: true,
+      idempotent: true,
+      booking: settled.booking,
+      bookingVersion: settled.booking.bookingVersion,
+    };
+  }
+
+  const prepared = await prepareRescheduleMove(fresh, {
+    type: 'reschedule_request',
+    requestType: 'reschedule_request',
+    delta: { requestedDate: isoDate, requestedTime: slot },
+  });
+  if (!prepared.ok) return prepared;
+
+  const stamp = now || new Date().toISOString();
+  const { appendEventLog } = require('./ops-workflow');
+  const windowLabel = rawWindow || (rawTime && rawTime !== slot ? rawTime : '') || slot;
+  const modePatches = mode === 'apply'
+    ? {
+      rescheduledByClient: false,
+      rescheduleRequestAppliedAt: stamp,
+      confirmedTimeWindow: windowLabel,
+    }
+    : {
+      rescheduledByAdmin: true,
+      rescheduledByAdminAt: stamp,
+      rescheduledByClient: false,
+      confirmedTimeWindow: windowLabel,
+    };
+  const next = buildNextAggregate(fresh, {
+    ...prepared.fieldPatches,
+    ...modePatches,
+    rescheduleEventId: eventId,
+    updatedAt: stamp,
+    eventLog: appendEventLog(fresh, mode === 'apply'
+      ? { action: 'customer_reschedule_applied', by: 'admin', at: stamp }
+      : {
+        action: 'admin_reschedule',
+        by: 'admin',
+        confirmedDate: isoDate,
+        confirmedTime: slot,
+        confirmedTimeWindow: windowLabel,
+        at: stamp,
+      }),
+  }, { incrementVersion: false });
+
+  const expected = Math.round(Number(fresh.bookingVersion) || 0);
+  let committed;
+  try {
+    committed = await commitBooking({
+      bookingId,
+      expectedBookingVersion: expected,
+      nextAggregate: next,
+      syncSlots: false,
+    });
+  } catch {
+    const recovered = await recoverRescheduleAttempt(bookingId, prepared, target);
+    if (recovered) return recovered;
+    return { ok: false, error: 'occupancy_incomplete', statusCode: 503 };
+  }
+  if (!committed.ok) {
+    const recovered = await recoverRescheduleAttempt(bookingId, prepared, target);
+    if (recovered) return recovered;
+    return committed;
+  }
+
+  const settled = await settleStoredReschedule(committed.booking);
+  if (!settled.ok) return settled;
+  return {
+    ok: true,
+    idempotent: false,
+    booking: settled.booking,
+    bookingVersion: settled.booking.bookingVersion,
+  };
+}
+
 function rescheduleLanded(booking, fieldPatches, requestId) {
   if (!booking || !fieldPatches) return false;
   const { normalizePreferredTime } = require('./operational-availability');
@@ -1397,6 +1585,7 @@ module.exports = {
   submitChangeRequestCommand,
   decideChangeRequestCommand,
   setApprovedQuoteCommand,
+  applyAuthoritativeReschedule,
   rebuildRequestIndex,
   materialProjection,
   remainingCents,

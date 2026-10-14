@@ -34,6 +34,64 @@ const {
 const {
   persistCancellationRequest,
 } = require('../netlify/functions/request-cancellation');
+const { setSlotIndexStoreOverride } = require('../netlify/lib/slot-index');
+const {
+  businessTodayIso,
+  isoDateParts,
+  addLocalDays,
+  toIsoLocal,
+  slotsForDate,
+  DEFAULT_BUSINESS_TIMEZONE,
+} = require('../netlify/lib/operational-availability');
+
+function upcomingFullWeekday(skip = 0) {
+  const today = isoDateParts(businessTodayIso(DEFAULT_BUSINESS_TIMEZONE));
+  let cursor = new Date(today.y, today.mo - 1, today.d);
+  let found = 0;
+  for (let guard = 0; guard < 160; guard += 1) {
+    cursor = addLocalDays(cursor, 1);
+    const iso = toIsoLocal(cursor);
+    const slots = slotsForDate(iso, null);
+    if (slots.includes('8:00 AM') && slots.includes('10:00 AM') && slots.includes('12:00 PM')) {
+      if (found === skip) return iso;
+      found += 1;
+    }
+  }
+  throw new Error('no upcoming weekday');
+}
+
+const RESCHEDULE_DAY = upcomingFullWeekday(4);
+const APPLY_DAY = upcomingFullWeekday(6);
+const ADVERSARIAL_DAY = upcomingFullWeekday(8);
+
+function installOpenSlotIndex() {
+  const values = new Map();
+  setSlotIndexStoreOverride({
+    async list() {
+      return { blobs: [...values.keys()].map((key) => ({ key })) };
+    },
+    async setJSON(key, value) {
+      values.set(key, JSON.stringify(value == null ? 1 : value));
+      return { modified: true };
+    },
+    async delete(key) {
+      values.delete(key);
+    },
+    async set(key, payload, options = {}) {
+      if (options.onlyIfNew && values.has(key)) return { modified: false };
+      values.set(key, typeof payload === 'string' ? payload : JSON.stringify(payload));
+      return { modified: true };
+    },
+    async get(key, opts) {
+      if (!values.has(key)) return null;
+      const raw = values.get(key);
+      if (opts && opts.type === 'json') {
+        try { return JSON.parse(raw); } catch { return null; }
+      }
+      return raw;
+    },
+  });
+}
 
 const VERIFIED = '+12015550177';
 const ADMIN_TO = '+12015550199';
@@ -203,25 +261,27 @@ afterEach(() => {
   resetNotificationClaimStoreFactory();
   resetAppointmentAccessStoreFactories();
   setBookingStoreOverride(null);
+  setSlotIndexStoreOverride(null);
 });
 
 describe('Repair A — admin reschedule CAS persist', () => {
   it('TEST 1 — consent, new window, one reschedule SMS, retry does not duplicate', async () => {
     const booking = consentedBooking({ id: 'CD1-CAS-RS-01' });
     installStores(booking);
+    installOpenSlotIndex();
     const prisma = createMemoryOutboxPrisma();
 
     const first = await handleAdminAction({
       action: 'reschedule',
       bookingId: booking.id,
-      confirmedDate: '2026-08-29',
+      confirmedDate: RESCHEDULE_DAY,
       confirmedTimeWindow: '10:00–11:00 AM',
     }, { prisma, env: SMS_ENV });
     assert.equal(first.statusCode, 200, first.body);
     assert.equal(parseBody(first).ok, true);
 
     const rec = await getBookingRecord(booking.id);
-    assert.equal(rec.booking.confirmedDate, '2026-08-29');
+    assert.equal(rec.booking.confirmedDate, RESCHEDULE_DAY);
     assert.equal(rec.booking.confirmedTimeWindow, '10:00–11:00 AM');
     assert.equal(rec.booking.transactionalSmsConsentAccepted, true);
     assert.deepEqual(rec.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
@@ -233,7 +293,7 @@ describe('Repair A — admin reschedule CAS persist', () => {
     const retry = await handleAdminAction({
       action: 'reschedule',
       bookingId: booking.id,
-      confirmedDate: '2026-08-29',
+      confirmedDate: RESCHEDULE_DAY,
       confirmedTimeWindow: '10:00–11:00 AM',
     }, { prisma, env: SMS_ENV });
     assert.equal(retry.statusCode, 200, retry.body);
@@ -241,7 +301,7 @@ describe('Repair A — admin reschedule CAS persist', () => {
 
     const again = await getBookingRecord(booking.id);
     assert.deepEqual(again.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
-    assert.equal(again.booking.confirmedDate, '2026-08-29');
+    assert.equal(again.booking.confirmedDate, RESCHEDULE_DAY);
   });
 });
 
@@ -325,10 +385,11 @@ describe('Repair A — apply customer reschedule request CAS persist', () => {
     const booking = consentedBooking({
       id: 'CD1-CAS-AP-01',
       rescheduledByClient: true,
-      rescheduleRequestedDate: '2026-08-30',
-      rescheduleRequestedTime: '9:00–10:00 AM',
+      rescheduleRequestedDate: APPLY_DAY,
+      rescheduleRequestedTime: '8:00–9:00 AM',
     });
     installStores(booking);
+    installOpenSlotIndex();
     const prisma = createMemoryOutboxPrisma();
 
     const first = await handleAdminAction({
@@ -339,7 +400,7 @@ describe('Repair A — apply customer reschedule request CAS persist', () => {
     assert.equal(first.statusCode, 200, first.body);
 
     const rec = await getBookingRecord(booking.id);
-    assert.equal(rec.booking.confirmedDate, '2026-08-30');
+    assert.equal(rec.booking.confirmedDate, APPLY_DAY);
     assert.equal(rec.booking.rescheduledByClient, false);
     assert.deepEqual(rec.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
     assert.ok(rec.booking.rescheduleEventId);
@@ -388,9 +449,10 @@ describe('Repair A — adversarial CAS stale write', () => {
 
     const stalePatch = {
       ...writerASnapshot,
-      confirmedDate: '2026-09-10',
-      preferredDate: '2026-09-10',
-      confirmedTimeWindow: '11:00–12:00 PM',
+      confirmedDate: ADVERSARIAL_DAY,
+      preferredDate: ADVERSARIAL_DAY,
+      confirmedTime: '12:00 PM',
+      confirmedTimeWindow: '12:00 PM',
       status: 'Rescheduled',
     };
     const staleWrite = await persistMutation(
@@ -411,16 +473,18 @@ describe('Repair A — adversarial CAS stale write', () => {
     assert.deepEqual(afterConflict.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
 
     const prisma = createMemoryOutboxPrisma();
+    installOpenSlotIndex();
     const retry = await handleAdminAction({
       action: 'reschedule',
       bookingId: booking.id,
-      confirmedDate: '2026-09-10',
-      confirmedTimeWindow: '11:00–12:00 PM',
+      confirmedDate: ADVERSARIAL_DAY,
+      confirmedTime: '12:00 PM',
+      confirmedTimeWindow: '12:00 PM',
     }, { prisma, env: SMS_ENV });
     assert.equal(retry.statusCode, 200, retry.body);
 
     const afterRetry = await getBookingRecord(booking.id);
-    assert.equal(afterRetry.booking.confirmedDate, '2026-09-10');
+    assert.equal(afterRetry.booking.confirmedDate, ADVERSARIAL_DAY);
     assert.equal(afterRetry.booking.paymentPreference, 'card');
     assert.equal(afterRetry.booking.customerAccountId, 'acct_writer_b');
     assert.deepEqual(afterRetry.booking.transactionalSmsConsent, booking.transactionalSmsConsent);
