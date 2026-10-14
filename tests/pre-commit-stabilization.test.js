@@ -229,6 +229,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/revops-dashboard.js',
     'netlify/functions/qa-opscore-lifecycle.js',
     'netlify/lib/booking-price-catalog.js',
+    // Public car bookings must match the official catalog class.
+    'netlify/lib/car-catalog-tier.js',
     'netlify/lib/rv-type-catalog.js',
     'netlify/lib/travel-fee.js',
     // Release A — canonical aggregate / payments

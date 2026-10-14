@@ -112,7 +112,7 @@ describe('portal auto-apply + vehicle coerce', () => {
         vehicleLabel: '2022 Toyota Highlander',
         packageId: 'full',
         packageName: 'Full Detail',
-        tierKey: 'suv2',
+        tierKey: 'suv3',
       },
     });
     assert.equal(submitted.ok, true, submitted.error);

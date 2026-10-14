@@ -201,6 +201,7 @@ describe('duplicate IDs charge once', () => {
         packageId: 'maint',
         pkgName: 'Maintenance Detail',
         tierKey: 'suv2',
+        vehicleLabel: '2019 Toyota RAV4',
         addons: [{ id: PARENT }],
       }),
     ]);
@@ -213,7 +214,7 @@ describe('duplicate IDs charge once', () => {
   it('walkway twice across three vehicles is +$35 once', () => {
     const r = priced([
       car({ vehicleId: 'v1', addons: [{ id: PARENT }, { id: 'walkway_steps' }] }),
-      car({ vehicleId: 'v2', pkgId: 'maint', packageId: 'maint', tierKey: 'suv2', addons: [{ id: PARENT }, { id: 'walkway_steps' }] }),
+      car({ vehicleId: 'v2', pkgId: 'maint', packageId: 'maint', tierKey: 'suv2', vehicleLabel: '2019 Toyota RAV4', addons: [{ id: PARENT }, { id: 'walkway_steps' }] }),
       car({ vehicleId: 'v3', pkgId: 'wash', packageId: 'wash', tierKey: 'small', addons: [{ id: 'walkway_steps' }] }),
     ]);
     assert.equal(r.ok, true, r.error);
@@ -245,6 +246,7 @@ describe('multi-vehicle appointment-once', () => {
         packageId: 'maint',
         pkgName: 'Maintenance Detail',
         tierKey: 'suv2',
+        vehicleLabel: '2019 Toyota RAV4',
         addons: [{ id: PARENT }, { id: 'walkway_steps' }],
       }),
     ]);
@@ -261,7 +263,7 @@ describe('multi-vehicle appointment-once', () => {
       zip: '07601',
       vehicles: [
         car({ addons: [{ id: PARENT }, { id: 'heavy_wet_leaf' }] }),
-        car({ vehicleId: 'veh_b', pkgId: 'maint', packageId: 'maint', tierKey: 'suv2', addons: [{ id: PARENT }] }),
+        car({ vehicleId: 'veh_b', pkgId: 'maint', packageId: 'maint', tierKey: 'suv2', vehicleLabel: '2019 Toyota RAV4', addons: [{ id: PARENT }] }),
       ],
     });
     assert.equal(quoted.ok, true, quoted.error);
@@ -315,6 +317,7 @@ describe('eligibility', () => {
       tierKey: 'truck',
       pkgId: 'full',
       packageId: 'full',
+      vehicleLabel: '2020 Ford F-150',
       addons: [{ id: PARENT }],
     })]);
     assert.equal(r.ok, true, r.error);

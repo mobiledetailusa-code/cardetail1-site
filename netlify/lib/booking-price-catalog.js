@@ -7,6 +7,7 @@ const { asArray } = require('./historical-adapter');
 const PowersportsCatalog = require('../../assets/powersports-model-catalog');
 const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
 const CeramicCoating = require('./ceramic-coating');
+const { assertCarCatalogTier } = require('./car-catalog-tier');
 
 const SEASONAL_DRIVEWAY_ADDONS = Object.freeze([
   { id: 'seasonal_driveway_cleanup', price: 95, name: 'Driveway & Entry Cleanup' },
@@ -526,13 +527,21 @@ function computeAddonTotal(vehicle, booking) {
   return { ok: true, total, addons: normalized };
 }
 
-function computeVehicleBasePrice(vehicle, zip, booking) {
+function computeVehicleBasePrice(vehicle, zip, booking, opts) {
   const cat = vehicle.cat || booking?.vehicleCategory;
   const pkgId = inferPkgId(vehicle, booking);
   if (!cat || !pkgId || !PRICING[cat]) return { ok: false, error: 'invalid_pricing' };
 
   const tiers = PRICING[cat].tiers;
   const tierKey = resolveTierKey({ ...vehicle, cat });
+
+  if (cat === 'cars') {
+    // Unknown keys stay invalid_pricing. A stale unknown key still falls through
+    // to a real tier label; that resolved class is then checked against the catalog.
+    if (!tierKey || !PRICING.cars.tiers[tierKey]) return { ok: false, error: 'invalid_pricing' };
+    const catalogTier = assertCarCatalogTier(vehicle, tierKey, opts);
+    if (!catalogTier.ok) return catalogTier;
+  }
 
   if (CeramicCoating.isCeramicPackage(pkgId)) {
     const ceramic = CeramicCoating.basePriceFor(cat, tierKey, pkgId);
@@ -613,8 +622,8 @@ function vehiclesFromBooking(booking) {
   }];
 }
 
-function computeVehicleSubtotal(vehicle, zip, booking) {
-  const base = computeVehicleBasePrice(vehicle, zip, booking);
+function computeVehicleSubtotal(vehicle, zip, booking, opts) {
+  const base = computeVehicleBasePrice(vehicle, zip, booking, opts);
   if (!base.ok) return base;
   const pricedVehicle = { ...vehicle, cat: base.cat, pkgId: base.pkgId, tierKey: base.tierKey };
   const addons = computeAddonTotal(pricedVehicle, booking);
@@ -637,7 +646,7 @@ function computeVehicleSubtotal(vehicle, zip, booking) {
   };
 }
 
-function computeBookingServiceSubtotal(booking) {
+function computeBookingServiceSubtotal(booking, opts) {
   const zip = booking.zipCode || booking.zip || '';
   const vehicles = vehiclesFromBooking(booking);
   if (!vehicles.length) return { ok: false, error: 'invalid_pricing' };
@@ -649,7 +658,7 @@ function computeBookingServiceSubtotal(booking) {
   let serviceSubtotal = 0;
   const updatedVehicles = [];
   for (const v of pricedVehicles) {
-    const r = computeVehicleSubtotal(v, zip, booking);
+    const r = computeVehicleSubtotal(v, zip, booking, opts);
     if (!r.ok) return r;
     serviceSubtotal += r.subtotal;
     updatedVehicles.push({
@@ -668,8 +677,8 @@ function computeBookingServiceSubtotal(booking) {
   return { ok: true, serviceSubtotal, vehicles: updatedVehicles };
 }
 
-function validateAndRecalculateBookingPricing(booking) {
-  const result = computeBookingServiceSubtotal(booking);
+function validateAndRecalculateBookingPricing(booking, opts) {
+  const result = computeBookingServiceSubtotal(booking, opts);
   if (!result.ok) return result;
   return {
     ok: true,

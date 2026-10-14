@@ -878,6 +878,28 @@ exports.handler = async (event) => {
         message: 'Select vehicle size (Small Car, SUV 2-Row, SUV 3-Row, or Truck).',
       });
     }
+    if (category === 'cars') {
+      // Same catalog rule as a new public booking. A generic label or a
+      // cheaper class cannot price this change. Stored vehicles are untouched.
+      const { assertCarCatalogTier } = require('../lib/car-catalog-tier');
+      const catalogTier = assertCarCatalogTier({
+        cat: 'cars',
+        make,
+        model,
+        year,
+        vehicleLabel: label,
+        tierKey,
+      }, tierKey, { catalogTierMode: 'require_identity' });
+      if (!catalogTier.ok) {
+        return json(400, {
+          ok: false,
+          error: catalogTier.error,
+          message: catalogTier.error === 'tier_mismatch'
+            ? 'That vehicle size does not match this make and model.'
+            : 'Choose a listed make and model so the vehicle can be priced.',
+        });
+      }
+    }
     let targetVehicleId = String(p.vehicleId || p.targetVehicleId || '').slice(0, 64).trim();
     if (action === 'vehicle_replace_request') {
       const vehicles = ensureVehicleIds(booking.service?.vehicles || booking.vehicles || []);

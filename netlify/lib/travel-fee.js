@@ -176,7 +176,9 @@ function applyServerTravelAndTotal(booking, opts = {}) {
     return { ok: false, error: 'out_of_service_area' };
   }
 
-  const pricing = validateAndRecalculateBookingPricing(booking);
+  const pricing = validateAndRecalculateBookingPricing(booking, {
+    catalogTierMode: opts.catalogTierMode,
+  });
   if (!pricing.ok) {
     return { ok: false, error: pricing.error || 'invalid_pricing' };
   }
