@@ -356,11 +356,46 @@ test('a historical booking whose class already matches is not repriced', () => {
       subtotal: FULL.small,
     })],
   };
-  const genericResult = applyServerTravelAndTotal(JSON.parse(JSON.stringify(generic)), {
+  const historicalGeneric = applyServerTravelAndTotal(JSON.parse(JSON.stringify(generic)));
+  assert.equal(historicalGeneric.ok, true);
+  assert.equal(historicalGeneric.serverTotal, FULL.small);
+
+  const publicGeneric = applyServerTravelAndTotal(JSON.parse(JSON.stringify(generic)), {
     catalogTierMode: 'require_identity',
   });
-  assert.equal(genericResult.ok, true);
-  assert.equal(genericResult.serverTotal, FULL.small);
+  assert.equal(publicGeneric.ok, false);
+  assert.equal(publicGeneric.error, 'vehicle_unresolved');
+  assert.equal(publicGeneric.serverTotal, undefined);
+});
+
+test('a public new booking cannot use a generic identity to buy a lower class', () => {
+  const attempts = [
+    { vehicleLabel: 'Small Car', tierKey: 'small' },
+    { vehicleLabel: 'Sample Vehicle', tierKey: 'small' },
+    { vehicleLabel: 'Large SUV', tierKey: 'suv2' },
+    { vehicleLabel: '2023 Chevy Suburban', tierKey: 'small' },
+    { tierKey: 'small' },
+    { make: 'Toyota', tierKey: 'suv3' },
+    { make: 'Toyota', model: 'Not Listed', year: 2006, tierKey: 'small' },
+    { make: '', model: '', year: '', vehicleLabel: '   ', tierKey: 'small' },
+  ];
+  for (const fields of attempts) {
+    const { booking, before, result } = quote(fields, FULL.small);
+    assert.equal(result.ok, false, JSON.stringify(fields));
+    assert.equal(result.error, 'vehicle_unresolved', JSON.stringify(fields));
+    assert.equal(result.serverTotal, undefined);
+    assert.deepEqual(booking, before);
+  }
+
+  const hiddenSequoia = quote({
+    make: 'Toyota',
+    model: 'Sequoia',
+    year: 2006,
+    vehicleLabel: 'Small Car',
+    tierKey: 'small',
+  }, FULL.small);
+  assert.equal(hiddenSequoia.result.error, 'tier_mismatch');
+  assert.deepEqual(hiddenSequoia.booking, hiddenSequoia.before);
 });
 
 test('normalization accepts case and spacing, and an existing alias, without fuzzy names', () => {
@@ -570,4 +605,90 @@ test('public handlers force catalog identity and discard client authority fields
   assert.equal(booking.catalogTierOverride, undefined);
   assert.equal(booking.vehicles[0].adminTierOverride, undefined);
   assert.equal(booking.vehicles[0].tierKey, 'small');
+
+  const portal = fs.readFileSync(path.join(root, 'netlify/functions/submit-customer-action.js'), 'utf8');
+  assert.match(portal, /assertCarCatalogTier/);
+  assert.match(portal, /catalogTierMode:\s*'require_identity'/);
+});
+
+test('a public vehicle add cannot price a generic identity or a lower class', async () => {
+  const { setOpsStoreOverride } = require('../netlify/lib/ops-db');
+  const { handler } = require('../netlify/functions/submit-customer-action');
+  const booking = {
+    id: 'CD1-TIER-PORTAL',
+    bookingVersion: 2,
+    status: 'Confirmed',
+    appointmentStatus: 'confirmed',
+    phone: '2015550177',
+    zipCode: ZIP,
+    vehicles: [{
+      vehicleId: 'veh_1',
+      cat: 'cars',
+      make: 'Toyota',
+      model: 'Sequoia',
+      year: '2006',
+      vehicleLabel: '2006 Toyota Sequoia',
+      tierKey: 'suv3',
+      pkgId: 'full',
+    }],
+  };
+  const store = {
+    async get(key) {
+      return key === 'CD1-TIER-PORTAL' ? JSON.parse(JSON.stringify(booking)) : null;
+    },
+    async list() { return { blobs: [{ key: 'CD1-TIER-PORTAL' }] }; },
+  };
+  setOpsStoreOverride(store);
+  async function post(extra) {
+    const res = await handler({
+      httpMethod: 'POST',
+      headers: {},
+      body: JSON.stringify({
+        bookingId: 'CD1-TIER-PORTAL',
+        phone: '2015550177',
+        action: 'vehicle_add_request',
+        expectedBookingVersion: 2,
+        idempotencyKey: extra.idempotencyKey,
+        category: 'cars',
+        packageId: 'full',
+        ...extra,
+      }),
+    });
+    return { status: res.statusCode, body: JSON.parse(res.body) };
+  }
+  try {
+    const generic = await post({
+      vehicleLabel: 'Small Car',
+      tierKey: 'small',
+      idempotencyKey: 'tier-generic-small',
+    });
+    assert.equal(generic.status, 400);
+    assert.equal(generic.body.error, 'vehicle_unresolved');
+    assert.equal(generic.body.tierKey, undefined);
+
+    const sample = await post({
+      make: 'Sample',
+      model: 'Vehicle',
+      year: '2006',
+      vehicleLabel: 'Sample Vehicle',
+      tierKey: 'small',
+      idempotencyKey: 'tier-sample-vehicle',
+    });
+    assert.equal(sample.body.error, 'vehicle_unresolved');
+
+    const cheaper = await post({
+      make: 'Toyota',
+      model: 'Sequoia',
+      year: '2006',
+      vehicleLabel: 'Small Car',
+      tierKey: 'small',
+      idempotencyKey: 'tier-sequoia-small',
+    });
+    assert.equal(cheaper.status, 400);
+    assert.equal(cheaper.body.error, 'tier_mismatch');
+    assert.equal(JSON.stringify(cheaper.body).includes('suv3'), false);
+    assert.equal(booking.vehicles[0].tierKey, 'suv3');
+  } finally {
+    setOpsStoreOverride(null);
+  }
 });

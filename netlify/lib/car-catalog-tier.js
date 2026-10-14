@@ -10,9 +10,9 @@
  * catalogTierMode is chosen by server code, never by the request body:
  *   known_only       — a recognized public vehicle must use its catalog class.
  *                      Unrecognized free text may keep an explicit valid tier.
- *   require_identity — same rule, and a named make/model that does not resolve
- *                      to one public class is rejected (public booking and
- *                      public offer preview).
+ *   require_identity — public new bookings and offer previews. A car must
+ *                      resolve to one public catalog class. Generic labels,
+ *                      missing identity, and unknown names get no price.
  */
 
 const Catalog = require('../../assets/vehicle-catalog');
@@ -102,7 +102,10 @@ function assertCarCatalogTier(vehicle, claimedTierKey, opts) {
     ? 'require_identity'
     : 'known_only';
   const identity = vehicleIdentity(vehicle || {});
-  if (!identity.attempted) return { ok: true };
+  if (!identity.attempted) {
+    if (mode === 'require_identity') return { ok: false, error: 'vehicle_unresolved' };
+    return { ok: true };
+  }
 
   const found = identity.make && identity.model
     ? Catalog.findVehicleRecord(identity.make, identity.model)

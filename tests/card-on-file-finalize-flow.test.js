@@ -55,6 +55,10 @@ function baseDraft(overrides = {}) {
       pkgName: 'Premium Detail',
       tierLabel: 'Small Car',
       tierKey: 'small',
+      make: 'Honda',
+      model: 'Civic',
+      year: 2024,
+      vehicleLabel: '2024 Honda Civic',
       addons: [],
     }],
     // Phase 1 canonical: cars/small/full @ zip 07102, no add-ons/travel
