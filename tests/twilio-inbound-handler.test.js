@@ -99,7 +99,12 @@ test('general inbound replies to customer and notifies admin', async () => {
 
 test('STOP still revokes consent and returns empty TwiML', async () => {
   let revoked = false;
-  const result = await handleInboundSms({ From: '+12015550100', Body: 'STOP', OptOutType: 'STOP' }, {
+  const result = await handleInboundSms({
+    From: '+12015550100',
+    Body: 'STOP',
+    OptOutType: 'STOP',
+    MessageSid: `SM${'e'.repeat(32)}`,
+  }, {
     revokeConsent: async () => {
       revoked = true;
       return { ok: true };

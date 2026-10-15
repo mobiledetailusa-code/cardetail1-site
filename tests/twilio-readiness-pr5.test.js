@@ -85,7 +85,7 @@ describe('PR5 fail-closed runtime policy', () => {
   });
 
   it('does not trust a caller-controlled scheduler header', async () => {
-    const configured = { ...SEND_ENV, TWILIO_WORKER_SECRET: 'worker-secret-test-only' };
+    const configured = { ...SEND_ENV, CONTEXT: 'deploy-preview' };
     const prior = {};
     for (const [key, value] of Object.entries(configured)) {
       prior[key] = process.env[key];
@@ -95,10 +95,18 @@ describe('PR5 fail-closed runtime policy', () => {
     try {
       const forged = await worker.handler({
         httpMethod: 'POST',
-        headers: { 'x-netlify-event': 'schedule' },
+        headers: {
+          'x-netlify-event': 'schedule',
+          'x-nf-event': 'schedule',
+          'x-nf-scheduled': 'true',
+          'user-agent': 'Netlify Clockwork',
+        },
+        body: JSON.stringify({ next_run: '2026-10-15T12:00:00.000Z' }),
       });
-      assert.equal(forged.statusCode, 401);
-      assert.equal(worker.secretMatches('worker-secret-test-only', 'wrong-secret'), false);
+      assert.equal(forged.statusCode, 200);
+      assert.equal(JSON.parse(forged.body).disabled, true);
+      assert.equal(JSON.parse(forged.body).processed, 0);
+      assert.equal(worker.secretMatches, undefined);
     } finally {
       for (const key of Object.keys(configured)) {
         if (prior[key] == null) delete process.env[key];
@@ -351,7 +359,13 @@ describe('PR5 signed webhooks and STOP/HELP', () => {
     }
     const inbound = require('../netlify/functions/twilio-inbound');
     try {
-      const stopParams = { From: PHONE, To: '+12015550999', Body: 'STOP', OptOutType: 'STOP' };
+      const stopParams = {
+        From: PHONE,
+        To: '+12015550999',
+        Body: 'STOP',
+        OptOutType: 'STOP',
+        MessageSid: `SM${'f'.repeat(32)}`,
+      };
       const stopped = await inbound.handler(signedEvent(inboundUrl, stopParams));
       assert.equal(stopped.statusCode, 200);
       assert.match(stopped.body, /<Response><\/Response>/);

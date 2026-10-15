@@ -356,9 +356,10 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
     const sendGate = provider.slice(provider.indexOf('async send'), provider.indexOf('messages.create'));
     assert.match(sendGate, /readPhoneSuppression/);
     const worker = read('netlify/functions/twilio-outbox-worker.js');
-    assert.match(worker, /x-nf-event/);
-    assert.match(worker, /x-worker-secret/);
-    assert.doesNotMatch(worker, /if\s*\(\s*!scheduled\s*\)/);
+    assert.match(worker, /are not authentication/);
+    assert.match(worker, /schedule: '\*\/2 \* \* \* \*'/);
+    assert.doesNotMatch(worker, /x-worker-secret/);
+    assert.doesNotMatch(worker, /timingSafeEqual/);
     const prisma = createMemoryOutboxPrisma();
     const first = await emitRequestReceived(booking({ id: 'CD1-SMS-BRAND-IDEM' }), {
       prisma,

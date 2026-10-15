@@ -182,7 +182,7 @@ test('inbound STOP stays empty and a suppression outage does not auto-reply', as
   assert.doesNotMatch(unavailable.twiml, /<Message>/);
 });
 
-test('a forged public schedule header produces zero claim and zero send', async () => {
+test('a forged schedule header does not change the production drain', async () => {
   const restore = applyEnv(SEND_ENV);
   const runs = [];
   worker.__test.setProcessOverride(async () => {
@@ -190,28 +190,33 @@ test('a forged public schedule header produces zero claim and zero send', async 
     return { ok: true, processed: 1 };
   });
   try {
+    const plain = await worker.handler({
+      httpMethod: 'POST',
+      headers: { 'x-nf-client-connection-ip': '203.0.113.10' },
+      body: JSON.stringify({ next_run: NEXT_RUN }),
+    });
     const forged = await worker.handler({
       httpMethod: 'POST',
       headers: {
         'x-nf-event': 'schedule',
         'x-netlify-event': 'schedule',
-        'x-nf-client-connection-ip': '203.0.113.10',
+        'x-nf-scheduled': 'true',
+        'user-agent': 'Netlify Clockwork',
+        'x-nf-client-connection-ip': '203.0.113.15',
       },
       body: JSON.stringify({ next_run: NEXT_RUN }),
     });
-    assert.equal(worker.isScheduledInvocation({
-      headers: { 'x-nf-event': 'schedule' },
-      body: JSON.stringify({ next_run: NEXT_RUN }),
-    }), true);
-    assert.equal(forged.statusCode, 401, forged.body);
-    assert.equal(JSON.parse(forged.body).processed, 0);
-    assert.equal(runs.length, 0);
+    assert.equal(plain.statusCode, 200, plain.body);
+    assert.equal(forged.statusCode, 200, forged.body);
+    assert.equal(JSON.parse(plain.body).processed, 1);
+    assert.equal(JSON.parse(forged.body).processed, 1);
+    assert.equal(runs.length, 2);
   } finally {
     restore();
   }
 });
 
-test('worker secret missing, wrong, and correct are distinct from the scheduler header', async () => {
+test('a caller-supplied worker secret is ignored', async () => {
   const restore = applyEnv(SEND_ENV);
   const runs = [];
   worker.__test.setProcessOverride(async () => {
@@ -220,29 +225,25 @@ test('worker secret missing, wrong, and correct are distinct from the scheduler 
   });
   const base = {
     httpMethod: 'POST',
-    headers: {
-      'x-nf-event': 'schedule',
-      'x-nf-client-connection-ip': '203.0.113.11',
-    },
     body: JSON.stringify({ next_run: NEXT_RUN }),
   };
   try {
-    const missing = await worker.handler(base);
+    const missing = await worker.handler({
+      ...base,
+      headers: { 'x-nf-client-connection-ip': '203.0.113.11' },
+    });
     const wrong = await worker.handler({
       ...base,
-      headers: { ...base.headers, 'x-worker-secret': 'wrong-secret' },
+      headers: { 'x-nf-client-connection-ip': '203.0.113.21', 'x-worker-secret': 'wrong-secret' },
     });
-    const correct = await worker.handler({
+    const present = await worker.handler({
       ...base,
-      headers: { ...base.headers, 'x-worker-secret': SECRET },
+      headers: { 'x-nf-client-connection-ip': '203.0.113.22', 'x-worker-secret': SECRET },
     });
-    assert.equal(missing.statusCode, 401);
-    assert.equal(wrong.statusCode, 401);
-    assert.equal(JSON.parse(missing.body).processed, 0);
-    assert.equal(JSON.parse(wrong.body).processed, 0);
-    assert.equal(correct.statusCode, 200, correct.body);
-    assert.equal(JSON.parse(correct.body).processed, 1);
-    assert.equal(runs.length, 1);
+    assert.equal(missing.statusCode, 200, missing.body);
+    assert.equal(wrong.statusCode, 200, wrong.body);
+    assert.equal(present.statusCode, 200, present.body);
+    assert.equal(runs.length, 3);
   } finally {
     restore();
   }
@@ -263,8 +264,9 @@ test('preview and branch deploys do not drain even with the worker secret', asyn
       const response = await worker.handler({
         httpMethod: 'POST',
         headers: {
-          'x-worker-secret': SECRET,
           'x-nf-event': 'schedule',
+          'x-nf-scheduled': 'true',
+          'user-agent': 'Netlify Clockwork',
           'x-nf-client-connection-ip': '203.0.113.12',
         },
         body: JSON.stringify({ next_run: NEXT_RUN }),
@@ -279,7 +281,7 @@ test('preview and branch deploys do not drain even with the worker secret', asyn
   assert.equal(runs.length, 0);
 });
 
-test('a production policy with the secret is the only path that drains', async () => {
+test('production Run now and the schedule share one processor', async () => {
   const restore = applyEnv(SEND_ENV);
   const runs = [];
   worker.__test.setProcessOverride(async () => {
@@ -290,9 +292,10 @@ test('a production policy with the secret is the only path that drains', async (
     const response = await worker.handler({
       httpMethod: 'POST',
       headers: {
-        'x-worker-secret': SECRET,
+        'user-agent': 'Netlify Clockwork',
         'x-nf-client-connection-ip': '203.0.113.13',
       },
+      body: JSON.stringify({ next_run: NEXT_RUN }),
     });
     assert.equal(response.statusCode, 200, response.body);
     assert.equal(JSON.parse(response.body).disabled, false);
@@ -325,22 +328,26 @@ test('rate limit stops a second authenticated drain and is not authentication', 
   const event = {
     httpMethod: 'POST',
     headers: {
-      'x-worker-secret': SECRET,
       'x-nf-client-connection-ip': '203.0.113.14',
     },
   };
   try {
     const first = await worker.handler(event);
     const second = await worker.handler(event);
-    const anonymous = await worker.handler({
+    const forged = await worker.handler({
       httpMethod: 'POST',
-      headers: { 'x-nf-client-connection-ip': '203.0.113.14', 'x-nf-event': 'schedule' },
+      headers: {
+        'x-nf-client-connection-ip': '203.0.113.14',
+        'x-nf-event': 'schedule',
+        'x-nf-scheduled': 'true',
+        'user-agent': 'Netlify Clockwork',
+      },
       body: JSON.stringify({ next_run: NEXT_RUN }),
     });
     assert.equal(first.statusCode, 200, first.body);
     assert.equal(second.statusCode, 429, second.body);
     assert.equal(JSON.parse(second.body).processed, 0);
-    assert.equal(anonymous.statusCode, 401);
+    assert.equal(forged.statusCode, 429, forged.body);
     assert.equal(runs.length, 1);
   } finally {
     restore();
