@@ -319,20 +319,51 @@ describe('limited lookup uniform response', { concurrency: 1 }, () => {
   });
 
   it('a browser account id does not select another booking when the phone matches', async () => {
-    const portal = require('../netlify/functions/customer-portal-data');
-    const res = await portal.handler(eventFor({
-      mode: 'limited',
+    const auth = require('../netlify/lib/booking-customer-auth');
+    const allowed = await auth.authorizeBookingAccess(eventFor({
       bookingId: 'CD1-LIVE0001',
       phone: '2015550177',
       customerAccountId: 'acct-other',
       browserCustomerAccountId: 'acct-other',
-    }, { ip: '203.0.113.49' }));
-    const body = JSON.parse(res.body);
-    assert.equal(res.statusCode, 200);
-    assert.equal(body.ok, true);
-    assert.equal(body.booking.id, 'CD1-LIVE0001');
-    assert.equal(JSON.stringify(body).includes('Bea'), false);
-    assert.equal(JSON.stringify(body).includes('acct-other'), false);
+    }, { ip: '203.0.113.49' }), {
+      bookingId: 'CD1-LIVE0001',
+      phone: '2015550177',
+    });
+    assert.equal(allowed.ok, true);
+    assert.equal(allowed.booking.id, 'CD1-LIVE0001');
+    assert.notEqual(allowed.booking.customerAccountId, 'acct-other');
+
+    const crPath = require.resolve('../netlify/lib/customer-change-requests');
+    const portalPath = require.resolve('../netlify/functions/customer-portal-data');
+    const realCr = require(crPath);
+    const previous = require.cache[crPath].exports;
+    require.cache[crPath].exports = {
+      ...realCr,
+      listVisibleRequestsForBooking: async () => [],
+    };
+    delete require.cache[portalPath];
+    try {
+      const portal = require('../netlify/functions/customer-portal-data');
+      const res = await portal.handler(eventFor({
+        mode: 'limited',
+        bookingId: 'CD1-LIVE0001',
+        phone: '2015550177',
+        customerAccountId: 'acct-other',
+        browserCustomerAccountId: 'acct-other',
+      }, { ip: '203.0.113.49' }));
+      const body = JSON.parse(res.body);
+      assert.equal(res.statusCode, 200);
+      assert.equal(body.ok, true);
+      assert.equal(body.booking.id, 'CD1-LIVE0001');
+      const raw = JSON.stringify(body);
+      assert.equal(raw.includes('Bea'), false);
+      assert.equal(raw.includes('bea@'), false);
+      assert.equal(raw.includes('acct-other'), false);
+      assert.equal(raw.includes('CD1-OTHER002'), false);
+    } finally {
+      require.cache[crPath].exports = previous;
+      delete require.cache[portalPath];
+    }
   });
 
   it('draft with the matching phone stays not-ready on the portal', async () => {
@@ -366,7 +397,8 @@ describe('limited lookup uniform response', { concurrency: 1 }, () => {
     process.env.PUBLIC_RATE_LIMIT_LOOKUP_BOOKING_MAX = '1';
     process.env.PUBLIC_RATE_LIMIT_CUSTOMER_BOOKINGS_MAX = '1';
     const rl = require('../netlify/lib/public-rate-limit');
-    rl.setPublicRateLimitStoreFactory(() => createConditionalMemoryStore());
+    const rateStore = createConditionalMemoryStore();
+    rl.setPublicRateLimitStoreFactory(() => rateStore);
     const lookup = require('../netlify/functions/lookup-booking');
     const bookings = require('../netlify/functions/customer-bookings');
     const portal = require('../netlify/functions/customer-portal-data');
