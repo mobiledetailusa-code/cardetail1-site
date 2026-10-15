@@ -3,10 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  isScheduledInvocation,
   isIsoNextRun,
-  secretMatches,
   handler,
+  __test,
 } = require('../netlify/functions/twilio-outbox-worker');
 
 const NEXT_RUN = '2026-08-23T18:12:00.000Z';
@@ -48,71 +47,52 @@ test('ISO next_run matches Netlify scheduled-function timestamps', () => {
   assert.equal(isIsoNextRun(''), false);
 });
 
-test('scheduled invocation requires X-NF-Event schedule plus a valid next_run', () => {
-  assert.equal(isScheduledInvocation({ next_run: NEXT_RUN }), false);
-  assert.equal(isScheduledInvocation({ body: JSON.stringify({ next_run: NEXT_RUN }) }), false);
-  assert.equal(isScheduledInvocation({
-    headers: { 'x-nf-event': 'schedule' },
-    next_run: NEXT_RUN,
-  }), true);
-  assert.equal(isScheduledInvocation({
-    headers: { 'X-NF-Event': 'Schedule' },
-    body: JSON.stringify({ next_run: NEXT_RUN }),
-  }), true);
-  assert.equal(isScheduledInvocation({
-    isBase64Encoded: true,
-    headers: { 'x-nf-event': 'schedule' },
-    body: Buffer.from(JSON.stringify({ next_run: NEXT_RUN }), 'utf8').toString('base64'),
-  }), true);
-  assert.equal(isScheduledInvocation({
-    httpMethod: 'POST',
-    headers: { 'x-netlify-event': 'schedule', 'x-nf-event': 'schedule' },
-  }), false);
-  assert.equal(isScheduledInvocation({
-    headers: { 'x-nf-event': 'schedule' },
-    body: JSON.stringify({ next_run: 'not-a-date' }),
-  }), false);
-});
-
-test('forged scheduler header without next_run is unauthorized', async () => {
-  process.env.TWILIO_OUTBOX_ENABLED = 'true';
-  process.env.TWILIO_ENABLED = 'true';
-  process.env.TWILIO_PRODUCTION_SENDS_ENABLED = 'true';
-  process.env.TWILIO_WORKER_SECRET = 'worker-secret-test-only';
-  process.env.CONTEXT = 'production';
-  process.env.BRANCH = 'master';
-  process.env.URL = 'https://cardetail1.com';
-  process.env.TWILIO_ACCOUNT_SID = 'AC00000000000000000000000000000000';
-  process.env.TWILIO_API_KEY = 'SK00000000000000000000000000000000';
-  process.env.TWILIO_API_SECRET = 'test-only-secret';
-  process.env.TWILIO_MESSAGING_SERVICE_SID = 'MG00000000000000000000000000000000';
-  process.env.TWILIO_STATUS_CALLBACK_URL = 'https://cardetail1.com/.netlify/functions/twilio-status-callback';
-
+test('a forged scheduler header does not authenticate and does not send outside production', async () => {
+  const runs = [];
+  __test.setProcessOverride(async () => {
+    runs.push('run');
+    return { ok: true, processed: 1 };
+  });
   const forged = await handler({
     httpMethod: 'POST',
-    headers: { 'x-netlify-event': 'schedule' },
-  });
-  assert.equal(forged.statusCode, 401);
-  assert.equal(secretMatches('worker-secret-test-only', 'wrong-secret'), false);
-});
-
-test('body-only next_run is not a scheduled invocation', async () => {
-  const result = await handler({
-    httpMethod: 'POST',
+    headers: {
+      'x-nf-event': 'schedule',
+      'x-netlify-event': 'schedule',
+      'user-agent': 'Netlify Clockwork',
+      host: 'evil.example',
+    },
     body: JSON.stringify({ next_run: NEXT_RUN }),
   });
-  assert.equal(result.statusCode, 401);
+  assert.equal(forged.statusCode, 200);
+  assert.equal(JSON.parse(forged.body).disabled, true);
+  assert.equal(JSON.parse(forged.body).processed, 0);
+  assert.equal(runs.length, 0);
+  __test.setProcessOverride(null);
 });
 
-test('Netlify schedule header plus next_run stays authorized without the worker secret', async () => {
+test('an invalid next_run is rejected before the processor', async () => {
+  const runs = [];
+  __test.setProcessOverride(async () => {
+    runs.push('run');
+    return { ok: true, processed: 1 };
+  });
   const result = await handler({
     httpMethod: 'POST',
-    headers: { 'x-nf-event': 'schedule' },
+    headers: { 'x-nf-event': 'schedule', 'user-agent': 'Netlify Clockwork' },
+    body: JSON.stringify({ next_run: 'not-a-date' }),
+  });
+  assert.equal(result.statusCode, 400);
+  assert.equal(JSON.parse(result.body).processed, 0);
+  assert.equal(runs.length, 0);
+  __test.setProcessOverride(null);
+});
+
+test('body-only next_run is a format check and still does not send outside production', async () => {
+  const result = await handler({
+    httpMethod: 'POST',
     body: JSON.stringify({ next_run: NEXT_RUN }),
   });
   assert.equal(result.statusCode, 200);
-  const payload = JSON.parse(result.body);
-  assert.equal(payload.ok, true);
-  assert.equal(payload.disabled, true);
-  assert.equal(payload.processed, 0);
+  assert.equal(JSON.parse(result.body).disabled, true);
+  assert.equal(JSON.parse(result.body).processed, 0);
 });

@@ -14,14 +14,24 @@ const {
   EMPTY_TWIML,
 } = require('./twilio-forwarding');
 
-const STOP_WORDS = new Set(['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT']);
+const STOP_WORDS = new Set([
+  'STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'REVOKE', 'OPTOUT',
+]);
+const START_WORDS = new Set(['START', 'UNSTOP']);
 const HELP_WORDS = new Set(['HELP', 'INFO']);
 
+function exactKeyword(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
 function complianceKeyword(params = {}) {
-  const advanced = String(params.OptOutType || '').trim().toUpperCase();
-  if (['STOP', 'HELP', 'START'].includes(advanced)) return advanced;
-  const body = String(params.Body || '').trim().toUpperCase();
+  const advanced = exactKeyword(params.OptOutType);
+  if (advanced === 'STOP' || STOP_WORDS.has(advanced)) return 'STOP';
+  if (advanced === 'START' || START_WORDS.has(advanced)) return 'START';
+  if (advanced === 'HELP' || HELP_WORDS.has(advanced)) return 'HELP';
+  const body = exactKeyword(params.Body);
   if (STOP_WORDS.has(body)) return 'STOP';
+  if (START_WORDS.has(body)) return 'START';
   if (HELP_WORDS.has(body)) return 'HELP';
   return '';
 }
@@ -93,32 +103,62 @@ async function notifyAdminInboundSms(params = {}, opts = {}) {
   return queued;
 }
 
-async function handleInboundSms(params = {}, opts = {}) {
-  const env = opts.env || process.env;
-  const type = complianceKeyword(params);
+async function applyConsentCommand(params, type, opts) {
+  const {
+    readInboundCommand,
+    recordInboundCommand,
+    suppressPhone,
+    clearSuppression,
+  } = require('./sms-suppression');
+  const messageSid = params.MessageSid || params.SmsSid;
+  const prior = await readInboundCommand(messageSid);
+  if (!prior.ok) return { statusCode: 503, body: '', action: 'suppression_unavailable' };
+  if (prior.duplicate) {
+    return { statusCode: 200, twiml: emptyTwiml(), action: 'duplicate', priorAction: prior.action };
+  }
   if (type === 'STOP') {
-    const { suppressPhone } = require('./sms-suppression');
     const suppressed = await suppressPhone(params.From);
-    if (!suppressed.ok) return { statusCode: 503, body: '' };
+    if (!suppressed.ok && suppressed.error === 'suppression_unavailable') {
+      return { statusCode: 503, body: '', action: 'suppression_unavailable' };
+    }
+    if (!suppressed.ok) return { statusCode: 200, twiml: emptyTwiml(), action: 'ignored' };
     const revoke = opts.revokeConsent
       || require('./sms-consent-service').revokeSmsConsentByPhone;
     const result = await revoke(params.From, opts);
-    if (!result.ok) return { statusCode: 503, body: '' };
+    if (!result.ok && result.error === 'suppression_unavailable') {
+      return { statusCode: 503, body: '', action: 'suppression_unavailable' };
+    }
+    if (!result.ok) return { statusCode: 503, body: '', action: 'suppression_unavailable' };
+    const recorded = await recordInboundCommand(messageSid, 'stop');
+    if (!recorded.ok) return { statusCode: 503, body: '', action: 'suppression_unavailable' };
     return { statusCode: 200, twiml: emptyTwiml(), action: 'stop' };
   }
-  // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
-  // TwiML prevents a duplicate application-generated message. START clears the
-  // suppression flag and does not send a message or grant consent.
-  if (type === 'START') {
-    const { clearSuppression } = require('./sms-suppression');
-    await clearSuppression(params.From);
-    return { statusCode: 200, twiml: emptyTwiml(), action: 'start' };
+  const cleared = await clearSuppression(params.From);
+  if (!cleared.ok) return { statusCode: 503, body: '', action: 'suppression_unavailable' };
+  const recorded = await recordInboundCommand(messageSid, 'start');
+  if (!recorded.ok) return { statusCode: 503, body: '', action: 'suppression_unavailable' };
+  return { statusCode: 200, twiml: emptyTwiml(), action: 'start' };
+}
+
+async function handleInboundSms(params = {}, opts = {}) {
+  const env = opts.env || process.env;
+  const type = complianceKeyword(params);
+  if (type === 'STOP' || type === 'START') {
+    return applyConsentCommand(params, type, opts);
   }
+  // Advanced Opt-Out sends the configured STOP/HELP response. Returning empty
+  // TwiML prevents a duplicate application-generated message. START/UNSTOP
+  // clear only the application suppression and do not send a message.
   if (type === 'HELP') {
     return { statusCode: 200, twiml: emptyTwiml(), action: 'help' };
   }
-  const { isPhoneSuppressed } = require('./sms-suppression');
-  if (await isPhoneSuppressed(params.From)) {
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(params.From);
+  if (!suppression.ok) {
+    console.warn('[twilio-inbound] suppression_unavailable');
+    return { statusCode: 503, twiml: emptyTwiml(), action: 'suppression_unavailable' };
+  }
+  if (suppression.suppressed) {
     return { statusCode: 200, twiml: emptyTwiml(), action: 'suppressed' };
   }
 
@@ -154,6 +194,7 @@ async function handleInboundSms(params = {}, opts = {}) {
 
 module.exports = {
   STOP_WORDS,
+  START_WORDS,
   HELP_WORDS,
   complianceKeyword,
   buildInboundAutoReply,

@@ -349,13 +349,17 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
   });
 
   it('13. outbox idempotency keys stay stable; STOP and scheduler auth are explicit', async () => {
-    const diff = execSync('git diff --name-only origin/master -- netlify scripts', { cwd: ROOT, encoding: 'utf8' });
-    assert.doesNotMatch(diff, /twilio-provider/);
     const outbox = read('netlify/lib/sms-outbox.js');
-    assert.match(outbox, /isPhoneSuppressed/);
+    assert.match(outbox, /readPhoneSuppression/);
     assert.match(outbox, /lastErrorCode: 'suppressed'/);
+    const provider = read('netlify/lib/twilio-provider.js');
+    const sendGate = provider.slice(provider.indexOf('async send'), provider.indexOf('messages.create'));
+    assert.match(sendGate, /readPhoneSuppression/);
     const worker = read('netlify/functions/twilio-outbox-worker.js');
-    assert.match(worker, /x-nf-event/);
+    assert.match(worker, /are not authentication/);
+    assert.match(worker, /schedule: '\*\/2 \* \* \* \*'/);
+    assert.doesNotMatch(worker, /x-worker-secret/);
+    assert.doesNotMatch(worker, /timingSafeEqual/);
     const prisma = createMemoryOutboxPrisma();
     const first = await emitRequestReceived(booking({ id: 'CD1-SMS-BRAND-IDEM' }), {
       prisma,

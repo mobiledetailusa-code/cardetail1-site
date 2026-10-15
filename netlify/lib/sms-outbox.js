@@ -217,8 +217,34 @@ async function processClaimedSms(row, opts = {}) {
   } catch {
     // Lookup failure must not block a timely send.
   }
-  const { isPhoneSuppressed } = require('./sms-suppression');
-  if (await isPhoneSuppressed(row.toE164)) {
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(row.toE164);
+  if (!suppression.ok) {
+    const now = new Date();
+    const retryable = row.attemptCount < row.maxAttempts;
+    const errorCode = 'suppression_unavailable';
+    const outbox = await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: retryable
+        ? {
+          status: 'accepted',
+          availableAt: new Date(now.getTime() + retryDelayMs(row.attemptCount)),
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastErrorCode: errorCode,
+        }
+        : {
+          status: 'failed',
+          failedAt: now,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastErrorCode: errorCode,
+        },
+    });
+    safeOutboxLog(retryable ? 'retry_scheduled' : 'failed', outbox, { errorCode });
+    return { ok: false, retryable, reason: errorCode, outbox };
+  }
+  if (suppression.suppressed) {
     const suppressed = await prisma.smsOutbox.update({
       where: { id: row.id },
       data: {
@@ -259,9 +285,33 @@ async function processClaimedSms(row, opts = {}) {
     safeOutboxLog(status, outbox);
     return { ok: true, outbox };
   } catch (err) {
+    const { isCarrierOptOutCode, suppressPhone } = require('./sms-suppression');
+    const errorCode = safeProviderErrorCode(err);
+    if (isCarrierOptOutCode(err?.code) || isCarrierOptOutCode(errorCode)) {
+      let recorded = false;
+      try {
+        const suppressed = await suppressPhone(row.toE164);
+        recorded = !!suppressed.ok;
+      } catch {
+        recorded = false;
+      }
+      const now = new Date();
+      const terminalCode = recorded ? 'suppressed' : errorCode;
+      const outbox = await prisma.smsOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: 'failed',
+          failedAt: now,
+          leaseToken: null,
+          leaseExpiresAt: null,
+          lastErrorCode: terminalCode,
+        },
+      });
+      safeOutboxLog('failed', outbox, { errorCode: terminalCode });
+      return { ok: true, skipped: true, reason: 'suppressed', outbox };
+    }
     const retryable = retryableProviderError(err) && row.attemptCount < row.maxAttempts;
     const now = new Date();
-    const errorCode = safeProviderErrorCode(err);
     const outbox = await prisma.smsOutbox.update({
       where: { id: row.id },
       data: retryable
@@ -368,6 +418,10 @@ async function applyStatusCallback({ providerMessageSid, providerStatus, errorCo
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const row = await prisma.smsOutbox.findUnique({ where: { providerMessageSid } });
     if (!row) return { ok: false, error: 'message_not_found', statusCode: 404 };
+    const { isCarrierOptOutCode, suppressPhone } = require('./sms-suppression');
+    if (isCarrierOptOutCode(errorCode)) {
+      try { await suppressPhone(row.toE164); } catch { /* status update still records the failure */ }
+    }
     const currentStatus = row.status;
     const currentTerminal = ['delivered', 'failed'].includes(currentStatus);
     if (currentTerminal || STATUS_RANK[nextStatus] < STATUS_RANK[currentStatus]) {

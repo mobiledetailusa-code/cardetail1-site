@@ -30,8 +30,10 @@ function phoneHash(phone) {
 async function assertCustomerSmsConsent({ customerAccountId, toE164, booking } = {}, opts = {}) {
   const dest = normalizeUsPhoneE164(toE164);
   if (!dest) return { ok: false, reason: 'invalid_sms_recipient' };
-  const { isPhoneSuppressed } = require('./sms-suppression');
-  if (await isPhoneSuppressed(dest)) return { ok: false, reason: 'sms_suppressed' };
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(dest);
+  if (!suppression.ok) return { ok: false, reason: 'suppression_unavailable' };
+  if (suppression.suppressed) return { ok: false, reason: 'sms_suppressed' };
 
   const bookingPhone = normalizeUsPhoneE164(booking?.phone || booking?.customerPhone || '');
   const bookingConsentApplies = bookingSmsConsentGranted(booking) && !!bookingPhone && bookingPhone === dest;
@@ -221,6 +223,10 @@ async function grantBookingSmsConsent({ customerAccountId, toE164, booking } = {
   if (!Number.isFinite(consentAt.getTime())) {
     return { ok: true, granted: false, reason: 'booking_sms_consent_invalid' };
   }
+  const { readPhoneSuppression } = require('./sms-suppression');
+  const suppression = await readPhoneSuppression(toE164);
+  if (!suppression.ok) return { ok: false, error: 'suppression_unavailable' };
+  if (suppression.suppressed) return { ok: true, granted: false, reason: 'sms_suppressed' };
   try {
     return await prisma.$transaction(async (tx) => {
       const account = await tx.customerAccount.findUnique({

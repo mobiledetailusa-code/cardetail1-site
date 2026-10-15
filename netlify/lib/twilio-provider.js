@@ -24,6 +24,13 @@ function createTwilioProvider(env = process.env, opts = {}) {
   return {
     ok: true,
     async send({ to, body }) {
+      const { readPhoneSuppression } = require('./sms-suppression');
+      const suppression = await readPhoneSuppression(to);
+      if (!suppression.ok || suppression.suppressed) {
+        const error = new Error(suppression.ok ? 'sms_suppressed' : 'suppression_unavailable');
+        error.code = error.message;
+        throw error;
+      }
       const message = await client.messages.create({
         to,
         body,
