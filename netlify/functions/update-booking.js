@@ -220,12 +220,15 @@ async function sendConfirmationEmail(b) {
 }
 
 const { verifyAdminKey } = require('../lib/tech-security');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST')    return json(405, { ok: false, error: 'method_not_allowed' });
+  const previewRefusal = refuseSharedWrite('reschedule', CORS);
+  if (previewRefusal) return previewRefusal;
 
   const auth = await verifyAdminKey(event.headers || {});
   if (!auth.ok) {

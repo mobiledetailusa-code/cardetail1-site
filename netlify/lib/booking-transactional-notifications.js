@@ -1086,6 +1086,17 @@ async function resolveCustomerAccountForBooking(booking, opts = {}) {
 async function emitBookingNotification(booking, eventType, opts = {}) {
   const correlationId = `ntf_${crypto.randomBytes(6).toString('hex')}`;
   try {
+    const { sharedPreviewContext } = require('./preview-write-guard');
+    if (sharedPreviewContext()) {
+      return {
+        ok: false,
+        skipped: true,
+        error: 'preview_writes_disabled',
+        sent: false,
+        correlationId,
+        booking,
+      };
+    }
     if (!booking || !(booking.id || booking.bookingId)) {
       return { ok: false, error: 'booking_required', correlationId };
     }

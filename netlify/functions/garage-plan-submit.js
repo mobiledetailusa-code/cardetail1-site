@@ -1,6 +1,7 @@
 // POST /.netlify/functions/garage-plan-submit — Garage Plan lead capture (no card data).
 
 const publicRateLimit = require('../lib/public-rate-limit');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const {
   createLead,
   createHousehold,
@@ -174,6 +175,8 @@ async function persistGaragePlanLead(validated) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: cors, body: '' };
+  const previewRefusal = refuseSharedWrite('garage-plan', cors);
+  if (previewRefusal) return previewRefusal;
   if (event.httpMethod !== 'POST') {
     return json(405, { ok: false, error: 'method_not_allowed' });
   }

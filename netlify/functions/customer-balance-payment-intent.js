@@ -7,6 +7,7 @@
 const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-customer-auth');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const {
   postgresPaymentEnabled,
   prepareEmbeddedPayment,
@@ -25,6 +26,8 @@ const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const previewRefusal = refuseSharedWrite('payment-intent', CORS);
+  if (previewRefusal) return previewRefusal;
 
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'customer-balance-payment-intent',

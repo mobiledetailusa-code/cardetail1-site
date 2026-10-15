@@ -3,6 +3,7 @@
 'use strict';
 
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const { trustedSiteOrigin, buildTrustedAbsoluteUrl } = require('../lib/trusted-site-origin');
 const {
   normalizeEmail,
@@ -103,6 +104,8 @@ async function sendCustomerOfferEmail(record) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const previewRefusal = refuseSharedWrite('welcome-lead', cors);
+  if (previewRefusal) return previewRefusal;
 
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'welcome-lead-capture',

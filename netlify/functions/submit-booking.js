@@ -1147,18 +1147,21 @@ function requestHostname(event) {
  */
 function refuseSharedPreviewBooking(event) {
   const { deployContext } = require('../lib/trusted-site-origin');
+  const { PREVIEW_MESSAGE } = require('../lib/preview-write-guard');
   const ctx = deployContext();
-  const previewHost = /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(requestHostname(event));
-  // A preview hostname always shares the site store, even if a test injected one.
-  // CONTEXT=deploy-preview is also how unit tests label memory-store runs; those
-  // pass a store override and are not the live site store.
-  const sharedSiteStore = ctx === 'deploy-preview' && !blobsStoreOverride;
+  const host = requestHostname(event);
+  // Hostname is an extra fail-closed signal. It cannot authorize a write.
+  const previewHost = /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(host)
+    || /^[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/.test(host);
+  // deploy-preview and branch-deploy use the site-wide store unless a test
+  // or an explicitly isolated environment installed a store override.
+  const sharedSiteStore = (ctx === 'deploy-preview' || ctx === 'branch-deploy') && !blobsStoreOverride;
   if (!previewHost && !sharedSiteStore) return null;
   return json(403, {
     ok: false,
     bookingCreated: false,
     error: 'preview_booking_disabled',
-    userMessage: 'This preview cannot create bookings because it uses the same storage as the live site.',
+    userMessage: PREVIEW_MESSAGE,
   });
 }
 

@@ -57,8 +57,19 @@
     }
   }
 
+  function sharedPreviewHost() {
+    try {
+      var host = String((global.location && global.location.hostname) || '').toLowerCase();
+      return /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(host)
+        || /^[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/.test(host);
+    } catch (ePreview) {
+      return false;
+    }
+  }
+
   function emit(name, props) {
     try {
+      if (sharedPreviewHost()) return;
       if (global.Cardetail1Checkout && global.Cardetail1Checkout._silent) return;
       var payload = baseProps(props || {});
       payload.checkout_event = name;

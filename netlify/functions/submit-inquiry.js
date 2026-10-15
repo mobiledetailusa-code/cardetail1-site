@@ -8,6 +8,7 @@
 
 const crypto = require('crypto');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 // Loaded lazily at the call site: the SMS outbox pulls Prisma and the Twilio
 // dependency graph, and a cold-start failure there returns a non-JSON 500 that
 // the checkout cannot parse. Notifications must never gate the booking itself.
@@ -88,6 +89,8 @@ async function sendSms(q) {
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const previewRefusal = refuseSharedWrite('inquiry');
+  if (previewRefusal) return previewRefusal;
 
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'submit-inquiry',

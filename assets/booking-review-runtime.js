@@ -57,7 +57,7 @@
   });
 
   var PREFERENCE_VALUES = Object.keys(REQUEST_PREFERENCES);
-  var PREVIEW_BOOKING_MSG = 'Preview only — booking submission is disabled.';
+  var PREVIEW_BOOKING_MSG = 'This is a preview. Nothing will be booked, charged, or sent.';
   var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
   var RETRYABLE_FINALIZE_CODES = {
     booking_verification_unavailable: true,
@@ -378,8 +378,9 @@
     win = win || root;
     try {
       if (win.IS_DEPLOY_PREVIEW) return true;
-      var host = (win.location && win.location.hostname) || '';
-      return /^deploy-preview-\d+--/.test(host);
+      var host = String((win.location && win.location.hostname) || '').toLowerCase();
+      return /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(host)
+        || /^[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/.test(host);
     } catch (ePreview) {
       return false;
     }

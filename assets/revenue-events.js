@@ -695,8 +695,21 @@
     });
   }
 
+  function isSharedPreviewHost() {
+    try {
+      var loc = global.location || {};
+      var host = loc.hostname ? String(loc.hostname) : '';
+      host = host.toLowerCase();
+      return /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(host)
+        || /^[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/.test(host);
+    } catch (ePreview) {
+      return false;
+    }
+  }
+
   function track(eventName, properties) {
     try {
+      if (isSharedPreviewHost()) return null;
       eventName = String(eventName || '').trim().slice(0, 128);
       if (!eventName) return null;
       var eventId = (properties && properties.event_id) || uuid();

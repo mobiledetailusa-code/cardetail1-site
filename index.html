@@ -3627,7 +3627,21 @@ try {
 } catch(_) {}
 const isLocalPreview = /^(127\.0\.0\.1|localhost|\[::1\])$/i.test(window.location.hostname);
 const STRIPE_PUBLISHABLE_KEY_LOCAL_TEST = 'pk_test_51TgF1pLbeoH0J6blFE2w7uTu2VIg4Av3JcbmC9I2hOzEWqoP4xVbb7s5P84xaSDFrFeEotfd1gRKiREfzQ8NBR8m00HNbIZZ9L';
-const IS_DEPLOY_PREVIEW = /^deploy-preview-\d+--/.test(location.hostname);
+const IS_DEPLOY_PREVIEW = /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/i.test(location.hostname)
+  || /^[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/i.test(location.hostname);
+if (IS_DEPLOY_PREVIEW) {
+  const showPreviewSiteBanner = () => {
+    if (document.getElementById('cd1-preview-site-banner')) return;
+    const banner = document.createElement('p');
+    banner.id = 'cd1-preview-site-banner';
+    banner.setAttribute('role', 'status');
+    banner.textContent = 'This is a preview. Nothing will be booked, charged, or sent.';
+    banner.style.cssText = 'margin:0;padding:10px 16px;background:#1a2744;color:#fff;font:600 14px/1.4 DM Sans,sans-serif;text-align:center;';
+    (document.body || document.documentElement).prepend(banner);
+  };
+  if (document.body) showPreviewSiteBanner();
+  else document.addEventListener('DOMContentLoaded', showPreviewSiteBanner);
+}
 const LOCAL_DEV_FUNCTIONS_HINT = 'Secure card saving needs Netlify Functions (not a plain static file server). In the project folder run: npx netlify dev — then open http://localhost:8888. Add a .env file with STRIPE_SECRET_KEY=sk_test_... and STRIPE_PUBLISHABLE_KEY=pk_test_... from the same Stripe test account.';
 let STRIPE_READY = false;
 let stripeConfigLoaded = null;
@@ -7399,7 +7413,7 @@ async function requestSetupIntentWithVersionSync(bookingId,draftSaveToken,bookin
 }
 
 function showPreviewBookingDisabled(){
-  const msg='Preview only — booking submission is disabled.';
+  const msg='This is a preview. Nothing will be booked, charged, or sent.';
   const banner=document.getElementById('bk-preview-banner');
   if(banner){ banner.hidden=false; banner.textContent=msg; }
   const err=document.getElementById('pay-err');
@@ -7487,7 +7501,7 @@ async function initCardOnFile(){
           rate_limited:'Too many attempts. Please wait a few minutes and try again.',
           invalid_phone:'Please enter a valid phone number (at least 7 digits).',
           missing_draft_token_secret:'Booking is temporarily unavailable. Please try again in a moment.',
-          preview_booking_disabled:'Preview only — booking submission is disabled.',
+          preview_booking_disabled:'This is a preview. Nothing will be booked, charged, or sent.',
           'Draft booking not found':'Your booking session expired. Go back one step and try again.',
           'Missing customer name or phone':'Please complete your contact details before saving your card.',
           'Failed to pre-register booking':'Could not register booking. Please try again in a moment.',

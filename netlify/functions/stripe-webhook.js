@@ -669,6 +669,9 @@ async function notifyAdmin(subject, text) {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' };
+  const { refuseSharedWrite } = require('../lib/preview-write-guard');
+  const previewRefusal = refuseSharedWrite('stripe-webhook');
+  if (previewRefusal) return previewRefusal;
 
   const raw = event.isBase64Encoded
     ? Buffer.from(event.body || '', 'base64').toString('utf8')
