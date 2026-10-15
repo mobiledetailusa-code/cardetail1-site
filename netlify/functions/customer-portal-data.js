@@ -161,9 +161,11 @@ function contactMatchesSession(booking, session) {
 }
 
 /**
- * Bookings this session could own, without hydrating the whole store:
- * verified-contact matches (phone / session email hash) unioned with the ids
- * the session and its CustomerAccount already reference. Deduplicated by id.
+ * Bookings this session could own: verified-contact matches (phone / session
+ * email hash) unioned with the ids the session and its CustomerAccount already
+ * reference. A non-empty Postgres mirror is capped, so My Garage asks the
+ * lookup to finish from Blobs before the list is treated as complete.
+ * Deduplicated by id.
  */
 async function buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds) {
   const { listBookingsForIdentity } = require('../lib/booking-history');
@@ -178,7 +180,7 @@ async function buildCandidateBookings(session, sessionBookingIds, linkedAccountB
   const contact = await listBookingsForIdentity({
     phone: session.phoneDigits,
     emailHash: session.emailHash,
-  }).catch(() => ({ bookings: [], complete: false }));
+  }, { completeWithBlobs: true }).catch(() => ({ bookings: [], complete: false }));
   for (const booking of contact.bookings || []) add(booking);
 
   const ids = [...new Set([...sessionBookingIds, ...linkedAccountBookingIds])]
@@ -459,7 +461,7 @@ async function handlePortalData(event, body) {
   // below is unchanged, so a narrower candidate set can never widen access.
   const candidates = await buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds);
   const all = candidates.bookings || [];
-  // A non-empty identity mirror is a short list, not proof the history is complete.
+  // A capped mirror whose blob union failed is a short list, not the full history.
   if (candidates.contactComplete === false) ownershipComplete = false;
 
   // Candidate ids from Blob account link / session / phone before ownership filter.

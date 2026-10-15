@@ -215,14 +215,37 @@ async function mirrorHistory({ phone, email, emailHash }) {
 }
 
 /**
+ * Blobs stay authoritative. A capped mirror row is kept only when the same id
+ * is not already in the store, so a partial Postgres result cannot hide a
+ * submitted booking or duplicate one that exists in both places.
+ */
+async function unionMirrorWithBlobs(mirrorBookings) {
+  const { listRawBookingsStrict } = require('./ops-db');
+  const blobs = await listRawBookingsStrict();
+  const byId = new Map();
+  const add = (booking) => {
+    const id = String((booking && (booking.id || booking.bookingId)) || '').trim();
+    if (!id || byId.has(id)) return;
+    byId.set(id, booking);
+  };
+  for (const booking of blobs) add(booking);
+  for (const booking of mirrorBookings) add(booking);
+  return { bookings: [...byId.values()], source: 'mirror+blobs', complete: true };
+}
+
+/**
  * Bookings that could disqualify this booking from a first-time offer.
  *
  * Never throws: an unavailable mirror degrades to the Blobs scan, and an
  * unavailable store degrades to an empty list exactly as before.
  *
- * @returns {Promise<{ bookings: object[], source: 'mirror'|'blobs'|'no_identity' }>}
+ * `completeWithBlobs` is the My Garage path. A non-empty mirror is capped, so
+ * that path unions the blob store before treating the list as complete. A
+ * failed blob read keeps the mirror rows and `complete: false`.
+ *
+ * @returns {Promise<{ bookings: object[], source: 'mirror'|'mirror+blobs'|'blobs'|'no_identity', complete: boolean }>}
  */
-async function listBookingsForIdentity(rawIdentity) {
+async function listBookingsForIdentity(rawIdentity, options = {}) {
   const identity = normalizeIdentity(rawIdentity);
   // Every caller matches on one of these anyway, so with none of them there is
   // nothing a full scan could legitimately surface.
@@ -238,6 +261,17 @@ async function listBookingsForIdentity(rawIdentity) {
       // without a full scan, and marked incomplete so callers do not treat it
       // as the customer's entire history.
       if (Array.isArray(rows) && rows.length > 0) {
+        if (options.completeWithBlobs) {
+          try {
+            return await unionMirrorWithBlobs(rows);
+          } catch (err) {
+            console.warn(
+              '[booking-history] mirror_blob_union_failed',
+              err && err.message ? err.message : err
+            );
+            return { bookings: rows, source: 'mirror', complete: false };
+          }
+        }
         return { bookings: rows, source: 'mirror', complete: false };
       }
     } catch (err) {

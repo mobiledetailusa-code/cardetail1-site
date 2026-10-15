@@ -255,10 +255,7 @@ async function patchBooking(bookingId, patches, eventEntry) {
   return committed.booking;
 }
 
-async function listRawBookings() {
-  const store = await bookingStore();
-  const blobs = await listAllBlobs(store, 'cd1-bookings');
-  const records = await fetchBlobRecords(store, blobs);
+function shapeSubmittedBookings(records) {
   const out = [];
   for (const raw of records) {
     if (!raw) continue;
@@ -274,6 +271,72 @@ async function listRawBookings() {
     return String(a.id || '').localeCompare(String(b.id || ''));
   });
   return out;
+}
+
+async function listRawBookings() {
+  const store = await bookingStore();
+  const blobs = await listAllBlobs(store, 'cd1-bookings');
+  const records = await fetchBlobRecords(store, blobs);
+  return shapeSubmittedBookings(records);
+}
+
+/**
+ * Same submitted-booking list as listRawBookings, but a failed list or read
+ * throws. listAllBlobs swallows those failures into an empty list, which a
+ * caller must not treat as proof the store has no more bookings.
+ */
+async function listBlobKeysStrict(store) {
+  if (!store || typeof store.list !== 'function') {
+    throw new Error('booking_store_unavailable');
+  }
+  let paged = null;
+  try {
+    paged = store.list({ paginate: true });
+  } catch {
+    paged = null;
+  }
+  if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
+    const blobs = [];
+    for await (const page of paged) blobs.push(...((page && page.blobs) || []));
+    return blobs;
+  }
+  if (paged && typeof paged.then === 'function') {
+    await paged.catch(() => null);
+  }
+  const listing = await store.list();
+  if (!listing || !Array.isArray(listing.blobs)) {
+    throw new Error('booking_store_unavailable');
+  }
+  return listing.blobs;
+}
+
+async function fetchBlobRecordsStrict(store, blobs) {
+  const records = [];
+  for (const blob of blobs) {
+    const key = blob && blob.key;
+    if (!key) continue;
+    let raw = null;
+    if (typeof store.getWithMetadata === 'function') {
+      const result = await store.getWithMetadata(key, {
+        type: 'json',
+        consistency: 'strong',
+      });
+      raw = result && result.data ? result.data : null;
+    } else if (typeof store.get === 'function') {
+      raw = await store.get(key, { type: 'json' });
+    } else {
+      throw new Error('booking_store_unavailable');
+    }
+    if (raw) records.push(raw);
+  }
+  return records;
+}
+
+async function listRawBookingsStrict() {
+  const store = await bookingStore();
+  const blobs = await listBlobKeysStrict(store);
+  const records = await fetchBlobRecordsStrict(store, blobs);
+  return shapeSubmittedBookings(records);
 }
 
 /**
@@ -311,6 +374,7 @@ module.exports = {
   BOOKING_LOOKUP_CONCURRENCY,
   patchBooking,
   listRawBookings,
+  listRawBookingsStrict,
   listBookingsForSlotLock,
   normalizeBookingKey,
   normalizePhone,
