@@ -2652,7 +2652,11 @@ async function handleAdminAction(body, testOpts = {}) {
       now,
     });
     if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      return jsonCors(persisted.statusCode || 409, {
+        ok: false,
+        error: persisted.error || 'version_conflict',
+        ...(persisted.message ? { message: persisted.message } : {}),
+      });
     }
     await appendAudit(auditEntry({
       bookingId,
@@ -2828,7 +2832,11 @@ async function handleAdminAction(body, testOpts = {}) {
         now,
       });
       if (!persisted.ok) {
-        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+        return jsonCors(persisted.statusCode || 409, {
+          ok: false,
+          error: persisted.error || 'version_conflict',
+          ...(persisted.message ? { message: persisted.message } : {}),
+        });
       }
       await appendAudit(auditEntry({
         bookingId,
