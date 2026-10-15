@@ -1184,6 +1184,11 @@ exports.handler = async (event) => {
   try { b = JSON.parse(event.body || '{}'); }
   catch { return json(400, { ok: false, error: 'Invalid JSON' }); }
 
+  const windowTintBlock = require('../lib/window-tint-guard').windowTintBlock(b);
+  if (windowTintBlock) return json(403, windowTintBlock);
+  const residentialWindowFilmBlock = require('../lib/residential-window-film-guard').residentialWindowFilmBlock(b);
+  if (residentialWindowFilmBlock) return json(403, residentialWindowFilmBlock);
+
   const rateLimit = await enforcePublicRateLimit(event, {
     endpoint: 'submit-booking',
     action: identifySubmitBookingAction(b),

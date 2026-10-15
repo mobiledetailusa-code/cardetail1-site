@@ -3596,7 +3596,11 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
   </div>
 </div>
 
-<script src="https://js.stripe.com/v3/"></script>
+<script>
+if (!/[?&](?:wtpreview|rwfpreview)=1(?:&|$)/.test(location.search)) {
+  document.write('<' + 'script src="https://js.stripe.com/v3/"></' + 'script>');
+}
+</script>
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="assets/car-pkg-detail-modal.js"></script>
 <script src="assets/icon-3d.js"></script>
@@ -9889,6 +9893,11 @@ body.cd1-booking-embed #cd-chat{display:none!important}
   </div>
 </div>
 
+<!-- Film previews are inert unless their own query flag is set. They are not public nav items. -->
+<script src="assets/window-tinting-demo-catalog.js"></script>
+<script src="assets/window-tinting-booking-preview.js"></script>
+<script src="assets/residential-window-film-catalog.js"></script>
+<script src="assets/residential-window-film-booking-preview.js"></script>
 <script src="assets/customer-segments.js"></script>
 <script src="assets/universal-customer-strategy.generated.js"></script>
 <script src="assets/booking-progress.js"></script>
