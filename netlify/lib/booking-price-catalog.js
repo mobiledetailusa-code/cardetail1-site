@@ -431,6 +431,58 @@ function inferPkgId(vehicle, booking) {
   return null;
 }
 
+function powersportsRecordFromVehicle(vehicle) {
+  if (!vehicle || typeof vehicle !== 'object') return null;
+  const make = String(vehicle.make || vehicle.vehicleMake || '').trim();
+  const model = String(vehicle.model || vehicle.vehicleModel || '').trim();
+  if (make && model) return PowersportsCatalog.resolve(make, model);
+  // A partial make or model is not a catalog identity. Do not guess the other half.
+  if (make || model) return null;
+  const label = String(vehicle.vehicleLabel || vehicle.label || vehicle.vehicle || '')
+    .trim()
+    .replace(/^(19|20)\d{2}\b\s*/, '')
+    .split('·')[0]
+    .trim();
+  if (!label) return null;
+  const makes = [...new Set(PowersportsCatalog.records.map((record) => record.make))]
+    .sort((a, b) => b.length - a.length);
+  const lower = label.toLowerCase();
+  for (const candidate of makes) {
+    const prefix = candidate.toLowerCase();
+    if (!lower.startsWith(prefix)) continue;
+    const boundary = label[candidate.length];
+    if (boundary && /[A-Za-z0-9]/.test(boundary)) continue;
+    const rest = label.slice(candidate.length).trim();
+    if (!rest) continue;
+    const record = PowersportsCatalog.resolve(candidate, rest);
+    if (record) return record;
+  }
+  return null;
+}
+
+/**
+ * A catalog identity prices only on its own route. Unknown names are left to
+ * the explicit tier or length the request already carried — this does not
+ * assign a class, and it does not rewrite a price.
+ */
+function assertKnownNonCarIdentity(vehicle, cat, tierKey, boatKind) {
+  const record = powersportsRecordFromVehicle(vehicle);
+  if (!record) return { ok: true };
+  if (record.publicStatus === 'bookable' && record.serviceClass) {
+    if (cat === 'powersports' && tierKey === record.serviceClass) return { ok: true };
+    return { ok: false, error: 'tier_mismatch' };
+  }
+  if (record.physicalFamily === 'pwc') {
+    if (cat === 'boats' && boatKind === 'jetski') return { ok: true };
+    return { ok: false, error: 'tier_mismatch' };
+  }
+  if (record.physicalFamily === 'boat') {
+    if (cat === 'boats' && boatKind !== 'jetski') return { ok: true };
+    return { ok: false, error: 'tier_mismatch' };
+  }
+  return { ok: false, error: 'vehicle_unresolved' };
+}
+
 function resolveTierKey(vehicle) {
   const cat = vehicle.cat || vehicle.category;
   if (cat === 'boats' || cat === 'rvs') return 'length';
@@ -534,6 +586,9 @@ function computeVehicleBasePrice(vehicle, zip, booking, opts) {
 
   const tiers = PRICING[cat].tiers;
   const tierKey = resolveTierKey({ ...vehicle, cat });
+  const boatKind = String(vehicle.boatType || vehicle.tierKey || vehicle.tier || '').trim().toLowerCase();
+  const knownIdentity = assertKnownNonCarIdentity(vehicle, cat, tierKey, boatKind);
+  if (!knownIdentity.ok) return knownIdentity;
 
   if (cat === 'cars') {
     // Unknown keys stay invalid_pricing. A stale unknown key still falls through
@@ -559,7 +614,7 @@ function computeVehicleBasePrice(vehicle, zip, booking, opts) {
 
   // Jet Ski / PWC is stored as a boat type, but it is not hull-length pricing.
   // A missing length must not fall through to the 22 ft Marine Wash default.
-  const boatKind = String(vehicle.boatType || vehicle.tierKey || vehicle.tier || '').trim().toLowerCase();
+  // A known non-PWC claimed as a Jet Ski is rejected above, before this price.
   if (cat === 'boats' && boatKind === 'jetski') {
     const pkgMap = { maint: 'wash', essential: 'essential', full: 'full', premium: 'premium' };
     const priceKey = pkgMap[pkgId];
