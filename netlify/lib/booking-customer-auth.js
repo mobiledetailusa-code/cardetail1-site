@@ -10,6 +10,20 @@ const AUTH_FAIL = Object.freeze({
   message: 'Phone does not match this booking. Use the same mobile number from checkout, or call/text (551) 389-3986.',
 });
 
+const LIMITED_LOOKUP_MISS = Object.freeze({
+  ok: false,
+  found: false,
+  error: 'authentication_failed',
+  message: 'No booking found. Please check your booking ID and phone number.',
+});
+
+function publicLimitedLookupMiss(reason) {
+  console.info('[limited-lookup] miss', {
+    reason: String(reason || 'unknown').slice(0, 48),
+  });
+  return { statusCode: 200, body: { ...LIMITED_LOOKUP_MISS } };
+}
+
 const NOT_FOUND = Object.freeze({
   ok: false,
   error: 'booking_not_found',
@@ -92,6 +106,8 @@ module.exports = {
   normalizeBookingId,
   authorizeBookingAccess,
   sessionBookingAllowed,
+  publicLimitedLookupMiss,
+  LIMITED_LOOKUP_MISS,
   AUTH_FAIL,
   NOT_FOUND,
 };

@@ -4,7 +4,7 @@
 const crypto = require('crypto');
 const { jsonCors } = require('../lib/tech-security');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
-const { authorizeBookingAccess } = require('../lib/booking-customer-auth');
+const { authorizeBookingAccess, normalizeBookingId, publicLimitedLookupMiss } = require('../lib/booking-customer-auth');
 const { validateCustomerSession } = require('../lib/customer-session');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const { listVisibleRequestsForBooking } = require('../lib/customer-change-requests');
@@ -27,7 +27,7 @@ const {
   assertSafeCustomerProjection,
 } = require('../lib/customer-identity-projection');
 const { tryGetPrisma } = require('../lib/prisma');
-const { normalizeBookingId } = require('../lib/booking-customer-auth');
+const { getBooking } = require('../lib/ops-db');
 const { postServiceState } = require('../lib/post-service-experience');
 const { adjustmentStatement } = require('../lib/price-adjustments');
 const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
@@ -343,6 +343,10 @@ async function handlePortalData(event, body) {
   const catalog = portalCatalogForClient();
 
   if (mode === 'limited') {
+    // The browser cannot choose an account. Session identity, when present,
+    // stays the only account binding.
+    delete body.customerAccountId;
+    delete body.browserCustomerAccountId;
     const auth = await authorizeBookingAccess(event, {
       bookingId: body.bookingId,
       phone: body.phone || body.customerPhone,
@@ -352,11 +356,16 @@ async function handlePortalData(event, body) {
       // authorized refreshes use a separate, subject-scoped read bucket below.
       const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
       if (rateLimit.blocked) return rateLimit.response;
-      return jsonCors(auth.statusCode || 200, {
-        ok: false,
-        error: auth.error || 'authentication_failed',
-        message: auth.message,
-      });
+      // Invalid ids never reach the store inside auth. Touch the same read
+      // path as a real miss so the public response is not a cheap early exit.
+      if (auth.error === 'validation_error') {
+        try { await getBooking('CD1-LOOKUP-PAD'); } catch { /* response stays the uniform miss */ }
+      }
+      const reason = auth.statusCode === 403
+        ? 'unlinked_account'
+        : (auth.error || 'lookup_miss');
+      const miss = publicLimitedLookupMiss(reason);
+      return jsonCors(miss.statusCode, miss.body);
     }
     const syncLimit = await enforcePortalSyncLimit(
       event,
