@@ -50,7 +50,7 @@ const DEFAULT_LIMITS = {
   'public-reviews': { max: 240, windowMs: DEFAULT_WINDOW_MS },
   'review-invite': { max: 40, windowMs: DEFAULT_WINDOW_MS },
   'welcome-lead-capture': { max: 8, windowMs: DEFAULT_WINDOW_MS },
-  // Authenticated outbox drain. The schedule runs every two minutes.
+  // Outbox drain throttle. The schedule runs every two minutes. This limit is not authentication.
   'twilio-outbox-worker:run': { max: 30, windowMs: DEFAULT_WINDOW_MS },
 };
 
