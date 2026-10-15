@@ -23,6 +23,15 @@
 // Logging: bookingId + changed field NAMES only. Never logs values or secrets.
 //
 // Blocked fields (returns 400): payment, PII, price, tech assignment, flags.
+// Schedule / occupancy fields (returns 409 authoritative_reschedule_required):
+//   preferredDate, confirmedDate, preferredTime, confirmedTime,
+//   confirmedTimeWindow, appointmentSchedule, appointmentDurationMinutes,
+//   companionInterior, slotReleasePending.
+//   Date and time changes go through admin-ops-jobs action reschedule or
+//   apply_customer_request (applyAuthoritativeReschedule). This function does
+//   not apply them, does not ignore them, and does not write any other field
+//   in the same request. admin-ops.html does not call this endpoint to move
+//   an appointment.
 // Unknown fields: returns 400.
 
 const crypto = require('crypto');
@@ -36,7 +45,10 @@ const CORS = {
 };
 const json = (statusCode, body) => ({ statusCode, headers: CORS, body: JSON.stringify(body) });
 
+let bookingStoreOverride = null;
+
 async function blobsStore(name) {
+  if (bookingStoreOverride && name === 'cd1-bookings') return bookingStoreOverride;
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token  = process.env.NETLIFY_AUTH_TOKEN;
@@ -63,11 +75,8 @@ const ALLOWED_LEGACY_STATUS = new Set([
 // ── Field allowlist (admin may write these fields only) ──────────────────────
 
 const ALLOWED_FIELDS = new Set([
-  // Appointment / job lifecycle
+  // Appointment / job lifecycle. Date and time are not in this set.
   'status', 'appointmentStatus', 'jobStatus',
-  // Scheduling
-  'confirmedDate', 'confirmedTime', 'confirmedTimeWindow',
-  'preferredDate', 'preferredTime',
   // Admin workflow
   'adminReviewed', 'adminReviewedAt',
   'adminContacted', 'adminContactedAt',
@@ -111,9 +120,18 @@ const CANCEL_REQ_STATUS = new Set(['requested', 'reviewed', 'resolved_approved',
 // Boolean fields — must be actual booleans, not strings.
 const BOOL_FIELDS = new Set(['adminReviewed', 'adminContacted', 'hasProblem']);
 
-// Date and time fields — must be strings.
-const DATE_FIELDS = new Set(['confirmedDate', 'preferredDate']);
-const TIME_FIELDS = new Set(['confirmedTime', 'preferredTime', 'confirmedTimeWindow']);
+// Occupancy fields. Sending any of them rejects the whole request.
+const SCHEDULE_OCCUPANCY_FIELDS = new Set([
+  'preferredDate',
+  'confirmedDate',
+  'preferredTime',
+  'confirmedTime',
+  'confirmedTimeWindow',
+  'appointmentSchedule',
+  'appointmentDurationMinutes',
+  'companionInterior',
+  'slotReleasePending',
+]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -235,6 +253,16 @@ exports.handler = async (event) => {
     return json(400, { ok: false, error: 'updates_empty' });
   }
 
+  const scheduleFields = Object.keys(rawUpdates).filter((key) => SCHEDULE_OCCUPANCY_FIELDS.has(key));
+  if (scheduleFields.length) {
+    return json(409, {
+      ok: false,
+      error: 'authoritative_reschedule_required',
+      fields: scheduleFields,
+      message: 'Date and time changes must use the scheduling authority.',
+    });
+  }
+
   // ── Per-field validation ──────────────────────────────────────────────────
   const validated = {};
   for (const [key, value] of Object.entries(rawUpdates)) {
@@ -266,11 +294,6 @@ exports.handler = async (event) => {
     // Boolean validation
     if (BOOL_FIELDS.has(key) && typeof value !== 'boolean') {
       return json(400, { ok: false, error: 'field_must_be_boolean', field: key });
-    }
-
-    // Date/time must be strings
-    if ((DATE_FIELDS.has(key) || TIME_FIELDS.has(key)) && typeof value !== 'string') {
-      return json(400, { ok: false, error: 'field_must_be_string', field: key });
     }
 
     // Note sanitization
@@ -376,4 +399,8 @@ exports.handler = async (event) => {
     console.error('[update-booking] error', bookingId, e.message);
     return json(500, { ok: false, error: 'update_failed' });
   }
+};
+
+exports.setBookingStoreOverride = (store) => {
+  bookingStoreOverride = store || null;
 };

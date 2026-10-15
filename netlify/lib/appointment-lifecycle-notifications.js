@@ -164,12 +164,12 @@ async function persistLifecycleNotify(store, bookingId, notified, delivery = nul
   for (let attempt = 0; attempt < MAX_NOTIFY_CAS_ATTEMPTS; attempt += 1) {
     try {
       const current = await getBookingRecord(bookingId, { storeOverride: store });
-      if (!current.exists || !current.booking) return notified;
-      const latest = current.booking;
+      if (!current.exists || !(current.raw || current.booking)) return notified;
+      const latest = current.raw || current.booking;
       const merged = mergeLifecycleNotifyFields(latest, notified, delivery);
       const committed = await commitBooking({
         bookingId,
-        expectedBookingVersion: latest.bookingVersion,
+        expectedBookingVersion: Math.round(Number(latest.bookingVersion) || 0),
         nextAggregate: merged,
         storeOverride: store,
       });

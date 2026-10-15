@@ -28,6 +28,12 @@ function writeWasApplied(result) {
   return result.modified !== false;
 }
 
+/** Stored JSON, detached from the read projection that adapts it. */
+function cloneStoredRecord(value) {
+  if (!value || typeof value !== 'object') return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
 async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
   const store = storeOverride || await getStore();
   const id = String(bookingId || '').trim();
@@ -38,14 +44,15 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
     result = await store.getWithMetadata(id, { type: 'json', consistency: STRONG_CONSISTENCY }).catch(() => null);
   }
   if (result && result.data) {
-    const adapted = adaptHistoricalBooking(result.data);
-    const booking = adapted.ok ? adapted.booking : result.data;
+    const raw = cloneStoredRecord(result.data);
+    const adapted = adaptHistoricalBooking(raw);
+    const booking = adapted.ok ? adapted.booking : raw;
     const norm = normalizeAggregate(booking, { allowDraft: true });
     return {
       exists: true,
       booking: norm.ok ? norm.aggregate : booking,
       etag: result.etag || null,
-      raw: result.data,
+      raw: cloneStoredRecord(result.data),
       quarantined: adapted.quarantined,
     };
   }
@@ -53,15 +60,16 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
   // Fallback stores (tests / older adapters) without getWithMetadata
   const data = await store.get(id, { type: 'json' }).catch(() => null);
   if (!data) return { exists: false, booking: null, etag: null, raw: null };
-  const adapted = adaptHistoricalBooking(data);
-  const booking = adapted.ok ? adapted.booking : data;
+  const raw = cloneStoredRecord(data);
+  const adapted = adaptHistoricalBooking(raw);
+  const booking = adapted.ok ? adapted.booking : raw;
   const norm = normalizeAggregate(booking, { allowDraft: true });
   const etag = data.__etag || data._etag || `v${Number(data.bookingVersion) || 0}:${data.updatedAt || ''}`;
   return {
     exists: true,
     booking: norm.ok ? norm.aggregate : booking,
     etag,
-    raw: data,
+    raw: cloneStoredRecord(data),
     quarantined: adapted.quarantined,
   };
 }

@@ -35,7 +35,6 @@ const {
 } = require('../lib/payment-service');
 const { dollarsToCents, centsToDollars } = require('../lib/historical-adapter');
 const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
-const { buildRescheduleEventId } = require('../lib/appointment-lifecycle-state');
 const {
   createAdminAppointment,
   updateCustomerContact,
@@ -2643,34 +2642,32 @@ async function handleAdminAction(body, testOpts = {}) {
     const confirmedTime = sanitizeText(body.confirmedTime || body.time, 32);
     const confirmedTimeWindow = sanitizeText(body.confirmedTimeWindow || body.timeWindow, 64);
     if (!confirmedDate) return jsonCors(400, { ok: false, error: 'date_required' });
-    const previousConfirmedDate = booking.confirmedDate || booking.preferredDate || '';
-    const patched = {
-      ...booking,
-      confirmedDate,
-      preferredDate: confirmedDate,
-      ...(confirmedTime ? { confirmedTime, preferredTime: confirmedTime } : {}),
-      ...(confirmedTimeWindow ? { confirmedTimeWindow } : {}),
-      jobStatus: ['cancelled', 'archived_test', 'completed_paid'].includes(booking.jobStatus) ? booking.jobStatus : 'confirmed',
-      appointmentStatus: 'confirmed',
-      status: 'Rescheduled',
-      rescheduledByAdmin: true,
-      rescheduledByAdminAt: now,
-      rescheduledByClient: false,
-      previousConfirmedDate,
-      rescheduleEventId: buildRescheduleEventId(
-        bookingId,
-        confirmedDate,
-        confirmedTimeWindow || confirmedTime
-      ),
-      updatedAt: now,
-      eventLog: appendEventLog(booking, {
-        action: 'admin_reschedule', by: 'admin', confirmedDate, confirmedTime, confirmedTimeWindow,
-      }),
-    };
-    const persisted = await persistMutation(store, bookingId, patched, booking, 'reschedule', 'Reschedule');
+    const { applyAuthoritativeReschedule } = require('../lib/booking-commands');
+    const persisted = await applyAuthoritativeReschedule({
+      booking,
+      requestedDate: confirmedDate,
+      requestedTime: confirmedTime,
+      timeWindow: confirmedTimeWindow,
+      mode: 'admin',
+      now,
+    });
     if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      return jsonCors(persisted.statusCode || 409, {
+        ok: false,
+        error: persisted.error || 'version_conflict',
+        ...(persisted.message ? { message: persisted.message } : {}),
+      });
     }
+    await appendAudit(auditEntry({
+      bookingId,
+      actorType: 'admin',
+      actorId: 'admin',
+      action: 'reschedule',
+      previousState: booking,
+      resultingState: persisted.booking,
+      reason: 'Reschedule',
+      sourcePortal: 'admin_ops',
+    })).catch(() => null);
     try {
       const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
       await notifyRescheduled(persisted.booking, {
@@ -2683,7 +2680,12 @@ async function handleAdminAction(body, testOpts = {}) {
     } catch (e) {
       console.warn('[admin-ops-jobs] reschedule notify failed:', e.message);
     }
-    return jsonCors(200, { ok: true, bookingId, confirmedDate });
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      confirmedDate,
+      idempotent: !!persisted.idempotent,
+    });
   }
 
   if (action === 'update_address') {
@@ -2815,37 +2817,37 @@ async function handleAdminAction(body, testOpts = {}) {
 
   if (action === 'apply_customer_request') {
     const requestType = sanitizeText(body.requestType, 32);
-    if (requestType === 'reschedule' && booking.rescheduledByClient) {
+    const pendingRelease = Array.isArray(booking.slotReleasePending) && booking.slotReleasePending.length > 0;
+    if (requestType === 'reschedule' && (booking.rescheduledByClient || pendingRelease)) {
       const confirmedDate = sanitizeText(booking.rescheduleRequestedDate || body.confirmedDate, 32);
       const confirmedTime = sanitizeText(booking.rescheduleRequestedTime || body.confirmedTime, 32);
       if (!confirmedDate) return jsonCors(400, { ok: false, error: 'no_reschedule_request' });
-      const previousConfirmedDate = booking.confirmedDate || booking.preferredDate || '';
-      const patched = {
-        ...booking,
-        confirmedDate,
-        preferredDate: confirmedDate,
-        ...(confirmedTime ? { confirmedTime, preferredTime: confirmedTime } : {}),
-        jobStatus: 'confirmed',
-        appointmentStatus: 'confirmed',
-        status: 'Rescheduled',
-        rescheduledByClient: false,
-        rescheduleRequestAppliedAt: now,
-        previousConfirmedDate,
-        rescheduleEventId: buildRescheduleEventId(bookingId, confirmedDate, confirmedTime),
-        updatedAt: now,
-        eventLog: appendEventLog(booking, { action: 'customer_reschedule_applied', by: 'admin' }),
-      };
-      const persisted = await persistMutation(
-        store,
-        bookingId,
-        patched,
+      const { applyAuthoritativeReschedule } = require('../lib/booking-commands');
+      const persisted = await applyAuthoritativeReschedule({
         booking,
-        'customer_reschedule_applied',
-        'admin_apply'
-      );
+        requestedDate: confirmedDate,
+        requestedTime: confirmedTime,
+        timeWindow: '',
+        mode: 'apply',
+        now,
+      });
       if (!persisted.ok) {
-        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+        return jsonCors(persisted.statusCode || 409, {
+          ok: false,
+          error: persisted.error || 'version_conflict',
+          ...(persisted.message ? { message: persisted.message } : {}),
+        });
       }
+      await appendAudit(auditEntry({
+        bookingId,
+        actorType: 'admin',
+        actorId: 'admin',
+        action: 'customer_reschedule_applied',
+        previousState: booking,
+        resultingState: persisted.booking,
+        reason: 'admin_apply',
+        sourcePortal: 'admin_ops',
+      })).catch(() => null);
       try {
         const { notifyRescheduled } = require('../lib/appointment-lifecycle-notifications');
         await notifyRescheduled(persisted.booking, {
@@ -2858,7 +2860,7 @@ async function handleAdminAction(body, testOpts = {}) {
       } catch (e) {
         console.warn('[admin-ops-jobs] apply-reschedule notify failed:', e.message);
       }
-      return jsonCors(200, { ok: true, bookingId });
+      return jsonCors(200, { ok: true, bookingId, idempotent: !!persisted.idempotent });
     }
     if (requestType === 'address' && (booking.addressChangedByClient || booking.requestedAddress)) {
       const address = sanitizeText(booking.requestedAddress || body.address, 300);
