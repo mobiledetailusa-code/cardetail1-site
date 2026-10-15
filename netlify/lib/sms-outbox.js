@@ -183,9 +183,6 @@ function normalizeProviderStatus(value) {
 
 async function processClaimedSms(row, opts = {}) {
   const prisma = prismaClient(opts.prisma);
-  if (row?.lastErrorCode === 'suppressed' || row?.status === 'failed') {
-    return { ok: true, skipped: true, reason: 'suppressed', outbox: row };
-  }
   const rendered = renderSmsTemplate(row.templateKey, row.templateData || {});
   if (!rendered.ok) {
     const failed = await prisma.smsOutbox.update({
