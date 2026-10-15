@@ -216,6 +216,20 @@ function buildRateLimitedResponse(retryAfterSec, { cors = false } = {}) {
   return { statusCode: 429, headers, body: JSON.stringify(body) };
 }
 
+function buildUnavailableResponse({ cors = false } = {}) {
+  const body = { ok: false, error: 'service_unavailable' };
+  const headers = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  };
+  if (cors) {
+    headers['Access-Control-Allow-Origin'] = '*';
+    headers['Access-Control-Allow-Headers'] = 'Content-Type, x-admin-key, x-tech-token';
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+  }
+  return { statusCode: 503, headers, body: JSON.stringify(body) };
+}
+
 function retryJitterMs() {
   return 5 + Math.floor(Math.random() * 20);
 }
@@ -268,7 +282,7 @@ function writeWasApplied(result) {
   return result.modified !== false;
 }
 
-async function incrementCounterAtomically(store, key, { max, windowMs, bucket, now }) {
+async function incrementCounterAtomically(store, key, { max, windowMs, bucket, now, failClosed = false }) {
   for (let attempt = 1; attempt <= MAX_WRITE_RETRIES; attempt += 1) {
     if (attempt > 1) {
       await sleep(retryJitterMs());
@@ -304,6 +318,10 @@ async function incrementCounterAtomically(store, key, { max, windowMs, bucket, n
     }
   }
 
+  if (failClosed) {
+    console.warn('[public-rate-limit] conditional write retries exhausted; denying request (fail-closed)');
+    return { allowed: false, failClosed: true, reason: 'retry_exhausted' };
+  }
   console.warn('[public-rate-limit] conditional write retries exhausted; allowing request (fail-open)');
   return { allowed: true, failOpen: true, reason: 'retry_exhausted' };
 }
@@ -323,6 +341,7 @@ async function checkPublicRateLimit(event, {
   now = Date.now(),
   subject = '',
   ipScoped = true,
+  failClosed = false,
 } = {}) {
   if (isOptionsRequest(event)) {
     return { allowed: true, bypassed: true };
@@ -347,8 +366,12 @@ async function checkPublicRateLimit(event, {
 
   try {
     const store = await resolveStore();
-    return await incrementCounterAtomically(store, key, { max, windowMs, bucket, now });
+    return await incrementCounterAtomically(store, key, { max, windowMs, bucket, now, failClosed });
   } catch (err) {
+    if (failClosed) {
+      console.warn('[public-rate-limit] storage_unavailable; denying request (fail-closed)');
+      return { allowed: false, failClosed: true, reason: 'storage_unavailable' };
+    }
     return failOpenDecision('storage_unavailable', err);
   }
 }
@@ -360,12 +383,23 @@ async function enforcePublicRateLimit(event, {
   now = Date.now(),
   subject = '',
   ipScoped = true,
+  failClosed = false,
 } = {}) {
   if (isOptionsRequest(event)) {
     return { blocked: false, allowed: true, bypassed: true };
   }
 
-  const decision = await checkPublicRateLimit(event, { endpoint, action, now, subject, ipScoped });
+  const decision = await checkPublicRateLimit(event, {
+    endpoint, action, now, subject, ipScoped, failClosed,
+  });
+  if (decision.failClosed || (failClosed && decision.failOpen)) {
+    return {
+      blocked: true,
+      allowed: false,
+      failClosed: true,
+      response: buildUnavailableResponse({ cors }),
+    };
+  }
   if (decision.allowed) {
     return { blocked: false, ...decision };
   }
@@ -406,6 +440,7 @@ module.exports = {
   checkPublicRateLimit,
   enforcePublicRateLimit,
   buildRateLimitedResponse,
+  buildUnavailableResponse,
   incrementCounterAtomically,
   effectiveCounterState,
   setPublicRateLimitStoreFactory,

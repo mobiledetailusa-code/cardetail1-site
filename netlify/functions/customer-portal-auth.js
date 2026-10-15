@@ -1,28 +1,30 @@
 // Customer portal authentication — email magic link / OTP (SMS optional).
 
 const crypto = require('crypto');
-const { jsonCors, blobsStore } = require('../lib/tech-security');
+const { jsonCors } = require('../lib/tech-security');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const {
   hashToken,
   createAccountSession,
   storeAuthChallenge,
+  consumeAuthChallenge,
+  invalidateAuthChallenge,
+  resolveChallengeStore,
+  authChallengeStoreIsIsolated,
   validateCustomerSession,
   revokeCustomerSession,
   sessionCookieHeader,
   clearSessionCookieHeader,
   resendConfigured,
   twilioOtpEnabled,
-  MAX_AUTH_ATTEMPTS,
   MAGIC_LINK_TTL_MS,
 } = require('../lib/customer-session');
-const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { enforcePublicRateLimit, hashRateLimitSubject } = require('../lib/public-rate-limit');
+const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 const {
   resolveOrCreateCustomerAccount,
   backfillBookingsOnLogin,
 } = require('../lib/customer-account-service');
-
-const CHALLENGE_STORE = 'cd1-customer-auth-tokens';
 
 async function sendMagicLinkEmail(email, linkUrl) {
   const { RESEND_API_KEY, RESEND_FROM, ADMIN_EMAIL } = process.env;
@@ -59,17 +61,47 @@ function bookingMatchesVerifiedContact(booking, { email, phoneDigits } = {}) {
 
 function bookingsForContact({ email, phoneDigits }) {
   const emailNorm = String(email || '').trim().toLowerCase();
-  // The mirror lookup is a superset (phone OR email). Attach only AND-safe rows.
+  // The mirror lookup is a superset (phone OR email). Attach only AND-safe rows
+  // that are still a live submitted booking. Drafts and archived rows do not
+  // authorize a sign-in link.
   const { listBookingsForIdentity } = require('../lib/booking-history');
   return listBookingsForIdentity({ email: emailNorm, phone: phoneDigits }).then(({ bookings: all }) =>
-    all.filter((b) => bookingMatchesVerifiedContact(b, { email: emailNorm, phoneDigits }))
+    all.filter((b) =>
+      isVisibleSubmittedBooking(b)
+      && bookingMatchesVerifiedContact(b, { email: emailNorm, phoneDigits })
+    )
   );
 }
 
-function siteBaseUrl(event) {
-  const host = event.headers?.['x-forwarded-host'] || event.headers?.Host || 'cardetail1.com';
-  const proto = String(event.headers?.['x-forwarded-proto'] || 'https').split(',')[0].trim();
-  return `${proto}://${host}`;
+function genericStartOk() {
+  return jsonCors(200, {
+    ok: true,
+    delivery: 'email',
+    expiresInSec: Math.floor(MAGIC_LINK_TTL_MS / 1000),
+    smsOtpAvailable: twilioOtpEnabled(),
+  });
+}
+
+function authUnavailable() {
+  return jsonCors(503, {
+    ok: false,
+    error: 'service_unavailable',
+    message: 'Full account access is temporarily unavailable. Use booking lookup or call/text (551) 389-3986.',
+    fallback: 'call_text',
+  });
+}
+
+function magicLinkUrl(challengeId, rawToken) {
+  const { trustedSiteOrigin } = require('../lib/trusted-site-origin');
+  const base = trustedSiteOrigin();
+  return `${base}/my-garage.html?auth=${encodeURIComponent(challengeId)}&t=${encodeURIComponent(rawToken)}`;
+}
+
+function sharedPreviewMustNotIssue() {
+  const { deployContext } = require('../lib/trusted-site-origin');
+  const ctx = deployContext();
+  if (ctx !== 'deploy-preview' && ctx !== 'branch-deploy') return false;
+  return !authChallengeStoreIsIsolated();
 }
 
 exports.handler = async (event) => {
@@ -110,7 +142,13 @@ exports.handler = async (event) => {
   }
 
   if (action === 'verify') {
-    const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'customer-portal-auth', action: 'verify', cors: true });
+    const rateLimit = await enforcePublicRateLimit(event, {
+      endpoint: 'customer-portal-auth',
+      action: 'verify',
+      cors: true,
+      subject: hashRateLimitSubject(String(body.challengeId || '')),
+      failClosed: true,
+    });
     if (rateLimit.blocked) return rateLimit.response;
 
     const token = String(body.token || body.code || '').trim();
@@ -119,36 +157,29 @@ exports.handler = async (event) => {
       return jsonCors(400, { ok: false, error: 'validation_error' });
     }
 
-    const store = await blobsStore(CHALLENGE_STORE);
-    const challenge = await store.get(challengeId, { type: 'json' }).catch(() => null);
-    if (!challenge || challenge.used) {
+    let consumed;
+    try {
+      consumed = await consumeAuthChallenge(challengeId, hashToken(token), { expectedType: 'magic_link' });
+    } catch {
+      return authUnavailable();
+    }
+    if (!consumed.ok) {
       return jsonCors(200, { ok: false, error: 'authentication_failed' });
     }
-    if (new Date(challenge.expiresAt).getTime() < Date.now()) {
-      return jsonCors(200, { ok: false, error: 'authentication_failed', message: 'This link has expired.' });
-    }
-    if ((challenge.attempts || 0) >= MAX_AUTH_ATTEMPTS) {
-      return jsonCors(200, { ok: false, error: 'authentication_failed', message: 'Too many attempts.' });
-    }
-
-    const tokenHash = hashToken(token);
-    if (tokenHash !== challenge.hash) {
-      await store.setJSON(challengeId, { ...challenge, attempts: (challenge.attempts || 0) + 1 });
-      return jsonCors(200, { ok: false, error: 'authentication_failed' });
-    }
-
-    await store.setJSON(challengeId, { ...challenge, used: true, usedAt: new Date().toISOString() });
+    const challenge = consumed.challenge;
 
     const matches = await bookingsForContact({
       email: challenge.email,
       phoneDigits: challenge.phoneDigits,
     });
     const bookingIds = matches.map((b) => b.id || b.bookingId).filter(Boolean);
-    const phoneDigits = challenge.phoneDigits || normalizeUsPhoneDigits(matches[0]?.phone || matches[0]?.customerPhone || '');
+    const phoneDigits = challenge.phoneDigits || null;
+    void body.customerAccountId;
+    void body.browserCustomerAccountId;
+    void body.email;
+    void body.phone;
 
-    // Resolve/create CustomerAccount from verified challenge identity only.
-    // Never trust a browser-supplied customerAccountId (body is ignored).
-    let customerAccountId = null;
+    let customerAccountId = challenge.customerAccountId || null;
     try {
       const resolution = await resolveOrCreateCustomerAccount({
         verifiedEmail: challenge.email,
@@ -156,16 +187,27 @@ exports.handler = async (event) => {
         bookingIds,
         firstName: matches[0]?.firstName,
         lastName: matches[0]?.lastName,
-        // Intentionally ignore body.customerAccountId / body.browserCustomerAccountId
-        browserCustomerAccountId: body.customerAccountId || body.browserCustomerAccountId || null,
+        browserCustomerAccountId: null,
       }, {
         allowPhoneOnly: false,
         createIfMissing: true,
         trustSessionAccountId: false,
         acceptBrowserAccountId: false,
       });
-      if (resolution.ok && resolution.customerAccountId) {
+      if (challenge.customerAccountId) {
+        const resolvedId = resolution && resolution.customerAccountId;
+        const identityDown = !resolution || resolution.error === 'prisma_unavailable' || resolution.status === 'unavailable';
+        if (resolvedId && resolvedId !== challenge.customerAccountId) {
+          return jsonCors(200, { ok: false, error: 'authentication_failed' });
+        }
+        customerAccountId = resolvedId || (identityDown ? challenge.customerAccountId : null);
+        if (!customerAccountId) {
+          return jsonCors(200, { ok: false, error: 'authentication_failed' });
+        }
+      } else if (resolution && resolution.ok && resolution.customerAccountId) {
         customerAccountId = resolution.customerAccountId;
+      }
+      if (customerAccountId) {
         await backfillBookingsOnLogin({
           customerAccountId,
           verifiedEmail: challenge.email,
@@ -174,18 +216,21 @@ exports.handler = async (event) => {
           blobBookings: matches,
         });
       }
-      // Ambiguity: preserve legacy booking visibility via bookingIds; do not merge.
     } catch {
-      // Fail-open for portal login when identity DB is unavailable.
-      customerAccountId = null;
+      if (challenge.customerAccountId) customerAccountId = challenge.customerAccountId;
     }
 
-    const { token: sessionToken } = await createAccountSession({
-      phoneDigits,
-      email: challenge.email,
-      bookingIds,
-      customerAccountId,
-    });
+    let sessionToken;
+    try {
+      ({ token: sessionToken } = await createAccountSession({
+        phoneDigits,
+        email: challenge.email,
+        bookingIds,
+        customerAccountId,
+      }));
+    } catch {
+      return authUnavailable();
+    }
 
     return {
       statusCode: 200,
@@ -205,58 +250,103 @@ exports.handler = async (event) => {
   }
 
   // start
-  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'customer-portal-auth', action: 'start', cors: true });
-  if (rateLimit.blocked) return rateLimit.response;
-
+  // Anti-enumeration: identical success shape whether or not a match exists.
+  // Never disclose account existence; never log raw tokens or the magic link.
   const email = String(body.email || '').trim().toLowerCase();
   const phoneDigits = normalizeUsPhoneDigits(body.phone || body.customerPhone || '');
+  const rateLimit = await enforcePublicRateLimit(event, {
+    endpoint: 'customer-portal-auth',
+    action: 'start',
+    cors: true,
+    subject: hashRateLimitSubject(email, phoneDigits || ''),
+    failClosed: true,
+  });
+  if (rateLimit.blocked) return rateLimit.response;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return jsonCors(400, { ok: false, error: 'validation_error', message: 'A valid email is required.' });
   }
 
-  if (!resendConfigured()) {
-    return jsonCors(503, {
-      ok: false,
-      error: 'service_unavailable',
-      message: 'Full account access is temporarily unavailable. Use booking lookup or call/text (551) 389-3986.',
-      fallback: 'call_text',
-    });
-  }
-
-  const matches = await bookingsForContact({ email, phoneDigits });
-  // Anti-enumeration: identical success shape whether or not a match exists.
-  // Never disclose account existence; never log raw tokens.
-  const genericStartOk = () => jsonCors(200, {
-    ok: true,
-    delivery: 'email',
-    expiresInSec: Math.floor(MAGIC_LINK_TTL_MS / 1000),
-    smsOtpAvailable: twilioOtpEnabled(),
-  });
-
-  if (!matches.length) {
+  if (!resendConfigured()) return authUnavailable();
+  if (sharedPreviewMustNotIssue()) {
+    console.info('[customer-portal-auth] start', { result: 'withheld' });
     return genericStartOk();
   }
 
-  const rawToken = crypto.randomBytes(24).toString('base64url');
-  const challengeId = await storeAuthChallenge({
-    type: 'magic_link',
-    email,
-    phoneDigits: phoneDigits || normalizeUsPhoneDigits(matches[0]?.phone || ''),
-    codeOrTokenHash: hashToken(rawToken),
-  });
-
-  const linkUrl = `${siteBaseUrl(event)}/my-garage.html?auth=${encodeURIComponent(challengeId)}&t=${encodeURIComponent(rawToken)}`;
-  const sent = await sendMagicLinkEmail(email, linkUrl);
-  if (!sent) {
-    return jsonCors(503, {
-      ok: false,
-      error: 'service_unavailable',
-      message: 'Could not send sign-in email. Please call/text (551) 389-3986.',
-      fallback: 'call_text',
-    });
+  try {
+    const store = await resolveChallengeStore();
+    await store.get('auth-availability-probe', { type: 'json' });
+  } catch {
+    console.info('[customer-portal-auth] start', { result: 'unavailable' });
+    return authUnavailable();
   }
 
+  const matches = await bookingsForContact({ email, phoneDigits });
+  let destination = matches.length
+    ? String(matches[0].email || '').trim().toLowerCase()
+    : '';
+  const destinationOwned = destination
+    && destination === email
+    && matches.every((b) => String(b.email || '').trim().toLowerCase() === destination);
+
+  if (!destinationOwned) {
+    console.info('[customer-portal-auth] start', { result: 'withheld' });
+    return genericStartOk();
+  }
+
+  let boundAccountId = null;
+  try {
+    const resolution = await resolveOrCreateCustomerAccount({
+      verifiedEmail: destination,
+      verifiedPhone: phoneDigits || null,
+      bookingIds: matches.map((b) => b.id || b.bookingId).filter(Boolean),
+      browserCustomerAccountId: null,
+    }, {
+      allowPhoneOnly: false,
+      createIfMissing: false,
+      trustSessionAccountId: false,
+      acceptBrowserAccountId: false,
+    });
+    if (resolution && (resolution.status === 'ambiguous' || resolution.ambiguity)) {
+      console.info('[customer-portal-auth] start', { result: 'withheld' });
+      return genericStartOk();
+    }
+    if (resolution && resolution.ok && resolution.customerAccountId) {
+      boundAccountId = resolution.customerAccountId;
+    }
+  } catch {
+    boundAccountId = null;
+  }
+
+  const rawToken = crypto.randomBytes(24).toString('base64url');
+  let challengeId;
+  try {
+    challengeId = await storeAuthChallenge({
+      type: 'magic_link',
+      email: destination,
+      phoneDigits: phoneDigits || null,
+      codeOrTokenHash: hashToken(rawToken),
+      customerAccountId: boundAccountId,
+    });
+  } catch {
+    console.info('[customer-portal-auth] start', { result: 'withheld' });
+    return genericStartOk();
+  }
+
+  const linkUrl = magicLinkUrl(challengeId, rawToken);
+  let sent = false;
+  try {
+    sent = await sendMagicLinkEmail(destination, linkUrl);
+  } catch {
+    sent = false;
+  }
+  if (!sent) {
+    await invalidateAuthChallenge(challengeId);
+    console.info('[customer-portal-auth] start', { result: 'withheld' });
+    return genericStartOk();
+  }
+
+  console.info('[customer-portal-auth] start', { result: 'sent' });
   return genericStartOk();
 };
 

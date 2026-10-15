@@ -1,5 +1,6 @@
 // Booking-scoped customer authorization helpers.
 
+const crypto = require('crypto');
 const { getBooking } = require('./ops-db');
 const { phonesMatch, phonesMatchForPortal, normalizeUsPhoneDigits } = require('./phone-auth');
 const { validateCustomerSession } = require('./customer-session');
@@ -9,6 +10,20 @@ const AUTH_FAIL = Object.freeze({
   error: 'authentication_failed',
   message: 'Phone does not match this booking. Use the same mobile number from checkout, or call/text (551) 389-3986.',
 });
+
+const LIMITED_LOOKUP_MISS = Object.freeze({
+  ok: false,
+  found: false,
+  error: 'authentication_failed',
+  message: 'No booking found. Please check your booking ID and phone number.',
+});
+
+function publicLimitedLookupMiss(reason) {
+  console.info('[limited-lookup] miss', {
+    reason: String(reason || 'unknown').slice(0, 48),
+  });
+  return { statusCode: 200, body: { ...LIMITED_LOOKUP_MISS } };
+}
 
 const NOT_FOUND = Object.freeze({
   ok: false,
@@ -68,30 +83,52 @@ async function authorizeBookingAccess(event, { bookingId, phone, requireSessionF
   return { ok: true, booking, scope: 'booking', phoneDigits };
 }
 
+function emailHashOf(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+  return crypto.createHash('sha256').update(normalized).digest('base64url');
+}
+
+/**
+ * Verified email is required. A phone on the session must also match this
+ * booking. Phone alone never opens someone else's appointment.
+ */
+function sessionContactAllows(session, booking) {
+  const bookingEmailHash = emailHashOf(booking && booking.email);
+  const emailOk = !!(session.emailHash && bookingEmailHash && session.emailHash === bookingEmailHash);
+  if (!emailOk) return false;
+  if (session.phoneDigits) {
+    const bookingPhone = booking.phone || booking.customerPhone || '';
+    return phonesMatchForPortal(session.phoneDigits, bookingPhone);
+  }
+  return true;
+}
+
 function sessionBookingAllowed(session, booking) {
   if (!session || !booking) return false;
   const bid = booking.id || booking.bookingId;
   const normalizedBid = normalizeBookingId(bid);
+  const sessionAccount = String(session.customerAccountId || '').trim();
+  const bookingAccount = String(booking.customerAccountId || '').trim();
 
-  // Account isolation: never allow access to a booking owned by another account.
-  // (Owner check is applied by portal dual-read; here we still honor session ids / phone.)
-  if (session.customerAccountId && booking.customerAccountId
-    && String(session.customerAccountId) !== String(booking.customerAccountId)) {
-    return false;
-  }
+  if (sessionAccount && bookingAccount && sessionAccount !== bookingAccount) return false;
+  if (sessionAccount && bookingAccount && sessionAccount === bookingAccount) return true;
 
   if (session.bookingIds && session.bookingIds.some((x) => normalizeBookingId(x) === normalizedBid)) {
     return true;
   }
-  const sessionPhone = session.phoneDigits;
-  const bookingPhone = booking.phone || booking.customerPhone || '';
-  return sessionPhone && phonesMatchForPortal(sessionPhone, bookingPhone);
+
+  if (bookingAccount && sessionAccount !== bookingAccount) return false;
+  return sessionContactAllows(session, booking);
 }
 
 module.exports = {
   normalizeBookingId,
   authorizeBookingAccess,
   sessionBookingAllowed,
+  sessionContactAllows,
+  publicLimitedLookupMiss,
+  LIMITED_LOOKUP_MISS,
   AUTH_FAIL,
   NOT_FOUND,
 };
