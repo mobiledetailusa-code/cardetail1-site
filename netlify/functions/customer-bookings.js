@@ -38,6 +38,7 @@ exports.handler = async (event) => {
     endpoint: 'customer-bookings',
     cors: true,
     subject,
+    failClosed: true,
   });
   if (rateLimit.blocked) return rateLimit.response;
 

@@ -134,6 +134,8 @@ describe('limited lookup uniform response', { concurrency: 1 }, () => {
     }));
     const session = require('../netlify/lib/customer-session');
     session.setCustomerSessionStoreFactory(() => sessionStore);
+    const rl = require('../netlify/lib/public-rate-limit');
+    rl.setPublicRateLimitStoreFactory(() => createConditionalMemoryStore());
   });
 
   afterEach(() => {

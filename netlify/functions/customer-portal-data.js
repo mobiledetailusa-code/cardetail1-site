@@ -354,7 +354,15 @@ async function handlePortalData(event, body) {
     if (!auth.ok) {
       // Failed credential guesses use the strict lookup bucket. Successfully
       // authorized refreshes use a separate, subject-scoped read bucket below.
-      const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
+      const rateLimit = await enforcePublicRateLimit(event, {
+        endpoint: 'lookup-booking',
+        cors: true,
+        subject: hashRateLimitSubject(
+          normalizeBookingId(body.bookingId),
+          normalizeUsPhoneDigits(body.phone || body.customerPhone || '')
+        ),
+        failClosed: true,
+      });
       if (rateLimit.blocked) return rateLimit.response;
       // Invalid ids never reach the store inside auth. Touch the same read
       // path as a real miss so the public response is not a cheap early exit.
@@ -406,7 +414,12 @@ async function handlePortalData(event, body) {
 
   const session = await validateCustomerSession(event);
   if (!session.ok) {
-    const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
+    const rateLimit = await enforcePublicRateLimit(event, {
+      endpoint: 'lookup-booking',
+      cors: true,
+      subject: hashRateLimitSubject('account-session'),
+      failClosed: true,
+    });
     if (rateLimit.blocked) return rateLimit.response;
     return jsonCors(401, { ok: false, error: 'authentication_failed', message: 'Sign in required.' });
   }

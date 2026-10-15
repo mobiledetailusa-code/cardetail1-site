@@ -21,6 +21,7 @@ const MAX_AUTH_ATTEMPTS = 5;
 const COOKIE_NAME = 'cd1_customer_session';
 
 let sessionStoreFactoryOverride = null;
+let challengeStoreFactoryOverride = null;
 let productionCustomerSecretFallbackWarned = false;
 
 function sessionSecret() {
@@ -250,8 +251,57 @@ function resetCustomerSessionStoreFactory() {
   sessionStoreFactoryOverride = null;
 }
 
-async function storeAuthChallenge({ type, email, phoneDigits, codeOrTokenHash }) {
-  const store = await blobsStore(TOKEN_STORE);
+function setAuthChallengeStoreFactory(factory) {
+  challengeStoreFactoryOverride = typeof factory === 'function' ? factory : null;
+}
+
+function resetAuthChallengeStoreFactory() {
+  challengeStoreFactoryOverride = null;
+}
+
+function authChallengeStoreIsIsolated() {
+  return typeof challengeStoreFactoryOverride === 'function';
+}
+
+async function resolveChallengeStore() {
+  if (typeof challengeStoreFactoryOverride === 'function') {
+    return challengeStoreFactoryOverride(TOKEN_STORE);
+  }
+  return blobsStore(TOKEN_STORE);
+}
+
+function currentEnvBinding() {
+  const { deployEnvironmentKey } = require('./trusted-site-origin');
+  return deployEnvironmentKey();
+}
+
+function hashesEqual(a, b) {
+  const left = Buffer.from(String(a || ''));
+  const right = Buffer.from(String(b || ''));
+  if (left.length !== right.length || left.length === 0) return false;
+  return crypto.timingSafeEqual(left, right);
+}
+
+async function readAuthChallenge(id) {
+  const store = await resolveChallengeStore();
+  if (typeof store.getWithMetadata === 'function') {
+    const result = await store.getWithMetadata(id, { type: 'json' });
+    if (!result || result.data == null) return { store, record: null, etag: null };
+    return { store, record: result.data, etag: result.etag || null };
+  }
+  const record = await store.get(id, { type: 'json' });
+  return { store, record: record || null, etag: null };
+}
+
+async function storeAuthChallenge({
+  type,
+  email,
+  phoneDigits,
+  codeOrTokenHash,
+  customerAccountId = null,
+  envBinding = null,
+}) {
+  const store = await resolveChallengeStore();
   const id = `auth_${crypto.randomBytes(10).toString('base64url')}`;
   const ttl = type === 'otp' ? OTP_TTL_MS : MAGIC_LINK_TTL_MS;
   await store.setJSON(id, {
@@ -259,12 +309,54 @@ async function storeAuthChallenge({ type, email, phoneDigits, codeOrTokenHash })
     email: String(email || '').trim().toLowerCase(),
     phoneDigits: phoneDigits || null,
     hash: codeOrTokenHash,
+    customerAccountId: customerAccountId ? String(customerAccountId) : null,
+    envBinding: envBinding || currentEnvBinding(),
     attempts: 0,
     used: false,
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + ttl).toISOString(),
   }, { ttl });
   return id;
+}
+
+async function consumeAuthChallenge(id, tokenHash, { expectedType = 'magic_link' } = {}) {
+  const loaded = await readAuthChallenge(id);
+  const { store, record, etag } = loaded;
+  if (!record || record.used) return { ok: false, error: 'authentication_failed' };
+  if (String(record.type || '') !== expectedType) return { ok: false, error: 'authentication_failed' };
+  if (String(record.envBinding || '') !== currentEnvBinding()) {
+    return { ok: false, error: 'authentication_failed' };
+  }
+  if (new Date(record.expiresAt).getTime() < Date.now()) {
+    return { ok: false, error: 'authentication_failed' };
+  }
+  if ((record.attempts || 0) >= MAX_AUTH_ATTEMPTS) {
+    return { ok: false, error: 'authentication_failed' };
+  }
+  if (!hashesEqual(tokenHash, record.hash)) {
+    const nextAttempts = { ...record, attempts: (record.attempts || 0) + 1 };
+    try {
+      await store.setJSON(id, nextAttempts, etag ? { onlyIfMatch: etag } : {});
+    } catch { /* a failed counter still rejects the token */ }
+    return { ok: false, error: 'authentication_failed' };
+  }
+  const next = { ...record, used: true, usedAt: new Date().toISOString() };
+  const write = await store.setJSON(id, next, etag ? { onlyIfMatch: etag } : {});
+  if (write && write.modified === false) return { ok: false, error: 'authentication_failed' };
+  return { ok: true, challenge: record };
+}
+
+async function invalidateAuthChallenge(id) {
+  try {
+    const { store, record, etag } = await readAuthChallenge(id);
+    if (!record || record.used) return;
+    await store.setJSON(id, {
+      ...record,
+      used: true,
+      hash: 'revoked',
+      usedAt: new Date().toISOString(),
+    }, etag ? { onlyIfMatch: etag } : {});
+  } catch { /* caller must still not deliver the link */ }
 }
 
 function resendConfigured() {
@@ -293,8 +385,15 @@ module.exports = {
   revokeCustomerSession,
   createAccountSession,
   storeAuthChallenge,
+  consumeAuthChallenge,
+  invalidateAuthChallenge,
+  readAuthChallenge,
+  resolveChallengeStore,
   setCustomerSessionStoreFactory,
   resetCustomerSessionStoreFactory,
+  setAuthChallengeStoreFactory,
+  resetAuthChallengeStoreFactory,
+  authChallengeStoreIsIsolated,
   resendConfigured,
   twilioOtpEnabled,
   normalizeUsPhoneDigits,

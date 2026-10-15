@@ -135,14 +135,34 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
 
     const prevRate = process.env.PUBLIC_RATE_LIMIT_DISABLED;
     process.env.PUBLIC_RATE_LIMIT_DISABLED = '1';
+    const rl = require('../netlify/lib/public-rate-limit');
+    const rateData = new Map();
+    rl.setPublicRateLimitStoreFactory(() => ({
+      async getWithMetadata(key, { type } = {}) {
+        if (!rateData.has(key)) return null;
+        const entry = rateData.get(key);
+        return { data: type === 'json' ? JSON.parse(entry.value) : entry.value, etag: entry.etag };
+      },
+      async setJSON(key, value, options = {}) {
+        const exists = rateData.has(key);
+        if (options.onlyIfNew && exists) return { modified: false };
+        if (options.onlyIfMatch && (!exists || rateData.get(key).etag !== options.onlyIfMatch)) {
+          return { modified: false };
+        }
+        const etag = `e-${rateData.size + 1}`;
+        rateData.set(key, { value: JSON.stringify(value), etag });
+        return { modified: true, etag };
+      },
+    }));
     try {
       delete require.cache[require.resolve('../netlify/functions/lookup-booking')];
       delete require.cache[require.resolve('../netlify/functions/customer-bookings')];
       const lookup = require('../netlify/functions/lookup-booking');
       const bookings = require('../netlify/functions/customer-bookings');
       const body = JSON.stringify({ bookingId: 'CD1-DRAFT-HIDE', phone: '2015550177' });
-      const lookupRes = await lookup.handler({ httpMethod: 'POST', body, headers: {} });
-      const bookingsRes = await bookings.handler({ httpMethod: 'POST', body, headers: {} });
+      const headers = { 'x-nf-client-connection-ip': '203.0.113.80' };
+      const lookupRes = await lookup.handler({ httpMethod: 'POST', body, headers });
+      const bookingsRes = await bookings.handler({ httpMethod: 'POST', body, headers });
       const lookupBody = JSON.parse(lookupRes.body);
       const bookingsBody = JSON.parse(bookingsRes.body);
       assert.equal(lookupBody.found, false);
@@ -151,6 +171,7 @@ describe('Release A — visibility & drafts (PDA-13, PDA-14)', () => {
       assert.equal(bookingsBody.error, 'booking_not_ready');
     } finally {
       setOpsStoreOverride(null);
+      rl.resetPublicRateLimitStoreFactory();
       if (prevRate == null) delete process.env.PUBLIC_RATE_LIMIT_DISABLED;
       else process.env.PUBLIC_RATE_LIMIT_DISABLED = prevRate;
     }

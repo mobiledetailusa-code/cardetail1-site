@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { jsonCors } = require('../lib/tech-security');
 const { getBooking, normalizePhone, phonesMatch } = require('../lib/ops-db');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
-const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { enforcePublicRateLimit, hashRateLimitSubject } = require('../lib/public-rate-limit');
 const { isVisibleSubmittedBooking } = require('../lib/booking-visibility');
 const { publicLimitedLookupMiss } = require('../lib/booking-customer-auth');
 
@@ -22,15 +22,19 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'POST') return jsonCors(405, { ok: false, error: 'method_not_allowed' });
 
-  const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'lookup-booking', cors: true });
-  if (rateLimit.blocked) return rateLimit.response;
-
   let body;
   try { body = JSON.parse(event.body || '{}'); }
   catch { return jsonCors(400, { ok: false, error: 'invalid_request' }); }
 
   const rawId = String(body.bookingId || body.id || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
   const rawPhone = normalizePhone(body.phone || body.customerPhone || '');
+  const rateLimit = await enforcePublicRateLimit(event, {
+    endpoint: 'lookup-booking',
+    cors: true,
+    subject: hashRateLimitSubject(rawId, rawPhone),
+    failClosed: true,
+  });
+  if (rateLimit.blocked) return rateLimit.response;
 
   try {
     const booking = await getBooking(rawId || PAD_LOOKUP_ID);
