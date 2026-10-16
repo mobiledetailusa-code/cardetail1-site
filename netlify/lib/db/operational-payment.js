@@ -181,6 +181,10 @@ async function getSharedFinancialProjection(booking, { env = process.env } = {})
     return { ok: false, error: 'postgres_payment_disabled', authority: 'blob' };
   }
   try {
+    const { isBlobOnlyFinancialSource } = require('../blob-only-financial-lock');
+    if (isBlobOnlyFinancialSource(booking)) {
+      return { ok: false, error: 'blob_only_unverified', authority: 'none' };
+    }
     const ensured = await ensureBookingFinancial(booking);
     if (!ensured.ok) return { ok: false, error: ensured.error, authority: 'blob' };
 
@@ -239,6 +243,15 @@ async function prepareEmbeddedPaymentInner({
 
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', statusCode: 503 };
+  }
+  const { isBlobOnlyFinancialSource, blobOnlyPaymentRefusal } = require('../blob-only-financial-lock');
+  const { hasAuthoritativePostgresFinancial } = require('./ensure-booking-financial');
+  if (isBlobOnlyFinancialSource(booking)) {
+    return blobOnlyPaymentRefusal(); // blob-only-intent-lock
+  }
+  const bookingId = String(booking?.id || booking?.bookingId || '').trim();
+  if (!(await hasAuthoritativePostgresFinancial(bookingId))) {
+    return blobOnlyPaymentRefusal(); // blob-only-intent-lock
   }
   const ensured = await ensureBookingFinancial(booking);
   if (!ensured.ok) return { ok: false, error: ensured.error, statusCode: 503 };

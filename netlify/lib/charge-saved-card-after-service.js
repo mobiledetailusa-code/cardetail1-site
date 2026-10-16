@@ -73,6 +73,10 @@ function pendingMoneyChange(booking) {
 }
 
 function chargeEligibility(booking, projection) {
+  const { isBlobOnlyFinancialSource, blobOnlyPaymentRefusal } = require('./blob-only-financial-lock');
+  if (isBlobOnlyFinancialSource(booking)) {
+    return blobOnlyPaymentRefusal();
+  }
   const pref = preferenceOf(booking);
   if (!pref || ONSITE.has(pref)) {
     return {
@@ -470,6 +474,10 @@ async function chargeSavedCardAfterService({
       stripeCalled: false,
       message: 'Confirm that this action charges the saved card.',
     };
+  }
+  const { isBlobOnlyFinancialSource, blobOnlyPaymentRefusal } = require('./blob-only-financial-lock');
+  if (isBlobOnlyFinancialSource(booking)) {
+    return blobOnlyPaymentRefusal();
   }
   const liveProjection = projection || financialProjection(booking);
   const gate = chargeEligibility(booking, liveProjection);

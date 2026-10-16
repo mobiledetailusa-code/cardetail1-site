@@ -114,6 +114,71 @@ const SAME_PHONE_OTHER_EMAIL = {
   finalizedAt: '2026-03-01T15:00:00.000Z',
   bookingVersion: 1,
   appointmentPublicRef: 'aptr_samephoneotheremail',
+  customerAccountId: 'acct_other_phone',
+};
+
+const SAME_EMAIL_OTHER_PHONE = {
+  id: 'CD1-OTHEREMAIL',
+  isDraft: false,
+  kind: 'booking',
+  phone: '(212) 555-0100',
+  email: EMAIL,
+  status: 'Confirmed',
+  jobStatus: 'confirmed',
+  package: 'Same Email Other Phone',
+  preferredDate: '2026-03-02',
+  finalizedAt: '2026-03-02T15:00:00.000Z',
+  bookingVersion: 1,
+  appointmentPublicRef: 'aptr_sameemailotherphone',
+  customerAccountId: 'acct_other_email',
+};
+
+const SAME_PHONE_OTHER_ACCOUNT = {
+  id: 'CD1-PHONEACCT',
+  isDraft: false,
+  kind: 'booking',
+  phone: '(201) 555-0148',
+  email: EMAIL,
+  status: 'Confirmed',
+  jobStatus: 'confirmed',
+  package: 'Same Phone Other Account',
+  preferredDate: '2026-03-03',
+  finalizedAt: '2026-03-03T15:00:00.000Z',
+  bookingVersion: 1,
+  appointmentPublicRef: 'aptr_samephoneotheracct',
+  customerAccountId: 'acct_not_session',
+};
+
+const SAME_EMAIL_OTHER_ACCOUNT = {
+  id: 'CD1-EMAILACCT',
+  isDraft: false,
+  kind: 'booking',
+  phone: '(201) 555-0148',
+  email: EMAIL,
+  status: 'Confirmed',
+  jobStatus: 'confirmed',
+  package: 'Same Email Other Account',
+  preferredDate: '2026-03-04',
+  finalizedAt: '2026-03-04T15:00:00.000Z',
+  bookingVersion: 1,
+  appointmentPublicRef: 'aptr_sameemailotheracct',
+  customerAccountId: 'acct_not_session',
+};
+
+const OWN_ACCOUNT_MATCH = {
+  id: 'CD1-OWNACCT',
+  isDraft: false,
+  kind: 'booking',
+  phone: '201-555-0148',
+  email: '  Garage-Mirror@example.com ',
+  status: 'Confirmed',
+  jobStatus: 'confirmed',
+  package: 'Own Account Match',
+  preferredDate: '2026-03-05',
+  finalizedAt: '2026-03-05T15:00:00.000Z',
+  bookingVersion: 1,
+  appointmentPublicRef: 'aptr_ownaccountmatchxx',
+  customerAccountId: 'acct_session',
 };
 
 const ARCHIVED_TEST = {
@@ -241,6 +306,37 @@ function bookingIds(list) {
   return (list || []).map((booking) => booking.id).sort();
 }
 
+async function portalFor(store, {
+  sessionOpts = {},
+  body = { mode: 'account' },
+  expectStatus = 200,
+} = {}) {
+  const { setOpsStoreOverride } = require(OPS_PATH);
+  setOpsStoreOverride(store);
+  const session = require(SESSION_PATH);
+  const sessions = memoryStore();
+  session.setCustomerSessionStoreFactory(() => sessions);
+  const rate = require(RATE_PATH);
+  rate.setPublicRateLimitStoreFactory(() => rateStore());
+  const { token } = await session.createAccountSession({
+    phoneDigits: PHONE,
+    email: EMAIL,
+    bookingIds: ['CD1-MIRROR'],
+    ...sessionOpts,
+  });
+  const { handler } = require(PORTAL_PATH);
+  const response = await handler({
+    httpMethod: 'POST',
+    headers: {
+      cookie: `cd1_customer_session=${encodeURIComponent(token)}`,
+      'x-nf-client-connection-ip': '203.0.113.40',
+    },
+    body: JSON.stringify(body),
+  });
+  assert.equal(response.statusCode, expectStatus);
+  return JSON.parse(response.body);
+}
+
 describe('partial mirror lookup', () => {
   it('stops before the blob scan and marks the short list incomplete', async () => {
     const store = memoryStore({
@@ -311,32 +407,6 @@ describe('partial mirror lookup', () => {
 });
 
 describe('My Garage composition', () => {
-  async function portalFor(store) {
-    const { setOpsStoreOverride } = require(OPS_PATH);
-    setOpsStoreOverride(store);
-    const session = require(SESSION_PATH);
-    const sessions = memoryStore();
-    session.setCustomerSessionStoreFactory(() => sessions);
-    const rate = require(RATE_PATH);
-    rate.setPublicRateLimitStoreFactory(() => rateStore());
-    const { token } = await session.createAccountSession({
-      phoneDigits: PHONE,
-      email: EMAIL,
-      bookingIds: ['CD1-MIRROR'],
-    });
-    const { handler } = require(PORTAL_PATH);
-    const response = await handler({
-      httpMethod: 'POST',
-      headers: {
-        cookie: `cd1_customer_session=${encodeURIComponent(token)}`,
-        'x-nf-client-connection-ip': '203.0.113.40',
-      },
-      body: JSON.stringify({ mode: 'account' }),
-    });
-    assert.equal(response.statusCode, 200);
-    return JSON.parse(response.body);
-  }
-
   function fullStore() {
     return memoryStore({
       'CD1-MIRROR': MIRROR_BLOB,
@@ -381,7 +451,100 @@ describe('My Garage composition', () => {
     assert.equal(Number(older.amountPaid || 0), 0);
     assert.equal(Number(older.settledCents || 0), 0);
     assert.notEqual(String(older.paymentStatus || '').toLowerCase(), 'paid');
+    assert.equal(older.paymentStatus, 'unverified');
+    assert.equal(older.paymentWorkflowStatus, 'manual_review');
+    assert.equal(Number(older.remainingCents || 0), 0);
+    assert.equal(Number(older.amountDueApproved || 0), 0);
+    assert.equal(older.payLink || '', '');
     assert.equal(mirror.package, 'Mirror Newer Detail');
+  });
+
+  it('a. hides a blob-only sibling with the same phone, different email and account', async () => {
+    const body = await portalFor(memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-OTHERACCT': SAME_PHONE_OTHER_EMAIL,
+    }), { sessionOpts: { customerAccountId: 'acct_session' } });
+    assert.equal(JSON.stringify(body).includes('Same Phone Other Email'), false);
+    assert.deepEqual(bookingIds(body.bookings), ['CD1-MIRROR']);
+  });
+
+  it('b. hides a blob-only sibling with the same email, different phone and account', async () => {
+    const body = await portalFor(memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-OTHEREMAIL': SAME_EMAIL_OTHER_PHONE,
+    }), { sessionOpts: { customerAccountId: 'acct_session' } });
+    assert.equal(JSON.stringify(body).includes('Same Email Other Phone'), false);
+    assert.deepEqual(bookingIds(body.bookings), ['CD1-MIRROR']);
+  });
+
+  it('c. hides a blob-only sibling with the same phone and a different customerAccountId', async () => {
+    const body = await portalFor(memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-PHONEACCT': SAME_PHONE_OTHER_ACCOUNT,
+    }), { sessionOpts: { customerAccountId: 'acct_session' } });
+    assert.equal(JSON.stringify(body).includes('Same Phone Other Account'), false);
+    assert.deepEqual(bookingIds(body.bookings), ['CD1-MIRROR']);
+  });
+
+  it('d. hides a blob-only sibling with the same email and a different customerAccountId', async () => {
+    const body = await portalFor(memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-EMAILACCT': SAME_EMAIL_OTHER_ACCOUNT,
+    }), { sessionOpts: { customerAccountId: 'acct_session' } });
+    assert.equal(JSON.stringify(body).includes('Same Email Other Account'), false);
+    assert.deepEqual(bookingIds(body.bookings), ['CD1-MIRROR']);
+  });
+
+  it('e. shows a blob-only sibling on the same account with normalized email and phone', async () => {
+    const store = memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-OWNACCT': OWN_ACCOUNT_MATCH,
+    });
+    const body = await portalFor(store, { sessionOpts: { customerAccountId: 'acct_session' } });
+    assert.equal(JSON.stringify(body).includes('Own Account Match'), true);
+    assert.ok(bookingIds(body.bookings).includes('CD1-OWNACCT'));
+    assert.equal(store.writes, 0);
+  });
+
+  it('f. ignores body attempts to swap accountId, email, or phone', async () => {
+    const body = await portalFor(memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-OTHERACCT': SAME_PHONE_OTHER_EMAIL,
+      'CD1-OTHEREMAIL': SAME_EMAIL_OTHER_PHONE,
+      'CD1-PHONEACCT': SAME_PHONE_OTHER_ACCOUNT,
+    }), {
+      sessionOpts: { customerAccountId: 'acct_session' },
+      body: {
+        mode: 'account',
+        customerAccountId: 'acct_not_session',
+        browserCustomerAccountId: 'acct_not_session',
+        phone: '2125550100',
+        email: 'other-account@example.com',
+        emailHash: 'forged',
+        bookingIds: ['CD1-OTHERACCT', 'CD1-PHONEACCT'],
+      },
+    });
+    const ids = bookingIds(body.bookings);
+    assert.deepEqual(ids, ['CD1-MIRROR']);
+    assert.equal(body.customerAccountId, 'acct_session');
+  });
+
+  it('g. an incomplete session does not gain scan access to extra blob-only rows', async () => {
+    const store = memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-BLOBONLY': BLOB_ONLY,
+      'CD1-OTHERACCT': SAME_PHONE_OTHER_EMAIL,
+    });
+    const phoneOnly = await portalFor(store, {
+      sessionOpts: { phoneDigits: PHONE, email: '', customerAccountId: 'acct_session' },
+    });
+    assert.equal(phoneOnly.bookings.some((booking) => booking.id === 'CD1-BLOBONLY'), false);
+    assert.equal(JSON.stringify(phoneOnly).includes('Same Phone Other Email'), false);
+
+    const emailOnly = await portalFor(store, {
+      sessionOpts: { phoneDigits: '', email: EMAIL, customerAccountId: 'acct_session' },
+    });
+    assert.equal(emailOnly.bookings.some((booking) => booking.id === 'CD1-BLOBONLY'), false);
   });
 
   it('marks the account list incomplete and omits the unseen submitted booking when blobs cannot be read', async () => {
@@ -537,6 +700,135 @@ describe('My Garage cold load', { skip: JSDOM ? false : 'jsdom unavailable' }, (
   });
 });
 
+function assertBlobOnlyFinancialLock(row, payment) {
+  assert.ok(row);
+  assert.equal(row.paymentStatus, 'unverified');
+  assert.equal(row.paymentWorkflowStatus, 'manual_review');
+  assert.notEqual(String(row.paymentStatus || '').toLowerCase(), 'due');
+  assert.notEqual(String(row.paymentStatus || '').toLowerCase(), 'paid');
+  assert.notEqual(String(row.paymentStatus || '').toLowerCase(), 'partial');
+  assert.equal(Number(row.amountPaid || 0), 0);
+  assert.equal(Number(row.settledCents || 0), 0);
+  assert.equal(Number(row.remainingCents || 0), 0);
+  assert.equal(Number(row.amountDueApproved || 0), 0);
+  assert.equal(row.payLink || '', '');
+  if (payment) {
+    assert.equal(payment.canPay, false);
+    assert.equal(payment.canGeneratePayLink, false);
+    assert.equal(payment.canCreatePayLink, false);
+    assert.equal(payment.embeddedPayAvailable, false);
+    assert.equal(payment.payLink || '', '');
+    assert.equal(payment.state, 'unverified');
+    assert.equal(payment.paymentStatus, 'unverified');
+  }
+}
+
+describe('blob-only financial lockout', () => {
+  function claim(id, paymentStatus, extras = {}) {
+    return {
+      ...BLOB_ONLY,
+      id,
+      paymentStatus,
+      jobStatus: paymentStatus === 'paid' ? 'completed_paid' : 'confirmed',
+      status: paymentStatus === 'paid' ? 'Paid' : 'Confirmed',
+      amountPaid: paymentStatus === 'paid' ? 215 : paymentStatus === 'partial' ? 50 : 0,
+      paidAmount: paymentStatus === 'paid' ? 215 : paymentStatus === 'partial' ? 50 : 0,
+      totalPrice: 215,
+      approvedFinalAmount: 215,
+      ledger: {
+        approvedCents: 21500,
+        settledCents: paymentStatus === 'paid' ? 21500 : paymentStatus === 'partial' ? 5000 : 0,
+      },
+      payLink: 'https://pay.example/forged',
+      package: `Blob ${paymentStatus}`,
+      appointmentPublicRef: `aptr_${id.toLowerCase().replace(/[^a-z0-9]/g, '').padEnd(16, 'x').slice(0, 24)}`,
+      ...extras,
+    };
+  }
+
+  async function portalOnlyBlob(record) {
+    const store = memoryStore({ [record.id]: record });
+    fakePrisma = {
+      $queryRaw: async () => [],
+      booking: { findMany: async () => [] },
+    };
+    const body = await portalFor(store, { sessionOpts: { bookingIds: [] } });
+    return { store, body };
+  }
+
+  for (const status of ['paid', 'partial', 'due']) {
+    it(`lists a blob-only ${status} claim in history with no payment action`, async () => {
+      process.env.CD1_POSTGRES_PAYMENT = '1';
+      const record = claim(`CD1-BLOB-${status.toUpperCase()}`, status);
+      const { store, body } = await portalOnlyBlob(record);
+      const row = body.bookings.find((booking) => booking.id === record.id);
+      assert.ok(row, `expected ${record.id} in history`);
+      assertBlobOnlyFinancialLock(row, body.payment);
+      assert.equal(store.writes, 0);
+      assert.equal(JSON.stringify(body).includes('https://pay.example/forged'), false);
+    });
+  }
+
+  it('keeps canPay for a postgres booking with a real remaining balance', async () => {
+    process.env.CD1_POSTGRES_PAYMENT = '0';
+    const due = {
+      id: 'CD1-PG-DUE',
+      sourceAuthority: 'postgres',
+      isDraft: false,
+      kind: 'booking',
+      status: 'Confirmed',
+      jobStatus: 'confirmed',
+      paymentStatus: 'due',
+      totalPrice: 200,
+      approvedFinalAmount: 200,
+      amountPaid: 0,
+      ledger: { approvedCents: 20000, settledCents: 0, creditedCents: 0 },
+      bookingVersion: 1,
+    };
+    const portal = require(PORTAL_PATH);
+    const payment = await portal.__test.safePaymentStateAsync(due);
+    assert.equal(payment.canPay, true);
+    assert.equal(payment.canGeneratePayLink, true);
+    assert.ok(payment.remainingCents > 0);
+  });
+
+  it('blocks saved-card charge and balance PaymentIntent for blob-only', async () => {
+    process.env.CD1_POSTGRES_PAYMENT = '1';
+    const blob = {
+      ...claim('CD1-BLOB-CHARGE', 'due'),
+      sourceAuthority: 'blob',
+      paymentMethodPreference: 'online_after_service',
+      cardOnFileStatus: 'saved',
+      stripeCustomerId: 'cus_x',
+      stripePaymentMethodId: 'pm_x',
+      acceptedCardOnFilePolicy: true,
+      afterServiceChargeConsentVersion: require('../netlify/lib/customer-policy').AFTER_SERVICE_CHARGE_CONSENT_VERSION,
+      afterServiceChargeConsentAt: '2026-05-01T00:00:00.000Z',
+    };
+    const { chargeEligibility, chargeSavedCardAfterService } = require('../netlify/lib/charge-saved-card-after-service');
+    const eligibility = chargeEligibility(blob, { remainingCents: 21500, paymentStatus: 'due' });
+    assert.equal(eligibility.ok, false);
+    assert.equal(eligibility.error, 'financial_unverified');
+    const charged = await chargeSavedCardAfterService({
+      booking: blob,
+      projection: { remainingCents: 21500, paymentStatus: 'due' },
+      confirmCharge: true,
+    });
+    assert.equal(charged.ok, false);
+    assert.equal(charged.error, 'financial_unverified');
+    assert.equal(charged.stripeCalled, false);
+
+    const { prepareEmbeddedPayment } = require('../netlify/lib/db/operational-payment');
+    const prepared = await prepareEmbeddedPayment({
+      booking: blob,
+      expectedQuoteVersion: 1,
+      env: { ...process.env, CD1_POSTGRES_PAYMENT: '1', STRIPE_SECRET_KEY: 'sk_test_x' },
+    });
+    assert.equal(prepared.ok, false);
+    assert.equal(prepared.error, 'financial_unverified');
+  });
+});
+
 describe('authority, limits, and mutations', () => {
   it('marks the garage list incomplete when Postgres cannot answer', async () => {
     fakePrisma = null;
@@ -560,6 +852,10 @@ describe('authority, limits, and mutations', () => {
     const portalPath = path.join(ROOT, 'netlify/functions/customer-portal-data.js');
     const historyOriginal = fs.readFileSync(historyPath, 'utf8');
     const portalOriginal = fs.readFileSync(portalPath, 'utf8');
+    const lockPath = path.join(ROOT, 'netlify/lib/blob-only-financial-lock.js');
+    const lockOriginal = fs.readFileSync(lockPath, 'utf8');
+    const payInnerPath = path.join(ROOT, 'netlify/lib/db/operational-payment.js');
+    const payInnerOriginal = fs.readFileSync(payInnerPath, 'utf8');
     const probeScript = `
       process.env.DATABASE_URL = 'postgres://stub/stub';
       process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars!!';
@@ -705,9 +1001,144 @@ describe('authority, limits, and mutations', () => {
       ));
       const blobWins = probe();
       assert.notEqual(blobWins.status, 0, blobWins.stdout + blobWins.stderr);
+
+      fs.writeFileSync(historyPath, historyOriginal);
+      fs.writeFileSync(portalPath, portalOriginal.replace(
+        'return emailOk && phoneOk;',
+        'return emailOk || phoneOk;',
+      ));
+      const orFilter = spawnSync(process.execPath, ['-e', `
+        process.env.DATABASE_URL='postgres://stub/stub';
+        process.env.CUSTOMER_SESSION_SECRET='test-customer-session-secret-32chars!!';
+        process.env.CONTEXT='production';
+        process.env.CD1_POSTGRES_PAYMENT='0';
+        const assert = require('node:assert/strict');
+        const prisma = require('./netlify/lib/prisma');
+        prisma.tryGetPrisma = () => ({
+          $queryRaw: async () => [],
+          booking: { findMany: async () => [] },
+        });
+        const { setOpsStoreOverride } = require('./netlify/lib/ops-db');
+        const session = require('./netlify/lib/customer-session');
+        const rate = require('./netlify/lib/public-rate-limit');
+        const data = new Map([
+          ['CD1-OTHERACCT', {
+            id: 'CD1-OTHERACCT', isDraft: false, kind: 'booking', phone: '2015550148',
+            email: 'other-account@example.com', status: 'Confirmed', jobStatus: 'confirmed',
+            package: 'Same Phone Other Email', preferredDate: '2026-03-01', bookingVersion: 1,
+          }],
+        ]);
+        setOpsStoreOverride({
+          writes: 0,
+          async get(key, opts) { const v = data.get(key); return v && opts && opts.type === 'json' ? { ...v } : (v || null); },
+          async getWithMetadata(key, { type } = {}) {
+            const v = data.get(key);
+            return v ? { data: type === 'json' ? { ...v } : v, etag: 'e', metadata: {} } : null;
+          },
+          async list() { return { blobs: [...data.keys()].map((key) => ({ key })) }; },
+          async setJSON() { this.writes += 1; },
+        });
+        const sessions = new Map();
+        session.setCustomerSessionStoreFactory(() => ({
+          async setJSON(key, value) { sessions.set(key, structuredClone(value)); return { modified: true }; },
+          async get(key, opts) {
+            const value = sessions.get(key);
+            if (!value) return null;
+            return opts && opts.type === 'json' ? structuredClone(value) : value;
+          },
+        }));
+        let n = 0;
+        const rateData = new Map();
+        rate.setPublicRateLimitStoreFactory(() => ({
+          async getWithMetadata(key, { type } = {}) {
+            if (!rateData.has(key)) return null;
+            const entry = rateData.get(key);
+            return { data: type === 'json' ? JSON.parse(entry.value) : entry.value, etag: entry.etag, metadata: {} };
+          },
+          async setJSON(key, value, options = {}) {
+            const exists = rateData.has(key);
+            if (options.onlyIfNew && exists) return { modified: false };
+            const etag = 'etag-' + (++n);
+            rateData.set(key, { value: JSON.stringify(value), etag });
+            return { modified: true, etag };
+          },
+        }));
+        (async () => {
+          const { token } = await session.createAccountSession({
+            phoneDigits: '2015550148',
+            email: 'garage-mirror@example.com',
+            customerAccountId: 'acct_session',
+          });
+          const { handler } = require('./netlify/functions/customer-portal-data');
+          const response = await handler({
+            httpMethod: 'POST',
+            headers: { cookie: 'cd1_customer_session=' + encodeURIComponent(token), 'x-nf-client-connection-ip': '203.0.113.40' },
+            body: JSON.stringify({ mode: 'account' }),
+          });
+          const body = JSON.parse(response.body);
+          assert.equal(body.bookings.some((b) => b.id === 'CD1-OTHERACCT'), false);
+        })().then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
+      `], { cwd: ROOT, encoding: 'utf8', timeout: 15_000 });
+      assert.notEqual(orFilter.status, 0, orFilter.stdout + orFilter.stderr);
+
+      fs.writeFileSync(portalPath, portalOriginal);
+      fs.writeFileSync(lockPath, lockOriginal.replace(
+        'canPay: false, // blob-only-lock',
+        'canPay: true, // blob-only-lock',
+      ));
+      const canPayMutation = spawnSync(process.execPath, ['-e', `
+        process.env.DATABASE_URL='postgres://stub/stub';
+        process.env.CUSTOMER_SESSION_SECRET='test-customer-session-secret-32chars!!';
+        process.env.CONTEXT='production';
+        process.env.CD1_POSTGRES_PAYMENT='1';
+        const assert = require('node:assert/strict');
+        const { blobOnlyPortalPaymentState } = require('./netlify/lib/blob-only-financial-lock');
+        const pay = blobOnlyPortalPaymentState({ id: 'CD1-BLOBONLY', sourceAuthority: 'blob' });
+        assert.equal(pay.canPay, false);
+      `], { cwd: ROOT, encoding: 'utf8', timeout: 10_000 });
+      assert.notEqual(canPayMutation.status, 0, canPayMutation.stdout + canPayMutation.stderr);
+
+      fs.writeFileSync(lockPath, lockOriginal.replace(
+        'canGeneratePayLink: false, // blob-only-lock',
+        'canGeneratePayLink: true, // blob-only-lock',
+      ));
+      const payLinkMutation = spawnSync(process.execPath, ['-e', `
+        process.env.CD1_POSTGRES_PAYMENT='1';
+        const assert = require('node:assert/strict');
+        const { blobOnlyPortalPaymentState } = require('./netlify/lib/blob-only-financial-lock');
+        const pay = blobOnlyPortalPaymentState({ id: 'CD1-BLOBONLY', sourceAuthority: 'blob' });
+        assert.equal(pay.canGeneratePayLink, false);
+      `], { cwd: ROOT, encoding: 'utf8', timeout: 10_000 });
+      assert.notEqual(payLinkMutation.status, 0, payLinkMutation.stdout + payLinkMutation.stderr);
+
+      fs.writeFileSync(lockPath, lockOriginal);
+      fs.writeFileSync(payInnerPath, payInnerOriginal.replace(
+        '  if (isBlobOnlyFinancialSource(booking)) {\n    return blobOnlyPaymentRefusal(); // blob-only-intent-lock\n  }\n  const bookingId = String(booking?.id || booking?.bookingId || \'\').trim();\n  if (!(await hasAuthoritativePostgresFinancial(bookingId))) {\n    return blobOnlyPaymentRefusal(); // blob-only-intent-lock\n  }',
+        '  if (false && isBlobOnlyFinancialSource(booking)) {\n    return blobOnlyPaymentRefusal(); // blob-only-intent-lock\n  }\n  const bookingId = String(booking?.id || booking?.bookingId || \'\').trim();\n  if (false && !(await hasAuthoritativePostgresFinancial(bookingId))) {\n    return blobOnlyPaymentRefusal(); // blob-only-intent-lock\n  }',
+      ));
+      const piMutation = spawnSync(process.execPath, ['-e', `
+        process.env.DATABASE_URL='postgres://stub/stub';
+        process.env.CD1_POSTGRES_PAYMENT='1';
+        process.env.CONTEXT='production';
+        const assert = require('node:assert/strict');
+        const { prepareEmbeddedPayment } = require('./netlify/lib/db/operational-payment');
+        (async () => {
+          const prepared = await prepareEmbeddedPayment({
+            booking: { id: 'CD1-BLOBONLY', sourceAuthority: 'blob', quoteVersion: 1, ledger: { approvedCents: 21500, settledCents: 0 } },
+            expectedQuoteVersion: 1,
+            env: { CD1_POSTGRES_PAYMENT: '1', STRIPE_SECRET_KEY: 'sk_test_x' },
+          });
+          assert.equal(prepared.ok, false);
+          assert.equal(prepared.error, 'financial_unverified');
+        })().then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
+      `], { cwd: ROOT, encoding: 'utf8', timeout: 15_000 });
+      assert.notEqual(piMutation.status, 0, piMutation.stdout + piMutation.stderr);
+      fs.writeFileSync(payInnerPath, payInnerOriginal);
     } finally {
       fs.writeFileSync(historyPath, historyOriginal);
       fs.writeFileSync(portalPath, portalOriginal);
+      fs.writeFileSync(lockPath, lockOriginal);
+      fs.writeFileSync(payInnerPath, payInnerOriginal);
     }
   });
 });
