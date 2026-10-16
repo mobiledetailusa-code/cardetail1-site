@@ -6,12 +6,18 @@ const fs = require('fs');
 const path = require('path');
 const { createCsrfToken } = require('../netlify/lib/owner-studio/authorization');
 const {
+  createAdminSession,
+  TOKEN_PREFIX,
+} = require('../netlify/lib/admin-security');
+const {
   CLASSIFICATIONS,
   dollarsToCents,
   remainingUnclamped,
   remainingClamped,
   classifyBooking,
   findForbiddenBodyKeys,
+  mergeUniverse,
+  candidateFromResult,
 } = require('../netlify/lib/financial-history-audit');
 const {
   encodeCursor,
@@ -21,6 +27,7 @@ const {
   wrapReadOnlyPrisma,
   wrapReadOnlyStore,
   assertStripeGet,
+  isSafeReadSql,
 } = require('../netlify/lib/financial-history-audit-runtime');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -28,7 +35,7 @@ const FN = path.join(ROOT, 'netlify/functions/financial-reconciliation-audit.js'
 const AUDIT_LIB = path.join(ROOT, 'netlify/lib/financial-history-audit.js');
 const AUDIT_RT = path.join(ROOT, 'netlify/lib/financial-history-audit-runtime.js');
 const SECRET = 'test-admin-session-secret-value-32chars';
-const SESSION = 'sess-token-abcdef0123456789abcd';
+const ADMIN_KEY = 'test-admin-dash-password-key';
 
 function loadHandler(deps) {
   delete require.cache[require.resolve(FN)];
@@ -38,16 +45,27 @@ function loadHandler(deps) {
   return mod.handler;
 }
 
-function productionEvent({ body, cookie = true, csrf = true, headers = {} } = {}) {
+async function productionEvent({
+  body,
+  cookie = true,
+  csrf = true,
+  headers = {},
+  adminKey = null,
+} = {}) {
   const h = {
     host: 'cardetail1.com',
     'x-nf-client-connection-ip': '203.0.113.10',
     'content-type': 'application/json',
     ...headers,
   };
-  if (cookie) h.cookie = `cd1_admin_session=${SESSION}`;
-  if (!cookie) h['x-admin-key'] = SESSION;
-  if (csrf) h['x-csrf-token'] = createCsrfToken(SESSION, SECRET);
+  if (cookie) {
+    const session = await createAdminSession('admin');
+    h.cookie = `cd1_admin_session=${session.token}`;
+    if (csrf) h['x-csrf-token'] = createCsrfToken(session.token, SECRET);
+    h.__session = session.token;
+  } else if (adminKey !== false) {
+    h['x-admin-key'] = adminKey || ADMIN_KEY;
+  }
   return {
     httpMethod: 'POST',
     headers: h,
@@ -70,10 +88,10 @@ function fakePrisma(seed = {}) {
     return row[key] === value;
   });
   const model = (name) => ({
-    findMany: async ({ where } = {}) => tables[name].filter((row) => match(row, where)),
+    findMany: async ({ where } = {}) => tables[name].filter((row) => match(row, where || {})),
     findUnique: async () => null,
-    findFirst: async ({ where } = {}) => tables[name].find((row) => match(row, where)) || null,
-    create: async (args) => { writes.push(`${name}.create`); throw new Error('write_forbidden'); },
+    findFirst: async ({ where } = {}) => tables[name].find((row) => match(row, where || {})) || null,
+    create: async () => { writes.push(`${name}.create`); throw new Error('write_forbidden'); },
     update: async () => { writes.push(`${name}.update`); throw new Error('write_forbidden'); },
     updateMany: async () => { writes.push(`${name}.updateMany`); throw new Error('write_forbidden'); },
     upsert: async () => { writes.push(`${name}.upsert`); throw new Error('write_forbidden'); },
@@ -88,6 +106,7 @@ function fakePrisma(seed = {}) {
     refundRequest: model('refundRequest'),
     stripeEvent: model('stripeEvent'),
     $executeRawUnsafe: async (sql) => ({ sql }),
+    $queryRaw: async (sql) => { writes.push('queryRaw'); return sql; },
     $transaction: async (fn) => fn(client),
     __writes: writes,
   };
@@ -120,6 +139,7 @@ function stripeIntent({
   currency = 'usd',
   refunded = 0,
   disputed = false,
+  descriptor = 'CARDETAIL1',
 } = {}) {
   return {
     id,
@@ -130,7 +150,8 @@ function stripeIntent({
     amount_capturable: 0,
     currency,
     customer: 'cus_hidden_should_not_return',
-    metadata: { bookingId, booking_id: bookingId, purpose },
+    statement_descriptor: descriptor,
+    metadata: bookingId || purpose ? { bookingId, booking_id: bookingId, purpose } : {},
     latest_charge: {
       id: 'ch_hidden',
       status: 'succeeded',
@@ -140,11 +161,25 @@ function stripeIntent({
   };
 }
 
-function fetchMap(intents) {
+function fetchMap(intents, listOpts = {}) {
   const calls = [];
+  const listed = listOpts.list !== undefined
+    ? listOpts.list
+    : Object.values(intents).filter((row) => row && row.id);
   const fetchImpl = async (url, opts) => {
-    calls.push({ url, method: (opts && opts.method) || 'GET' });
-    const id = String(url).split('/payment_intents/')[1].split('?')[0];
+    calls.push({ url: String(url), method: (opts && opts.method) || 'GET' });
+    const parsed = new URL(String(url), 'https://api.stripe.com');
+    if (parsed.pathname === '/v1/payment_intents' || parsed.pathname === '/v1/payment_intents/search') {
+      if (listOpts.down) {
+        return { ok: false, status: 500, json: async () => ({ error: { type: 'api_error' } }) };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: listed, has_more: !!listOpts.hasMore }),
+      };
+    }
+    const id = decodeURIComponent(parsed.pathname.split('/payment_intents/')[1] || '').split('/')[0];
     if (intents[id] === 'missing') {
       return { ok: false, status: 404, json: async () => ({ error: { type: 'invalid_request_error' } }) };
     }
@@ -165,21 +200,22 @@ const envProd = {
   BRANCH: 'master',
   ADMIN_SESSION_SECRET: SECRET,
   STRIPE_SECRET_KEY: 'sk_live_not_used_in_unit_tests',
-  ADMIN_DASH_PASSWORD: 'pw',
+  ADMIN_DASH_PASSWORD: ADMIN_KEY,
 };
 
 function depsFor(handlerOpts = {}) {
-  return {
+  const deps = {
     env: envProd,
-    verifyAdminRequest: async () => (handlerOpts.authOk === false
-      ? { ok: false, error: 'unauthorized' }
-      : { ok: true, username: 'admin', token: SESSION }),
     enforcePublicRateLimit: async () => ({ blocked: false, allowed: true }),
     fetchImpl: handlerOpts.fetchImpl || fetchMap({}),
     storeFactory: async () => handlerOpts.store || fakeStore({}),
     prismaFactory: () => handlerOpts.prisma || fakePrisma(),
     stripeSecret: 'sk_live_not_used_in_unit_tests',
   };
+  if (handlerOpts.authOk === false) {
+    deps.authenticateAuditRequest = async () => ({ ok: false, error: 'unauthorized', status: 401 });
+  }
+  return deps;
 }
 
 function blobBase(over = {}) {
@@ -430,6 +466,31 @@ describe('financial history audit classification', () => {
     assert.equal(result.classification, 'duplicate_charge_confirmed');
   });
 
+  it('keeps duplicate primary when a refund is also present', () => {
+    const result = classifyBooking({
+      blob: blobBase({ paymentIntentId: 'pi_test_1', refundStatus: 'partial' }),
+      postgres: pgPaid({
+        paymentAttempts: [
+          { bookingId: 'CD1-AUDIT-1', quoteVersion: 1, purpose: 'authoritative_balance', providerObjectId: 'pi_test_1', status: 'succeeded', amountCents: 5000, currency: 'usd', idempotencyKey: 'a' },
+          { bookingId: 'CD1-AUDIT-1', quoteVersion: 1, purpose: 'authoritative_balance', providerObjectId: 'pi_test_2', status: 'succeeded', amountCents: 5000, currency: 'usd', idempotencyKey: 'b' },
+        ],
+        ledgerEntries: [
+          { kind: 'settlement', amountCents: 5000, providerObjectId: 'pi_test_1', providerEventId: 'settlement_pi_test_1' },
+          { kind: 'settlement', amountCents: 5000, providerObjectId: 'pi_test_2', providerEventId: 'settlement_pi_test_2' },
+          { kind: 'refund', amountCents: 2000, providerObjectId: 'pi_test_1', providerEventId: 'refund_re_1' },
+        ],
+      }),
+      stripeById: {
+        pi_test_1: { id: 'pi_test_1', found: true, amountReceived: 5000, currency: 'usd', metadataBookingId: 'CD1-AUDIT-1', metadataPurpose: 'authoritative_balance', refundedAmount: 2000 },
+        pi_test_2: { id: 'pi_test_2', found: true, amountReceived: 5000, currency: 'usd', metadataBookingId: 'CD1-AUDIT-1', metadataPurpose: 'authoritative_balance', refundedAmount: 0 },
+      },
+    });
+    assert.equal(result.primaryClassification, 'duplicate_charge_confirmed');
+    assert.ok(result.reasonCodes.includes('duplicate_charge_confirmed'));
+    assert.ok(result.reasonCodes.includes('refunded_or_disputed'));
+    assert.ok(result.reasonCodes.includes('multiple_succeeded_payment_intents'));
+  });
+
   it('classifies duplicate_settlement_risk', () => {
     const result = classifyBooking({
       blob: blobBase(),
@@ -511,7 +572,7 @@ describe('financial history audit classification', () => {
   });
 
   it('covers every classification name', () => {
-    assert.equal(CLASSIFICATIONS.length, 15);
+    assert.equal(CLASSIFICATIONS.length, 17);
   });
 });
 
@@ -522,7 +583,7 @@ describe('financial history audit HTTP gates', () => {
     process.env.CONTEXT = 'production';
     process.env.BRANCH = 'master';
     process.env.ADMIN_SESSION_SECRET = SECRET;
-    process.env.ADMIN_DASH_PASSWORD = 'pw';
+    process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
   });
   afterEach(() => {
     process.env = savedEnv;
@@ -536,14 +597,75 @@ describe('financial history audit HTTP gates', () => {
   });
 
   it('rejects missing authentication', async () => {
-    const handler = loadHandler(depsFor({ authOk: false }));
-    const res = await handler(productionEvent());
+    const handler = loadHandler(depsFor());
+    const event = await productionEvent({ cookie: false, adminKey: false });
+    const res = await handler(event);
     assert.equal(res.statusCode, 401);
+  });
+
+  it('rejects a session token sent as x-admin-key', async () => {
+    const handler = loadHandler(depsFor());
+    const session = await createAdminSession('admin');
+    const event = await productionEvent({ cookie: false, adminKey: false });
+    event.headers['x-admin-key'] = session.token;
+    const res = await handler(event);
+    assert.equal(res.statusCode, 401);
+    assert.equal(JSON.parse(res.body).error, 'admin_key_invalid');
+    assert.ok(session.token.startsWith(TOKEN_PREFIX));
+  });
+
+  it('accepts a valid admin key without treating it as a cookie session', async () => {
+    const handler = loadHandler(depsFor({
+      store: fakeStore({
+        'CD1-DUE': blobBase({
+          id: 'CD1-DUE', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0,
+          paymentStatus: 'due', jobStatus: 'assigned',
+        }),
+      }),
+    }));
+    const event = await productionEvent({ cookie: false, csrf: false });
+    assert.equal(event.headers['x-admin-key'], ADMIN_KEY);
+    assert.equal(event.headers.cookie, undefined);
+    const res = await handler(event);
+    assert.equal(res.statusCode, 200);
+  });
+
+  it('rejects a browser cookie without CSRF', async () => {
+    const handler = loadHandler(depsFor());
+    const event = await productionEvent({ csrf: false });
+    const res = await handler(event);
+    assert.equal(res.statusCode, 403);
+    assert.equal(JSON.parse(res.body).error, 'csrf_invalid');
+  });
+
+  it('accepts a browser cookie with a valid CSRF token', async () => {
+    const handler = loadHandler(depsFor({
+      store: fakeStore({
+        'CD1-DUE': blobBase({
+          id: 'CD1-DUE', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0,
+          paymentStatus: 'due', jobStatus: 'assigned',
+        }),
+      }),
+    }));
+    const event = await productionEvent({ cookie: true, csrf: true });
+    assert.ok(event.headers.cookie.includes('cd1_admin_session='));
+    assert.equal(event.headers['x-admin-key'], undefined);
+    const res = await handler(event);
+    assert.equal(res.statusCode, 200);
+  });
+
+  it('rejects conflicting cookie and x-admin-key credentials', async () => {
+    const handler = loadHandler(depsFor());
+    const event = await productionEvent({ cookie: true, csrf: true });
+    event.headers['x-admin-key'] = ADMIN_KEY;
+    const res = await handler(event);
+    assert.equal(res.statusCode, 401);
+    assert.equal(JSON.parse(res.body).error, 'conflicting_credentials');
   });
 
   it('rejects invalid CSRF on a browser session', async () => {
     const handler = loadHandler(depsFor());
-    const event = productionEvent({ csrf: false });
+    const event = await productionEvent({ csrf: false });
     event.headers['x-csrf-token'] = 'forged';
     const res = await handler(event);
     assert.equal(res.statusCode, 403);
@@ -556,7 +678,7 @@ describe('financial history audit HTTP gates', () => {
       ...depsFor({ fetchImpl }),
       env: { ...envProd, CONTEXT: 'deploy-preview', BRANCH: 'cursor/financial-history-readonly-audit-48bc' },
     });
-    const res = await handler(productionEvent());
+    const res = await handler(await productionEvent());
     assert.equal(res.statusCode, 403);
     assert.equal(JSON.parse(res.body).error, 'non_production_context');
     assert.equal(fetchImpl.calls.length, 0);
@@ -568,23 +690,31 @@ describe('financial history audit HTTP gates', () => {
       ...depsFor({ fetchImpl }),
       env: { ...envProd, CONTEXT: 'branch-deploy', BRANCH: 'cursor/x' },
     });
-    const res = await handler(productionEvent());
+    const res = await handler(await productionEvent());
     assert.equal(res.statusCode, 403);
     assert.equal(fetchImpl.calls.length, 0);
   });
 
   it('rejects apply/backfill/write parameters', async () => {
     const handler = loadHandler(depsFor());
-    const res = await handler(productionEvent({ body: { mode: 'dry-run', apply: true } }));
+    const res = await handler(await productionEvent({ body: { mode: 'dry-run', apply: true } }));
     assert.equal(res.statusCode, 400);
     assert.equal(JSON.parse(res.body).error, 'write_mode_rejected');
   });
 
   it('requires dry-run', async () => {
     const handler = loadHandler(depsFor());
-    const res = await handler(productionEvent({ body: { mode: 'apply' } }));
+    const res = await handler(await productionEvent({ body: { mode: 'apply' } }));
     assert.equal(res.statusCode, 400);
     assert.equal(JSON.parse(res.body).error, 'dry_run_required');
+  });
+
+  it('never logs header, cookie, or token values', () => {
+    const src = fs.readFileSync(FN, 'utf8');
+    assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*x-admin-key/);
+    assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*cookie/);
+    assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*csrf/);
+    assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*ADMIN_DASH_PASSWORD/);
   });
 });
 
@@ -618,6 +748,8 @@ describe('financial history audit runtime', () => {
     });
     assert.equal(second.ok, true);
     assert.equal(first.totals.bookingsExamined + second.totals.bookingsExamined, 3);
+    assert.equal(second.scanComplete, true);
+    assert.equal(second.partial, false);
   });
 
   it('rejects a tampered cursor', async () => {
@@ -632,6 +764,29 @@ describe('financial history audit runtime', () => {
     assert.equal(result.error, 'invalid_cursor');
   });
 
+  it('rejects a cursor from another coverage window', async () => {
+    const cursor = encodeCursor({
+      exec: 'other-exec',
+      s: '2020-01-01T00:00:00.000Z',
+      f: '2020-02-01T00:00:00.000Z',
+      localAfter: null,
+      stripeAfter: null,
+      stripeDone: true,
+      localDone: false,
+      listed: [],
+    }, envProd);
+    const result = await runDryRunPage({
+      env: envProd,
+      cursor,
+      storeFactory: async () => fakeStore({}),
+      prismaFactory: () => fakePrisma(),
+      fetchImpl: fetchMap({}),
+      stripeSecret: 'sk_test_x',
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'cursor_execution_mismatch');
+  });
+
   it('reports a timeout as partial, not consistent', async () => {
     const records = { 'CD1-A': blobBase({ id: 'CD1-A' }) };
     const result = await runDryRunPage({
@@ -644,6 +799,8 @@ describe('financial history audit runtime', () => {
     });
     assert.equal(result.ok, true);
     assert.equal(result.totals.byClassification.consistent_paid.count, 0);
+    assert.equal(result.scanComplete, false);
+    assert.equal(result.partial, true);
   });
 
   it('reports Stripe, Postgres, and Blob unavailability without writing', async () => {
@@ -654,12 +811,13 @@ describe('financial history audit runtime', () => {
         booking: [{ id: 'CD1-A' }],
         quote: [{ bookingId: 'CD1-A', quoteVersion: 1, approvedCents: 5000, currency: 'usd' }],
       }),
-      fetchImpl: fetchMap({ pi_test_1: 'down' }),
+      fetchImpl: fetchMap({ pi_test_1: 'down' }, { down: true }),
       stripeSecret: 'sk_test_x',
     });
     assert.equal(stripeDown.ok, true);
     assert.ok(stripeDown.totals.stripeErrors >= 1);
     assert.equal(stripeDown.totals.byClassification.consistent_paid.count, 0);
+    assert.equal(stripeDown.scanComplete, false);
 
     const pgDown = await runDryRunPage({
       env: envProd,
@@ -705,26 +863,201 @@ describe('financial history audit runtime', () => {
     assert.equal(result.totals.byClassification.provider_missing.count, 1);
   });
 
+  it('examines blob-only, postgres-only, and overlapping bookings once', async () => {
+    const result = await runDryRunPage({
+      env: envProd,
+      storeFactory: async () => fakeStore({
+        'CD1-BLOB': blobBase({
+          id: 'CD1-BLOB', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0,
+          paymentStatus: 'due', jobStatus: 'assigned',
+        }),
+        'CD1-BOTH': blobBase({
+          id: 'CD1-BOTH', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0,
+          paymentStatus: 'due', jobStatus: 'assigned',
+        }),
+      }),
+      prismaFactory: () => fakePrisma({
+        booking: [{ id: 'CD1-PG' }, { id: 'CD1-BOTH' }],
+        paymentAttempt: [{ bookingId: 'CD1-ATTEMPT', providerObjectId: 'pi_only_attempt' }],
+        ledgerEntry: [{ bookingId: 'CD1-LEDGER', providerObjectId: 'pi_only_ledger', kind: 'settlement', amountCents: 1000 }],
+        stripeEvent: [{ bookingId: 'CD1-EVENT' }],
+      }),
+      fetchImpl: fetchMap({}),
+      stripeSecret: 'sk_test_x',
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.totals.sources.blob, 2);
+    assert.equal(result.totals.sources.postgresBookings, 2);
+    assert.equal(result.totals.sources.paymentAttempts, 1);
+    assert.equal(result.totals.sources.ledgerEntries, 1);
+    assert.equal(result.totals.sources.stripeEvents, 1);
+    assert.equal(result.totals.sources.union, 6);
+    assert.equal(result.totals.bookingsExamined, 6);
+  });
+
+  it('detects a second succeeded PaymentIntent that exists only on Stripe', async () => {
+    const extra = stripeIntent({
+      id: 'pi_only_stripe',
+      bookingId: 'CD1-AUDIT-1',
+      received: 5000,
+    });
+    const result = await runDryRunPage({
+      env: envProd,
+      storeFactory: async () => fakeStore({ 'CD1-AUDIT-1': blobBase() }),
+      prismaFactory: () => fakePrisma({
+        booking: [{ id: 'CD1-AUDIT-1' }],
+        quote: [{ bookingId: 'CD1-AUDIT-1', quoteVersion: 1, approvedCents: 5000, currency: 'usd' }],
+        paymentAttempt: [{
+          bookingId: 'CD1-AUDIT-1', quoteVersion: 1, purpose: 'authoritative_balance',
+          providerObjectId: 'pi_test_1', status: 'succeeded', amountCents: 5000, currency: 'usd',
+          idempotencyKey: 'k',
+        }],
+        ledgerEntry: [{
+          bookingId: 'CD1-AUDIT-1', kind: 'settlement', amountCents: 5000, currency: 'usd',
+          providerObjectId: 'pi_test_1', providerEventId: 'settlement_pi_test_1',
+        }],
+      }),
+      fetchImpl: fetchMap({
+        pi_test_1: stripeIntent(),
+        pi_only_stripe: extra,
+      }),
+      stripeSecret: 'sk_test_x',
+    });
+    assert.equal(result.totals.byClassification.duplicate_charge_confirmed.count, 1);
+    assert.ok(result.totals.byReasonOverlapping.multiple_succeeded_payment_intents >= 1);
+    assert.equal(result.totals.bookingsExamined, 1);
+  });
+
+  it('flags a PaymentIntent with no local booking reference', async () => {
+    const orphan = stripeIntent({
+      id: 'pi_orphan',
+      bookingId: '',
+      purpose: '',
+      descriptor: 'CARDETAIL1 CD1',
+      received: 4200,
+    });
+    const result = await runDryRunPage({
+      env: envProd,
+      storeFactory: async () => fakeStore({}),
+      prismaFactory: () => fakePrisma(),
+      fetchImpl: fetchMap({ pi_orphan: orphan }),
+      stripeSecret: 'sk_test_x',
+    });
+    assert.ok(result.totals.byClassification.stripe_capture_without_booking.count >= 1);
+    assert.equal(result.candidates.length >= 1, true);
+    assert.equal(JSON.stringify(result.candidates).includes('pi_orphan'), false);
+    assert.equal(JSON.stringify(result.candidates).includes('CD1-'), false);
+  });
+
+  it('marks provider coverage partial when Stripe pages remain', async () => {
+    const listed = stripeIntent({ id: 'pi_page_1', bookingId: 'CD1-ORPHAN-1' });
+    const result = await runDryRunPage({
+      env: envProd,
+      storeFactory: async () => fakeStore({
+        'CD1-DUE': blobBase({
+          id: 'CD1-DUE', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0,
+          paymentStatus: 'due', jobStatus: 'assigned',
+        }),
+      }),
+      prismaFactory: () => fakePrisma(),
+      fetchImpl: fetchMap({ pi_page_1: listed }, { list: [listed], hasMore: true }),
+      stripeSecret: 'sk_test_x',
+    });
+    assert.equal(result.providerCoverage, 'partial');
+    assert.equal(result.partial, true);
+    assert.equal(result.scanComplete, false);
+    assert.equal(result.totals.byClassification.consistent_paid.count, 0);
+    assert.ok(result.totals.byReasonOverlapping.provider_scan_incomplete >= 1);
+  });
+
+  it('keeps auditRef stable across pages and executions without reversing it', async () => {
+    const refA = auditRefFor('CD1-AUDIT-1', envProd);
+    const refB = auditRefFor('CD1-AUDIT-1', envProd);
+    const refOther = auditRefFor('CD1-AUDIT-2', envProd);
+    assert.equal(refA, refB);
+    assert.notEqual(refA, refOther);
+    assert.equal(refA.includes('CD1-AUDIT-1'), false);
+    const first = await runDryRunPage({
+      env: envProd,
+      limit: 1,
+      storeFactory: async () => fakeStore({
+        'CD1-AUDIT-1': blobBase(),
+        'CD1-AUDIT-2': blobBase({ id: 'CD1-AUDIT-2', paymentIntentId: 'pi_test_2' }),
+      }),
+      prismaFactory: () => fakePrisma(),
+      fetchImpl: fetchMap({
+        pi_test_1: stripeIntent(),
+        pi_test_2: stripeIntent({ id: 'pi_test_2', bookingId: 'CD1-AUDIT-2' }),
+      }),
+      stripeSecret: 'sk_test_x',
+    });
+    const second = await runDryRunPage({
+      env: envProd,
+      limit: 1,
+      cursor: first.nextCursor,
+      storeFactory: async () => fakeStore({
+        'CD1-AUDIT-1': blobBase(),
+        'CD1-AUDIT-2': blobBase({ id: 'CD1-AUDIT-2', paymentIntentId: 'pi_test_2' }),
+      }),
+      prismaFactory: () => fakePrisma(),
+      fetchImpl: fetchMap({
+        pi_test_1: stripeIntent(),
+        pi_test_2: stripeIntent({ id: 'pi_test_2', bookingId: 'CD1-AUDIT-2' }),
+      }),
+      stripeSecret: 'sk_test_x',
+    });
+    const refs = [...first.candidates, ...second.candidates].map((row) => row.auditRef);
+    assert.ok(refs.includes(refA));
+    assert.equal(refs.filter((value) => value === refA).length, 1);
+  });
+
   it('fails if a Prisma, blob, or Stripe write method is used', async () => {
     const writes = [];
     const prisma = wrapReadOnlyPrisma(fakePrisma(), writes);
     await assert.rejects(() => prisma.booking.create({ data: {} }), /write_forbidden/);
+    await assert.rejects(() => prisma.booking.update({ data: {} }), /write_forbidden/);
+    await assert.rejects(() => prisma.booking.delete({}), /write_forbidden/);
+    await assert.rejects(() => prisma.ledgerEntry.create({ data: {} }), /write_forbidden/);
+    await assert.rejects(() => prisma.$executeRawUnsafe('INSERT INTO "Booking" (id) VALUES (\'x\')'), /write_forbidden/);
+    await assert.rejects(() => prisma.$executeRawUnsafe('UPDATE "Booking" SET id = id'), /write_forbidden/);
+    await assert.rejects(() => prisma.$executeRawUnsafe('DELETE FROM "Booking"'), /write_forbidden/);
+    await assert.rejects(() => prisma.$executeRawUnsafe('ALTER TABLE "Booking" ADD COLUMN x int'), /write_forbidden/);
+    await assert.rejects(() => prisma.$queryRaw('INSERT INTO "Booking" (id) VALUES (\'x\')'), /write_forbidden/);
     const store = wrapReadOnlyStore(fakeStore({}), writes);
     await assert.rejects(() => store.setJSON('x', {}), /write_forbidden/);
     assert.throws(() => assertStripeGet('https://api.stripe.com/v1/payment_intents', 'POST', writes));
+    assert.throws(() => assertStripeGet('https://api.stripe.com/v1/payment_intents/pi_x/capture', 'GET', writes));
+    assert.throws(() => assertStripeGet('https://api.stripe.com/v1/payment_intents/pi_x/cancel', 'POST', writes));
+    assert.throws(() => assertStripeGet('https://api.stripe.com/v1/refunds', 'POST', writes));
+    assert.throws(() => assertStripeGet('https://api.stripe.com/v1/charges', 'GET', writes));
+    assert.throws(() => assertStripeGet('https://api.stripe.com/v1/customers', 'GET', writes));
+    assert.doesNotThrow(() => assertStripeGet('https://api.stripe.com/v1/payment_intents', 'GET', writes));
+    assert.doesNotThrow(() => assertStripeGet('https://api.stripe.com/v1/payment_intents/search', 'GET', writes));
     assert.ok(writes.length >= 3);
+    assert.equal(isSafeReadSql('INSERT INTO t VALUES (1)'), false);
+    assert.equal(isSafeReadSql('SELECT 1'), true);
+    assert.equal(isSafeReadSql('SET TRANSACTION READ ONLY'), true);
   });
 
-  it('signs auditRef with HMAC and keeps it out of the HTTP body', async () => {
+  it('signs auditRef with HMAC and keeps identifiers out of the HTTP body', async () => {
+    process.env.CONTEXT = 'production';
+    process.env.BRANCH = 'master';
+    process.env.ADMIN_SESSION_SECRET = SECRET;
+    process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
     const ref = auditRefFor('CD1-AUDIT-1', envProd);
     assert.ok(ref);
     assert.equal(ref.includes('CD1-AUDIT-1'), false);
     const fetchImpl = fetchMap({});
     const handler = loadHandler(depsFor({
       fetchImpl,
-      store: fakeStore({ 'CD1-DUE': blobBase({ id: 'CD1-DUE', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0, paymentStatus: 'due', jobStatus: 'assigned', approvedFinalAmount: 50 }) }),
+      store: fakeStore({
+        'CD1-DUE': blobBase({
+          id: 'CD1-DUE', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0,
+          paymentStatus: 'due', jobStatus: 'assigned', approvedFinalAmount: 50,
+        }),
+      }),
     }));
-    const res = await handler(productionEvent({ cookie: false, csrf: false }));
+    const res = await handler(await productionEvent({ cookie: false, csrf: false }));
     assert.equal(res.statusCode, 200);
     const body = JSON.parse(res.body);
     const text = JSON.stringify(body);
@@ -733,11 +1066,22 @@ describe('financial history audit runtime', () => {
     assert.equal(text.includes('@'), false);
     assert.equal(body.dryRun, true);
     assert.equal(typeof body.byClassification.consistent_due.count, 'number');
+    assert.equal(typeof body.scanComplete, 'boolean');
+    assert.ok(body.coverageStartedAt);
+    assert.ok(body.coverageEndedAt);
+    assert.equal(body.reasonCountsOverlap, true);
   });
 
   it('does not persist auditRef', () => {
     const src = fs.readFileSync(AUDIT_RT, 'utf8');
     assert.doesNotMatch(src, /auditRefFor\([^)]+\)[\s\S]{0,80}(create|upsert|setJSON)/);
+  });
+
+  it('does not use the raw session secret as an AES key', () => {
+    const src = fs.readFileSync(AUDIT_RT, 'utf8');
+    assert.match(src, /financial-audit-v1/);
+    assert.match(src, /derivePurposeKey/);
+    assert.doesNotMatch(src, /createCipheriv\('aes-256-gcm', secret/);
   });
 });
 
@@ -757,5 +1101,21 @@ describe('financial history audit source contract', () => {
     assert.match(src, /SET TRANSACTION READ ONLY/);
     assert.match(fn, /non_production_context/);
     assert.equal(findForbiddenBodyKeys({ apply: true, backfill: 1, reconcile: true }).length >= 3, true);
+    assert.equal(findForbiddenBodyKeys({ from: '2020-01-01', to: '2026-01-01' }).length >= 2, true);
+    const merged = mergeUniverse({ blob: ['A', 'B'], postgresBookings: ['B', 'C'] });
+    assert.equal(merged.unionCount, 3);
+    const candidate = candidateFromResult('ref', {
+      primaryClassification: 'amount_mismatch',
+      reasonCodes: ['amount_mismatch'],
+      values: {
+        approvedCents: 1, stripeGrossCapturedCents: 1, ledgerGrossSettlementsCents: 1,
+        refundsCents: 0, netSettledCents: 1, remainingBalanceCents: 0,
+      },
+      paymentIntentCount: 1,
+      settlementCount: 1,
+      requiresManualReview: true,
+    });
+    assert.equal(candidate.auditRef, 'ref');
+    assert.equal(candidate.values.approved, 1);
   });
 });

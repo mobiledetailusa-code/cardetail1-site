@@ -9,21 +9,51 @@ const { computeFinancialProjection } = require('./db/financial-projection');
 const { canPayBalance } = require('./appointment-status-policy');
 
 const CLASSIFICATIONS = Object.freeze([
-  'consistent_paid',
-  'consistent_partial',
-  'consistent_due',
+  'duplicate_charge_confirmed',
+  'booking_mismatch',
+  'currency_mismatch',
+  'refunded_or_disputed',
+  'cash_conflict',
+  'amount_mismatch',
   'blob_paid_ledger_missing',
   'stripe_paid_blob_due',
   'captured_without_purpose',
-  'amount_mismatch',
-  'currency_mismatch',
-  'booking_mismatch',
+  'provider_missing',
+  'stripe_capture_unreferenced_locally',
+  'stripe_capture_without_booking',
   'duplicate_settlement_risk',
+  'consistent_paid',
+  'consistent_partial',
+  'consistent_due',
+  'manual_review',
+]);
+
+/** Primary classification precedence. First match among collected reasons wins. */
+const PRIMARY_PRECEDENCE = Object.freeze([
   'duplicate_charge_confirmed',
+  'booking_mismatch',
+  'stripe_capture_without_booking',
+  'stripe_capture_unreferenced_locally',
+  'currency_mismatch',
   'refunded_or_disputed',
   'cash_conflict',
+  'amount_mismatch',
+  'blob_paid_ledger_missing',
+  'stripe_paid_blob_due',
+  'captured_without_purpose',
   'provider_missing',
+  'duplicate_settlement_risk',
+  'consistent_paid',
+  'consistent_partial',
+  'consistent_due',
   'manual_review',
+]);
+
+const REASON_CODES = Object.freeze([
+  ...CLASSIFICATIONS,
+  'multiple_succeeded_payment_intents',
+  'provider_payment_known_locally',
+  'provider_scan_incomplete',
 ]);
 
 const OBSERVED_PURPOSES = new Set([
@@ -31,6 +61,8 @@ const OBSERVED_PURPOSES = new Set([
   'authoritative_balance',
   'customer_balance',
 ]);
+
+const CONSISTENT = new Set(['consistent_paid', 'consistent_partial', 'consistent_due']);
 
 const FORBIDDEN_BODY_KEYS = new Set([
   'apply',
@@ -52,6 +84,15 @@ const FORBIDDEN_BODY_KEYS = new Set([
   'approvedFinalAmount',
   'DATABASE_URL',
   'STRIPE_SECRET_KEY',
+  'from',
+  'to',
+  'since',
+  'until',
+  'created',
+  'coverageStart',
+  'coverageEnd',
+  'startAt',
+  'endAt',
 ]);
 
 const PAID_BLOB = new Set([
@@ -62,6 +103,8 @@ const PAID_BLOB = new Set([
   'captured',
 ]);
 
+const DEFAULT_COVERAGE_START = '2024-01-01T00:00:00.000Z';
+
 function roundCents(value) {
   if (value == null || value === '') return 0;
   if (typeof value === 'bigint') return Number(value);
@@ -70,14 +113,11 @@ function roundCents(value) {
   return Math.round(n);
 }
 
-/** Parse a dollar amount into integer cents without leaving a float remainder. */
 function dollarsToCents(value) {
   if (value == null || value === '') return 0;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) return 0;
-    const scaled = value * 100;
-    const asInt = Math.round(scaled);
-    return asInt;
+    return Math.round(value * 100);
   }
   const text = String(value).trim();
   const match = /^(-?)(\d+)(?:\.(\d{1,2}))?$/.exec(text);
@@ -108,8 +148,7 @@ function blobIndicatesPaid(blob) {
   if (PAID_BLOB.has(pay)) return true;
   if (pwf === 'payment_succeeded' || pwf === 'cash_paid') return true;
   if (job === 'completed_paid') return true;
-  const captured = roundCents(blob.amountCapturedCents);
-  return captured > 0;
+  return roundCents(blob.amountCapturedCents) > 0;
 }
 
 function blobIndicatesCash(blob) {
@@ -158,6 +197,10 @@ function isCashSettlement(entry) {
   return provider === 'cash' || eventId.startsWith('cash_full_balance:');
 }
 
+function looksLikeCardetail1BookingId(value) {
+  return /^CD1[-_A-Za-z0-9]/i.test(String(value || '').trim());
+}
+
 function extractBlobSnapshot(blob) {
   const bookingId = String((blob && (blob.id || blob.bookingId)) || '').trim();
   const approvedCents = blob && blob.ledger && blob.ledger.approvedCents != null
@@ -186,8 +229,13 @@ function extractBlobSnapshot(blob) {
   };
 }
 
-function extractPostgresSnapshot(rows) {
-  if (!rows || !rows.booking) {
+function extractPostgresSnapshot(rows, bookingId) {
+  const paymentAttempts = Array.isArray(rows && rows.paymentAttempts) ? rows.paymentAttempts : [];
+  const ledgerEntries = Array.isArray(rows && rows.ledgerEntries) ? rows.ledgerEntries : [];
+  const refundRequests = Array.isArray(rows && rows.refundRequests) ? rows.refundRequests : [];
+  const stripeEvents = Array.isArray(rows && rows.stripeEvents) ? rows.stripeEvents : [];
+  const hasFinancial = !!(rows && (rows.booking || paymentAttempts.length || ledgerEntries.length || stripeEvents.length));
+  if (!hasFinancial) {
     return {
       exists: false,
       paymentAttempts: [],
@@ -204,12 +252,10 @@ function extractPostgresSnapshot(rows) {
       paymentStatus: null,
     };
   }
-  const quote = rows.quote || null;
-  const paymentAttempts = Array.isArray(rows.paymentAttempts) ? rows.paymentAttempts : [];
-  const ledgerEntries = Array.isArray(rows.ledgerEntries) ? rows.ledgerEntries : [];
-  const refundRequests = Array.isArray(rows.refundRequests) ? rows.refundRequests : [];
+  const quote = (rows && rows.quote) || null;
+  const booking = (rows && rows.booking) || { id: bookingId };
   const projection = computeFinancialProjection({
-    booking: rows.booking,
+    booking,
     quote,
     paymentAttempts,
     ledgerEntries,
@@ -227,7 +273,7 @@ function extractPostgresSnapshot(rows) {
     quoteVersion: quote ? quote.quoteVersion : null,
     paymentAttempts,
     ledgerEntries,
-    stripeEvents: Array.isArray(rows.stripeEvents) ? rows.stripeEvents : [],
+    stripeEvents,
     refundRequests,
     approvedCents: projection.approvedCents,
     currency: String((quote && quote.currency) || 'usd').toLowerCase(),
@@ -246,12 +292,10 @@ function extractPostgresSnapshot(rows) {
 function garageProjection({ blob, postgres }) {
   const blobSnap = extractBlobSnapshot(blob || {});
   const payAllowed = canPayBalance(blob || {});
-  const authority = postgres.exists ? 'postgres' : 'blob';
+  const authority = postgres.exists ? 'postgres' : (blob ? 'blob' : 'none');
   const approvedCents = postgres.exists ? postgres.approvedCents : blobSnap.approvedCents;
   const settledCents = postgres.exists ? postgres.netSettledCents : blobSnap.amountPaidCents;
-  const remainingCents = postgres.exists
-    ? remainingClamped(approvedCents, settledCents)
-    : remainingClamped(blobSnap.approvedCents, blobSnap.amountPaidCents);
+  const remainingCents = remainingClamped(approvedCents, settledCents);
   const paymentStatus = postgres.exists
     ? postgres.paymentStatus
     : (blobSnap.paid && remainingCents === 0 ? 'paid' : (remainingCents > 0 ? 'due' : 'not_due'));
@@ -270,7 +314,7 @@ function garageProjection({ blob, postgres }) {
   };
 }
 
-function garageSignals({ blob, postgres, garage, classification }) {
+function garageSignals({ postgres, garage, reasons }) {
   const ledgerPaid = postgres.exists
     && postgres.netSettledCents > 0
     && postgres.remainingCents === 0
@@ -282,9 +326,7 @@ function garageSignals({ blob, postgres, garage, classification }) {
     ledgerPaidShownDue: !!(ledgerPaid && shownDue),
     ledgerDueShownPaid: !!(ledgerDue && shownPaid),
     canPayZeroBalance: !!(garage.canPay && garage.remainingCents === 0),
-    canPayUnreconciledCapture: !!(
-      garage.canPay && classification === 'blob_paid_ledger_missing'
-    ),
+    canPayUnreconciledCapture: !!(garage.canPay && reasons.includes('blob_paid_ledger_missing')),
     balanceDueMismatch: !!(
       postgres.exists && garage.blobBalanceDueCents !== postgres.remainingCents
     ),
@@ -297,7 +339,10 @@ function stripeGrossCaptured(stripeById) {
   for (const row of Object.values(stripeById || {})) {
     if (!row || !row.found) continue;
     const received = roundCents(row.amountReceived);
-    if (received > 0) {
+    if (received > 0 && String(row.status || '') === 'succeeded') {
+      sum += received;
+      captures += 1;
+    } else if (received > 0) {
       sum += received;
       captures += 1;
     }
@@ -305,14 +350,28 @@ function stripeGrossCaptured(stripeById) {
   return { sum, captures };
 }
 
-function classifyBooking({ blob, postgres, stripeById, stripeErrors = 0 }) {
+function pickPrimary(reasons) {
+  for (const name of PRIMARY_PRECEDENCE) {
+    if (reasons.includes(name)) return name;
+  }
+  return 'manual_review';
+}
+
+function classifyBooking({
+  blob,
+  postgres,
+  stripeById,
+  stripeErrors = 0,
+  providerScanIncomplete = false,
+  extraSucceededFromProvider = 0,
+} = {}) {
   const blobSnap = extractBlobSnapshot(blob || {});
-  const pg = extractPostgresSnapshot(postgres);
+  const pg = extractPostgresSnapshot(postgres, blobSnap.bookingId);
   const garage = garageProjection({ blob, postgres: pg });
-  const knownIds = collectPaymentIntentIds(blob, pg);
-  const stripeRows = knownIds.map((id) => stripeById && stripeById[id]).filter(Boolean);
-  const foundRows = stripeRows.filter((row) => row.found);
-  const missingIds = knownIds.filter((id) => {
+  const knownLocalIds = collectPaymentIntentIds(blob, pg);
+  const stripeRows = Object.values(stripeById || {});
+  const foundRows = stripeRows.filter((row) => row && row.found);
+  const missingIds = knownLocalIds.filter((id) => {
     const row = stripeById && stripeById[id];
     return row && row.missing === true;
   });
@@ -321,6 +380,7 @@ function classifyBooking({ blob, postgres, stripeById, stripeErrors = 0 }) {
   const netSettledCents = pg.exists ? pg.netSettledCents : blobSnap.amountPaidCents;
   const remainingRaw = remainingUnclamped(approvedCents, netSettledCents);
   const remainingCents = remainingClamped(approvedCents, netSettledCents);
+  const settlementCount = pg.ledgerEntries.filter((entry) => entry.kind === 'settlement').length;
   const values = {
     approvedCents,
     stripeGrossCapturedCents: stripeCapturedCents,
@@ -332,75 +392,119 @@ function classifyBooking({ blob, postgres, stripeById, stripeErrors = 0 }) {
     remainingUnclampedCents: remainingRaw,
   };
 
-  let classification = 'manual_review';
-  if (stripeErrors > 0 && foundRows.length === 0 && missingIds.length === 0 && knownIds.length > 0) {
-    classification = 'manual_review';
-  } else if (missingIds.length > 0) {
-    classification = 'provider_missing';
-  } else if (foundRows.some((row) => {
+  const reasons = [];
+  const add = (code) => {
+    if (code && !reasons.includes(code)) reasons.push(code);
+  };
+
+  if (providerScanIncomplete) add('provider_scan_incomplete');
+
+  const succeededFound = foundRows.filter((row) => (
+    String(row.status || '') === 'succeeded' || roundCents(row.amountReceived) > 0
+  ));
+  if (captures > 1 || extraSucceededFromProvider > 1 || succeededFound.length > 1) {
+    add('duplicate_charge_confirmed');
+    add('multiple_succeeded_payment_intents');
+  }
+
+  if (foundRows.some((row) => {
     const metaId = String(row.metadataBookingId || '').trim();
     return metaId && blobSnap.bookingId && metaId !== blobSnap.bookingId;
   })) {
-    classification = 'booking_mismatch';
-  } else if (
+    add('booking_mismatch');
+  }
+
+  if (
     (blobSnap.currency && blobSnap.currency !== 'usd')
     || (pg.exists && pg.currency && pg.currency !== 'usd')
     || foundRows.some((row) => row.currency && String(row.currency).toLowerCase() !== 'usd')
   ) {
-    classification = 'currency_mismatch';
-  } else if (foundRows.some((row) => roundCents(row.amountReceived) > 0 && !OBSERVED_PURPOSES.has(String(row.metadataPurpose || '')))) {
-    classification = 'captured_without_purpose';
-  } else if (
+    add('currency_mismatch');
+  }
+
+  if (
     foundRows.some((row) => row.disputed || roundCents(row.refundedAmount) > 0)
     || (pg.exists && pg.refundedCents > 0)
     || blobSnap.refund
   ) {
-    classification = 'refunded_or_disputed';
-  } else if (pg.cashSettledCents > 0 && stripeCapturedCents > 0) {
-    classification = 'cash_conflict';
-  } else if (captures > 1) {
-    classification = 'duplicate_charge_confirmed';
-  } else {
-    const settlements = pg.ledgerEntries.filter((entry) => entry.kind === 'settlement');
-    const succeededAttempts = pg.paymentAttempts.filter((attempt) => attempt.status === 'succeeded');
-    const activeAttempts = pg.paymentAttempts.filter((attempt) => (
-      attempt.status === 'creating' || attempt.status === 'open' || attempt.status === 'requires_action'
-    ));
-    const settlementEventIds = settlements.map((entry) => String(entry.providerEventId || ''));
-    const duplicateEvent = settlementEventIds.some((id, i) => id && settlementEventIds.indexOf(id) !== i);
-    const multiAttemptSameQuote = (() => {
-      const byQuote = new Map();
-      for (const attempt of pg.paymentAttempts) {
-        const key = String(attempt.quoteVersion);
-        byQuote.set(key, (byQuote.get(key) || 0) + 1);
-      }
-      return [...byQuote.values()].some((count) => count > 1);
-    })();
-    if (duplicateEvent || (succeededAttempts.length > 1 && captures <= 1) || (activeAttempts.length > 0 && succeededAttempts.length > 0) || (multiAttemptSameQuote && knownIds.length > 1)) {
-      classification = 'duplicate_settlement_risk';
-    } else if (remainingRaw < 0 || (pg.exists && pg.outstandingCreditCents > 0 && pg.grossSettledCents > 0)) {
-      classification = 'amount_mismatch';
-    } else if (
-      blobSnap.paid
-      && stripeCapturedCents > 0
-      && (!pg.exists || pg.grossSettledCents === 0 || pg.paymentAttempts.length === 0)
-    ) {
-      classification = 'blob_paid_ledger_missing';
-    } else if (
-      pg.exists
-      && captures === 1
-      && stripeCapturedCents !== pg.stripeSettledCents
-      && pg.cashSettledCents === 0
-    ) {
-      classification = 'amount_mismatch';
-    } else if (
-      pg.exists
-      && pg.remainingCents === 0
-      && pg.grossSettledCents > 0
-      && stripeCapturedCents > 0
-      && (!blobSnap.paid || garage.remainingCents > 0 || garage.canPay)
-    ) {
-      classification = 'stripe_paid_blob_due';
+    add('refunded_or_disputed');
+  }
+
+  if (pg.cashSettledCents > 0 && stripeCapturedCents > 0) add('cash_conflict');
+
+  if (remainingRaw < 0 || (pg.exists && pg.outstandingCreditCents > 0 && pg.grossSettledCents > 0)) {
+    add('amount_mismatch');
+  } else if (
+    pg.exists
+    && captures === 1
+    && stripeCapturedCents !== pg.stripeSettledCents
+    && pg.cashSettledCents === 0
+    && pg.grossSettledCents > 0
+  ) {
+    add('amount_mismatch');
+  }
+
+  if (
+    blobSnap.paid
+    && stripeCapturedCents > 0
+    && (!pg.exists || pg.grossSettledCents === 0 || pg.paymentAttempts.length === 0)
+  ) {
+    add('blob_paid_ledger_missing');
+  }
+
+  if (
+    pg.exists
+    && pg.remainingCents === 0
+    && pg.grossSettledCents > 0
+    && stripeCapturedCents > 0
+    && (!blobSnap.paid || garage.remainingCents > 0 || garage.canPay)
+  ) {
+    add('stripe_paid_blob_due');
+  }
+
+  if (foundRows.some((row) => (
+    roundCents(row.amountReceived) > 0 && !OBSERVED_PURPOSES.has(String(row.metadataPurpose || ''))
+  ))) {
+    add('captured_without_purpose');
+  }
+
+  if (missingIds.length > 0) add('provider_missing');
+
+  const localKnown = knownLocalIds.length > 0 || pg.paymentAttempts.length > 0 || settlementCount > 0;
+  if (localKnown) add('provider_payment_known_locally');
+
+  if (
+    stripeCapturedCents > 0
+    && !blob
+    && (!pg.exists || (pg.paymentAttempts.length === 0 && pg.grossSettledCents === 0))
+  ) {
+    add('stripe_capture_unreferenced_locally');
+  }
+
+  if (foundRows.some((row) => (
+    roundCents(row.amountReceived) > 0 && !String(row.metadataBookingId || '').trim()
+  ))) {
+    add('stripe_capture_without_booking');
+  }
+
+  const settlements = pg.ledgerEntries.filter((entry) => entry.kind === 'settlement');
+  const succeededAttempts = pg.paymentAttempts.filter((attempt) => attempt.status === 'succeeded');
+  const activeAttempts = pg.paymentAttempts.filter((attempt) => (
+    attempt.status === 'creating' || attempt.status === 'open' || attempt.status === 'requires_action'
+  ));
+  const settlementEventIds = settlements.map((entry) => String(entry.providerEventId || ''));
+  const duplicateEvent = settlementEventIds.some((id, i) => id && settlementEventIds.indexOf(id) !== i);
+  if (duplicateEvent || (succeededAttempts.length > 1 && captures <= 1) || (activeAttempts.length > 0 && succeededAttempts.length > 0)) {
+    add('duplicate_settlement_risk');
+  }
+
+  const hasBlocking = reasons.some((code) => !CONSISTENT.has(code)
+    && code !== 'provider_payment_known_locally'
+    && code !== 'provider_scan_incomplete');
+
+  if (!hasBlocking) {
+    if (providerScanIncomplete) {
+      add('manual_review');
     } else if (
       stripeCapturedCents > 0
       && pg.exists
@@ -409,16 +513,16 @@ function classifyBooking({ blob, postgres, stripeById, stripeErrors = 0 }) {
       && blobSnap.paid
       && stripeCapturedCents === pg.stripeSettledCents
     ) {
-      classification = 'consistent_paid';
+      add('consistent_paid');
     } else if (
       stripeCapturedCents > 0
       && pg.exists
       && remainingCents > 0
-      && remainingCents === remainingUnclamped(approvedCents, netSettledCents)
+      && remainingRaw === remainingCents
       && stripeCapturedCents === pg.stripeSettledCents
       && stripeCapturedCents < approvedCents
     ) {
-      classification = 'consistent_partial';
+      add('consistent_partial');
     } else if (
       stripeCapturedCents === 0
       && captures === 0
@@ -427,28 +531,112 @@ function classifyBooking({ blob, postgres, stripeById, stripeErrors = 0 }) {
       && remainingCents === approvedCents
       && !blobSnap.paid
     ) {
-      classification = 'consistent_due';
+      add('consistent_due');
     } else {
-      classification = 'manual_review';
+      add('manual_review');
     }
   }
 
   if (
-    String(classification).startsWith('consistent_')
-    && (stripeErrors > 0 || stripeRows.some((row) => row && row.error))
+    (stripeErrors > 0 || stripeRows.some((row) => row && row.error))
+    && reasons.some((code) => CONSISTENT.has(code))
   ) {
-    classification = 'manual_review';
+    add('manual_review');
   }
 
-  const signals = garageSignals({ blob, postgres: pg, garage, classification });
+  if (reasons.length === 0) add('manual_review');
+
+  const primaryClassification = pickPrimary(reasons);
+  const signals = garageSignals({ postgres: pg, garage, reasons });
+  const requiresManualReview = !CONSISTENT.has(primaryClassification);
   return {
-    classification,
+    classification: primaryClassification,
+    primaryClassification,
+    reasonCodes: reasons,
     values,
     garage,
     garageSignals: signals,
-    paymentIntentCount: knownIds.length,
+    paymentIntentCount: Math.max(knownLocalIds.length, Object.keys(stripeById || {}).length),
+    settlementCount,
     stripeErrorCount: stripeErrors,
+    requiresManualReview,
   };
+}
+
+function classifyOrphanProviderIntent(row, { knownLocally, providerScanIncomplete }) {
+  const reasons = [];
+  if (providerScanIncomplete) reasons.push('provider_scan_incomplete');
+  if (knownLocally) reasons.push('provider_payment_known_locally');
+  const received = roundCents(row && row.amountReceived);
+  const bookingMeta = String((row && row.metadataBookingId) || '').trim();
+  if (received > 0 && !bookingMeta) reasons.push('stripe_capture_without_booking');
+  if (received > 0 && bookingMeta && !knownLocally) reasons.push('stripe_capture_unreferenced_locally');
+  if (received > 0 && !OBSERVED_PURPOSES.has(String((row && row.metadataPurpose) || ''))) {
+    reasons.push('captured_without_purpose');
+  }
+  if (row && (row.disputed || roundCents(row.refundedAmount) > 0)) reasons.push('refunded_or_disputed');
+  if (reasons.length === 0) reasons.push('manual_review');
+  const primaryClassification = pickPrimary(reasons);
+  return {
+    classification: primaryClassification,
+    primaryClassification,
+    reasonCodes: reasons,
+    values: {
+      approvedCents: 0,
+      stripeGrossCapturedCents: received,
+      ledgerGrossSettlementsCents: 0,
+      cashSettlementsCents: 0,
+      refundsCents: roundCents(row && row.refundedAmount),
+      netSettledCents: 0,
+      remainingBalanceCents: 0,
+      remainingUnclampedCents: 0,
+    },
+    garage: {
+      authority: 'none',
+      paymentStatus: 'unknown',
+      remainingCents: 0,
+      approvedCents: 0,
+      settledCents: 0,
+      canPay: false,
+      blobBalanceDueCents: 0,
+    },
+    garageSignals: {
+      ledgerPaidShownDue: false,
+      ledgerDueShownPaid: false,
+      canPayZeroBalance: false,
+      canPayUnreconciledCapture: false,
+      balanceDueMismatch: false,
+    },
+    paymentIntentCount: 1,
+    settlementCount: 0,
+    stripeErrorCount: row && row.error ? 1 : 0,
+    requiresManualReview: true,
+  };
+}
+
+function mergeUniverse(groups) {
+  const counts = {};
+  const set = new Set();
+  for (const [source, ids] of Object.entries(groups || {})) {
+    const unique = new Set();
+    for (const id of ids || []) {
+      const value = String(id || '').trim();
+      if (!value) continue;
+      unique.add(value);
+      set.add(value);
+    }
+    counts[source] = unique.size;
+  }
+  const union = [...set].sort();
+  return { counts, union, unionCount: union.length };
+}
+
+function pageSortedIds(sortedIds, afterId, limit) {
+  const list = Array.isArray(sortedIds) ? sortedIds : [];
+  const next = afterId
+    ? list.filter((id) => id > afterId)
+    : list.slice();
+  return next.slice(0, limit);
 }
 
 function emptyTotals() {
@@ -456,12 +644,18 @@ function emptyTotals() {
   for (const name of CLASSIFICATIONS) {
     byClass[name] = { count: 0, approvedCents: 0, stripeGrossCapturedCents: 0, netSettledCents: 0 };
   }
+  const byReason = {};
+  for (const name of REASON_CODES) byReason[name] = 0;
   return {
     bookingsExamined: 0,
     byClassification: byClass,
+    byReasonOverlapping: byReason,
     oldestDivergenceAgeMs: 0,
     paymentIntentsRetrieved: 0,
     stripeErrors: 0,
+    postgresErrors: 0,
+    blobErrors: 0,
+    unclassifiedCount: 0,
     pagesProcessed: 0,
     garage: {
       ledgerPaidShownDue: 0,
@@ -470,27 +664,62 @@ function emptyTotals() {
       canPayUnreconciledCapture: 0,
       balanceDueMismatch: 0,
     },
+    sources: {
+      blob: 0,
+      postgresBookings: 0,
+      paymentAttempts: 0,
+      ledgerEntries: 0,
+      stripeEvents: 0,
+      stripeMetadata: 0,
+      union: 0,
+    },
   };
 }
 
 function addClassification(totals, result, ageMs) {
   totals.bookingsExamined += 1;
-  const bucket = totals.byClassification[result.classification];
-  bucket.count += 1;
-  bucket.approvedCents += result.values.approvedCents;
-  bucket.stripeGrossCapturedCents += result.values.stripeGrossCapturedCents;
-  bucket.netSettledCents += result.values.netSettledCents;
-  if (result.classification !== 'consistent_paid'
-    && result.classification !== 'consistent_partial'
-    && result.classification !== 'consistent_due'
-    && ageMs > totals.oldestDivergenceAgeMs) {
+  const primary = result.primaryClassification || result.classification;
+  const bucket = totals.byClassification[primary];
+  if (bucket) {
+    bucket.count += 1;
+    bucket.approvedCents += result.values.approvedCents;
+    bucket.stripeGrossCapturedCents += result.values.stripeGrossCapturedCents;
+    bucket.netSettledCents += result.values.netSettledCents;
+  } else {
+    totals.unclassifiedCount += 1;
+  }
+  for (const reason of result.reasonCodes || []) {
+    if (totals.byReasonOverlapping[reason] == null) totals.byReasonOverlapping[reason] = 0;
+    totals.byReasonOverlapping[reason] += 1;
+  }
+  if (!CONSISTENT.has(primary) && ageMs > totals.oldestDivergenceAgeMs) {
     totals.oldestDivergenceAgeMs = ageMs;
   }
   totals.paymentIntentsRetrieved += result.paymentIntentCount;
   totals.stripeErrors += result.stripeErrorCount;
   for (const key of Object.keys(totals.garage)) {
-    if (result.garageSignals[key]) totals.garage[key] += 1;
+    if (result.garageSignals && result.garageSignals[key]) totals.garage[key] += 1;
   }
+}
+
+function candidateFromResult(auditRef, result) {
+  if (CONSISTENT.has(result.primaryClassification || result.classification)) return null;
+  return {
+    auditRef,
+    primaryClassification: result.primaryClassification || result.classification,
+    reasonCodes: result.reasonCodes || [],
+    values: {
+      approved: result.values.approvedCents,
+      stripeCaptured: result.values.stripeGrossCapturedCents,
+      ledgerSettled: result.values.ledgerGrossSettlementsCents,
+      refunded: result.values.refundsCents,
+      netSettled: result.values.netSettledCents,
+      remaining: result.values.remainingBalanceCents,
+    },
+    paymentIntentCount: result.paymentIntentCount,
+    settlementCount: result.settlementCount,
+    requiresManualReview: result.requiresManualReview !== false,
+  };
 }
 
 function findForbiddenBodyKeys(body, trail = []) {
@@ -505,10 +734,27 @@ function findForbiddenBodyKeys(body, trail = []) {
   return hits;
 }
 
+function coverageWindow(env = process.env, nowMs = Date.now()) {
+  const raw = String(env.FINANCIAL_AUDIT_COVERAGE_START || DEFAULT_COVERAGE_START).trim();
+  const start = Date.parse(raw);
+  const startedAt = Number.isFinite(start) ? start : Date.parse(DEFAULT_COVERAGE_START);
+  const endedAt = nowMs;
+  return {
+    coverageStartedAt: new Date(startedAt).toISOString(),
+    coverageEndedAt: new Date(endedAt).toISOString(),
+    startedMs: startedAt,
+    endedMs: endedAt,
+  };
+}
+
 module.exports = {
   CLASSIFICATIONS,
+  PRIMARY_PRECEDENCE,
+  REASON_CODES,
   FORBIDDEN_BODY_KEYS,
   OBSERVED_PURPOSES,
+  CONSISTENT,
+  DEFAULT_COVERAGE_START,
   roundCents,
   dollarsToCents,
   remainingUnclamped,
@@ -518,8 +764,15 @@ module.exports = {
   extractPostgresSnapshot,
   garageProjection,
   classifyBooking,
+  classifyOrphanProviderIntent,
+  mergeUniverse,
+  pageSortedIds,
   emptyTotals,
   addClassification,
+  candidateFromResult,
   findForbiddenBodyKeys,
   blobIndicatesPaid,
+  looksLikeCardetail1BookingId,
+  coverageWindow,
+  pickPrimary,
 };

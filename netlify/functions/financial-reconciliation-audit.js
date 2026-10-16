@@ -3,9 +3,41 @@
 /**
  * Admin-only dry-run historical financial audit.
  * Production + master + canonical host. Never mutates money, Blob, or Stripe.
+ *
+ * Authentication (unambiguous):
+ *
+ * 1. Browser admin session (preferred)
+ *    - HttpOnly cookie `cd1_admin_session`
+ *    - matching `x-csrf-token`
+ *    - do not send `x-admin-key`
+ *
+ * 2. Static admin key (automation inside an already-configured process)
+ *    - header `x-admin-key` receives only ADMIN_DASH_PASSWORD
+ *    - never a session token (`v1.` or legacy 64-hex)
+ *    - the function runtime already has ADMIN_DASH_PASSWORD in its environment;
+ *      do not paste the value into a shell command (that writes secrets into
+ *      history). Example shape only:
+ *        curl -X POST "$AUDIT_URL" \
+ *          -H "x-admin-key: ${ADMIN_DASH_PASSWORD}" \
+ *          -H "content-type: application/json" \
+ *          --data '{"mode":"dry-run"}'
+ *      The variable must already be loaded in that process. Do not prefix the
+ *      command with ADMIN_DASH_PASSWORD=secret.
+ *
+ * Sending cookie and x-admin-key together is rejected.
+ * Preview / non-master / non-canonical hosts are blocked before I/O.
  */
 
-const { verifyAdminRequest, getSessionSecretStatus } = require('../lib/admin-security');
+const crypto = require('crypto');
+const {
+  getAdminConfig,
+  getSessionSecretStatus,
+  validateAdminToken,
+  parseAdminCookies,
+  ADMIN_COOKIE_NAME,
+  TOKEN_PREFIX,
+  LEGACY_TOKEN_LEN,
+} = require('../lib/admin-security');
 const { verifyCsrfToken } = require('../lib/owner-studio/authorization');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { deploymentContext } = require('../lib/stripe-mode');
@@ -66,19 +98,55 @@ function productionGate(event, env = process.env) {
   return { ok: true };
 }
 
-function requireBrowserCsrf(event, session) {
-  const cookie = header(event, 'cookie') || '';
-  const usesCookie = /cd1_admin_session=/i.test(cookie);
-  const adminHeader = header(event, 'x-admin-key');
-  if (!usesCookie && adminHeader) return { ok: true };
-  const secretStatus = getSessionSecretStatus();
-  if (!secretStatus.ok) return { ok: false, error: 'csrf_invalid' };
-  const token = header(event, 'x-csrf-token') || '';
-  const sid = String(session.token || session.username || '');
-  if (!verifyCsrfToken(sid, secretStatus.secret, token)) {
-    return { ok: false, error: 'csrf_invalid' };
+function timingSafeEqualText(a, b) {
+  const ba = Buffer.from(String(a || ''));
+  const bb = Buffer.from(String(b || ''));
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function looksLikeSessionToken(value) {
+  const token = String(value || '').trim();
+  if (token.startsWith(TOKEN_PREFIX)) return true;
+  if (token.length === LEGACY_TOKEN_LEN && /^[a-f0-9]+$/.test(token)) return true;
+  return false;
+}
+
+async function authenticateAuditRequest(event, env = process.env) {
+  const hdrKey = String(header(event, 'x-admin-key') || '').trim();
+  const cookies = parseAdminCookies(event && event.headers);
+  const cookieToken = String(cookies[ADMIN_COOKIE_NAME] || '').trim();
+
+  if (hdrKey && cookieToken) {
+    return { ok: false, error: 'conflicting_credentials', status: 401 };
   }
-  return { ok: true };
+
+  if (hdrKey) {
+    if (looksLikeSessionToken(hdrKey)) {
+      return { ok: false, error: 'admin_key_invalid', status: 401 };
+    }
+    const cfg = getAdminConfig();
+    if (!cfg.configured) return { ok: false, error: 'missing_admin_config', status: 503 };
+    if (hdrKey.length < 16 || !timingSafeEqualText(hdrKey, cfg.password)) {
+      return { ok: false, error: 'unauthorized', status: 401 };
+    }
+    return { ok: true, method: 'admin_key' };
+  }
+
+  if (cookieToken) {
+    const session = await validateAdminToken(cookieToken);
+    if (!session) return { ok: false, error: 'unauthorized', status: 401 };
+    const secretStatus = getSessionSecretStatus();
+    if (!secretStatus.ok) return { ok: false, error: 'csrf_invalid', status: 403 };
+    const csrf = header(event, 'x-csrf-token') || '';
+    const sid = String(session.token || session.username || '');
+    if (!verifyCsrfToken(sid, secretStatus.secret, csrf)) {
+      return { ok: false, error: 'csrf_invalid', status: 403 };
+    }
+    return { ok: true, method: 'session', token: session.token, username: session.username };
+  }
+
+  return { ok: false, error: 'unauthorized', status: 401 };
 }
 
 function sanitizeLimit(value) {
@@ -98,27 +166,64 @@ function publicTotals(result) {
       netSettledCents: bucket.netSettledCents || 0,
     };
   }
+  const candidates = Array.isArray(result.candidates)
+    ? result.candidates.map((row) => ({
+      auditRef: row.auditRef,
+      primaryClassification: row.primaryClassification,
+      reasonCodes: row.reasonCodes || [],
+      values: {
+        approved: row.values && row.values.approved || 0,
+        stripeCaptured: row.values && row.values.stripeCaptured || 0,
+        ledgerSettled: row.values && row.values.ledgerSettled || 0,
+        refunded: row.values && row.values.refunded || 0,
+        netSettled: row.values && row.values.netSettled || 0,
+        remaining: row.values && row.values.remaining || 0,
+      },
+      paymentIntentCount: row.paymentIntentCount || 0,
+      settlementCount: row.settlementCount || 0,
+      requiresManualReview: row.requiresManualReview !== false,
+    }))
+    : [];
   return {
     ok: true,
     dryRun: true,
     mode: 'dry-run',
     bookingsExamined: totals.bookingsExamined || 0,
     byClassification,
+    byReasonOverlapping: totals.byReasonOverlapping || {},
+    reasonCountsOverlap: true,
     oldestDivergenceAgeMs: totals.oldestDivergenceAgeMs || 0,
     paymentIntentsRetrieved: totals.paymentIntentsRetrieved || 0,
     stripeErrors: totals.stripeErrors || 0,
+    postgresErrors: totals.postgresErrors || 0,
+    blobErrors: totals.blobErrors || 0,
+    unclassifiedCount: totals.unclassifiedCount || 0,
     pagesProcessed: totals.pagesProcessed || 0,
     garage: totals.garage || {},
+    sources: totals.sources || {},
+    candidates,
     nextCursor: result.nextCursor || null,
     hasMore: !!result.hasMore,
     partial: !!result.partial,
+    scanComplete: !!result.scanComplete,
+    localCoverageComplete: !!result.localCoverageComplete,
+    providerCoverageComplete: !!result.providerCoverageComplete,
+    providerCoverage: result.providerCoverage || 'partial',
+    localCoverage: result.localCoverage || 'partial',
+    coverageStartedAt: result.coverageStartedAt || null,
+    coverageEndedAt: result.coverageEndedAt || null,
   };
 }
 
 function containsPii(payload) {
   const text = JSON.stringify(payload);
-  return /@|phone|email|address|vehicle|cus_|pi_|ch_|sk_live_|sk_test_/i.test(text)
-    && /"(email|phone|address|customerName|vehicle)"\s*:/i.test(text);
+  if (/"bookingId"\s*:|"paymentIntentId"\s*:|"email"\s*:|"phone"\s*:|"address"\s*:|"customerName"\s*:|"vehicle"\s*:/i.test(text)) {
+    return true;
+  }
+  if (/"((pi|ch|cus)_[A-Za-z0-9_]+|sk_(live|test)_[A-Za-z0-9]+)"/.test(text)) {
+    return true;
+  }
+  return false;
 }
 
 exports.handler = async (event, context) => {
@@ -132,15 +237,12 @@ exports.handler = async (event, context) => {
     return json(403, { ok: false, error: gate.error });
   }
 
-  const verifyAdmin = (testDeps && testDeps.verifyAdminRequest) || verifyAdminRequest;
-  const auth = await verifyAdmin(event.headers || {});
+  const authenticate = (testDeps && testDeps.authenticateAuditRequest) || authenticateAuditRequest;
+  const auth = await authenticate(event, env);
   if (!auth || !auth.ok) {
-    const status = auth && auth.error === 'missing_admin_config' ? 503 : 401;
+    const status = (auth && auth.status) || (auth && auth.error === 'missing_admin_config' ? 503 : 401);
     return json(status, { ok: false, error: (auth && auth.error) || 'unauthorized' });
   }
-
-  const csrf = requireBrowserCsrf(event, auth);
-  if (!csrf.ok) return json(403, { ok: false, error: csrf.error });
 
   const enforce = (testDeps && testDeps.enforcePublicRateLimit) || enforcePublicRateLimit;
   const rate = await enforce(event, {
@@ -192,7 +294,11 @@ exports.handler = async (event, context) => {
       pages: payload.pagesProcessed,
       stripeLookups: payload.paymentIntentsRetrieved,
       stripeErrors: payload.stripeErrors,
+      postgresErrors: payload.postgresErrors,
+      blobErrors: payload.blobErrors,
       partial: payload.partial,
+      scanComplete: payload.scanComplete,
+      providerCoverage: payload.providerCoverage,
     });
     return json(200, payload);
   } catch (err) {
@@ -208,4 +314,8 @@ exports.handler = async (event, context) => {
 exports.__test = {
   setDeps(deps) { testDeps = deps || null; },
   productionGate,
+  authenticateAuditRequest,
+  looksLikeSessionToken,
+  publicTotals,
+  containsPii,
 };
