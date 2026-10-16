@@ -174,6 +174,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/payment-resume.js',
   // Ceramic coating checkout prices the deposit on the server.
   'netlify/functions/ceramic-checkout-intent.js',
+  // Read-only historical payment audit (dry-run, production only).
+  'netlify/functions/financial-reconciliation-audit.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

@@ -222,6 +222,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/payment-resume.js',
     // Ceramic coating checkout prices the deposit on the server.
     'netlify/functions/ceramic-checkout-intent.js',
+    // Read-only historical payment audit (dry-run, production only).
+    'netlify/functions/financial-reconciliation-audit.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

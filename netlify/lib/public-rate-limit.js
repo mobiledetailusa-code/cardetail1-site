@@ -52,6 +52,8 @@ const DEFAULT_LIMITS = {
   'welcome-lead-capture': { max: 8, windowMs: DEFAULT_WINDOW_MS },
   // Outbox drain throttle. The schedule runs every two minutes. This limit is not authentication.
   'twilio-outbox-worker:run': { max: 30, windowMs: DEFAULT_WINDOW_MS },
+  // Historical financial dry-run. Fail-closed; does not mutate money.
+  'financial-reconciliation-audit:run': { max: 20, windowMs: DEFAULT_WINDOW_MS },
 };
 
 const ENV_SCOPE_BY_BUCKET = {
