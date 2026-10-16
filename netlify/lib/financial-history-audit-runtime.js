@@ -526,6 +526,7 @@ async function collectListedIntents({
   writes,
   coverage,
   deadlineMs,
+  clock = Date.now,
 }) {
   const listed = Array.isArray(envState.listed) ? envState.listed.slice() : [];
   const seen = new Set(listed.map((row) => row.i));
@@ -539,7 +540,7 @@ async function collectListedIntents({
     return { listed, stripeAfter, stripeDone: false, stripeErrors: 1, pages: 0, missingSecret: true };
   }
   let pages = 0;
-  while (pages < MAX_STRIPE_PAGES_PER_REQUEST && Date.now() < deadlineMs) {
+  while (pages < MAX_STRIPE_PAGES_PER_REQUEST && clock() < deadlineMs) {
     pages += 1;
     try {
       const page = await listPaymentIntentsPage({
@@ -586,12 +587,27 @@ async function runDryRunPage({
   storeFactory = blobsStore,
   prismaFactory = getPrisma,
   stripeSecret = env.STRIPE_SECRET_KEY,
+  clock = Date.now,
 } = {}) {
   const writes = [];
   const totals = emptyTotals();
   totals.pagesProcessed = 1;
   const pageLimit = Math.min(MAX_LIMIT, Math.max(1, Math.round(Number(limit) || DEFAULT_LIMIT)));
-  const coverage = coverageWindow(env, nowMs);
+  let coverage;
+  try {
+    coverage = coverageWindow(env, nowMs);
+  } catch (err) {
+    if (err && err.name === 'FinancialAuditConfigurationError') {
+      return {
+        ok: false,
+        error: 'financial_audit_not_configured',
+        statusCode: 503,
+        writes,
+        reason: err.reason,
+      };
+    }
+    throw err;
+  }
   let state;
   if (cursor) {
     const decoded = decodeCursor(cursor, env, coverage);
@@ -648,6 +664,7 @@ async function runDryRunPage({
     writes,
     coverage,
     deadlineMs,
+    clock,
   });
   if (listedResult.missingSecret && blobKeys.length) {
     return { ok: false, error: 'stripe_not_configured', statusCode: 503, writes, partial: true };
@@ -706,7 +723,7 @@ async function runDryRunPage({
   const blobsById = new Map();
   const examinedIds = [];
   for (const bookingId of pageIds) {
-    if (Date.now() >= deadlineMs) {
+    if (clock() >= deadlineMs) {
       totals.partial = true;
       break;
     }
@@ -737,7 +754,7 @@ async function runDryRunPage({
   }
   try {
     const retrieved = await mapPool(retrieveIds, STRIPE_CONCURRENCY, async (id) => {
-      if (Date.now() >= deadlineMs) return { id, found: false, missing: false, error: 'timeout' };
+      if (clock() >= deadlineMs) return { id, found: false, missing: false, error: 'timeout' };
       return retrievePaymentIntent({
         id,
         secret: stripeSecret,

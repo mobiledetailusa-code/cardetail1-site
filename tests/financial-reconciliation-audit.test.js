@@ -9,6 +9,7 @@ const {
   createAdminSession,
   TOKEN_PREFIX,
 } = require('../netlify/lib/admin-security');
+const { spawnSync } = require('node:child_process');
 const {
   CLASSIFICATIONS,
   dollarsToCents,
@@ -18,17 +19,19 @@ const {
   findForbiddenBodyKeys,
   mergeUniverse,
   candidateFromResult,
+  coverageWindow,
+  FinancialAuditConfigurationError,
 } = require('../netlify/lib/financial-history-audit');
+const runtime = require('../netlify/lib/financial-history-audit-runtime');
 const {
   encodeCursor,
   decodeCursor,
   auditRefFor,
-  runDryRunPage,
   wrapReadOnlyPrisma,
   wrapReadOnlyStore,
   assertStripeGet,
   isSafeReadSql,
-} = require('../netlify/lib/financial-history-audit-runtime');
+} = runtime;
 
 const ROOT = path.resolve(__dirname, '..');
 const FN = path.join(ROOT, 'netlify/functions/financial-reconciliation-audit.js');
@@ -36,6 +39,16 @@ const AUDIT_LIB = path.join(ROOT, 'netlify/lib/financial-history-audit.js');
 const AUDIT_RT = path.join(ROOT, 'netlify/lib/financial-history-audit-runtime.js');
 const SECRET = 'test-admin-session-secret-value-32chars';
 const ADMIN_KEY = 'test-admin-dash-password-key';
+const FROZEN_NOW_MS = Date.parse('2026-10-16T02:15:00.000Z');
+const COVERAGE_START = '2024-06-01T00:00:00.000Z';
+
+function runDryRunPage(opts = {}) {
+  return runtime.runDryRunPage({
+    nowMs: FROZEN_NOW_MS,
+    clock: () => FROZEN_NOW_MS,
+    ...opts,
+  });
+}
 
 function loadHandler(deps) {
   delete require.cache[require.resolve(FN)];
@@ -201,6 +214,7 @@ const envProd = {
   ADMIN_SESSION_SECRET: SECRET,
   STRIPE_SECRET_KEY: 'sk_live_not_used_in_unit_tests',
   ADMIN_DASH_PASSWORD: ADMIN_KEY,
+  FINANCIAL_AUDIT_COVERAGE_START: COVERAGE_START,
 };
 
 function depsFor(handlerOpts = {}) {
@@ -211,6 +225,8 @@ function depsFor(handlerOpts = {}) {
     storeFactory: async () => handlerOpts.store || fakeStore({}),
     prismaFactory: () => handlerOpts.prisma || fakePrisma(),
     stripeSecret: 'sk_live_not_used_in_unit_tests',
+    nowMs: FROZEN_NOW_MS,
+    clock: () => FROZEN_NOW_MS,
   };
   if (handlerOpts.authOk === false) {
     deps.authenticateAuditRequest = async () => ({ ok: false, error: 'unauthorized', status: 401 });
@@ -584,6 +600,7 @@ describe('financial history audit HTTP gates', () => {
     process.env.BRANCH = 'master';
     process.env.ADMIN_SESSION_SECRET = SECRET;
     process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
+    process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
   });
   afterEach(() => {
     process.env = savedEnv;
@@ -791,7 +808,7 @@ describe('financial history audit runtime', () => {
     const records = { 'CD1-A': blobBase({ id: 'CD1-A' }) };
     const result = await runDryRunPage({
       env: envProd,
-      deadlineMs: Date.now() - 1,
+      deadlineMs: FROZEN_NOW_MS - 1,
       storeFactory: async () => fakeStore(records),
       prismaFactory: () => fakePrisma(),
       fetchImpl: fetchMap({ pi_test_1: stripeIntent() }),
@@ -1044,6 +1061,7 @@ describe('financial history audit runtime', () => {
     process.env.BRANCH = 'master';
     process.env.ADMIN_SESSION_SECRET = SECRET;
     process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
+    process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
     const ref = auditRefFor('CD1-AUDIT-1', envProd);
     assert.ok(ref);
     assert.equal(ref.includes('CD1-AUDIT-1'), false);
@@ -1099,7 +1117,12 @@ describe('financial history audit source contract', () => {
     assert.doesNotMatch(src, /store\.setJSON\(/);
     assert.doesNotMatch(src, /observeProviderPaymentIntent\(/);
     assert.match(src, /SET TRANSACTION READ ONLY/);
+    assert.doesNotMatch(src, /DEFAULT_COVERAGE_START/);
+    assert.doesNotMatch(src, /2024-01-01T00:00:00\.000Z/);
     assert.match(fn, /non_production_context/);
+    const coverageCall = fn.indexOf('coverageWindow(env, nowMs)');
+    const runCall = fn.indexOf('runDryRunPage({');
+    assert.ok(coverageCall >= 0 && runCall > coverageCall);
     assert.equal(findForbiddenBodyKeys({ apply: true, backfill: 1, reconcile: true }).length >= 3, true);
     assert.equal(findForbiddenBodyKeys({ from: '2020-01-01', to: '2026-01-01' }).length >= 2, true);
     const merged = mergeUniverse({ blob: ['A', 'B'], postgresBookings: ['B', 'C'] });
@@ -1119,3 +1142,433 @@ describe('financial history audit source contract', () => {
     assert.equal(candidate.values.approved, 1);
   });
 });
+
+function expectConfigError(fn, reason) {
+  assert.throws(fn, (err) => {
+    assert.equal(err.name, 'FinancialAuditConfigurationError');
+    assert.equal(err.reason, reason);
+    assert.equal(err.message, 'financial_audit_not_configured');
+    assert.equal(JSON.stringify(err).includes(COVERAGE_START), false);
+    return true;
+  });
+}
+
+function countingIo() {
+  const io = { blobList: 0, blobGet: 0, prisma: 0, stripe: 0 };
+  const store = fakeStore({});
+  return {
+    io,
+    storeFactory: async () => {
+      io.storeFactory = (io.storeFactory || 0) + 1;
+      return {
+        async list() {
+          io.blobList += 1;
+          return store.list();
+        },
+        async get(key) {
+          io.blobGet += 1;
+          return store.get(key);
+        },
+        async setJSON() { throw new Error('write_forbidden'); },
+      };
+    },
+    prismaFactory: () => {
+      io.prisma += 1;
+      const client = fakePrisma();
+      return client;
+    },
+    fetchImpl: async (url, opts) => {
+      io.stripe += 1;
+      return fetchMap({})(url, opts);
+    },
+  };
+}
+
+describe('financial history audit coverage fail-closed', () => {
+  const now = FROZEN_NOW_MS;
+
+  it('coverage fail-closed: env absent', () => {
+    const env = { ...envProd };
+    delete env.FINANCIAL_AUDIT_COVERAGE_START;
+    expectConfigError(() => coverageWindow(env, now), 'coverage_start_missing');
+  });
+
+  it('coverage fail-closed: undefined', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: undefined }, now),
+      'coverage_start_missing',
+    );
+  });
+
+  it('coverage fail-closed: null', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: null }, now),
+      'coverage_start_missing',
+    );
+  });
+
+  it('coverage fail-closed: empty string', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '' }, now),
+      'coverage_start_missing',
+    );
+  });
+
+  it('coverage fail-closed: whitespace', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '   ' }, now),
+      'coverage_start_missing',
+    );
+  });
+
+  it('coverage fail-closed: invalid text', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: 'not-a-date' }, now),
+      'coverage_start_invalid',
+    );
+  });
+
+  it('coverage fail-closed: date only', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '2024-01-01' }, now),
+      'coverage_start_invalid',
+    );
+  });
+
+  it('coverage fail-closed: offset not Z', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '2024-06-01T00:00:00.000-04:00' }, now),
+      'coverage_start_invalid',
+    );
+  });
+
+  it('coverage fail-closed: impossible date', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '2024-02-30T00:00:00.000Z' }, now),
+      'coverage_start_invalid',
+    );
+  });
+
+  it('coverage fail-closed: future date', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '2026-10-16T03:00:00.000Z' }, now),
+      'coverage_start_not_before_end',
+    );
+  });
+
+  it('coverage fail-closed: equal to nowMs', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '2026-10-16T02:15:00.000Z' }, now),
+      'coverage_start_not_before_end',
+    );
+  });
+
+  it('coverage fail-closed: canonical UTC before nowMs', () => {
+    const window = coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: COVERAGE_START }, now);
+    assert.equal(window.coverageStartedAt, COVERAGE_START);
+    assert.equal(window.coverageEndedAt, '2026-10-16T02:15:00.000Z');
+    assert.equal(window.startedMs < window.endedMs, true);
+  });
+
+  it('does not use Date.parse permissive forms as valid', () => {
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: 'June 1, 2024' }, now),
+      'coverage_start_invalid',
+    );
+    expectConfigError(
+      () => coverageWindow({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: '2024-06-01T00:00:00Z' }, now),
+      'coverage_start_invalid',
+    );
+  });
+});
+
+describe('financial history audit coverage HTTP gates', () => {
+  let savedEnv;
+  beforeEach(() => {
+    savedEnv = { ...process.env };
+    process.env.CONTEXT = 'production';
+    process.env.BRANCH = 'master';
+    process.env.ADMIN_SESSION_SECRET = SECRET;
+    process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
+    process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
+  });
+  afterEach(() => {
+    process.env = savedEnv;
+    delete require.cache[require.resolve(FN)];
+  });
+
+  async function assertNoIo(envOverride, extraEvent = {}, expectedStatus = 503) {
+    const probe = countingIo();
+    const handler = loadHandler({
+      ...depsFor({ fetchImpl: probe.fetchImpl }),
+      env: { ...envProd, ...envOverride },
+      storeFactory: probe.storeFactory,
+      prismaFactory: probe.prismaFactory,
+    });
+    const event = await productionEvent({ cookie: false, csrf: false, ...extraEvent.bodyWrap });
+    if (extraEvent.queryStringParameters) event.queryStringParameters = extraEvent.queryStringParameters;
+    if (extraEvent.headers) Object.assign(event.headers, extraEvent.headers);
+    if (extraEvent.body) event.body = JSON.stringify(extraEvent.body);
+    const res = await handler(event);
+    assert.equal(res.statusCode, expectedStatus);
+    const payload = JSON.parse(res.body);
+    assert.equal(payload.error === 'financial_audit_not_configured'
+      || payload.error === 'write_mode_rejected'
+      || payload.error === 'invalid_cursor', true);
+    assert.equal(JSON.stringify(payload).includes(COVERAGE_START), false);
+    assert.equal(JSON.stringify(payload).includes('2024-01-01'), false);
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.blobGet, 0);
+    assert.equal(probe.io.prisma, 0);
+    assert.equal(probe.io.stripe, 0);
+    assert.equal(probe.io.storeFactory || 0, 0);
+    return payload;
+  }
+
+  it('coverage fail-closed: missing env does no financial I/O', async () => {
+    const payload = await assertNoIo({ ...envProd, FINANCIAL_AUDIT_COVERAGE_START: undefined });
+    assert.equal(payload.error, 'financial_audit_not_configured');
+    assert.equal(payload.ok, false);
+    assert.equal(payload.partial, undefined);
+  });
+
+  it('rejects payload from/to/coverageStart without I/O', async () => {
+    await assertNoIo({}, { body: { mode: 'dry-run', from: '2020-01-01T00:00:00.000Z' } }, 400);
+    await assertNoIo({}, { body: { mode: 'dry-run', to: '2026-01-01T00:00:00.000Z' } }, 400);
+    await assertNoIo({}, { body: { mode: 'dry-run', coverageStart: COVERAGE_START } }, 400);
+  });
+
+  it('rejects query substitution of the coverage date', async () => {
+    await assertNoIo({}, { queryStringParameters: { from: '2020-01-01T00:00:00.000Z' } }, 400);
+    await assertNoIo({}, { queryStringParameters: { coverageStart: COVERAGE_START } }, 400);
+  });
+
+  it('rejects header substitution of the coverage date', async () => {
+    await assertNoIo({}, { headers: { 'x-coverage-start': '2020-01-01T00:00:00.000Z' } }, 400);
+  });
+
+  it('rejects a cursor bound to another coverage window', async () => {
+    const cursor = encodeCursor({
+      exec: 'other-exec',
+      s: '2020-01-01T00:00:00.000Z',
+      f: '2020-02-01T00:00:00.000Z',
+      localAfter: null,
+      stripeAfter: null,
+      stripeDone: true,
+      localDone: false,
+      listed: [],
+    }, envProd);
+    const probe = countingIo();
+    const handler = loadHandler({
+      ...depsFor({ fetchImpl: probe.fetchImpl }),
+      storeFactory: probe.storeFactory,
+      prismaFactory: probe.prismaFactory,
+    });
+    const res = await handler(await productionEvent({
+      cookie: false,
+      csrf: false,
+      body: { mode: 'dry-run', cursor },
+    }));
+    assert.equal(res.statusCode, 400);
+    assert.equal(JSON.parse(res.body).error, 'invalid_cursor');
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.prisma, 0);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('rejects continuation after the env coverage start changes', async () => {
+    const first = await runDryRunPage({
+      env: envProd,
+      limit: 1,
+      storeFactory: async () => fakeStore({
+        'CD1-A': blobBase({ id: 'CD1-A', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0, paymentStatus: 'due', jobStatus: 'assigned' }),
+        'CD1-B': blobBase({ id: 'CD1-B', paymentIntentId: null, amountPaid: 0, amountCapturedCents: 0, paymentStatus: 'due', jobStatus: 'assigned' }),
+      }),
+      prismaFactory: () => fakePrisma(),
+      fetchImpl: fetchMap({}),
+      stripeSecret: 'sk_test_x',
+    });
+    assert.ok(first.nextCursor);
+    const probe = countingIo();
+    const changed = {
+      ...envProd,
+      FINANCIAL_AUDIT_COVERAGE_START: '2023-01-01T00:00:00.000Z',
+    };
+    const second = await runDryRunPage({
+      env: changed,
+      cursor: first.nextCursor,
+      storeFactory: probe.storeFactory,
+      prismaFactory: probe.prismaFactory,
+      fetchImpl: probe.fetchImpl,
+      stripeSecret: 'sk_test_x',
+    });
+    assert.equal(second.ok, false);
+    assert.equal(second.error, 'cursor_execution_mismatch');
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.prisma, 0);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('does not log the coverage value or secrets', async () => {
+    const src = fs.readFileSync(FN, 'utf8');
+    assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*FINANCIAL_AUDIT_COVERAGE_START/);
+    assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*coverageStartedAt/);
+    assert.match(src, /error: reason/);
+  });
+});
+
+describe('financial history audit coverage mutations', () => {
+  function applyMutation(file, find, replace) {
+    const original = fs.readFileSync(file, 'utf8');
+    assert.equal(original.includes(find), true, `mutation target missing: ${find.slice(0, 80)}`);
+    const next = original.split(find).join(replace);
+    assert.notEqual(next, original);
+    fs.writeFileSync(file, next);
+    return original;
+  }
+
+  function probe(script) {
+    return spawnSync(process.execPath, ['-e', script], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 15_000,
+    });
+  }
+
+  it('coverage mutation: default 2024-01-01 makes missing-env test fail', () => {
+    const original = applyMutation(
+      AUDIT_LIB,
+      "throw new FinancialAuditConfigurationError('coverage_start_missing');",
+      "env.FINANCIAL_AUDIT_COVERAGE_START = env.FINANCIAL_AUDIT_COVERAGE_START || '2024-01-01T00:00:00.000Z';",
+    );
+    try {
+      const result = probe(`
+        const assert = require('node:assert/strict');
+        const { coverageWindow } = require('./netlify/lib/financial-history-audit');
+        const now = Date.parse('2026-10-16T02:15:00.000Z');
+        assert.throws(() => coverageWindow({ CONTEXT: 'production' }, now), (err) => err.reason === 'coverage_start_missing');
+      `);
+      assert.notEqual(result.status, 0);
+    } finally {
+      fs.writeFileSync(AUDIT_LIB, original);
+    }
+  });
+
+  it('coverage mutation: permissive Date.parse makes date-only test fail', () => {
+    const original = fs.readFileSync(AUDIT_LIB, 'utf8');
+    const next = original
+      .replace('if (!CANONICAL_UTC_MS.test(value))', 'if (false && !CANONICAL_UTC_MS.test(value))')
+      .replace('if (new Date(startedMs).toISOString() !== value)', 'if (false && new Date(startedMs).toISOString() !== value)');
+    assert.notEqual(next, original);
+    fs.writeFileSync(AUDIT_LIB, next);
+    try {
+      const result = probe(`
+        const assert = require('node:assert/strict');
+        const { coverageWindow } = require('./netlify/lib/financial-history-audit');
+        const now = Date.parse('2026-10-16T02:15:00.000Z');
+        assert.throws(
+          () => coverageWindow({ FINANCIAL_AUDIT_COVERAGE_START: '2024-01-01' }, now),
+          (err) => err.reason === 'coverage_start_invalid',
+        );
+      `);
+      assert.notEqual(result.status, 0);
+    } finally {
+      fs.writeFileSync(AUDIT_LIB, original);
+    }
+  });
+
+  it('coverage mutation: accepting a future date makes that test fail', () => {
+    const original = applyMutation(
+      AUDIT_LIB,
+      'if (!Number.isFinite(endedMs) || startedMs >= endedMs)',
+      'if (false && (!Number.isFinite(endedMs) || startedMs >= endedMs))',
+    );
+    try {
+      const result = probe(`
+        const assert = require('node:assert/strict');
+        const { coverageWindow } = require('./netlify/lib/financial-history-audit');
+        const now = Date.parse('2026-10-16T02:15:00.000Z');
+        assert.throws(
+          () => coverageWindow({ FINANCIAL_AUDIT_COVERAGE_START: '2026-10-16T03:00:00.000Z' }, now),
+          (err) => err.reason === 'coverage_start_not_before_end',
+        );
+      `);
+      assert.notEqual(result.status, 0);
+    } finally {
+      fs.writeFileSync(AUDIT_LIB, original);
+    }
+  });
+
+  it('coverage mutation: calling runDryRunPage before coverageWindow fails source order', () => {
+    const original = applyMutation(
+      FN,
+      'coverageWindow(env, nowMs);',
+      '/* coverageWindow delayed */',
+    );
+    try {
+      const result = probe(`
+        const assert = require('node:assert/strict');
+        const fs = require('fs');
+        const src = fs.readFileSync('./netlify/functions/financial-reconciliation-audit.js', 'utf8');
+        const coverageCall = src.indexOf('coverageWindow(env, nowMs)');
+        const runCall = src.indexOf('runDryRunPage({');
+        assert.ok(coverageCall >= 0 && runCall > coverageCall);
+      `);
+      assert.notEqual(result.status, 0);
+    } finally {
+      fs.writeFileSync(FN, original);
+    }
+  });
+
+  it('coverage mutation: payload from replacing env fails the from test', () => {
+    const original = applyMutation(
+      AUDIT_LIB,
+      "'from',\n  'to',",
+      "'to',",
+    );
+    try {
+      const result = probe(`
+        const assert = require('node:assert/strict');
+        const { findForbiddenBodyKeys, findCoverageOverrideChannels } = require('./netlify/lib/financial-history-audit');
+        assert.ok(findForbiddenBodyKeys({ mode: 'dry-run', from: '2020-01-01T00:00:00.000Z' }).length >= 1);
+        assert.ok(findCoverageOverrideChannels({ __parsedBody: { from: '2020-01-01T00:00:00.000Z' } }).length >= 1);
+      `);
+      assert.notEqual(result.status, 0);
+    } finally {
+      fs.writeFileSync(AUDIT_LIB, original);
+    }
+  });
+
+  it('coverage mutation: allowing another window cursor fails that test', () => {
+    const original = applyMutation(
+      AUDIT_RT,
+      'if (coverage && payload.s !== coverage.coverageStartedAt)',
+      'if (false && coverage && payload.s !== coverage.coverageStartedAt)',
+    );
+    try {
+      const result = probe(`
+        const assert = require('node:assert/strict');
+        const { encodeCursor, decodeCursor } = require('./netlify/lib/financial-history-audit-runtime');
+        const env = {
+          ADMIN_SESSION_SECRET: 'test-admin-session-secret-value-32chars',
+          FINANCIAL_AUDIT_COVERAGE_START: '2024-06-01T00:00:00.000Z',
+        };
+        const cursor = encodeCursor({
+          exec: 'other-exec',
+          s: '2020-01-01T00:00:00.000Z',
+          f: '2020-02-01T00:00:00.000Z',
+          listed: [],
+        }, env);
+        const decoded = decodeCursor(cursor, env, { coverageStartedAt: '2024-06-01T00:00:00.000Z' });
+        assert.equal(decoded.ok, false);
+        assert.equal(decoded.error, 'cursor_execution_mismatch');
+      `);
+      assert.notEqual(result.status, 0);
+    } finally {
+      fs.writeFileSync(AUDIT_RT, original);
+    }
+  });
+});
+
+
+

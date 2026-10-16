@@ -41,7 +41,12 @@ const {
 const { verifyCsrfToken } = require('../lib/owner-studio/authorization');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 const { deploymentContext } = require('../lib/stripe-mode');
-const { findForbiddenBodyKeys } = require('../lib/financial-history-audit');
+const {
+  findForbiddenBodyKeys,
+  findCoverageOverrideChannels,
+  coverageWindow,
+  FinancialAuditConfigurationError,
+} = require('../lib/financial-history-audit');
 const { runDryRunPage, DEFAULT_LIMIT, MAX_LIMIT } = require('../lib/financial-history-audit-runtime');
 
 const CANONICAL_HOSTS = new Set(['cardetail1.com', 'www.cardetail1.com']);
@@ -266,24 +271,47 @@ exports.handler = async (event, context) => {
   if (!mode) return json(400, { ok: false, error: 'mode_required' });
   if (mode !== 'dry-run') return json(400, { ok: false, error: 'dry_run_required' });
 
+  const overrideHits = findCoverageOverrideChannels({
+    ...event,
+    __parsedBody: body,
+  });
+  if (overrideHits.length) {
+    return json(400, { ok: false, error: 'write_mode_rejected' });
+  }
+
+  const nowMs = (testDeps && Number.isFinite(testDeps.nowMs)) ? testDeps.nowMs : Date.now();
+  try {
+    coverageWindow(env, nowMs);
+  } catch (err) {
+    const reason = err && err.reason ? String(err.reason) : 'coverage_start_invalid';
+    if (err && (err.name === 'FinancialAuditConfigurationError' || err instanceof FinancialAuditConfigurationError)) {
+      console.warn('[financial-reconciliation-audit]', { error: reason });
+      return json(503, { ok: false, error: 'financial_audit_not_configured' });
+    }
+    throw err;
+  }
+
   const remainingMs = context && typeof context.getRemainingTimeInMillis === 'function'
     ? context.getRemainingTimeInMillis()
     : 26_000;
-  const deadlineMs = Date.now() + Math.max(3_000, Math.min(20_000, remainingMs - 4_000));
+  const deadlineMs = nowMs + Math.max(3_000, Math.min(20_000, remainingMs - 4_000));
 
   try {
     const result = await runDryRunPage({
       env,
       cursor: body.cursor || null,
       limit: sanitizeLimit(body.limit),
+      nowMs,
       deadlineMs,
+      clock: () => nowMs,
       fetchImpl: (testDeps && testDeps.fetchImpl) || globalThis.fetch,
       storeFactory: (testDeps && testDeps.storeFactory) || undefined,
       prismaFactory: (testDeps && testDeps.prismaFactory) || undefined,
       stripeSecret: (testDeps && testDeps.stripeSecret) || env.STRIPE_SECRET_KEY,
     });
     if (!result.ok) {
-      return json(result.statusCode || 500, { ok: false, error: result.error, partial: !!result.partial });
+      const error = result.error === 'cursor_execution_mismatch' ? 'invalid_cursor' : result.error;
+      return json(result.statusCode || 500, { ok: false, error, partial: !!result.partial });
     }
     const payload = publicTotals(result);
     if (containsPii(payload)) {
@@ -302,6 +330,10 @@ exports.handler = async (event, context) => {
     });
     return json(200, payload);
   } catch (err) {
+    if (err && (err.name === 'FinancialAuditConfigurationError' || err instanceof FinancialAuditConfigurationError)) {
+      console.warn('[financial-reconciliation-audit]', { error: String(err.reason || 'coverage_start_invalid') });
+      return json(503, { ok: false, error: 'financial_audit_not_configured' });
+    }
     const message = String(err && err.message || err);
     if (message === 'write_forbidden') {
       return json(500, { ok: false, error: 'write_forbidden' });

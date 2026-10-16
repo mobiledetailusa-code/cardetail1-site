@@ -103,7 +103,29 @@ const PAID_BLOB = new Set([
   'captured',
 ]);
 
-const DEFAULT_COVERAGE_START = '2024-01-01T00:00:00.000Z';
+const CANONICAL_UTC_MS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const COVERAGE_OVERRIDE_KEYS = new Set([
+  'from',
+  'to',
+  'since',
+  'until',
+  'created',
+  'coverageStart',
+  'coverageEnd',
+  'startAt',
+  'endAt',
+  'FINANCIAL_AUDIT_COVERAGE_START',
+  'x-coverage-start',
+  'x-coverage-end',
+]);
+
+class FinancialAuditConfigurationError extends Error {
+  constructor(reason) {
+    super('financial_audit_not_configured');
+    this.name = 'FinancialAuditConfigurationError';
+    this.reason = reason;
+  }
+}
 
 function roundCents(value) {
   if (value == null || value === '') return 0;
@@ -735,16 +757,75 @@ function findForbiddenBodyKeys(body, trail = []) {
 }
 
 function coverageWindow(env = process.env, nowMs = Date.now()) {
-  const raw = String(env.FINANCIAL_AUDIT_COVERAGE_START || DEFAULT_COVERAGE_START).trim();
-  const start = Date.parse(raw);
-  const startedAt = Number.isFinite(start) ? start : Date.parse(DEFAULT_COVERAGE_START);
-  const endedAt = nowMs;
+  if (env == null || typeof env !== 'object') {
+    throw new FinancialAuditConfigurationError('coverage_start_missing');
+  }
+  if (!Object.prototype.hasOwnProperty.call(env, 'FINANCIAL_AUDIT_COVERAGE_START')) {
+    throw new FinancialAuditConfigurationError('coverage_start_missing');
+  }
+  const value = env.FINANCIAL_AUDIT_COVERAGE_START;
+  if (value === undefined || value === null) {
+    throw new FinancialAuditConfigurationError('coverage_start_missing');
+  }
+  if (typeof value !== 'string') {
+    throw new FinancialAuditConfigurationError('coverage_start_invalid');
+  }
+  if (value === '' || /^\s+$/.test(value)) {
+    throw new FinancialAuditConfigurationError('coverage_start_missing');
+  }
+  if (!CANONICAL_UTC_MS.test(value)) {
+    throw new FinancialAuditConfigurationError('coverage_start_invalid');
+  }
+  const startedMs = Date.parse(value);
+  if (!Number.isFinite(startedMs)) {
+    throw new FinancialAuditConfigurationError('coverage_start_invalid');
+  }
+  if (new Date(startedMs).toISOString() !== value) {
+    throw new FinancialAuditConfigurationError('coverage_start_invalid');
+  }
+  const endedMs = nowMs;
+  if (!Number.isFinite(endedMs) || startedMs >= endedMs) {
+    throw new FinancialAuditConfigurationError('coverage_start_not_before_end');
+  }
   return {
-    coverageStartedAt: new Date(startedAt).toISOString(),
-    coverageEndedAt: new Date(endedAt).toISOString(),
-    startedMs: startedAt,
-    endedMs: endedAt,
+    coverageStartedAt: value,
+    coverageEndedAt: new Date(endedMs).toISOString(),
+    startedMs,
+    endedMs,
   };
+}
+
+function findCoverageOverrideChannels(event) {
+  const hits = [];
+  const body = event && event.__parsedBody;
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    hits.push(...findForbiddenBodyKeys(body).filter((path) => {
+      const key = path.split('.').pop();
+      return COVERAGE_OVERRIDE_KEYS.has(key);
+    }));
+  }
+  const query = Object.assign(
+    {},
+    (event && event.queryStringParameters) || {},
+    (event && event.multiValueQueryStringParameters) || {},
+  );
+  for (const key of Object.keys(query)) {
+    if (COVERAGE_OVERRIDE_KEYS.has(key) || FORBIDDEN_BODY_KEYS.has(key)) {
+      hits.push(`query.${key}`);
+    }
+  }
+  const headers = (event && event.headers) || {};
+  for (const key of Object.keys(headers)) {
+    const lower = String(key).toLowerCase();
+    if (COVERAGE_OVERRIDE_KEYS.has(lower) || COVERAGE_OVERRIDE_KEYS.has(key) || FORBIDDEN_BODY_KEYS.has(lower)) {
+      if (lower === 'from' || lower === 'to' || lower === 'since' || lower === 'until' || lower === 'created'
+        || lower.startsWith('x-coverage') || lower === 'coveragestart' || lower === 'coverageend'
+        || lower === 'startat' || lower === 'endat' || lower === 'financial_audit_coverage_start') {
+        hits.push(`header.${lower}`);
+      }
+    }
+  }
+  return hits;
 }
 
 module.exports = {
@@ -752,9 +833,10 @@ module.exports = {
   PRIMARY_PRECEDENCE,
   REASON_CODES,
   FORBIDDEN_BODY_KEYS,
+  COVERAGE_OVERRIDE_KEYS,
   OBSERVED_PURPOSES,
   CONSISTENT,
-  DEFAULT_COVERAGE_START,
+  FinancialAuditConfigurationError,
   roundCents,
   dollarsToCents,
   remainingUnclamped,
@@ -774,5 +856,6 @@ module.exports = {
   blobIndicatesPaid,
   looksLikeCardetail1BookingId,
   coverageWindow,
+  findCoverageOverrideChannels,
   pickPrimary,
 };
