@@ -4,15 +4,33 @@
 // Writes fail closed unless the caller is not in one of those contexts.
 // A browser host, query parameter, or JSON field cannot clear the block.
 
-const { deployContext } = require('./trusted-site-origin');
+const { deployContext, loadBakedDeployEnv } = require('./trusted-site-origin');
 
 const SHARED_CONTEXTS = new Set(['deploy-preview', 'branch-deploy']);
 
 const PREVIEW_MESSAGE = 'This is a preview. Nothing will be booked, charged, or sent.';
 
+function contextOf(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 function sharedPreviewContext() {
-  const ctx = deployContext();
-  return SHARED_CONTEXTS.has(ctx) ? ctx : '';
+  let bakedCtx = '';
+  try {
+    const baked = loadBakedDeployEnv();
+    bakedCtx = contextOf(baked && baked.CONTEXT);
+  } catch {
+    bakedCtx = '';
+  }
+  const liveCtx = contextOf(process.env.CONTEXT || process.env.NETLIFY_CONTEXT);
+  if (SHARED_CONTEXTS.has(bakedCtx)) return bakedCtx;
+  if (bakedCtx === 'production' && SHARED_CONTEXTS.has(liveCtx)) return liveCtx;
+  if (!bakedCtx && SHARED_CONTEXTS.has(liveCtx)) return liveCtx;
+  if (!bakedCtx && !liveCtx) {
+    const inferred = deployContext();
+    return SHARED_CONTEXTS.has(inferred) ? inferred : '';
+  }
+  return '';
 }
 
 function previewWriteBody(scope) {

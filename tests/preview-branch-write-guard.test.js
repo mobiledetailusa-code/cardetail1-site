@@ -4,6 +4,8 @@ const { test, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { __setBakedDeployEnvForTests } = require('../netlify/lib/trusted-site-origin');
 
 const root = path.resolve(__dirname, '..');
 
@@ -36,6 +38,7 @@ afterEach(() => {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
+  __setBakedDeployEnvForTests(null);
 });
 
 test('branch-deploy booking ignores host, query, and payload and does not open the shared store', async () => {
@@ -212,3 +215,169 @@ test('preview pages do not post first-party events or ads conversions', () => {
   assert.match(index, /Nothing will be booked, charged, or sent/);
   assert.match(index, /cd1-preview-site-banner/);
 });
+
+test('production CONTEXT with a Netlify alias Host is not classified as preview', async () => {
+  process.env.CONTEXT = 'production';
+  process.env.BRANCH = 'master';
+  const fn = require.resolve('../netlify/functions/submit-booking');
+  delete require.cache[fn];
+  const submit = require(fn);
+  submit.__test.setBlobsStoreOverride(null);
+  const res = await submit.handler(event({ firstName: 'Live', phone: '2015550148', zipCode: '07601' }, {
+    headers: { host: 'master--cardetail1.netlify.app', 'x-forwarded-host': 'evil.example' },
+  }));
+  const body = JSON.parse(res.body);
+  assert.notEqual(body.error, 'preview_booking_disabled');
+  assert.notEqual(res.statusCode, 403);
+});
+
+test('local/dev without bake or CONTEXT does not refuse, even with a Netlify alias Host', async () => {
+  delete process.env.CONTEXT;
+  delete process.env.BRANCH;
+  delete process.env.URL;
+  delete process.env.DEPLOY_URL;
+  __setBakedDeployEnvForTests({});
+  const { refuseSharedWrite, sharedPreviewContext } = require('../netlify/lib/preview-write-guard');
+  assert.equal(sharedPreviewContext(), '');
+  assert.equal(refuseSharedWrite('booking'), null);
+});
+
+test('baked production plus live CONTEXT=branch-deploy still refuses writes', () => {
+  process.env.CONTEXT = 'branch-deploy';
+  process.env.BRANCH = 'qa-preview';
+  __setBakedDeployEnvForTests({
+    CONTEXT: 'production',
+    BRANCH: 'master',
+    URL: 'https://cardetail1.com',
+  });
+  const { refuseSharedWrite, sharedPreviewContext } = require('../netlify/lib/preview-write-guard');
+  assert.equal(sharedPreviewContext(), 'branch-deploy');
+  assert.equal(refuseSharedWrite('stripe-webhook').statusCode, 403);
+});
+
+test('preview customer-auth still allows session reads and refuses start', async () => {
+  process.env.CONTEXT = 'deploy-preview';
+  const auth = require('../netlify/functions/customer-portal-auth').handler;
+  const sessionRes = await auth(event({ action: 'session' }));
+  assert.equal(sessionRes.statusCode, 200);
+  assert.equal(JSON.parse(sessionRes.body).authenticated, false);
+
+  const startRes = await auth(event({ action: 'start', email: 'preview@example.com' }));
+  assert.equal(startRes.statusCode, 403);
+  assert.equal(JSON.parse(startRes.body).error, 'preview_writes_disabled');
+});
+
+test('baked production plus a Netlify alias Host still allows the booking gate', async () => {
+  delete process.env.CONTEXT;
+  delete process.env.BRANCH;
+  __setBakedDeployEnvForTests({
+    CONTEXT: 'production',
+    BRANCH: 'master',
+    URL: 'https://cardetail1.com',
+  });
+  const fn = require.resolve('../netlify/functions/submit-booking');
+  delete require.cache[fn];
+  const submit = require(fn);
+  submit.__test.setBlobsStoreOverride(null);
+  const res = await submit.handler(event({ firstName: 'Live', phone: '2015550148', zipCode: '07601' }, {
+    headers: { host: 'master--cardetail1.netlify.app', 'x-forwarded-host': 'evil.example' },
+  }));
+  const body = JSON.parse(res.body);
+  assert.notEqual(body.error, 'preview_booking_disabled');
+  assert.notEqual(res.statusCode, 403);
+});
+
+test('baked preview plus live CONTEXT=production still refuses writes', () => {
+  process.env.CONTEXT = 'production';
+  process.env.BRANCH = 'master';
+  __setBakedDeployEnvForTests({
+    CONTEXT: 'deploy-preview',
+    BRANCH: 'cursor/preview-branch-isolation-62a8',
+    URL: 'https://deploy-preview-360--cardetail1.netlify.app',
+  });
+  const { refuseSharedWrite, sharedPreviewContext } = require('../netlify/lib/preview-write-guard');
+  assert.equal(sharedPreviewContext(), 'deploy-preview');
+  const refused = refuseSharedWrite('booking');
+  assert.equal(refused.statusCode, 403);
+  assert.equal(JSON.parse(refused.body).error, 'preview_writes_disabled');
+});
+
+test('Host and x-forwarded-host cannot clear a branch-deploy bake', async () => {
+  delete process.env.CONTEXT;
+  __setBakedDeployEnvForTests({
+    CONTEXT: 'branch-deploy',
+    BRANCH: 'cursor/preview-branch-isolation-62a8',
+    URL: 'https://cursor-preview-branch-isolation-62a8--cardetail1.netlify.app',
+  });
+  const fn = require.resolve('../netlify/functions/submit-booking');
+  delete require.cache[fn];
+  const submit = require(fn);
+  submit.__test.setBlobsStoreOverride(null);
+  const res = await submit.handler(event({ firstName: 'Preview', phone: '2015550148', zipCode: '07601' }, {
+    headers: { host: 'cardetail1.com', 'x-forwarded-host': 'www.cardetail1.com' },
+  }));
+  const body = JSON.parse(res.body);
+  assert.equal(res.statusCode, 403);
+  assert.equal(body.error, 'preview_booking_disabled');
+  assert.equal(body.bookingCreated, false);
+});
+
+test('mutations of the preview write guard go red then restore', () => {
+  const guardPath = path.join(root, 'netlify/lib/preview-write-guard.js');
+  const original = fs.readFileSync(guardPath, 'utf8');
+  function probe(script) {
+    return spawnSync(process.execPath, ['-e', script], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 15_000,
+    });
+  }
+  try {
+    const disabled = original.replace(
+      'if (SHARED_CONTEXTS.has(bakedCtx)) return bakedCtx;',
+      'if (false && SHARED_CONTEXTS.has(bakedCtx)) return bakedCtx;',
+    );
+    assert.notEqual(disabled, original);
+    fs.writeFileSync(guardPath, disabled);
+    const bakePreview = probe(`
+      const assert = require('node:assert/strict');
+      const { __setBakedDeployEnvForTests } = require('./netlify/lib/trusted-site-origin');
+      __setBakedDeployEnvForTests({ CONTEXT: 'deploy-preview', BRANCH: 'x', URL: 'https://deploy-preview-1--cardetail1.netlify.app' });
+      process.env.CONTEXT = 'production';
+      const { sharedPreviewContext } = require('./netlify/lib/preview-write-guard');
+      assert.equal(sharedPreviewContext(), 'deploy-preview');
+    `);
+    assert.notEqual(bakePreview.status, 0, bakePreview.stdout + bakePreview.stderr);
+
+    fs.writeFileSync(guardPath, original.replace(
+      'if (!sharedPreviewContext()) return null;',
+      'if (true) return null;',
+    ));
+    const allowPreview = probe(`
+      const assert = require('node:assert/strict');
+      process.env.CONTEXT = 'branch-deploy';
+      const { refuseSharedWrite } = require('./netlify/lib/preview-write-guard');
+      const res = refuseSharedWrite('booking');
+      assert.equal(res && res.statusCode, 403);
+    `);
+    assert.notEqual(allowPreview.status, 0, allowPreview.stdout + allowPreview.stderr);
+
+    fs.writeFileSync(guardPath, original.replace(
+      "const liveCtx = contextOf(process.env.CONTEXT || process.env.NETLIFY_CONTEXT);",
+      "const liveCtx = contextOf(process.env.CONTEXT || process.env.NETLIFY_CONTEXT);\n  if (contextOf(process.env.FAKE_HOST) === 'cardetail1.com') return '';",
+    ));
+    const hostAsAuthority = probe(`
+      const assert = require('node:assert/strict');
+      process.env.CONTEXT = 'branch-deploy';
+      process.env.FAKE_HOST = 'cardetail1.com';
+      const { __setBakedDeployEnvForTests } = require('./netlify/lib/trusted-site-origin');
+      __setBakedDeployEnvForTests({ CONTEXT: 'branch-deploy', BRANCH: 'x', URL: 'https://x--cardetail1.netlify.app' });
+      const { sharedPreviewContext } = require('./netlify/lib/preview-write-guard');
+      assert.equal(sharedPreviewContext(), 'branch-deploy');
+    `);
+    assert.notEqual(hostAsAuthority.status, 0, hostAsAuthority.stdout + hostAsAuthority.stderr);
+  } finally {
+    fs.writeFileSync(guardPath, original);
+  }
+});
+
