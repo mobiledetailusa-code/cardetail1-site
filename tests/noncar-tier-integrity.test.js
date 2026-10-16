@@ -100,6 +100,29 @@ describe('known Powersports identities', () => {
     assert.equal(custom.basePrice, PRICING.powersports.tiers.motorcycle.maintenance);
   });
 
+  it('resolves make, model, and year, plus a case-insensitive catalog match', () => {
+    const withYear = quote({
+      cat: 'powersports',
+      pkgId: 'maintenance',
+      tierKey: 'motorcycle_large',
+      make: 'Yamaha',
+      model: 'FJR1300',
+      year: 2024,
+    });
+    assert.equal(withYear.ok, true);
+    assert.equal(withYear.basePrice, PRICING.powersports.tiers.motorcycle_large.maintenance);
+
+    const aliased = quote({
+      cat: 'powersports',
+      pkgId: 'maintenance',
+      tierKey: 'motorcycle',
+      make: 'YAMAHA',
+      model: 'fjr1300',
+    });
+    assert.equal(aliased.ok, false);
+    assert.equal(aliased.error, 'tier_mismatch');
+  });
+
   it('rejects moving a known motorcycle onto boat, truck, or car pricing', () => {
     const asBoat = quote({
       cat: 'boats',
@@ -170,6 +193,17 @@ describe('PWC and pontoon routes', () => {
     assert.equal(asJetSki.ok, false);
     assert.equal(asJetSki.error, 'tier_mismatch');
     assert.equal(asJetSki.basePrice, undefined);
+
+    const asPontoon = quote({
+      cat: 'boats',
+      boatType: 'pontoon',
+      pkgId: 'maint',
+      make: 'Sea-Doo',
+      model: 'Switch',
+      lengthFt: 22,
+    });
+    assert.equal(asPontoon.ok, true);
+    assert.equal(asPontoon.basePrice, 242);
   });
 
   it('still prices an unnamed Jet Ski and an in-range boat length', () => {
@@ -320,6 +354,36 @@ describe('standard classes, ATV, golf cart, and published tables', () => {
     assert.equal(onward.basePrice, undefined);
   });
 
+  it('there is no bookable public golf-cart tier in the published catalog', () => {
+    assert.equal(PRICING.powersports.tiers.golf_cart, undefined);
+    assert.equal(PRICING.powersports.tiers.golfcart, undefined);
+    const catalog = require('../assets/powersports-model-catalog');
+    const golf = catalog.records.filter((row) => row.physicalFamily === 'golfcart');
+    assert.ok(golf.length > 0);
+    assert.ok(golf.every((row) => row.publicStatus === 'contact' && !row.serviceClass));
+  });
+
+  it('keeps a stored packageSnapshot display price without repricing it', () => {
+    const { resolvePackageDetailsForVehicle } = require('../netlify/lib/package-details-resolve');
+    const details = resolvePackageDetailsForVehicle({
+      cat: 'powersports',
+      pkgId: 'maintenance',
+      tierKey: 'motorcycle',
+      make: 'Yamaha',
+      model: 'FJR1300',
+      basePrice: 180,
+      subtotal: 180,
+      packageSnapshot: {
+        name: 'Maintenance Detail',
+        description: 'Historical motorcycle maintenance booked before class enforcement.',
+        price: 180,
+        includedServices: ['Wash'],
+      },
+    });
+    assert.equal(details.source, 'snapshot');
+    assert.equal(details.packagePrice, 180);
+  });
+
   it('does not treat a Jet Ski as hull-length Marine Wash', () => {
     const longPwc = quote({
       cat: 'boats',
@@ -432,6 +496,100 @@ describe('concurrency, preview, and mutations', () => {
     }
   });
 
+  it('a mismatched known identity does not persist a booking', async () => {
+    const fn = require.resolve('../netlify/functions/submit-booking');
+    delete require.cache[fn];
+    const submit = require(fn);
+    const store = {
+      data: new Map(),
+      async get(key) {
+        const value = this.data.get(key);
+        return value == null ? null : structuredClone(value);
+      },
+      async setJSON(key, value) {
+        this.data.set(key, structuredClone(value));
+        return { modified: true };
+      },
+      async list() {
+        return { blobs: [...this.data.keys()].map((key) => ({ key })) };
+      },
+    };
+    const env = {};
+    const keys = ['CONTEXT', 'DRAFT_TOKEN_SECRET', 'ADMIN_EMAIL', 'RESEND_API_KEY', 'TWILIO_SEND_ENABLED', 'STRIPE_SECRET_KEY'];
+    for (const key of keys) env[key] = process.env[key];
+    const originalFetch = globalThis.fetch;
+    process.env.CONTEXT = 'production';
+    process.env.DRAFT_TOKEN_SECRET = 'n'.repeat(40);
+    process.env.ADMIN_EMAIL = '';
+    process.env.RESEND_API_KEY = '';
+    process.env.TWILIO_SEND_ENABLED = 'false';
+    delete process.env.STRIPE_SECRET_KEY;
+    submit.__test.setBlobsStoreOverride(async () => store);
+    globalThis.fetch = async () => { throw new Error('unexpected_external_call'); };
+    try {
+      const res = await submit.handler({
+        httpMethod: 'POST',
+        headers: { 'x-nf-client-connection-ip': '203.0.113.81' },
+        body: JSON.stringify({
+          firstName: 'Mismatch',
+          lastName: 'Probe',
+          phone: '2015550149',
+          email: 'mismatch@example.com',
+          address: '1 Main St, Newark, NJ',
+          zipCode: '07102',
+          preferredDate: '2099-08-01',
+          preferredTime: '10:00 AM',
+          acceptedBookingPolicy: true,
+          vehicleCategory: 'powersports',
+          vehicles: [{
+            cat: 'powersports', pkgId: 'maintenance', tierKey: 'motorcycle',
+            make: 'Yamaha', model: 'FJR1300', addons: [],
+          }],
+        }),
+      });
+      const body = JSON.parse(res.body);
+      assert.equal(res.statusCode, 400);
+      assert.equal(body.error, 'tier_mismatch');
+      assert.equal(body.bookingCreated, undefined);
+      assert.equal(store.data.size, 0);
+    } finally {
+      globalThis.fetch = originalFetch;
+      submit.__test.setBlobsStoreOverride(null);
+      for (const key of keys) {
+        if (env[key] === undefined) delete process.env[key];
+        else process.env[key] = env[key];
+      }
+    }
+  });
+
+  it('published dollar tables, package ids, and add-ons match origin/master', () => {
+    const shown = spawnSync('git', ['show', 'origin/master:netlify/lib/booking-price-catalog.js'], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 15_000,
+    });
+    assert.equal(shown.status, 0, shown.stderr);
+    function sliceBetween(src, startToken, endToken) {
+      const start = src.indexOf(startToken);
+      const end = src.indexOf(endToken, start);
+      assert.ok(start >= 0 && end > start, startToken);
+      return src.slice(start, end);
+    }
+    const current = fs.readFileSync(path.join(root, 'netlify/lib/booking-price-catalog.js'), 'utf8');
+    assert.equal(
+      sliceBetween(current, 'const PRICING = {', 'const PACKAGE_INCLUDED_ADDONS'),
+      sliceBetween(shown.stdout, 'const PRICING = {', 'const PACKAGE_INCLUDED_ADDONS'),
+    );
+    assert.equal(
+      sliceBetween(current, 'const LENGTH_PRICING = {', 'const RICH_ZIPS'),
+      sliceBetween(shown.stdout, 'const LENGTH_PRICING = {', 'const RICH_ZIPS'),
+    );
+    assert.equal(
+      sliceBetween(current, 'const PKG_ID_ALIASES = {', 'function inferPkgId(vehicle, booking)'),
+      sliceBetween(shown.stdout, 'const PKG_ID_ALIASES = {', 'function inferPkgId(vehicle, booking)'),
+    );
+  });
+
   it('mutations of catalog identity checks go red then restore', () => {
     const catalogPath = path.join(root, 'netlify/lib/booking-price-catalog.js');
     const original = fs.readFileSync(catalogPath, 'utf8');
@@ -474,8 +632,79 @@ describe('concurrency, preview, and mutations', () => {
         assert.equal(r.error, 'tier_mismatch');
       `);
       assert.notEqual(switchAsSki.status, 0, switchAsSki.stdout + switchAsSki.stderr);
+
+      fs.writeFileSync(catalogPath, original.replace(
+        "if (cat === 'powersports' && tierKey === record.serviceClass) return { ok: true };",
+        "if (cat === 'powersports') return { ok: true };",
+      ));
+      const cheaperClass = probe(`
+        const assert = require('node:assert/strict');
+        const { computeVehicleSubtotal } = require('./netlify/lib/booking-price-catalog');
+        const r = computeVehicleSubtotal({
+          cat: 'powersports', pkgId: 'maintenance', tierKey: 'motorcycle',
+          make: 'Yamaha', model: 'FJR1300', addons: [],
+        }, '07102');
+        assert.equal(r.ok, false);
+      `);
+      assert.notEqual(cheaperClass.status, 0, cheaperClass.stdout + cheaperClass.stderr);
+
+      fs.writeFileSync(catalogPath, original.replace(
+        'if (!record) return { ok: true };',
+        "if (!record) return { ok: true };\n  if (record.publicStatus === 'contact') return { ok: true };",
+      ));
+      const onwardPriced = probe(`
+        const assert = require('node:assert/strict');
+        const { computeVehicleSubtotal } = require('./netlify/lib/booking-price-catalog');
+        const r = computeVehicleSubtotal({
+          cat: 'powersports', pkgId: 'maintenance', tierKey: 'motorcycle',
+          make: 'Club Car', model: 'Onward', addons: [],
+        }, '07102');
+        assert.equal(r.ok, false);
+        assert.equal(r.error, 'vehicle_unresolved');
+      `);
+      assert.notEqual(onwardPriced.status, 0, onwardPriced.stdout + onwardPriced.stderr);
+
+      fs.writeFileSync(catalogPath, original.replace(
+        'return { ok: false, error: \'tier_mismatch\' };',
+        'return { ok: true };',
+      ));
+      const ignoreCategory = probe(`
+        const assert = require('node:assert/strict');
+        const { computeVehicleSubtotal } = require('./netlify/lib/booking-price-catalog');
+        const r = computeVehicleSubtotal({
+          cat: 'trucks', pkgId: 'interior', tierKey: 'day_cab',
+          make: 'Yamaha', model: 'FJR1300', addons: [],
+        }, '07102');
+        assert.equal(r.ok, false);
+        assert.equal(r.error, 'tier_mismatch');
+      `);
+      assert.notEqual(ignoreCategory.status, 0, ignoreCategory.stdout + ignoreCategory.stderr);
     } finally {
       fs.writeFileSync(catalogPath, original);
+    }
+
+    const travelPath = path.join(root, 'netlify/lib/travel-fee.js');
+    const travelOriginal = fs.readFileSync(travelPath, 'utf8');
+    try {
+      fs.writeFileSync(travelPath, travelOriginal.replace(
+        'if (!opts.skipMismatchCheck && clientTotal > 0 && Math.abs(clientTotal - serverTotal) > 1)',
+        'if (false && !opts.skipMismatchCheck && clientTotal > 0 && Math.abs(clientTotal - serverTotal) > 1)',
+      ));
+      const acceptClientTotal = probe(`
+        const assert = require('node:assert/strict');
+        const { applyServerTravelAndTotal } = require('./netlify/lib/travel-fee');
+        const r = applyServerTravelAndTotal({
+          zipCode: '07102',
+          vehicleCategory: 'trucks',
+          vehicles: [{ cat: 'trucks', pkgId: 'interior', tierKey: 'day_cab', addons: [] }],
+          totalPrice: 1,
+        }, { catalogTierMode: 'require_identity' });
+        assert.equal(r.ok, false);
+        assert.equal(r.error, 'price_mismatch');
+      `);
+      assert.notEqual(acceptClientTotal.status, 0, acceptClientTotal.stdout + acceptClientTotal.stderr);
+    } finally {
+      fs.writeFileSync(travelPath, travelOriginal);
     }
   });
 });
