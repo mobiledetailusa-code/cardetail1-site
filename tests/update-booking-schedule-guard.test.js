@@ -195,8 +195,11 @@ describe('update-booking refuses schedule fields', () => {
       confirmedDate: '2026-09-03',
       adminNotes: 'preview must not apply',
     }, { context: 'deploy-preview' });
-    assert.equal(res.statusCode, 409, res.body);
-    assert.equal(parseBody(res).error, 'authoritative_reschedule_required');
+    const body = parseBody(res);
+    assert.equal(res.statusCode, 403, res.body);
+    assert.equal(body.error, 'preview_writes_disabled');
+    assert.equal(body.stored, false);
+    assert.equal(body.sent, false);
     assert.equal(writes, 0);
     assert.equal(reads, 0);
     const stored = await originalGet('CD1-UPDATE', { type: 'json' });
