@@ -219,6 +219,7 @@ module.exports = {
   deployContext,
   deployEnvironmentKey,
   isProductionHost,
+  loadBakedDeployEnv,
   normalizeOriginCandidate,
   readDeployEnv,
   trustedSiteOrigin,

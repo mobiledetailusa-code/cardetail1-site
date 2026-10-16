@@ -23,6 +23,7 @@ const {
   FinancialAuditConfigurationError,
 } = require('../netlify/lib/financial-history-audit');
 const runtime = require('../netlify/lib/financial-history-audit-runtime');
+const { __setBakedDeployEnvForTests } = require('../netlify/lib/trusted-site-origin');
 const {
   encodeCursor,
   decodeCursor,
@@ -216,6 +217,28 @@ const envProd = {
   ADMIN_DASH_PASSWORD: ADMIN_KEY,
   FINANCIAL_AUDIT_COVERAGE_START: COVERAGE_START,
 };
+
+const BAKED_PRODUCTION = {
+  CONTEXT: 'production',
+  BRANCH: 'master',
+  URL: 'https://cardetail1.com',
+  DEPLOY_URL: 'https://master--cardetail1.netlify.app',
+  DEPLOY_PRIME_URL: 'https://cardetail1.com',
+};
+
+function bakeProduction() {
+  __setBakedDeployEnvForTests(BAKED_PRODUCTION);
+}
+
+function envWithoutRuntimeIdentity(over = {}) {
+  const env = { ...envProd, ...over };
+  delete env.CONTEXT;
+  delete env.BRANCH;
+  delete env.HEAD;
+  delete env.NETLIFY_CONTEXT;
+  delete env.URL;
+  return env;
+}
 
 function depsFor(handlerOpts = {}) {
   const deps = {
@@ -596,14 +619,19 @@ describe('financial history audit HTTP gates', () => {
   let savedEnv;
   beforeEach(() => {
     savedEnv = { ...process.env };
-    process.env.CONTEXT = 'production';
-    process.env.BRANCH = 'master';
+    delete process.env.CONTEXT;
+    delete process.env.BRANCH;
+    delete process.env.HEAD;
+    delete process.env.NETLIFY_CONTEXT;
+    delete process.env.URL;
     process.env.ADMIN_SESSION_SECRET = SECRET;
     process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
     process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
+    bakeProduction();
   });
   afterEach(() => {
     process.env = savedEnv;
+    __setBakedDeployEnvForTests(null);
     delete require.cache[require.resolve(FN)];
   });
 
@@ -690,6 +718,11 @@ describe('financial history audit HTTP gates', () => {
   });
 
   it('blocks deploy-preview before Stripe or Postgres', async () => {
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'deploy-preview',
+      BRANCH: 'cursor/financial-history-readonly-audit-48bc',
+      URL: 'https://deploy-preview-363--cardetail1.netlify.app',
+    });
     const fetchImpl = fetchMap({ pi_test_1: stripeIntent() });
     const handler = loadHandler({
       ...depsFor({ fetchImpl }),
@@ -702,6 +735,11 @@ describe('financial history audit HTTP gates', () => {
   });
 
   it('blocks branch-deploy before Stripe or Postgres', async () => {
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'branch-deploy',
+      BRANCH: 'cursor/x',
+      URL: 'https://cursor-x--cardetail1.netlify.app',
+    });
     const fetchImpl = fetchMap({ pi_test_1: stripeIntent() });
     const handler = loadHandler({
       ...depsFor({ fetchImpl }),
@@ -732,6 +770,199 @@ describe('financial history audit HTTP gates', () => {
     assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*cookie/);
     assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*csrf/);
     assert.doesNotMatch(src, /console\.(info|warn|log)\([^)]*ADMIN_DASH_PASSWORD/);
+  });
+});
+
+describe('financial history audit baked deploy gate', () => {
+  let savedEnv;
+  beforeEach(() => {
+    savedEnv = { ...process.env };
+    delete process.env.CONTEXT;
+    delete process.env.BRANCH;
+    delete process.env.HEAD;
+    delete process.env.NETLIFY_CONTEXT;
+    delete process.env.URL;
+    process.env.ADMIN_SESSION_SECRET = SECRET;
+    process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
+    process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
+    bakeProduction();
+  });
+  afterEach(() => {
+    process.env = savedEnv;
+    __setBakedDeployEnvForTests(null);
+    delete require.cache[require.resolve(FN)];
+  });
+
+  async function gated(env, extra = {}) {
+    const probe = countingIo();
+    const handler = loadHandler({
+      ...depsFor({ fetchImpl: probe.fetchImpl }),
+      env,
+      storeFactory: probe.storeFactory,
+      prismaFactory: probe.prismaFactory,
+    });
+    const event = await productionEvent({
+      cookie: false,
+      adminKey: extra.adminKey === undefined ? false : extra.adminKey,
+      headers: extra.headers || {},
+      body: extra.body,
+    });
+    if (extra.httpMethod) event.httpMethod = extra.httpMethod;
+    if (extra.host !== undefined) event.headers.host = extra.host;
+    if (extra.forwarded !== undefined) {
+      if (extra.forwarded === null) delete event.headers['x-forwarded-host'];
+      else event.headers['x-forwarded-host'] = extra.forwarded;
+    }
+    const res = await handler(event);
+    return { res, probe, payload: JSON.parse(res.body) };
+  }
+
+  it('baked production + missing process.env.CONTEXT reaches auth and returns 401', async () => {
+    const { res, probe, payload } = await gated(envWithoutRuntimeIdentity());
+    assert.equal(res.statusCode, 401);
+    assert.equal(payload.error, 'unauthorized');
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.prisma, 0);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('baked production + fictitious admin key returns 401 without I/O', async () => {
+    const { res, probe, payload } = await gated(
+      envWithoutRuntimeIdentity(),
+      { adminKey: 'definitely-not-a-real-admin-password-xxxx' },
+    );
+    assert.equal(res.statusCode, 401);
+    assert.equal(payload.error, 'unauthorized');
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('GET remains 405 before the production gate', async () => {
+    const { res, probe, payload } = await gated(envWithoutRuntimeIdentity(), { httpMethod: 'GET' });
+    assert.equal(res.statusCode, 405);
+    assert.equal(payload.error, 'method_not_allowed');
+    assert.equal(probe.io.blobList, 0);
+  });
+
+  it('baked preview + runtime production stays 403 even with a forged host', async () => {
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'deploy-preview',
+      BRANCH: 'cursor/audit-baked-context-gate-48bc',
+      URL: 'https://deploy-preview-999--cardetail1.netlify.app',
+    });
+    const { res, probe, payload } = await gated(
+      { ...envProd, CONTEXT: 'production', BRANCH: 'master', URL: 'https://cardetail1.com' },
+      { host: 'cardetail1.com', forwarded: 'cardetail1.com' },
+    );
+    assert.equal(res.statusCode, 403);
+    assert.equal(payload.error, 'non_production_context');
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.prisma, 0);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('baked branch-deploy + runtime production stays 403', async () => {
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'branch-deploy',
+      BRANCH: 'cursor/audit-baked-context-gate-48bc',
+      URL: 'https://cursor-audit-baked-context-gate-48bc--cardetail1.netlify.app',
+    });
+    const { res, probe } = await gated({
+      ...envProd,
+      CONTEXT: 'production',
+      BRANCH: 'master',
+    });
+    assert.equal(res.statusCode, 403);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('baked production + non-master branch is 403', async () => {
+    __setBakedDeployEnvForTests({
+      ...BAKED_PRODUCTION,
+      BRANCH: 'cursor/not-master',
+    });
+    const { res, probe } = await gated(envWithoutRuntimeIdentity());
+    assert.equal(res.statusCode, 403);
+    assert.equal(probe.io.blobList, 0);
+  });
+
+  it('baked production + malicious request host is 403', async () => {
+    const { res, probe } = await gated(envWithoutRuntimeIdentity(), {
+      host: 'evil.example',
+    });
+    assert.equal(res.statusCode, 403);
+    assert.equal(probe.io.prisma, 0);
+  });
+
+  it('malicious x-forwarded-host is 403 even when Host is canonical', async () => {
+    const { res, probe } = await gated(envWithoutRuntimeIdentity(), {
+      host: 'cardetail1.com',
+      forwarded: 'evil.example',
+    });
+    assert.equal(res.statusCode, 403);
+    assert.equal(probe.io.stripe, 0);
+  });
+
+  it('baked and runtime identity divergence fail closed', async () => {
+    const { res, probe } = await gated({
+      ...envProd,
+      CONTEXT: 'deploy-preview',
+      BRANCH: 'master',
+    });
+    assert.equal(res.statusCode, 403);
+    assert.equal(probe.io.blobList, 0);
+  });
+
+  it('missing or invalid generated bake fail closed', async () => {
+    __setBakedDeployEnvForTests(null);
+    const missing = await gated(envProd);
+    assert.equal(missing.res.statusCode, 403);
+    assert.equal(missing.probe.io.stripe, 0);
+
+    __setBakedDeployEnvForTests({ CONTEXT: 'production', BRANCH: 'master' });
+    const noUrl = await gated(envWithoutRuntimeIdentity());
+    assert.equal(noUrl.res.statusCode, 403);
+
+    __setBakedDeployEnvForTests({ CONTEXT: 'unknown', BRANCH: 'master', URL: 'https://cardetail1.com' });
+    const unknown = await gated(envWithoutRuntimeIdentity());
+    assert.equal(unknown.res.statusCode, 403);
+  });
+
+  it('forged production headers never beat a preview bake', async () => {
+    __setBakedDeployEnvForTests({
+      CONTEXT: 'deploy-preview',
+      BRANCH: 'preview',
+      URL: 'https://deploy-preview-1--cardetail1.netlify.app',
+    });
+    const eventExtras = {
+      host: 'cardetail1.com',
+      forwarded: 'www.cardetail1.com',
+      headers: {
+        'x-netlify-context': 'production',
+        context: 'production',
+        BRANCH: 'master',
+      },
+    };
+    const { res, probe } = await gated(
+      { CONTEXT: 'production', BRANCH: 'master', URL: 'https://cardetail1.com', ADMIN_DASH_PASSWORD: ADMIN_KEY },
+      eventExtras,
+    );
+    assert.equal(res.statusCode, 403);
+    assert.equal(probe.io.blobList, 0);
+  });
+
+  it('valid auth with missing coverage still 503 and zero I/O', async () => {
+    const { res, probe, payload } = await gated(
+      envWithoutRuntimeIdentity({ FINANCIAL_AUDIT_COVERAGE_START: undefined }),
+      { adminKey: ADMIN_KEY },
+    );
+    assert.equal(res.statusCode, 503);
+    assert.equal(payload.error, 'financial_audit_not_configured');
+    assert.equal(probe.io.blobList, 0);
+    assert.equal(probe.io.blobGet, 0);
+    assert.equal(probe.io.prisma, 0);
+    assert.equal(probe.io.stripe, 0);
+    assert.equal(probe.io.storeFactory || 0, 0);
   });
 });
 
@@ -1057,11 +1288,11 @@ describe('financial history audit runtime', () => {
   });
 
   it('signs auditRef with HMAC and keeps identifiers out of the HTTP body', async () => {
-    process.env.CONTEXT = 'production';
-    process.env.BRANCH = 'master';
+    bakeProduction();
     process.env.ADMIN_SESSION_SECRET = SECRET;
     process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
     process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
+    try {
     const ref = auditRefFor('CD1-AUDIT-1', envProd);
     assert.ok(ref);
     assert.equal(ref.includes('CD1-AUDIT-1'), false);
@@ -1088,6 +1319,9 @@ describe('financial history audit runtime', () => {
     assert.ok(body.coverageStartedAt);
     assert.ok(body.coverageEndedAt);
     assert.equal(body.reasonCountsOverlap, true);
+    } finally {
+      __setBakedDeployEnvForTests(null);
+    }
   });
 
   it('does not persist auditRef', () => {
@@ -1119,7 +1353,11 @@ describe('financial history audit source contract', () => {
     assert.match(src, /SET TRANSACTION READ ONLY/);
     assert.doesNotMatch(src, /DEFAULT_COVERAGE_START/);
     assert.doesNotMatch(src, /2024-01-01T00:00:00\.000Z/);
-    assert.match(fn, /non_production_context/);
+    const gate = fs.readFileSync(path.join(ROOT, 'netlify/lib/financial-audit-deploy-gate.js'), 'utf8');
+    assert.match(fn, /financialAuditProductionGate/);
+    assert.match(gate, /non_production_context/);
+    assert.match(gate, /loadBakedDeployEnv/);
+    assert.doesNotMatch(gate, /readDeployEnv\(/);
     const coverageCall = fn.indexOf('coverageWindow(env, nowMs)');
     const runCall = fn.indexOf('runDryRunPage({');
     assert.ok(coverageCall >= 0 && runCall > coverageCall);
@@ -1286,14 +1524,19 @@ describe('financial history audit coverage HTTP gates', () => {
   let savedEnv;
   beforeEach(() => {
     savedEnv = { ...process.env };
-    process.env.CONTEXT = 'production';
-    process.env.BRANCH = 'master';
+    delete process.env.CONTEXT;
+    delete process.env.BRANCH;
+    delete process.env.HEAD;
+    delete process.env.NETLIFY_CONTEXT;
+    delete process.env.URL;
     process.env.ADMIN_SESSION_SECRET = SECRET;
     process.env.ADMIN_DASH_PASSWORD = ADMIN_KEY;
     process.env.FINANCIAL_AUDIT_COVERAGE_START = COVERAGE_START;
+    bakeProduction();
   });
   afterEach(() => {
     process.env = savedEnv;
+    __setBakedDeployEnvForTests(null);
     delete require.cache[require.resolve(FN)];
   });
 

@@ -40,7 +40,7 @@ const {
 } = require('../lib/admin-security');
 const { verifyCsrfToken } = require('../lib/owner-studio/authorization');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
-const { deploymentContext } = require('../lib/stripe-mode');
+const { financialAuditProductionGate } = require('../lib/financial-audit-deploy-gate');
 const {
   findForbiddenBodyKeys,
   findCoverageOverrideChannels,
@@ -48,8 +48,6 @@ const {
   FinancialAuditConfigurationError,
 } = require('../lib/financial-history-audit');
 const { runDryRunPage, DEFAULT_LIMIT, MAX_LIMIT } = require('../lib/financial-history-audit-runtime');
-
-const CANONICAL_HOSTS = new Set(['cardetail1.com', 'www.cardetail1.com']);
 
 let testDeps = null;
 
@@ -74,11 +72,6 @@ function header(event, name) {
   return '';
 }
 
-function requestHost(event) {
-  const forwarded = header(event, 'x-forwarded-host') || header(event, 'host') || '';
-  return String(forwarded).split(',')[0].trim().toLowerCase();
-}
-
 function parseBody(event) {
   const raw = event && event.isBase64Encoded
     ? Buffer.from(String(event.body || ''), 'base64').toString('utf8')
@@ -88,19 +81,7 @@ function parseBody(event) {
 }
 
 function productionGate(event, env = process.env) {
-  const ctx = deploymentContext(env);
-  if (ctx.isPreview || ctx.isLocal || !ctx.isProduction) {
-    return { ok: false, error: 'non_production_context' };
-  }
-  const branch = String(env.BRANCH || env.HEAD || 'master').toLowerCase();
-  if (branch !== 'master') {
-    return { ok: false, error: 'non_production_context' };
-  }
-  const host = requestHost(event);
-  if (!CANONICAL_HOSTS.has(host)) {
-    return { ok: false, error: 'non_production_context' };
-  }
-  return { ok: true };
+  return financialAuditProductionGate(event, env);
 }
 
 function timingSafeEqualText(a, b) {
