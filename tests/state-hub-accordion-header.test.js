@@ -366,6 +366,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/payment-resume.js',
     // Ceramic coating checkout prices the deposit on the server.
     'netlify/functions/ceramic-checkout-intent.js',
+    // Read-only historical payment audit (dry-run, production only).
+    'netlify/functions/financial-reconciliation-audit.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);
