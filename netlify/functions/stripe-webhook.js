@@ -169,9 +169,8 @@ function classifyPaymentIntentRoute(evt, paymentIntent) {
       ? { route: 'after_service_charge', purpose }
       : { route: 'unsupported_customer_balance_event', purpose };
   }
-  // PaymentIntents created before purpose metadata existed remain eligible for
-  // the preexisting operational handler. This compatibility path is explicit,
-  // bounded to the known legacy event set, and never touches PostgreSQL money.
+  // PaymentIntents created before purpose metadata existed stay on the legacy
+  // route, but an unmarked purpose is quarantined and never marked paid.
   if (!purpose) {
     return LEGACY_OPERATIONAL_PAYMENT_INTENT_EVENTS.has(type)
       ? { route: 'legacy_operational_unmarked', purpose }
@@ -299,22 +298,46 @@ async function reconcilePostgresRefund(evt, refund) {
 
 async function settleAfterServiceBlobPayment(evt, paymentIntent) {
   const { applyAfterServiceStripeEvent } = require('../lib/charge-saved-card-after-service');
+  const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
   const meta = paymentIntent && paymentIntent.metadata ? paymentIntent.metadata : {};
   const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
   if (!bookingId) return { handled: false, error: 'missing_booking_id' };
+  if (!postgresPaymentEnabled()) {
+    return { handled: false, error: 'postgres_payment_disabled', retryable: true };
+  }
   try {
     const store = await blobsStore('cd1-bookings');
     const booking = await store.get(bookingId, { type: 'json' });
-    if (!booking) return { handled: false, error: 'booking_not_found' };
+    if (!booking) return { handled: false, error: 'booking_not_found', retryable: true };
+    const { observeProviderPaymentIntent } = require('../lib/db/payment-authority-service');
+    const observed = await observeProviderPaymentIntent({
+      booking,
+      paymentIntent,
+      stripeEventId: evt && evt.id,
+      type: evt && evt.type,
+      eventCreatedAt: evt && evt.created,
+    });
+    if (!observed.ok) {
+      if (observed.quarantined) {
+        return {
+          handled: true,
+          settled: false,
+          quarantined: true,
+          error: observed.error,
+          duplicate: false,
+        };
+      }
+      return { handled: false, error: observed.error || 'after_service_reconcile_failed', retryable: true };
+    }
     const applied = applyAfterServiceStripeEvent(booking, paymentIntent, {
       stripeEventId: evt && evt.id,
       eventType: evt && evt.type,
     });
     if (!applied.ok) {
       if (applied.error === 'amount_exceeds_remaining') {
-        return { handled: true, settled: false, duplicate: false, paymentPending: true };
+        return { handled: true, settled: false, duplicate: false, paymentPending: true, quarantined: true };
       }
-      return { handled: false, error: applied.error };
+      return { handled: false, error: applied.error, retryable: true };
     }
     if (!applied.ignored && !applied.duplicate) {
       booking.updatedAt = new Date().toISOString();
@@ -323,12 +346,50 @@ async function settleAfterServiceBlobPayment(evt, paymentIntent) {
     return {
       handled: true,
       settled: !!applied.settled,
-      duplicate: !!applied.duplicate,
+      duplicate: !!observed.duplicate || !!applied.duplicate,
       paymentPending: !!applied.paymentPending,
+      quarantined: false,
       paymentStatus: booking.paymentStatus || null,
+      projection: observed.projection || null,
     };
   } catch (err) {
-    return { handled: false, error: err && err.message ? err.message : 'after_service_settle_failed' };
+    return { handled: false, error: err && err.message ? err.message : 'after_service_settle_failed', retryable: true };
+  }
+}
+
+async function reconcileLegacyOperationalPayment(evt, paymentIntent) {
+  const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+  if (!postgresPaymentEnabled()) {
+    return { handled: false, error: 'postgres_payment_disabled', retryable: true };
+  }
+  const meta = paymentIntent && paymentIntent.metadata ? paymentIntent.metadata : {};
+  const bookingId = String(meta.bookingId || meta.booking_id || '').trim();
+  if (!bookingId) return { handled: false, error: 'missing_booking_id' };
+  try {
+    const store = await blobsStore('cd1-bookings');
+    const booking = await store.get(bookingId, { type: 'json' });
+    if (!booking) return { handled: false, error: 'booking_not_found', retryable: true };
+    const { observeProviderPaymentIntent } = require('../lib/db/payment-authority-service');
+    const observed = await observeProviderPaymentIntent({
+      booking,
+      paymentIntent,
+      stripeEventId: evt && evt.id,
+      type: evt && evt.type,
+      eventCreatedAt: evt && evt.created,
+    });
+    if (!observed.ok) {
+      return observed.quarantined
+        ? { handled: true, quarantined: true, error: observed.error, settled: false }
+        : { handled: false, error: observed.error || 'legacy_reconcile_failed', retryable: true };
+    }
+    return {
+      handled: true,
+      duplicate: !!observed.duplicate,
+      projection: observed.projection || null,
+      quarantined: false,
+    };
+  } catch (err) {
+    return { handled: false, error: err && err.message ? err.message : 'legacy_reconcile_failed', retryable: true };
   }
 }
 
@@ -355,6 +416,79 @@ async function settleCeramicBlobPayment(evt, paymentIntent) {
     };
   } catch (err) {
     return { handled: false, error: err && err.message ? err.message : 'ceramic_settle_failed' };
+  }
+}
+
+function mirrorLegacyCapturedPaymentRecord(booking, paymentIntent, projection) {
+  const { deriveMoneyCompatibility } = require('../lib/booking-aggregate');
+  const piId = String(paymentIntent.id || '').trim();
+  const amountCents = Math.round(Number(
+    paymentIntent.amount_received != null ? paymentIntent.amount_received : paymentIntent.amount
+  ) || 0);
+  const ledger = booking.ledger && typeof booking.ledger === 'object'
+    ? {
+      ...booking.ledger,
+      entries: Array.isArray(booking.ledger.entries) ? booking.ledger.entries.slice() : [],
+    }
+    : {
+      currency: 'usd',
+      approvedCents: projection.approvedCents,
+      settledCents: 0,
+      creditedCents: 0,
+      entries: [],
+    };
+  const linked = ledger.entries.some((entry) => entry && [
+    entry.providerObjectId,
+    entry.providerEventId,
+    entry.stripeEventId,
+  ].some((value) => value && String(value) === piId));
+  if (!linked && amountCents > 0) {
+    const now = new Date().toISOString();
+    ledger.entries.push({
+      entryId: `le_legacy_${piId}`,
+      kind: 'settlement',
+      method: 'card',
+      purpose: String(paymentIntent.metadata?.purpose || 'authoritative_balance'),
+      amountCents,
+      currency: 'usd',
+      providerObjectId: piId,
+      providerEventId: piId,
+      quoteVersion: projection.quoteVersion,
+      occurredAt: now,
+      recordedAt: now,
+      actor: 'stripe_legacy_reconcile',
+    });
+  }
+  ledger.approvedCents = projection.approvedCents;
+  ledger.settledCents = projection.settledCents;
+  ledger.currency = 'usd';
+  ledger.lastReconciledAt = new Date().toISOString();
+  return {
+    ...booking,
+    ...deriveMoneyCompatibility(ledger),
+    ledger,
+    quoteVersion: projection.quoteVersion || booking.quoteVersion,
+    paymentStatus: 'paid',
+    paymentIntentId: piId,
+    amountCapturedCents: amountCents,
+    capturedAt: booking.capturedAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function mirrorLegacyCapturedPayment(bookingId, paymentIntent, projection) {
+  if (!bookingId || bookingId === '—') {
+    return { updated: false, reason: 'no booking_id in Stripe metadata' };
+  }
+  try {
+    const store = await blobsStore('cd1-bookings');
+    const booking = await store.get(bookingId, { type: 'json' });
+    if (!booking) return { updated: false, reason: 'booking not found: ' + bookingId };
+    const updated = mirrorLegacyCapturedPaymentRecord(booking, paymentIntent, projection);
+    await store.setJSON(bookingId, updated);
+    return { updated: true, booking: updated };
+  } catch (e) {
+    return { updated: false, reason: e.message };
   }
 }
 
@@ -601,6 +735,8 @@ exports.handler = async (event) => {
           duplicate: !!settled.duplicate,
           settled: !!settled.settled,
           paymentPending: !!settled.paymentPending,
+          quarantined: !!settled.quarantined,
+          error: settled.quarantined ? settled.error : undefined,
         }),
       };
     }
@@ -677,7 +813,50 @@ exports.handler = async (event) => {
         }),
       };
     }
+    const legacy = await reconcileLegacyOperationalPayment(evt, pi);
+    if (!legacy.handled) {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          received: false,
+          retryable: true,
+          error: legacy.error || 'legacy_reconcile_failed',
+        }),
+      };
+    }
+    if (legacy.quarantined) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          received: true,
+          type: evt.type,
+          route: paymentRoute.route,
+          quarantined: true,
+          error: legacy.error,
+        }),
+      };
+    }
+    if (evt.type === 'payment_intent.succeeded') {
+      if (legacy.projection && legacy.projection.paymentStatus === 'paid') {
+        results.update = await mirrorLegacyCapturedPayment(bookingId, pi, legacy.projection);
+      }
+      await notifyAdmin(
+        `Cardetail1 — payment captured $${dollars} · ${bookingId}`,
+        `Payment of $${dollars} captured for booking ${bookingId}.\nPaymentIntent: ${pi.id}`
+      );
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          received: true,
+          type: evt.type,
+          route: paymentRoute.route,
+          duplicate: !!legacy.duplicate,
+          settled: !!(legacy.projection && legacy.projection.paymentStatus === 'paid'),
+        }),
+      };
+    }
     results.paymentIntentRoute = paymentRoute.route;
+    results.legacyReconciled = true;
   }
 
   // Hosted Checkout never settles a booking balance. Old sessions are

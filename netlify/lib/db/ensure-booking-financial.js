@@ -9,6 +9,7 @@
 const { prismaConfigured } = require('../prisma');
 const repo = require('./repositories');
 const foundation = require('./foundation-services');
+const { isUniqueConstraintError } = foundation;
 
 function approvedCentsFromBlob(booking) {
   try {
@@ -117,23 +118,34 @@ async function ensureBookingFinancial(booking) {
   let row = await repo.getBooking(bookingId);
   if (!row) {
     const status = booking.isDraft ? 'draft' : 'confirmed';
-    await repo.createBooking({
-      id: bookingId,
-      status,
-      isDraft: !!booking.isDraft,
-    });
+    try {
+      await repo.createBooking({
+        id: bookingId,
+        status,
+        isDraft: !!booking.isDraft,
+      });
+    } catch (err) {
+      if (!isUniqueConstraintError(err)) throw err;
+    }
     row = await repo.getBooking(bookingId);
+    if (!row) return { ok: false, error: 'booking_not_ensured' };
   }
 
   let quote = await repo.getLatestQuote(bookingId);
   if (!quote) {
-    quote = await repo.createQuote({
-      bookingId,
-      quoteVersion,
-      approvedCents,
-      status: settledBlob > 0 && settledBlob >= approvedCents && approvedCents > 0 ? 'settled' : 'approved',
-      items: quoteItems,
-    });
+    try {
+      quote = await repo.createQuote({
+        bookingId,
+        quoteVersion,
+        approvedCents,
+        status: settledBlob > 0 && settledBlob >= approvedCents && approvedCents > 0 ? 'settled' : 'approved',
+        items: quoteItems,
+      });
+    } catch (err) {
+      if (!isUniqueConstraintError(err)) throw err;
+      quote = await repo.getQuote({ bookingId, quoteVersion }) || await repo.getLatestQuote(bookingId);
+      if (!quote) return { ok: false, error: 'quote_not_ensured' };
+    }
   } else if (
     quote.quoteVersion === quoteVersion
     && quote.approvedCents !== approvedCents

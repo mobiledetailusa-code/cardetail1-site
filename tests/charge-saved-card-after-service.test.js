@@ -19,13 +19,14 @@ const { stampAfterServiceChargeConsent } = require('../netlify/lib/customer-poli
 const ENV = {
   STRIPE_SECRET_KEY: 'sk_test_after_service_isolated',
   CONTEXT: 'production',
-  CD1_POSTGRES_PAYMENT: '0',
   SITE_URL: 'https://cardetail1.com',
 };
 
+let bookingSeq = 0;
 function booking(extra = {}) {
+  bookingSeq += 1;
   return {
-    id: 'CD1-CHARGE-1',
+    id: extra.id || `CD1-CHARGE-${bookingSeq}-${Date.now().toString(36)}`,
     bookingVersion: 4,
     quoteVersion: 2,
     schemaVersion: 1,
@@ -79,18 +80,22 @@ function stripeFetch(httpStatus, body) {
   return impl;
 }
 
-function succeededIntent(amount) {
+let paymentSeq = 0;
+function succeededIntent(amount, id) {
+  paymentSeq += 1;
   return {
-    id: 'pi_after_ok',
+    id: id || `pi_after_${paymentSeq}_${Date.now().toString(36)}`,
     object: 'payment_intent',
     status: 'succeeded',
+    currency: 'usd',
     amount,
     amount_received: amount,
   };
 }
 
 test('success charges only the unpaid approved balance and marks paid after Stripe succeeds', async () => {
-  const fetchImpl = stripeFetch(200, succeededIntent(15000));
+  const intent = succeededIntent(15000);
+  const fetchImpl = stripeFetch(200, intent);
   const current = booking();
   const result = await chargeSavedCardAfterService({
     booking: current,
@@ -111,7 +116,7 @@ test('success charges only the unpaid approved balance and marks paid after Stri
   assert.equal(params.get('metadata[purpose]'), PURPOSE);
   assert.equal(params.get('capture_method'), null);
   assert.equal(params.get('payment_method_types[0]'), null);
-  assert.equal(fetchImpl.calls[0].headers['Idempotency-Key'], 'after_service_CD1-CHARGE-1_2_15000');
+  assert.equal(fetchImpl.calls[0].headers['Idempotency-Key'], `after_service_${current.id}_2_15000`);
   assert.equal(result.booking.paymentStatus, 'paid');
   assert.equal(result.booking.jobStatus, 'completed_paid');
   assert.equal(result.booking.balanceDue, 0);
@@ -145,7 +150,7 @@ test('a declined card leaves the appointment completed and the balance pending w
   assert.equal(result.charged, false);
   assert.equal(result.paymentPending, true);
   assert.equal(result.stripeStatus, 'declined');
-  assert.match(result.recoveryUrl, /my-garage\.html\?bookingId=CD1-CHARGE-1&pay=balance/);
+  assert.match(result.recoveryUrl, new RegExp(`my-garage\\.html\\?bookingId=${current.id}&pay=balance`));
   assert.notEqual(result.booking.paymentStatus, 'paid');
   assert.equal(result.booking.jobStatus, 'completed_pending_payment');
   assert.equal(result.booking.balanceDue, 150);
@@ -176,7 +181,8 @@ test('additional authentication does not mark the booking paid', async () => {
 });
 
 test('repeating the charge and the webhook does not settle twice', async () => {
-  const fetchImpl = stripeFetch(200, succeededIntent(15000));
+  const intent = succeededIntent(15000);
+  const fetchImpl = stripeFetch(200, intent);
   const current = booking();
   const first = await chargeSavedCardAfterService({
     booking: current,
@@ -197,23 +203,25 @@ test('repeating the charge and the webhook does not settle twice', async () => {
   assert.equal(second.error, 'nothing_to_charge');
   assert.equal(fetchImpl.calls.length, 1);
   const replay = applyAfterServiceStripeEvent(first.booking, {
-    id: 'pi_after_ok',
+    id: intent.id,
     status: 'succeeded',
+    currency: 'usd',
     amount: 15000,
     amount_received: 15000,
-    metadata: { purpose: PURPOSE, bookingId: 'CD1-CHARGE-1' },
+    metadata: { purpose: PURPOSE, bookingId: current.id },
   }, { eventType: 'payment_intent.succeeded', stripeEventId: 'evt_repeat' });
   assert.equal(replay.duplicate, true);
   assert.equal(first.booking.ledger.settledCents, 18000);
   const again = applyAfterServiceStripeEvent(first.booking, {
-    id: 'pi_after_ok',
+    id: intent.id,
     status: 'succeeded',
+    currency: 'usd',
     amount: 15000,
     amount_received: 15000,
-    metadata: { purpose: PURPOSE, bookingId: 'CD1-CHARGE-1' },
+    metadata: { purpose: PURPOSE, bookingId: current.id },
   }, { eventType: 'payment_intent.succeeded', stripeEventId: 'evt_repeat' });
   assert.equal(again.duplicate, true);
-  assert.equal(first.booking.ledger.entries.filter((entry) => entry.providerEventId === 'pi_after_ok').length, 1);
+  assert.equal(first.booking.ledger.entries.filter((entry) => entry.providerEventId === intent.id).length, 1);
 });
 
 test('cash and card at service never call Stripe', async () => {
@@ -262,7 +270,6 @@ test('an unapproved add-on blocks the charge', async () => {
 
 test('admin completion charges a saved card, and a service line does not', async () => {
   const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
-  process.env.CD1_POSTGRES_PAYMENT = '0';
   const fetchImpl = stripeFetch(200, succeededIntent(15000));
   const seed = booking();
   const store = createCasMemoryStore({ [seed.id]: seed });
@@ -334,7 +341,6 @@ test('admin completion charges a saved card, and a service line does not', async
 
 test('admin cash completion and a declined retry do not create a second charge', async () => {
   const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
-  process.env.CD1_POSTGRES_PAYMENT = '0';
   const fetchImpl = stripeFetch(402, {
     error: {
       code: 'card_declined',
@@ -424,7 +430,6 @@ test('the admin label says it will charge, and a service line cannot', () => {
 
 test('a cancellation-only card is not charged and keeps a payment link', async () => {
   const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
-  process.env.CD1_POSTGRES_PAYMENT = '0';
   const fetchImpl = stripeFetch(200, succeededIntent(15000));
   const oldCard = booking({
     id: 'CD1-OLD-CARD',
@@ -485,15 +490,14 @@ test('a cancellation-only card is not charged and keeps a payment link', async (
 });
 
 test('two simultaneous completions create at most one charge', async () => {
-  const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
-  process.env.CD1_POSTGRES_PAYMENT = '0';
   let release;
   const hold = new Promise((resolve) => { release = resolve; });
   const calls = [];
+  const intent = succeededIntent(15000);
   const fetchImpl = async (url, opts) => {
     calls.push({ url, headers: opts.headers });
     if (calls.length === 1) await hold;
-    return { status: 200, json: async () => succeededIntent(15000) };
+    return { status: 200, json: async () => intent };
   };
   fetchImpl.calls = calls;
   const seed = booking({ id: 'CD1-RACE-1' });
@@ -519,7 +523,7 @@ test('two simultaneous completions create at most one charge', async () => {
     const results = await pending;
     const bodies = results.map((res) => JSON.parse(res.body));
     const saved = JSON.parse(store._data.get(seed.id).value);
-    const settlements = saved.ledger.entries.filter((entry) => entry.providerEventId === 'pi_after_ok');
+    const settlements = saved.ledger.entries.filter((entry) => entry.providerEventId === intent.id);
     const keys = calls.map((call) => call.headers['Idempotency-Key']);
     assert.ok(calls.length >= 1);
     assert.equal(new Set(keys).size, 1);
@@ -528,8 +532,6 @@ test('two simultaneous completions create at most one charge', async () => {
     assert.equal(bodies.filter((body) => body.ok && body.charge && body.charge.charged).length, 1);
   } finally {
     setBookingStoreOverride(null);
-    if (previousPostgres == null) delete process.env.CD1_POSTGRES_PAYMENT;
-    else process.env.CD1_POSTGRES_PAYMENT = previousPostgres;
   }
 });
 
@@ -539,10 +541,11 @@ test('a lost Stripe response retries the same operation', async () => {
   const fetchImpl = async (url, opts) => {
     const key = opts.headers['Idempotency-Key'];
     calls.push(key);
-    if (!byKey.has(key)) byKey.set(key, succeededIntent(15000));
+    if (!byKey.has(key)) byKey.set(key, lostIntent);
     return { status: 200, json: async () => byKey.get(key) };
   };
-  const current = booking({ id: 'CD1-LOST-1' });
+  const lostIntent = succeededIntent(15000, `pi_lost_${Date.now().toString(36)}`);
+  const current = booking({ id: `CD1-LOST-${Date.now().toString(36)}` });
   const store = { booking: current };
   let dropResult = true;
   const persistBooking = async (next) => {
@@ -578,10 +581,10 @@ test('a lost Stripe response retries the same operation', async () => {
     persistBooking,
   });
   assert.equal(second.charged, true);
-  assert.equal(second.paymentIntentId, 'pi_after_ok');
+  assert.equal(second.paymentIntentId, lostIntent.id);
   assert.equal(calls.length, 2);
   assert.equal(calls[0], calls[1]);
-  assert.equal(second.booking.ledger.entries.filter((entry) => entry.providerEventId === 'pi_after_ok').length, 1);
+  assert.equal(second.booking.ledger.entries.filter((entry) => entry.providerEventId === lostIntent.id).length, 1);
   assert.equal(second.booking.ledger.settledCents, 18000);
 });
 
@@ -612,10 +615,11 @@ test('the recovery link and the admin charge cannot collect the same balance twi
     afterServiceCharge: {
       purpose: PURPOSE,
       status: 'charging',
-      idempotencyKey: 'after_service_CD1-CHARGE-1_2_15000',
+      idempotencyKey: 'after_service_placeholder_2_15000',
       amountCents: 15000,
     },
   });
+  charging.afterServiceCharge.idempotencyKey = `after_service_${charging.id}_2_15000`;
   const blocked = customerRecoveryBlocked(charging);
   assert.equal(blocked.error, 'after_service_charge_in_progress');
   const { prepareEmbeddedPayment } = require('../netlify/lib/db/operational-payment');
@@ -632,11 +636,11 @@ test('the recovery link and the admin charge cannot collect the same balance twi
       purpose: PURPOSE,
       status: 'declined',
       paymentIntentId: 'pi_after_declined',
-      idempotencyKey: 'after_service_CD1-CHARGE-1_2_15000',
       amountCents: 15000,
-      recoveryUrl: 'https://cardetail1.com/my-garage.html?bookingId=CD1-CHARGE-1&pay=balance',
     },
   });
+  declined.afterServiceCharge.idempotencyKey = `after_service_${declined.id}_2_15000`;
+  declined.afterServiceCharge.recoveryUrl = `https://cardetail1.com/my-garage.html?bookingId=${declined.id}&pay=balance`;
   assert.equal(customerRecoveryBlocked(declined), null);
   const adminRetry = await chargeSavedCardAfterService({
     booking: declined,
@@ -653,7 +657,6 @@ test('the recovery link and the admin charge cannot collect the same balance twi
 
 test('the confirmed amount is rechecked when the balance or an add-on changes', async () => {
   const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
-  process.env.CD1_POSTGRES_PAYMENT = '0';
   const fetchImpl = stripeFetch(200, succeededIntent(17000));
   const raised = booking({
     id: 'CD1-RAISED-1',

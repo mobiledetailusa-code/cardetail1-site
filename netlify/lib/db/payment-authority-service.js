@@ -1004,14 +1004,21 @@ function assertPaymentIntentBinding(attempt, paymentIntent, type) {
   }
   const allowedPurpose = attempt.purpose === 'customer_balance'
     || attempt.purpose === 'ceramic_checkout'
-    || attempt.purpose === 'ceramic_balance';
+    || attempt.purpose === 'ceramic_balance'
+    || attempt.purpose === 'approved_balance_after_service'
+    || attempt.purpose === 'authoritative_balance';
   if (!allowedPurpose || binding.purpose !== attempt.purpose) {
     throw new PaymentEventInvariantError('payment_purpose_mismatch');
   }
   if (!binding.bookingId || binding.bookingId !== attempt.bookingId) {
     throw new PaymentEventInvariantError('payment_booking_mismatch');
   }
-  if (!binding.quoteVersion || binding.quoteVersion !== attempt.quoteVersion) {
+  const observedPurpose = attempt.purpose === 'approved_balance_after_service'
+    || attempt.purpose === 'authoritative_balance';
+  if (binding.quoteVersion && binding.quoteVersion !== attempt.quoteVersion) {
+    throw new PaymentEventInvariantError('payment_quote_mismatch');
+  }
+  if (!binding.quoteVersion && !observedPurpose) {
     throw new PaymentEventInvariantError('payment_quote_mismatch');
   }
   if (!binding.currency || binding.currency !== String(attempt.currency || '').toLowerCase()) {
@@ -2332,6 +2339,205 @@ async function recordFullBalanceCashSettlement(args) {
   return recordFullBalanceOnSiteSettlement({ ...args, method: 'cash' });
 }
 
+const OBSERVED_PAYMENT_PURPOSES = new Set([
+  'approved_balance_after_service',
+  'authoritative_balance',
+]);
+
+function bookingWithoutProviderCredit(booking, providerObjectId) {
+  const copy = JSON.parse(JSON.stringify(booking));
+  const id = String(providerObjectId || '');
+  const entries = Array.isArray(copy.ledger?.entries) ? copy.ledger.entries : [];
+  let removed = 0;
+  const kept = entries.filter((entry) => {
+    const linked = [entry?.providerObjectId, entry?.providerEventId, entry?.stripeEventId]
+      .some((value) => value && String(value) === id);
+    if (!linked) return true;
+    removed += Math.max(0, Math.round(Number(entry.amountCents) || 0));
+    return false;
+  });
+  if (copy.ledger && typeof copy.ledger === 'object') {
+    copy.ledger = {
+      ...copy.ledger,
+      entries: kept,
+      settledCents: Math.max(0, Math.round(Number(copy.ledger.settledCents) || 0) - removed),
+    };
+  }
+  return copy;
+}
+
+async function quarantineObservedEvent({
+  stripeEventId,
+  type,
+  paymentIntent,
+  errorCode,
+}) {
+  const eventId = String(stripeEventId || '').trim();
+  if (!eventId) return { ok: false, error: errorCode, quarantined: true, statusCode: 409 };
+  const payload = sanitizeStripeEventPayload(paymentIntent);
+  const prisma = getPrisma();
+  await prisma.stripeEvent.upsert({
+    where: { stripeEventId: eventId },
+    create: {
+      stripeEventId: eventId,
+      type: String(type || 'payment_intent.unknown'),
+      bookingId: payload.bookingId || null,
+      payload,
+      status: 'failed',
+      errorCode: sanitizeStripeErrorCode(errorCode),
+      attemptCount: 1,
+      lastAttemptAt: new Date(),
+    },
+    update: {
+      status: 'failed',
+      errorCode: sanitizeStripeErrorCode(errorCode),
+      attemptCount: { increment: 1 },
+      lastAttemptAt: new Date(),
+    },
+  });
+  return { ok: false, error: errorCode, quarantined: true, failureRecorded: true, statusCode: 409 };
+}
+
+/**
+ * Record a PaymentIntent that Stripe already created (saved-card charge or a
+ * legacy operational intent). This function never calls Stripe and never
+ * captures. The server balance, not the caller, decides the attempt amount.
+ * A mismatch is quarantined and does not settle.
+ */
+async function observeProviderPaymentIntent({
+  booking,
+  paymentIntent,
+  stripeEventId,
+  type,
+  eventCreatedAt = null,
+}) {
+  const binding = paymentIntentBinding(paymentIntent);
+  const purpose = binding.purpose;
+  if (!OBSERVED_PAYMENT_PURPOSES.has(purpose)) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: purpose ? 'payment_purpose_mismatch' : 'legacy_purpose_missing',
+    });
+  }
+  if (binding.currency !== 'usd') {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: 'payment_currency_mismatch',
+    });
+  }
+  const bookingId = String(booking?.id || booking?.bookingId || '').trim();
+  if (!bookingId || bookingId !== binding.bookingId) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: 'payment_booking_mismatch',
+    });
+  }
+
+  const { financialProjection } = require('../payment-service');
+  const prior = bookingWithoutProviderCredit(booking, paymentIntent.id);
+  const local = financialProjection(prior);
+  const serverRemaining = Math.max(0, Math.round(Number(local?.remainingCents) || 0));
+  const providerAmount = Math.round(Number(
+    paymentIntent.status === 'succeeded' && paymentIntent.amount_received != null
+      ? paymentIntent.amount_received
+      : paymentIntent.amount
+  ) || 0);
+  if (!(serverRemaining > 0) || providerAmount !== serverRemaining) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: 'payment_amount_mismatch',
+    });
+  }
+
+  const { ensureBookingFinancial } = require('./ensure-booking-financial');
+  const ensured = await ensureBookingFinancial(prior);
+  if (!ensured.ok) {
+    return { ok: false, error: ensured.error || 'booking_not_ensured', statusCode: 503, retryable: true };
+  }
+  if (binding.quoteVersion && binding.quoteVersion !== ensured.quoteVersion) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: 'payment_quote_mismatch',
+    });
+  }
+  const quoteVersion = ensured.quoteVersion;
+
+  const idempotencyKey = purpose === 'approved_balance_after_service'
+    ? require('../charge-saved-card-after-service').idempotencyKeyFor(bookingId, quoteVersion, serverRemaining)
+    : `legacy_${purpose}_${bookingId}_${quoteVersion}_${paymentIntent.id}`;
+
+  let attempt = await repo.findPaymentAttemptByProviderObjectId(paymentIntent.id);
+  if (!attempt) {
+    const reserved = await foundation.reservePaymentObligation({
+      bookingId,
+      quoteVersion,
+      amountCents: serverRemaining,
+      purpose,
+      providerCustomerId: binding.customerId || null,
+      providerObjectType: 'payment_intent',
+      providerObjectId: paymentIntent.id,
+      idempotencyKey,
+      generation: 1,
+    });
+    if (!reserved.ok) {
+      return { ok: false, error: reserved.error || 'attempt_not_reserved', statusCode: 503, retryable: true };
+    }
+    attempt = reserved.attempt;
+    if (!attempt.providerObjectId) {
+      attempt = await repo.updatePaymentAttempt(attempt.id, {
+        providerObjectId: paymentIntent.id,
+        status: attempt.status === 'creating' ? 'open' : attempt.status,
+      });
+    }
+  }
+  if (
+    !attempt
+    || attempt.bookingId !== bookingId
+    || attempt.purpose !== purpose
+    || attempt.amountCents !== serverRemaining
+    || String(attempt.currency || '').toLowerCase() !== 'usd'
+    || attempt.providerObjectId !== paymentIntent.id
+  ) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: 'payment_attempt_divergence',
+    });
+  }
+
+  const result = await reconcilePaymentIntentEvent({
+    stripeEventId,
+    type,
+    paymentIntent: {
+      ...paymentIntent,
+      currency: 'usd',
+      metadata: {
+        ...(paymentIntent.metadata || {}),
+        bookingId,
+        booking_id: bookingId,
+        purpose,
+        quoteVersion: String(quoteVersion),
+      },
+    },
+    eventCreatedAt,
+  });
+  if (result.ok && result.duplicate && !result.projection) {
+    result.projection = await getFinancialProjection(bookingId);
+  }
+  return result;
+}
+
 module.exports = {
   ACTIVE_ATTEMPT_STATUSES,
   ATTEMPT_STALE_AFTER_MS,
@@ -2347,6 +2553,7 @@ module.exports = {
   createCustomerSession,
   reconcileFromStripeProvider,
   reconcilePaymentIntentEvent,
+  observeProviderPaymentIntent,
   createRefund,
   reconcileRefundEvent,
   createAdjustment,
