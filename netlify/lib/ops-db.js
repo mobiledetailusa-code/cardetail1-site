@@ -280,63 +280,93 @@ async function listRawBookings() {
   return shapeSubmittedBookings(records);
 }
 
+/** Caps one My Garage complement so a live store cannot hydrate every blob. */
+const BLOB_UNION_MAX_PAGES = 25;
+const BLOB_UNION_MAX_KEYS = 500;
+
 /**
  * Same submitted-booking list as listRawBookings, but a failed list or read
  * throws. listAllBlobs swallows those failures into an empty list, which a
  * caller must not treat as proof the store has no more bookings.
  */
-async function listBlobKeysStrict(store) {
+async function listBlobKeysStrict(store, limits = {}) {
   if (!store || typeof store.list !== 'function') {
     throw new Error('booking_store_unavailable');
   }
+  const maxKeys = Number(limits.maxKeys) > 0 ? Number(limits.maxKeys) : BLOB_UNION_MAX_KEYS;
+  const maxPages = Number(limits.maxPages) > 0 ? Number(limits.maxPages) : BLOB_UNION_MAX_PAGES;
   let paged = null;
   try {
-    paged = store.list({ paginate: true });
+    paged = await Promise.resolve(store.list({ paginate: true }));
   } catch {
     paged = null;
   }
   if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
     const blobs = [];
-    for await (const page of paged) blobs.push(...((page && page.blobs) || []));
-    return blobs;
-  }
-  if (paged && typeof paged.then === 'function') {
-    await paged.catch(() => null);
+    let pages = 0;
+    let truncated = false;
+    for await (const page of paged) {
+      pages += 1;
+      blobs.push(...((page && page.blobs) || []));
+      if (pages >= maxPages || blobs.length >= maxKeys) {
+        truncated = true;
+        break;
+      }
+    }
+    return { blobs: blobs.slice(0, maxKeys), truncated, pages };
   }
   const listing = await store.list();
   if (!listing || !Array.isArray(listing.blobs)) {
     throw new Error('booking_store_unavailable');
   }
-  return listing.blobs;
+  const truncated = listing.blobs.length > maxKeys;
+  return {
+    blobs: truncated ? listing.blobs.slice(0, maxKeys) : listing.blobs,
+    truncated,
+    pages: 1,
+  };
 }
 
-async function fetchBlobRecordsStrict(store, blobs) {
-  const records = [];
-  for (const blob of blobs) {
+async function fetchBlobRecordsStrict(store, blobs, { skipKeys } = {}) {
+  if (!store || (typeof store.getWithMetadata !== 'function' && typeof store.get !== 'function')) {
+    throw new Error('booking_store_unavailable');
+  }
+  const skip = skipKeys instanceof Set ? skipKeys : new Set(skipKeys || []);
+  const wanted = (blobs || []).filter((blob) => {
     const key = blob && blob.key;
-    if (!key) continue;
-    let raw = null;
-    if (typeof store.getWithMetadata === 'function') {
-      const result = await store.getWithMetadata(key, {
-        type: 'json',
-        consistency: 'strong',
-      });
-      raw = result && result.data ? result.data : null;
-    } else if (typeof store.get === 'function') {
-      raw = await store.get(key, { type: 'json' });
-    } else {
-      throw new Error('booking_store_unavailable');
-    }
-    if (raw) records.push(raw);
+    return key && !skip.has(key);
+  });
+  const records = [];
+  for (let i = 0; i < wanted.length; i += BOOKING_LOOKUP_CONCURRENCY) {
+    const chunk = wanted.slice(i, i + BOOKING_LOOKUP_CONCURRENCY);
+    const rows = await Promise.all(chunk.map(async (blob) => {
+      const key = blob.key;
+      if (typeof store.getWithMetadata === 'function') {
+        const result = await store.getWithMetadata(key, {
+          type: 'json',
+          consistency: 'strong',
+        });
+        return result && result.data ? result.data : null;
+      }
+      return store.get(key, { type: 'json' });
+    }));
+    for (const row of rows) if (row) records.push(row);
   }
   return records;
 }
 
-async function listRawBookingsStrict() {
+async function listRawBookingsStrict(options = {}) {
   const store = await bookingStore();
-  const blobs = await listBlobKeysStrict(store);
-  const records = await fetchBlobRecordsStrict(store, blobs);
-  return shapeSubmittedBookings(records);
+  const listed = await listBlobKeysStrict(store, options);
+  const records = await fetchBlobRecordsStrict(store, listed.blobs, {
+    skipKeys: options.skipKeys,
+  });
+  return {
+    bookings: shapeSubmittedBookings(records),
+    truncated: !!listed.truncated,
+    pages: listed.pages,
+    listed: listed.blobs.length,
+  };
 }
 
 /**
@@ -375,6 +405,8 @@ module.exports = {
   patchBooking,
   listRawBookings,
   listRawBookingsStrict,
+  BLOB_UNION_MAX_PAGES,
+  BLOB_UNION_MAX_KEYS,
   listBookingsForSlotLock,
   normalizeBookingKey,
   normalizePhone,

@@ -132,6 +132,25 @@ function isVisibleCustomerBooking(b) {
   return isVisibleSubmittedBooking(b, { includeArchivedTest: false });
 }
 
+/**
+ * Postgres is the money authority (#357). A blob-only sibling may be listed,
+ * but its "paid" flag is not settlement.
+ */
+function withoutUnauthorizedBlobSettlement(booking) {
+  if (!booking || typeof booking !== 'object') return booking;
+  if (!postgresPaymentEnabled()) return booking;
+  if (booking.sourceAuthority === 'postgres') return booking;
+  const next = { ...booking };
+  if (String(next.paymentStatus || '').toLowerCase() === 'paid') next.paymentStatus = '';
+  next.amountPaid = 0;
+  next.paidAmount = 0;
+  next.settledCents = 0;
+  if (next.ledger && typeof next.ledger === 'object') {
+    next.ledger = { ...next.ledger, settledCents: 0 };
+  }
+  return next;
+}
+
 /** Durable account link written to the booking aggregate at token exchange. */
 function blobAccountIdOf(b) {
   const id = String((b && b.customerAccountId) || '').trim();
@@ -522,7 +541,16 @@ async function handlePortalData(event, body) {
   });
 
   const projected = bookings
-    .map((b) => projectBookingForCustomer(b))
+    .map((b) => {
+      const row = projectBookingForCustomer(withoutUnauthorizedBlobSettlement(b));
+      if (postgresPaymentEnabled() && b.sourceAuthority !== 'postgres') {
+        row.amountPaid = 0;
+        row.settledCents = 0;
+        row.remainingCents = Number(row.approvedCents || 0);
+        if (String(row.paymentStatus || '').toLowerCase() === 'paid') row.paymentStatus = '';
+      }
+      return row;
+    })
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
 
   // Opaque appointment focus — resolve server-side under authenticated ownership only.

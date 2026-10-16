@@ -12,6 +12,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const { spawnSync } = require('node:child_process');
 
 const { JSDOM } = (() => {
   try { return { JSDOM: require('jsdom').JSDOM }; }
@@ -100,13 +101,45 @@ const FOREIGN = {
   appointmentPublicRef: 'aptr_foreignforeignforeign',
 };
 
+const SAME_PHONE_OTHER_EMAIL = {
+  id: 'CD1-OTHERACCT',
+  isDraft: false,
+  kind: 'booking',
+  phone: '(201) 555-0148',
+  email: 'other-account@example.com',
+  status: 'Confirmed',
+  jobStatus: 'confirmed',
+  package: 'Same Phone Other Email',
+  preferredDate: '2026-03-01',
+  finalizedAt: '2026-03-01T15:00:00.000Z',
+  bookingVersion: 1,
+  appointmentPublicRef: 'aptr_samephoneotheremail',
+};
+
+const ARCHIVED_TEST = {
+  id: 'CD1-ARCHIVED',
+  isDraft: false,
+  kind: 'booking',
+  phone: '(201) 555-0148',
+  email: EMAIL,
+  status: 'Paid',
+  jobStatus: 'archived_test',
+  archived: true,
+  package: 'Archived Test Detail',
+  preferredDate: '2026-01-01',
+  finalizedAt: '2026-01-01T15:00:00.000Z',
+  bookingVersion: 1,
+  appointmentPublicRef: 'aptr_archivedtestdetail',
+};
+
 let originalTryGetPrisma = null;
 let fakePrisma = null;
 
-function memoryStore(seed = {}, { failList = false } = {}) {
+function memoryStore(seed = {}, { failList = false, maxKeys } = {}) {
   const data = new Map(Object.entries(seed).map(([key, value]) => [key, value]));
   return {
     calls: 0,
+    writes: 0,
     async get(key, opts) {
       if (!data.has(key)) return null;
       const value = data.get(key);
@@ -122,13 +155,16 @@ function memoryStore(seed = {}, { failList = false } = {}) {
       };
     },
     async setJSON(key, value) {
+      this.writes += 1;
       data.set(key, structuredClone(value));
       return { modified: true, etag: `etag-${key}` };
     },
     async list() {
       this.calls += 1;
       if (failList) throw new Error('blob_list_down');
-      return { blobs: [...data.keys()].map((key) => ({ key })) };
+      const keys = [...data.keys()];
+      const sliced = Number(maxKeys) > 0 ? keys.slice(0, maxKeys) : keys;
+      return { blobs: sliced.map((key) => ({ key })) };
     },
   };
 }
@@ -244,11 +280,14 @@ describe('partial mirror lookup', () => {
     assert.equal(result.complete, true);
     assert.ok(store.calls > 0);
     const ids = bookingIds(result.bookings);
-    assert.deepEqual(ids, ['CD1-BLOBONLY', 'CD1-FOREIGN', 'CD1-MIRROR']);
+    assert.deepEqual(ids, ['CD1-BLOBONLY', 'CD1-MIRROR']);
     assert.equal(result.bookings.filter((booking) => booking.id === 'CD1-MIRROR').length, 1);
     const mirror = result.bookings.find((booking) => booking.id === 'CD1-MIRROR');
-    assert.equal(mirror.sourceTag, 'blob');
+    assert.equal(mirror.sourceTag, 'mirror');
+    assert.equal(mirror.sourceAuthority, 'postgres');
+    assert.equal(result.bookings.find((booking) => booking.id === 'CD1-BLOBONLY').sourceAuthority, 'blob');
     assert.equal(result.bookings.some((booking) => booking.id === 'CD1-DRAFT'), false);
+    assert.equal(result.bookings.some((booking) => booking.id === 'CD1-FOREIGN'), false);
   });
 
   it('keeps the short mirror list incomplete when the blob store cannot be listed', async () => {
@@ -308,7 +347,8 @@ describe('My Garage composition', () => {
   }
 
   it('returns the blob-only submitted booking once and leaves the draft and the other customer out', async () => {
-    const body = await portalFor(fullStore());
+    const store = fullStore();
+    const body = await portalFor(store);
     const ids = bookingIds(body.bookings);
     assert.equal(body.bookingsComplete, true);
     assert.deepEqual(ids, ['CD1-BLOBONLY', 'CD1-MIRROR']);
@@ -316,6 +356,32 @@ describe('My Garage composition', () => {
     assert.equal(JSON.stringify(body).includes('Draft Should Hide'), false);
     assert.equal(JSON.stringify(body).includes('Someone Else Detail'), false);
     assert.equal(JSON.stringify(body).includes('Blob Older Detail'), true);
+    assert.equal(store.writes, 0);
+  });
+
+  it('does not let the same phone discover another account, and hides archived_test', async () => {
+    const body = await portalFor(memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-BLOBONLY': BLOB_ONLY,
+      'CD1-OTHERACCT': SAME_PHONE_OTHER_EMAIL,
+      'CD1-ARCHIVED': ARCHIVED_TEST,
+    }));
+    const ids = bookingIds(body.bookings);
+    assert.deepEqual(ids, ['CD1-BLOBONLY', 'CD1-MIRROR']);
+    assert.equal(JSON.stringify(body).includes('Same Phone Other Email'), false);
+    assert.equal(JSON.stringify(body).includes('Archived Test Detail'), false);
+  });
+
+  it('does not present a blob-only paid flag as settlement when Postgres is the money authority', async () => {
+    process.env.CD1_POSTGRES_PAYMENT = '1';
+    const body = await portalFor(fullStore());
+    const older = body.bookings.find((booking) => booking.id === 'CD1-BLOBONLY');
+    const mirror = body.bookings.find((booking) => booking.id === 'CD1-MIRROR');
+    assert.ok(older);
+    assert.equal(Number(older.amountPaid || 0), 0);
+    assert.equal(Number(older.settledCents || 0), 0);
+    assert.notEqual(String(older.paymentStatus || '').toLowerCase(), 'paid');
+    assert.equal(mirror.package, 'Mirror Newer Detail');
   });
 
   it('marks the account list incomplete and omits the unseen submitted booking when blobs cannot be read', async () => {
@@ -468,5 +534,180 @@ describe('My Garage cold load', { skip: JSDOM ? false : 'jsdom unavailable' }, (
     const refs = [...doc.querySelectorAll('[data-appt-ref]')].map((el) => el.getAttribute('data-appt-ref'));
     assert.deepEqual(refs.filter((ref) => ref === 'aptr_blobolderblobolder'), ['aptr_blobolderblobolder']);
     assert.equal(doc.getElementById('upcoming-panel').textContent.includes('Mirror Newer Detail'), true);
+  });
+});
+
+describe('authority, limits, and mutations', () => {
+  it('marks the garage list incomplete when Postgres cannot answer', async () => {
+    fakePrisma = null;
+    const store = memoryStore({
+      'CD1-MIRROR': MIRROR_BLOB,
+      'CD1-BLOBONLY': BLOB_ONLY,
+    });
+    const { setOpsStoreOverride } = require(OPS_PATH);
+    setOpsStoreOverride(store);
+    const { listBookingsForIdentity } = require(HISTORY_PATH);
+    const result = await listBookingsForIdentity(
+      { phone: PHONE, email: EMAIL },
+      { completeWithBlobs: true }
+    );
+    assert.equal(result.complete, false);
+    assert.deepEqual(bookingIds(result.bookings), ['CD1-BLOBONLY', 'CD1-MIRROR']);
+  });
+
+  it('mutations of complement, identity, completeness, and settlement go red then restore', () => {
+    const historyPath = path.join(ROOT, 'netlify/lib/booking-history.js');
+    const portalPath = path.join(ROOT, 'netlify/functions/customer-portal-data.js');
+    const historyOriginal = fs.readFileSync(historyPath, 'utf8');
+    const portalOriginal = fs.readFileSync(portalPath, 'utf8');
+    const probeScript = `
+      process.env.DATABASE_URL = 'postgres://stub/stub';
+      process.env.CUSTOMER_SESSION_SECRET = 'test-customer-session-secret-32chars!!';
+      process.env.CONTEXT = 'production';
+      process.env.CD1_POSTGRES_PAYMENT = process.env.CD1_POSTGRES_PAYMENT || '0';
+      const assert = require('node:assert/strict');
+      const prisma = require('./netlify/lib/prisma');
+      prisma.tryGetPrisma = () => ({
+        $queryRaw: async () => [{ payload: {
+          id: 'CD1-MIRROR', isDraft: false, kind: 'booking', phone: '2015550148',
+          email: 'garage-mirror@example.com', status: 'Confirmed', jobStatus: 'confirmed',
+          package: 'Mirror Newer Detail', sourceTag: 'mirror', preferredDate: '2026-09-20',
+          appointmentPublicRef: 'aptr_mirror', updatedAt: '2026-09-01T15:00:00.000Z', bookingVersion: 2,
+        } }],
+        booking: { findMany: async () => [] },
+      });
+      const { listBookingsForIdentity } = require('./netlify/lib/booking-history');
+      const { setOpsStoreOverride } = require('./netlify/lib/ops-db');
+      const data = new Map([
+        ['CD1-MIRROR', { id: 'CD1-MIRROR', isDraft: false, kind: 'booking', phone: '2015550148',
+          email: 'garage-mirror@example.com', status: 'Paid', jobStatus: 'completed_paid',
+          paymentStatus: 'paid', amountPaid: 999, sourceTag: 'blob', package: 'Blob Overwrite',
+          preferredDate: '2026-09-20', bookingVersion: 2 }],
+        ['CD1-BLOBONLY', { id: 'CD1-BLOBONLY', isDraft: false, kind: 'booking', phone: '2015550148',
+          email: 'garage-mirror@example.com', status: 'Paid', jobStatus: 'completed_paid',
+          package: 'Blob Older Detail', preferredDate: '2026-05-02', bookingVersion: 1 }],
+      ]);
+      setOpsStoreOverride({
+        async get(key, opts) { const v = data.get(key); return v && opts && opts.type === 'json' ? { ...v } : (v || null); },
+        async getWithMetadata(key, { type } = {}) {
+          const v = data.get(key);
+          return v ? { data: type === 'json' ? { ...v } : v, etag: 'e', metadata: {} } : null;
+        },
+        async list() { return { blobs: [...data.keys()].map((key) => ({ key })) }; },
+      });
+      (async () => {
+        const r = await listBookingsForIdentity(
+          { phone: '2015550148', email: 'garage-mirror@example.com' },
+          { completeWithBlobs: true }
+        );
+        assert.equal(r.complete, true);
+        assert.ok(r.bookings.some((b) => b.id === 'CD1-BLOBONLY'));
+        const mirror = r.bookings.find((b) => b.id === 'CD1-MIRROR');
+        assert.equal(mirror.sourceTag, 'mirror');
+        assert.equal(r.bookings.filter((b) => b.id === 'CD1-MIRROR').length, 1);
+      })().then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
+    `;
+    function probe() {
+      return spawnSync(process.execPath, ['-e', probeScript], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 15_000,
+        env: { ...process.env, CD1_POSTGRES_PAYMENT: '0' },
+      });
+    }
+    try {
+      fs.writeFileSync(historyPath, historyOriginal.replace(
+        'if (garage) {\n          return garageUnion(rows, {',
+        'if (false && garage) {\n          return garageUnion(rows, {',
+      ));
+      const noComplement = probe();
+      assert.notEqual(noComplement.status, 0, noComplement.stdout + noComplement.stderr);
+
+      fs.writeFileSync(historyPath, historyOriginal.replace(
+        'if (!bookingMatchesLookupIdentity(booking, identity)) continue;',
+        'if (false && !bookingMatchesLookupIdentity(booking, identity)) continue;',
+      ));
+      const skipFilter = spawnSync(process.execPath, ['-e', `
+        process.env.DATABASE_URL='postgres://stub/stub';
+        process.env.CONTEXT='production';
+        process.env.CD1_POSTGRES_PAYMENT='0';
+        const assert = require('node:assert/strict');
+        const prisma = require('./netlify/lib/prisma');
+        prisma.tryGetPrisma = () => ({
+          $queryRaw: async () => [{ payload: { id: 'CD1-MIRROR', isDraft: false, kind: 'booking',
+            phone: '2015550148', email: 'garage-mirror@example.com', status: 'Confirmed',
+            jobStatus: 'confirmed', package: 'M', preferredDate: '2026-09-20', bookingVersion: 2 } }],
+          booking: { findMany: async () => [] },
+        });
+        const { listBookingsForIdentity } = require('./netlify/lib/booking-history');
+        const { setOpsStoreOverride } = require('./netlify/lib/ops-db');
+        const data = new Map([
+          ['CD1-MIRROR', { id: 'CD1-MIRROR', isDraft: false, kind: 'booking', phone: '2015550148',
+            email: 'garage-mirror@example.com', status: 'Confirmed', jobStatus: 'confirmed',
+            package: 'M', preferredDate: '2026-09-20', bookingVersion: 2 }],
+          ['CD1-FOREIGN', { id: 'CD1-FOREIGN', isDraft: false, kind: 'booking', phone: '2125550199',
+            email: 'other@example.com', status: 'Paid', jobStatus: 'completed_paid',
+            package: 'Someone Else Detail', preferredDate: '2026-04-01', bookingVersion: 1 }],
+        ]);
+        setOpsStoreOverride({
+          async get(key, opts) { const v = data.get(key); return v && opts && opts.type === 'json' ? { ...v } : (v || null); },
+          async getWithMetadata(key, { type } = {}) {
+            const v = data.get(key);
+            return v ? { data: type === 'json' ? { ...v } : v, etag: 'e', metadata: {} } : null;
+          },
+          async list() { return { blobs: [...data.keys()].map((key) => ({ key })) }; },
+        });
+        (async () => {
+          const r = await listBookingsForIdentity(
+            { phone: '2015550148', email: 'garage-mirror@example.com' },
+            { completeWithBlobs: true }
+          );
+          assert.equal(r.bookings.some((b) => b.id === 'CD1-FOREIGN'), false);
+        })().then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
+      `], { cwd: ROOT, encoding: 'utf8', timeout: 15_000 });
+      assert.notEqual(skipFilter.status, 0, skipFilter.stdout + skipFilter.stderr);
+
+      fs.writeFileSync(historyPath, historyOriginal.replace(
+        "return { bookings: rows || [], source: 'mirror', complete: false };",
+        "return { bookings: rows || [], source: 'mirror', complete: true };",
+      ));
+      const alwaysComplete = spawnSync(process.execPath, ['-e', `
+        process.env.DATABASE_URL='postgres://stub/stub';
+        process.env.CONTEXT='production';
+        process.env.CD1_POSTGRES_PAYMENT='0';
+        const assert = require('node:assert/strict');
+        const prisma = require('./netlify/lib/prisma');
+        prisma.tryGetPrisma = () => ({
+          $queryRaw: async () => [{ payload: { id: 'CD1-MIRROR', isDraft: false, kind: 'booking',
+            phone: '2015550148', email: 'garage-mirror@example.com', status: 'Confirmed',
+            jobStatus: 'confirmed', package: 'M', preferredDate: '2026-09-20', bookingVersion: 2 } }],
+          booking: { findMany: async () => [] },
+        });
+        const { listBookingsForIdentity } = require('./netlify/lib/booking-history');
+        const { setOpsStoreOverride } = require('./netlify/lib/ops-db');
+        setOpsStoreOverride({
+          async list() { throw new Error('blob_list_down'); },
+          async get() { return null; },
+        });
+        (async () => {
+          const r = await listBookingsForIdentity(
+            { phone: '2015550148', email: 'garage-mirror@example.com' },
+            { completeWithBlobs: true }
+          );
+          assert.equal(r.complete, false);
+        })().then(() => process.exit(0), (err) => { console.error(err); process.exit(1); });
+      `], { cwd: ROOT, encoding: 'utf8', timeout: 15_000 });
+      assert.notEqual(alwaysComplete.status, 0, alwaysComplete.stdout + alwaysComplete.stderr);
+
+      fs.writeFileSync(historyPath, historyOriginal.replace(
+        'for (const booking of mirrorBookings || []) {',
+        'for (const booking of []) {',
+      ));
+      const blobWins = probe();
+      assert.notEqual(blobWins.status, 0, blobWins.stdout + blobWins.stderr);
+    } finally {
+      fs.writeFileSync(historyPath, historyOriginal);
+      fs.writeFileSync(portalPath, portalOriginal);
+    }
   });
 });
