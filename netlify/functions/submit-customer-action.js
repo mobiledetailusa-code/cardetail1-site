@@ -6,6 +6,7 @@ const { authorizeBookingAccess, normalizeBookingId } = require('../lib/booking-c
 const { canRequestChange } = require('../lib/appointment-status-policy');
 const { createChangeRequest, sanitizeSnapshot } = require('../lib/customer-change-requests');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const { projectBookingForCustomer } = require('../lib/ops-schema');
 const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
 
@@ -219,6 +220,8 @@ const ALLOWED_ACTIONS = new Set(Object.keys(ACTION_MAP));
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const previewRefusal = refuseSharedWrite('customer-action', CORS);
+  if (previewRefusal) return previewRefusal;
 
   const rateLimit = await enforcePublicRateLimit(event, { endpoint: 'submit-customer-action', cors: false });
   if (rateLimit.blocked) return rateLimit.response;

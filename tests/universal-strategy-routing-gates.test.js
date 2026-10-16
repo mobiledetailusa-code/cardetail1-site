@@ -4,9 +4,27 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { execSync } = require('node:child_process');
+const os = require('node:os');
 
 const root = path.resolve(__dirname, '..');
 const NODE = process.execPath;
+const SYNC_PIPELINE = [
+  'scripts/sync-universal-strategy-config.mjs',
+  'shared/universal-customer-strategy-config.json',
+  'netlify/lib/universal-customer-strategy-logic.js',
+  'assets/universal-customer-strategy.generated.js',
+  'netlify/lib/universal-customer-strategy-config.json',
+];
+
+function syncSandbox() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cd1-sync-gates-'));
+  for (const rel of SYNC_PIPELINE) {
+    const dest = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(path.join(root, rel), dest);
+  }
+  return dir;
+}
 const backend = require('../netlify/lib/universal-customer-strategy');
 const { validateBookingRouting, bookingContextFromPayload } = require('../netlify/lib/booking-routing-validation');
 const { SEGMENTS } = require('../netlify/lib/revenue-segments');
@@ -311,18 +329,23 @@ test('generated strategy bundle matches shared JSON version', () => {
 });
 
 test('sync --check passes when bundle is synchronized', () => {
-  execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs`, { cwd: root, stdio: 'pipe' });
-  execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`, { cwd: root, stdio: 'pipe' });
+  const dir = syncSandbox();
+  try {
+    execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs`, { cwd: dir, stdio: 'pipe' });
+    execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`, { cwd: dir, stdio: 'pipe' });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('sync --check fails against intentionally stale generated content', () => {
-  const fp = path.join(root, 'assets/universal-customer-strategy.generated.js');
-  const orig = fs.readFileSync(fp, 'utf8');
+  const dir = syncSandbox();
+  const fp = path.join(dir, 'assets/universal-customer-strategy.generated.js');
   try {
-    fs.writeFileSync(fp, `${orig}\n/* stale-marker */\n`);
+    fs.writeFileSync(fp, `${fs.readFileSync(fp, 'utf8')}\n/* stale-marker */\n`);
     let failed = false;
     try {
-      execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`, { cwd: root, stdio: 'pipe' });
+      execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`, { cwd: dir, stdio: 'pipe' });
     } catch (err) {
       failed = true;
       const out = `${err.stdout || ''}${err.stderr || ''}${err.message || ''}`;
@@ -330,16 +353,21 @@ test('sync --check fails against intentionally stale generated content', () => {
     }
     assert.equal(failed, true);
   } finally {
-    fs.writeFileSync(fp, orig, 'utf8');
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test('sync --check does not mutate files', () => {
-  const fp = path.join(root, 'assets/universal-customer-strategy.generated.js');
-  const before = fs.readFileSync(fp, 'utf8');
-  execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`, { cwd: root, stdio: 'pipe' });
-  const after = fs.readFileSync(fp, 'utf8');
-  assert.equal(before, after);
+  const dir = syncSandbox();
+  const fp = path.join(dir, 'assets/universal-customer-strategy.generated.js');
+  try {
+    const before = fs.readFileSync(fp, 'utf8');
+    execSync(`"${NODE}" scripts/sync-universal-strategy-config.mjs --check`, { cwd: dir, stdio: 'pipe' });
+    const after = fs.readFileSync(fp, 'utf8');
+    assert.equal(before, after);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 // ── Regression guards ─────────────────────────────────────────────────────────

@@ -514,7 +514,9 @@ describe('garage access identity', { concurrency: 1 }, () => {
       { email: VICTIM_EMAIL, phone: VICTIM_PHONE },
       { ip: '198.51.100.60' }
     ));
-    assert.equal(preview.status, 200);
+    assert.equal(preview.status, 403);
+    assert.equal(preview.body.error, 'preview_writes_disabled');
+    assert.equal(preview.body.sent, false);
     assert.deepEqual(preview.body, branch.body);
     assert.equal(sent.length, 0);
   });

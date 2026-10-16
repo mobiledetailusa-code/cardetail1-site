@@ -433,6 +433,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/ceramic-checkout-intent.js',
     'netlify/functions/financial-reconciliation-audit.js',
     'netlify/lib/financial-audit-deploy-gate.js',
+    'netlify/lib/preview-write-guard.js',
     'netlify/lib/financial-history-audit.js',
     'netlify/lib/financial-history-audit-runtime.js',
     'netlify/lib/ceramic-coating.js',

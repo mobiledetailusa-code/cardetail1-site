@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const runtimeSrc = fs.readFileSync(path.join(root, 'assets/booking-review-runtime.js'), 'utf8');
 const ceramicSrc = fs.readFileSync(path.join(root, 'assets/ceramic-booking.js'), 'utf8');
-const PREVIEW = 'Preview only — booking submission is disabled.';
+const PREVIEW = 'This is a preview. Nothing will be booked, charged, or sent.';
 
 function boot(url) {
   const dom = new JSDOM(html, {

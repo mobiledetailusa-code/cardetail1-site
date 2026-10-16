@@ -1134,37 +1134,28 @@ async function persistNotificationFields(store, bookingId, notified) {
   return merged;
 }
 
-function requestHostname(event) {
-  const headers = (event && event.headers) || {};
-  const raw = headers['x-forwarded-host'] || headers['X-Forwarded-Host'] || headers.host || headers.Host || '';
-  return String(raw).split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
-}
-
 /**
  * Deploy previews call getStore(), the site-wide blob store production uses.
  * Refuse the write here so a preview test cannot create a live reservation.
  * Production and local dev are unchanged.
  */
-function refuseSharedPreviewBooking(event) {
-  const { deployContext } = require('../lib/trusted-site-origin');
-  const ctx = deployContext();
-  const previewHost = /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(requestHostname(event));
-  // A preview hostname always shares the site store, even if a test injected one.
-  // CONTEXT=deploy-preview is also how unit tests label memory-store runs; those
-  // pass a store override and are not the live site store.
-  const sharedSiteStore = ctx === 'deploy-preview' && !blobsStoreOverride;
-  if (!previewHost && !sharedSiteStore) return null;
+function refuseSharedPreviewBooking() {
+  const { PREVIEW_MESSAGE, sharedPreviewContext } = require('../lib/preview-write-guard');
+  // Deploy identity (bake, then live CONTEXT) decides. Host / X-Forwarded-Host
+  // cannot authorize a write and cannot classify production as a preview.
+  if (!sharedPreviewContext()) return null;
+  if (blobsStoreOverride) return null;
   return json(403, {
     ok: false,
     bookingCreated: false,
     error: 'preview_booking_disabled',
-    userMessage: 'This preview cannot create bookings because it uses the same storage as the live site.',
+    userMessage: PREVIEW_MESSAGE,
   });
 }
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
-  const previewRefusal = refuseSharedPreviewBooking(event);
+  const previewRefusal = refuseSharedPreviewBooking();
   if (previewRefusal) return previewRefusal;
   const previewCheck = await (previewTransactionGuardOverride
     || require('../lib/owner-studio/preview-transaction-guard').checkPreviewTransactionRequest)(event);

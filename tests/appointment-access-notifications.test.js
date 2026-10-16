@@ -582,7 +582,7 @@ test('request-received SMS stays GSM-7 with details and a typical short access U
   assert.doesNotMatch(rendered.body, /Your appointment is confirmed/i);
 });
 
-test('branch-deploy request-received email uses branch-deploy origin', async () => {
+test('branch-deploy does not send request-received email', async () => {
   const {
     createAppointmentAccessToken,
     setAppointmentAccessStoreFactories,
@@ -602,21 +602,18 @@ test('branch-deploy request-received email uses branch-deploy origin', async () 
   process.env.DEPLOY_PRIME_URL = 'https://appointment-access-final--cardetail1.netlify.app';
   process.env.RESEND_API_KEY = 're_test';
   const originalFetch = global.fetch;
-  let captured = '';
-  global.fetch = async (url, init) => {
-    if (String(url).includes('api.resend.com')) {
-      const body = JSON.parse(init.body);
-      captured = String(body.html || '') + String(body.text || '');
-      return { ok: true, json: async () => ({ id: 'em' }), text: async () => '' };
-    }
+  let resendCalls = 0;
+  global.fetch = async (url) => {
+    if (String(url).includes('api.resend.com')) resendCalls += 1;
     return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
   };
   try {
     const booking = baseBooking({ id: 'CD1-BRANCH-ORIGIN' });
     const result = await emitRequestReceived(booking, {});
-    assert.equal(result.ok, true);
-    assert.match(captured, /https:\/\/appointment-access-final--cardetail1\.netlify\.app\/a\?t=/);
-    assert.doesNotMatch(captured, /https:\/\/cardetail1\.com\/a\?t=/);
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'preview_writes_disabled');
+    assert.equal(result.sent, false);
+    assert.equal(resendCalls, 0);
     const minted = await createAppointmentAccessToken({
       bookingId: booking.id,
       email: booking.email,

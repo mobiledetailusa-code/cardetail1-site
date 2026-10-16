@@ -2,6 +2,7 @@
 
 const crypto = require('crypto');
 const { jsonCors } = require('../lib/tech-security');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const { phonesMatch, normalizeUsPhoneDigits } = require('../lib/phone-auth');
 const {
   hashToken,
@@ -113,6 +114,11 @@ exports.handler = async (event) => {
   catch { return jsonCors(400, { ok: false, error: 'validation_error' }); }
 
   const action = String(body.action || 'start').toLowerCase();
+
+  if (action !== 'session') {
+    const previewRefusal = refuseSharedWrite('customer-auth');
+    if (previewRefusal) return jsonCors(previewRefusal.statusCode, JSON.parse(previewRefusal.body));
+  }
 
   if (action === 'session') {
     const session = await validateCustomerSession(event);

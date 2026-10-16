@@ -5,6 +5,7 @@ const { looksLikePayToken, loadPaymentResumeToken } = require('../lib/payment-re
 const { moneyFromBooking, dollarsFromCents } = require('../lib/admin-quick-ops-view');
 const { bookingStatus } = require('../lib/admin-quick-ops-view');
 const { prepareEmbeddedPayment, getSharedFinancialProjection } = require('../lib/db/operational-payment');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const { canPayBalance } = require('../lib/appointment-status-policy');
 const { chrome, neutralExpiredPage, paymentPage } = require('../lib/quick-ops-html');
 
@@ -143,6 +144,8 @@ async function handlePost(event) {
 }
 
 exports.handler = async (event = {}) => {
+  const previewRefusal = refuseSharedWrite('payment-resume');
+  if (previewRefusal && event.httpMethod !== 'OPTIONS') return previewRefusal;
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: { 'Cache-Control': 'no-store' }, body: '' };
   }

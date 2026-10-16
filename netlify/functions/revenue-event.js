@@ -8,6 +8,7 @@ const {
   blobGetJsonStrict,
   blobCreateJson,
 } = require('../lib/revenue-store');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -85,6 +86,11 @@ exports.handler = async (event) => {
   if (!validated.ok) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: validated.error }) };
   }
+
+  // Query flags and payload fields such as enabled, price, or duration cannot
+  // open the production event store from a preview or branch deploy.
+  const previewRefusal = refuseSharedWrite('revenue-event', cors);
+  if (previewRefusal) return previewRefusal;
 
   try {
     const idemStore = await getRevenueStore('eventIdempotency');

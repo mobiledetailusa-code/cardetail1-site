@@ -4,6 +4,7 @@ const MODULE_STARTED_AT = performance.now();
 let handlerInvocationCount = 0;
 const ADMIN_LIST_BLOB_READ_CONCURRENCY = 20;
 const { blobsStore, listAllBlobs, jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const {
   projectJobForAdmin, projectJobForAdminList, overlayAdminJobMoneyFromProjection,
   normalizeJobStatus, appendEventLog,
@@ -3644,6 +3645,10 @@ exports.handler = async (event) => {
     try { body = JSON.parse(event.body || '{}'); }
     catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
     if (body.action && body.action !== 'list') {
+      if (body.action !== 'preview_test_cleanup') {
+        const previewRefusal = refuseSharedWrite('admin-ops');
+        if (previewRefusal) return jsonCors(previewRefusal.statusCode, JSON.parse(previewRefusal.body));
+      }
       if (body.action === 'bulk_archive_tests') {
         try {
           const store = await blobsStore('cd1-bookings');

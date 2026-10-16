@@ -11,6 +11,7 @@
 // Env: STRIPE_SECRET_KEY, DRAFT_TOKEN_SECRET
 
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
+const { refuseSharedWrite } = require('../lib/preview-write-guard');
 const {
   verifyDraftSaveToken,
   getDraftTokenSecretStatus,
@@ -46,6 +47,8 @@ const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const previewRefusal = refuseSharedWrite('saved-card', CORS);
+  if (previewRefusal) return previewRefusal;
 
   const previewCheck = await (previewTransactionGuardOverride
     || require('../lib/owner-studio/preview-transaction-guard').checkPreviewTransactionRequest)(event);
