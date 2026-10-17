@@ -207,8 +207,25 @@ async function ensureBookingFinancial(booking) {
   return { ok: true, bookingId, ensured: true, seededSettlement, quoteVersion: quote.quoteVersion };
 }
 
+/**
+ * Read-only: a Postgres Booking row already exists. Never creates, seeds, or
+ * backfills. Blob-only history must fail this check.
+ */
+async function hasAuthoritativePostgresFinancial(bookingId) {
+  if (!prismaConfigured()) return false;
+  const id = String(bookingId || '').trim();
+  if (!id) return false;
+  try {
+    const row = await repo.getBooking(id);
+    return !!(row && !row.isDraft);
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   ensureBookingFinancial,
+  hasAuthoritativePostgresFinancial,
   approvedCentsFromBlob,
   settledCentsFromBlob,
   quoteVersionFromBlob,

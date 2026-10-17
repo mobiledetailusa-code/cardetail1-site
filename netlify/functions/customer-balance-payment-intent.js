@@ -69,6 +69,17 @@ exports.handler = async (event) => {
     return json(200, { ok: false, error: 'booking_not_ready', message: 'Finalize your booking request first.' });
   }
 
+  const { isBlobOnlyFinancialSource, blobOnlyPaymentRefusal } = require('../lib/blob-only-financial-lock');
+  const { hasAuthoritativePostgresFinancial } = require('../lib/db/ensure-booking-financial');
+  if (isBlobOnlyFinancialSource(booking) || !(await hasAuthoritativePostgresFinancial(bookingId))) {
+    const refusal = blobOnlyPaymentRefusal();
+    return json(refusal.statusCode || 409, {
+      ok: false,
+      error: refusal.error,
+      message: refusal.message,
+    });
+  }
+
   const expectedBookingVersion = Math.round(Number(p.expectedBookingVersion));
   const actualBookingVersion = Math.round(Number(booking.bookingVersion) || 0);
   if (p.expectedBookingVersion == null || p.expectedBookingVersion === ''

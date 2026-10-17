@@ -165,6 +165,29 @@ function identityKeys(booking) {
   return normalizeIdentity({ phone: booking?.phone, email: booking?.email });
 }
 
+function emailHashOf(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return '';
+  return require('crypto').createHash('sha256').update(normalized).digest('base64url');
+}
+
+/** Same OR as the Postgres identity lookup: phone, email, or session email hash. */
+function bookingMatchesLookupIdentity(booking, identity) {
+  const other = identityKeys(booking);
+  if (identity.phone && other.phone && identity.phone === other.phone) return true;
+  if (identity.email && other.email && identity.email === other.email) return true;
+  if (identity.emailHash && other.email && emailHashOf(other.email) === identity.emailHash) return true;
+  return false;
+}
+
+function bookingIdOf(booking) {
+  return String((booking && (booking.id || booking.bookingId)) || '').trim();
+}
+
+function withSourceAuthority(booking, sourceAuthority) {
+  return { ...booking, sourceAuthority };
+}
+
 /**
  * Same shaping listRawBookings applies, so callers cannot tell the two sources
  * apart: historical payloads are adapted and non-submitted rows dropped.
@@ -215,14 +238,61 @@ async function mirrorHistory({ phone, email, emailHash }) {
 }
 
 /**
+ * Complement a capped Postgres identity list with Blob records the mirror
+ * never stored. Postgres keeps overlapping ids (financial and operational
+ * snapshot). Blob-only ids may appear. A truncated or failed listing is
+ * incomplete — it is not an empty finished history.
+ */
+async function unionMirrorWithBlobs(mirrorBookings, identity, extras = {}) {
+  const {
+    listRawBookingsStrict,
+    BLOB_UNION_MAX_KEYS,
+    BLOB_UNION_MAX_PAGES,
+  } = require('./ops-db');
+  const skipKeys = new Set(
+    (mirrorBookings || []).map((booking) => bookingIdOf(booking)).filter(Boolean)
+  );
+  const listed = await listRawBookingsStrict({
+    skipKeys,
+    maxKeys: BLOB_UNION_MAX_KEYS,
+    maxPages: BLOB_UNION_MAX_PAGES,
+  });
+  const byId = new Map();
+  for (const booking of mirrorBookings || []) {
+    const id = bookingIdOf(booking);
+    if (!id || byId.has(id)) continue;
+    byId.set(id, withSourceAuthority(booking, 'postgres'));
+  }
+  for (const booking of listed.bookings || []) {
+    const id = bookingIdOf(booking);
+    if (!id || byId.has(id)) continue;
+    if (!bookingMatchesLookupIdentity(booking, identity)) continue;
+    byId.set(id, withSourceAuthority(booking, 'blob'));
+  }
+  const postgresCapped = extras.postgresCapped === true;
+  const postgresAnswered = extras.postgresAnswered !== false;
+  return {
+    bookings: [...byId.values()],
+    source: 'mirror+blobs',
+    complete: postgresAnswered && !listed.truncated && !postgresCapped,
+    listed: listed.listed,
+    pages: listed.pages,
+  };
+}
+
+/**
  * Bookings that could disqualify this booking from a first-time offer.
  *
  * Never throws: an unavailable mirror degrades to the Blobs scan, and an
  * unavailable store degrades to an empty list exactly as before.
  *
- * @returns {Promise<{ bookings: object[], source: 'mirror'|'blobs'|'no_identity' }>}
+ * `completeWithBlobs` is the My Garage path. A non-empty mirror is capped, so
+ * that path unions matching blob records before treating the list as complete.
+ * A failed or truncated blob read keeps the mirror rows and `complete: false`.
+ *
+ * @returns {Promise<{ bookings: object[], source: 'mirror'|'mirror+blobs'|'blobs'|'no_identity', complete: boolean }>}
  */
-async function listBookingsForIdentity(rawIdentity) {
+async function listBookingsForIdentity(rawIdentity, options = {}) {
   const identity = normalizeIdentity(rawIdentity);
   // Every caller matches on one of these anyway, so with none of them there is
   // nothing a full scan could legitimately surface.
@@ -230,19 +300,50 @@ async function listBookingsForIdentity(rawIdentity) {
     return { bookings: [], source: 'no_identity', complete: true };
   }
 
+  const garage = options.completeWithBlobs === true;
+
+  async function garageUnion(rows, extras) {
+    try {
+      return await unionMirrorWithBlobs(rows || [], identity, extras);
+    } catch (err) {
+      console.warn(
+        '[booking-history] mirror_blob_union_failed',
+        err && err.message ? err.message : err
+      );
+      return { bookings: rows || [], source: 'mirror', complete: false };
+    }
+  }
+
   if (!fastLookupDisabled()) {
     try {
       const rows = await mirrorHistory(identity);
       // An empty mirror is not exhaustive — drafts are excluded and the lookup
-      // is capped — so fall through to Blobs. A non-empty mirror is returned
-      // without a full scan, and marked incomplete so callers do not treat it
-      // as the customer's entire history.
+      // is capped — so fall through to Blobs. Offer eligibility still returns
+      // a non-empty mirror without a full scan.
       if (Array.isArray(rows) && rows.length > 0) {
+        if (garage) {
+          return garageUnion(rows, {
+            postgresAnswered: true,
+            postgresCapped: rows.length >= HISTORY_LOOKUP_LIMIT,
+          });
+        }
         return { bookings: rows, source: 'mirror', complete: false };
+      }
+      if (garage && rows == null) {
+        const unioned = await garageUnion([], { postgresAnswered: false });
+        return { ...unioned, complete: false };
       }
     } catch (err) {
       console.warn('[booking-history] mirror_lookup_failed', err && err.message ? err.message : err);
+      if (garage) {
+        const unioned = await garageUnion([], { postgresAnswered: false });
+        return { ...unioned, complete: false };
+      }
     }
+  }
+
+  if (garage) {
+    return garageUnion([], { postgresAnswered: !fastLookupDisabled() });
   }
 
   const { listRawBookings } = require('./ops-db');
@@ -301,6 +402,7 @@ module.exports = {
   fastLookupDisabled,
   normalizeIdentity,
   identityKeys,
+  bookingMatchesLookupIdentity,
   shapeHistoryRecords,
   mirrorHistory,
   listBookingsForIdentity,

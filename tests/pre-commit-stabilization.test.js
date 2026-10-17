@@ -440,6 +440,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/ceramic-payment.js',
     // Off-session charge of the approved balance after the appointment is completed.
     'netlify/lib/charge-saved-card-after-service.js',
+    // Blob-only My Garage rows are history, not a payment authority.
+    'netlify/lib/blob-only-financial-lock.js',
     'netlify/lib/admin-quick-ops-token.js',
     'netlify/lib/admin-quick-ops-actions.js',
     'netlify/lib/admin-quick-ops-view.js',

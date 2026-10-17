@@ -31,6 +31,12 @@ const { getBooking } = require('../lib/ops-db');
 const { postServiceState } = require('../lib/post-service-experience');
 const { adjustmentStatement } = require('../lib/price-adjustments');
 const { buildSyncEnvelope, syncHeaders } = require('../lib/sync-response');
+const {
+  isBlobOnlyFinancialSource,
+  applyBlobOnlyFinancialLock,
+  blobOnlyPortalPaymentState,
+  lockProjectedBlobOnlyRow,
+} = require('../lib/blob-only-financial-lock');
 
 function syncJson(payload, ifSyncVersion) {
   const envelope = buildSyncEnvelope(payload, { ifSyncVersion });
@@ -93,6 +99,7 @@ function safePaymentStateFromProjection(booking, money, authority) {
     payLinkAmount: booking.payLinkAmount != null ? Number(booking.payLinkAmount) : null,
     canPay,
     canCreatePayLink: canPay,
+    canGeneratePayLink: canPay,
     embeddedPayAvailable: authority === 'postgres' && canPay,
     paymentAuthorityDegraded: degraded,
     authority: degraded ? 'blob' : authority,
@@ -107,6 +114,9 @@ function safePaymentState(booking, { degraded = false } = {}) {
 }
 
 async function safePaymentStateAsync(booking) {
+  if (isBlobOnlyFinancialSource(booking)) {
+    return blobOnlyPortalPaymentState(booking);
+  }
   let degraded = false;
   try {
     if (postgresPaymentEnabled()) {
@@ -132,6 +142,16 @@ function isVisibleCustomerBooking(b) {
   return isVisibleSubmittedBooking(b, { includeArchivedTest: false });
 }
 
+/**
+ * Postgres is the money authority (#357). A blob-only sibling may be listed,
+ * but its "paid"/"due"/"partial" flags are not settlement and never open pay.
+ */
+function withoutUnauthorizedBlobSettlement(booking) {
+  if (!booking || typeof booking !== 'object') return booking;
+  if (!isBlobOnlyFinancialSource(booking)) return booking;
+  return applyBlobOnlyFinancialLock(booking);
+}
+
 /** Durable account link written to the booking aggregate at token exchange. */
 function blobAccountIdOf(b) {
   const id = String((b && b.customerAccountId) || '').trim();
@@ -145,25 +165,48 @@ function emailHashOf(email) {
 }
 
 /**
- * Legacy discovery only: normalized verified contact match used to surface
- * bookings that predate account linkage. Never the primary authorization model.
+ * Final verified-contact intersection. The Blob scan may use a wide phone/email
+ * index; admission into the portal list requires every factor present on the
+ * session. A partial session cannot discover extra rows through that scan.
  */
-function contactMatchesSession(booking, session) {
+function verifiedContactIntersection(booking, session) {
+  if (!session || !booking) return false;
+  if (!session.emailHash || !session.phoneDigits) return false;
   const bookingPhone = normalizeUsPhoneDigits(booking.phone || booking.customerPhone || '');
   const bookingEmailHash = emailHashOf(booking.email);
-  const emailOk = !!(session.emailHash && bookingEmailHash && session.emailHash === bookingEmailHash);
-  const phoneOk = !!(session.phoneDigits && bookingPhone && phonesMatch(session.phoneDigits, bookingPhone));
-  // Phone without the same verified email never discovers a booking.
-  // When the session carries both factors, both must match this booking.
-  if (!emailOk) return false;
-  if (session.phoneDigits && session.emailHash) return phoneOk;
+  const emailOk = !!(bookingEmailHash && session.emailHash === bookingEmailHash);
+  const phoneOk = !!(bookingPhone && phonesMatch(session.phoneDigits, bookingPhone));
+  return emailOk && phoneOk;
+}
+
+function contactMatchesSession(booking, session) {
+  return verifiedContactIntersection(booking, session);
+}
+
+/**
+ * When either side carries an authoritative customerAccountId, it must match.
+ * A Blob with a different (or extra) account id never rides in on phone/email.
+ */
+function authoritativeAccountConjunct(ownerAccountId, session) {
+  const sessionAccount = String((session && session.customerAccountId) || '').trim();
+  const owner = String(ownerAccountId || '').trim();
+  if (!sessionAccount) return !owner;
+  if (!owner) return true;
+  return owner === sessionAccount;
+}
+
+function isBlobOnlyHistoryCandidate(booking, postgresOwnerById, bookingId) {
+  if (booking && booking.sourceAuthority === 'postgres') return false;
+  if (postgresOwnerById && bookingId && postgresOwnerById.has(bookingId)) return false;
   return true;
 }
 
 /**
- * Bookings this session could own, without hydrating the whole store:
- * verified-contact matches (phone / session email hash) unioned with the ids
- * the session and its CustomerAccount already reference. Deduplicated by id.
+ * Bookings this session could own: verified-contact matches (phone / session
+ * email hash) unioned with the ids the session and its CustomerAccount already
+ * reference. A non-empty Postgres mirror is capped, so My Garage asks the
+ * lookup to finish from Blobs before the list is treated as complete.
+ * Deduplicated by id.
  */
 async function buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds) {
   const { listBookingsForIdentity } = require('../lib/booking-history');
@@ -178,7 +221,7 @@ async function buildCandidateBookings(session, sessionBookingIds, linkedAccountB
   const contact = await listBookingsForIdentity({
     phone: session.phoneDigits,
     emailHash: session.emailHash,
-  }).catch(() => ({ bookings: [], complete: false }));
+  }, { completeWithBlobs: true }).catch(() => ({ bookings: [], complete: false }));
   for (const booking of contact.bookings || []) add(booking);
 
   const ids = [...new Set([...sessionBookingIds, ...linkedAccountBookingIds])]
@@ -426,9 +469,14 @@ async function handlePortalData(event, body) {
   const syncLimit = await enforcePortalSyncLimit(event, `session:${session.sessionId}`);
   if (syncLimit.blocked) return syncLimit.response;
 
-  // Ignore any caller-supplied account id — session is authoritative.
+  // Ignore any caller-supplied identity — session is authoritative.
   void body.customerAccountId;
   void body.browserCustomerAccountId;
+  void body.phone;
+  void body.customerPhone;
+  void body.email;
+  void body.emailHash;
+  void body.bookingIds;
 
   const sessionBookingIds = new Set(
     (session.bookingIds || []).map((id) => normalizeBookingId(id)).filter(Boolean)
@@ -459,7 +507,7 @@ async function handlePortalData(event, body) {
   // below is unchanged, so a narrower candidate set can never widen access.
   const candidates = await buildCandidateBookings(session, sessionBookingIds, linkedAccountBookingIds);
   const all = candidates.bookings || [];
-  // A non-empty identity mirror is a short list, not proof the history is complete.
+  // A capped mirror whose blob union failed is a short list, not the full history.
   if (candidates.contactComplete === false) ownershipComplete = false;
 
   // Candidate ids from Blob account link / session / phone before ownership filter.
@@ -499,28 +547,39 @@ async function handlePortalData(event, body) {
     bookingOwnerById = new Map();
   }
 
-  // Ownership model: the durable customerAccountId link is authoritative.
-  // Verified contact matching only discovers older bookings that were never
-  // linked to any account.
+  // Ownership model: the durable customerAccountId link is authoritative for
+  // Postgres rows. Blob-only candidates may be found by the wide scan, but the
+  // response admits only the verified-identity intersection (email AND phone
+  // when the session has both, plus account id when one is authoritative).
   const bookings = all.filter((b) => {
     if (!isVisibleCustomerBooking(b)) return false;
     const bid = normalizeBookingId(b.id || b.bookingId);
     if (!bid) return false;
 
     const ownerAccountId = bookingOwnerById.get(bid) || blobAccountIdOf(b);
+    if (isBlobOnlyHistoryCandidate(b, bookingOwnerById, bid)) {
+      return verifiedContactIntersection(b, session)
+        && authoritativeAccountConjunct(ownerAccountId, session);
+    }
+
     if (ownerAccountId) {
       if (session.customerAccountId) return ownerAccountId === session.customerAccountId;
-      // Sessions without an account id may only see their own snapshot ids.
       return sessionBookingIds.has(bid);
     }
 
     if (linkedAccountBookingIds.has(bid)) return true;
     if (sessionBookingIds.has(bid)) return true;
-    return contactMatchesSession(b, session);
+    return verifiedContactIntersection(b, session);
   });
 
   const projected = bookings
-    .map((b) => projectBookingForCustomer(b))
+    .map((b) => {
+      const row = projectBookingForCustomer(withoutUnauthorizedBlobSettlement(b));
+      if (isBlobOnlyFinancialSource(b)) {
+        return lockProjectedBlobOnlyRow(row);
+      }
+      return row;
+    })
     .sort((a, b) => upcomingSortKey(a).localeCompare(upcomingSortKey(b)));
 
   // Opaque appointment focus — resolve server-side under authenticated ownership only.
@@ -643,4 +702,7 @@ exports.__test = {
   isTerminalAppointment,
   isActionableAppointment,
   contactMatchesSession,
+  verifiedContactIntersection,
+  authoritativeAccountConjunct,
+  isBlobOnlyHistoryCandidate,
 };
