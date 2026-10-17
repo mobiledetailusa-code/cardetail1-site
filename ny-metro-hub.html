@@ -2330,6 +2330,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/seasonal-driveway-addon.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
+<script src="assets/customer-payments-gate.js" defer></script>
 <script src="assets/ceramic-booking.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
@@ -3700,10 +3701,11 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="oc-t">Preferred payment method</div>
             <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
               <div class="bk-pay-pref-row">
-                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Card online — charged after service</span></button>
+                <button type="button" class="pay-choice" id="pc-online" hidden aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Card online — charged after service</span></button>
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
+              <p class="bk-pay-pref-help" id="bk-customer-pay-note">Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed.</p>
               <p class="bk-pay-pref-help" id="bk-onsite-card-copy" hidden>Card at service — no card needed to submit. Pay by card when we finish the job.</p>
               <p class="bk-pay-pref-help" id="bk-onsite-cash-copy" hidden>Cash at service — no card needed to submit. Pay with cash when we finish the job.</p>
               <div class="bk-online-card-wrap" id="bk-online-card-wrap" hidden>

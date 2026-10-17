@@ -52,6 +52,13 @@ exports.handler = async (event) => {
     return jsonCors(200, { ok: true, catalog: catalogForClient() });
   }
 
+  if (action === 'session_status' || action === 'create_checkout') {
+    const { productionCustomerPaymentsBlocked } = require('../lib/stripe-customer-payments');
+    if (productionCustomerPaymentsBlocked(process.env)) {
+      return jsonCors(403, { ok: false, error: 'customer_payments_unavailable', stripeCalled: false });
+    }
+  }
+
   if (action === 'session_status') {
     const auth = verifyCustomer(body);
     if (!auth.ok) return jsonCors(400, { ok: false, error: auth.error });

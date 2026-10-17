@@ -709,6 +709,15 @@
     return list.find(function (v) { return v.vehicleId === id; }) || null;
   }
 
+  function customerPaymentsBlocked(data, proj) {
+    if (data && data.customerPaymentsUnavailable) return true;
+    if (proj && proj.customerPaymentsUnavailable) return true;
+    if (state.payment && state.payment.customerPaymentsUnavailable) return true;
+    return false;
+  }
+
+  var GARAGE_PAYMENTS_COPY = 'Online payment is temporarily unavailable. Pay at your appointment or contact us for a secure invoice.';
+
   function applyAuthoritativeMoney(data) {
     if (!data) return;
     var proj = data.postgresProjection || data.financialProjection || null;
@@ -722,8 +731,10 @@
         amountDueApproved: (proj.remainingCents || 0) / 100,
         state: proj.paymentStatus || (state.payment && state.payment.state) || null,
         paymentStatus: proj.paymentStatus || (state.payment && state.payment.paymentStatus) || null,
-        canPay: (proj.remainingCents || 0) > 0,
-        canCreatePayLink: (proj.remainingCents || 0) > 0,
+        canPay: customerPaymentsBlocked(data, proj) ? false : (proj.remainingCents || 0) > 0,
+        canCreatePayLink: customerPaymentsBlocked(data, proj) ? false : (proj.remainingCents || 0) > 0,
+        canGeneratePayLink: customerPaymentsBlocked(data, proj) ? false : (proj.remainingCents || 0) > 0,
+        customerPaymentsUnavailable: customerPaymentsBlocked(data, proj),
         quoteVersion: data.quoteVersion != null
           ? data.quoteVersion
           : (proj.quoteVersion != null ? proj.quoteVersion : (state.payment && state.payment.quoteVersion)),
@@ -736,8 +747,10 @@
         approvedTotal: (data.approvedCents || 0) / 100,
         amountPaid: (data.settledCents || 0) / 100,
         amountDueApproved: (data.remainingCents || 0) / 100,
-        canPay: (data.remainingCents || 0) > 0,
-        canCreatePayLink: (data.remainingCents || 0) > 0,
+        canPay: customerPaymentsBlocked(data, null) ? false : (data.remainingCents || 0) > 0,
+        canCreatePayLink: customerPaymentsBlocked(data, null) ? false : (data.remainingCents || 0) > 0,
+        canGeneratePayLink: customerPaymentsBlocked(data, null) ? false : (data.remainingCents || 0) > 0,
+        customerPaymentsUnavailable: customerPaymentsBlocked(data, null),
         quoteVersion: data.quoteVersion != null
           ? data.quoteVersion
           : (state.payment && state.payment.quoteVersion),
@@ -1868,7 +1881,7 @@
    */
   function syncPayBalanceButton(pay) {
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
+    var can = !pay.customerPaymentsUnavailable && !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
   }
@@ -1898,7 +1911,7 @@
     var empty = $('payments-empty');
     if (!panel) return;
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
+    var can = !pay.customerPaymentsUnavailable && !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     var paid = invoiceIsPaid(pay);
     if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
       panel.innerHTML = '';
@@ -1924,11 +1937,13 @@
         : (paid
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
             '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
+          : (pay.customerPaymentsUnavailable
+            ? '<p class="hint" data-customer-payments-unavailable>' + esc(GARAGE_PAYMENTS_COPY) + '</p>'
           : (pay.paymentAuthorityDegraded
             // A balance is genuinely open; the payment authority just cannot
             // confirm it right now. Saying "no balance is due" would be false.
             ? '<p class="hint" data-pay-degraded>Payment is temporarily unavailable while we confirm your balance. Nothing was charged — this page retries automatically.</p>'
-            : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>'))) +
+            : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')))) +
       receiptActionsHtml(pay) +
       '</div>';
     var btn = $('btn-pay-balance');
@@ -2877,6 +2892,10 @@
     }
     var pay = state.payment || {};
     var due = Number(pay.amountDueApproved || 0);
+    if (pay.customerPaymentsUnavailable) {
+      showToast(GARAGE_PAYMENTS_COPY, true);
+      return;
+    }
     if ((!pay.canPay && !pay.canCreatePayLink) || !(due > 0)) {
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;

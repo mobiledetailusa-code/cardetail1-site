@@ -62,6 +62,19 @@ function normalizeRequestPreference(value) {
 }
 
 /** Card online charged after service requires card-on-file; onsite preferences never do. */
+function rejectClosedOnlinePreference(preference) {
+  const { productionCustomerPaymentsBlocked, isOnlineCardPreference, CUSTOMER_BOOKING_COPY } = require('../lib/stripe-customer-payments');
+  if (!productionCustomerPaymentsBlocked(process.env)) return null;
+  if (!isOnlineCardPreference(preference)) return null;
+  return json(403, {
+    ok: false,
+    error: 'customer_payments_unavailable',
+    stripeCalled: false,
+    bookingCreated: false,
+    userMessage: CUSTOMER_BOOKING_COPY,
+  });
+}
+
 function resolveCardOnFileRequired(preference, requestedFlag) {
   const pref = normalizeRequestPreference(preference) || String(preference || '').trim();
   if (pref === 'online_after_service') return true;
@@ -1282,6 +1295,8 @@ exports.handler = async (event) => {
     }
 
     const preference = String(b.paymentMethodPreference || '');
+    const closedOnline = rejectClosedOnlinePreference(preference);
+    if (closedOnline) return closedOnline;
     const cardOnFileRequired = resolveCardOnFileRequired(preference, b.cardOnFileRequired);
     if (preference === 'online_after_service' && b.cardOnFileRequired === false) {
       return json(400, { ok: false, error: 'card_on_file_required' });
@@ -1459,6 +1474,8 @@ exports.handler = async (event) => {
       return json(401, { ok: false, error: 'draft_token_invalid' });
     }
     const preference = String(b.paymentMethodPreference || existing.paymentMethodPreference || '');
+    const closedOnline = rejectClosedOnlinePreference(preference);
+    if (closedOnline) return closedOnline;
     const finalizePay = ceramicPayAtServiceViolation(b, existing, { finalize: true });
     if (finalizePay) {
       return json(400, {
@@ -1807,6 +1824,7 @@ exports.__test = {
   },
   resolveSlotScanTimeoutMs,
   buildDraftRecord,
+  rejectClosedOnlinePreference,
   issueDraftSaveResponse,
   reconcileCardOnFileFromStripe,
   deliverBookingCreatedNotifications,

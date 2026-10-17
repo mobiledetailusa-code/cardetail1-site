@@ -78,6 +78,7 @@ function withCardSaveEnv(fn) {
     process.env.DRAFT_TOKEN_SECRET = TEST_SECRET;
     process.env.STRIPE_SECRET_KEY = 'sk_test_fake';
     process.env.CONTEXT = 'production';
+    process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED = 'true';
     delete process.env.NETLIFY_DEV;
     try {
       await fn(t);

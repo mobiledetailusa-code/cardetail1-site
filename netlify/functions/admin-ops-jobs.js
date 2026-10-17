@@ -1585,6 +1585,10 @@ async function handleAdminAction(body, testOpts = {}) {
   }
 
   if (action === 'reconcile_with_stripe') {
+    const { productionCustomerPaymentsBlocked } = require('../lib/stripe-customer-payments');
+    if (productionCustomerPaymentsBlocked(process.env)) {
+      return jsonCors(403, { ok: false, error: 'customer_payments_unavailable', stripeCalled: false });
+    }
     const {
       postgresPaymentEnabled,
       adminReconcileWithStripe,

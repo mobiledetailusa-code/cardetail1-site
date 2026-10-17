@@ -144,6 +144,17 @@ async function handlePost(event) {
 }
 
 exports.handler = async (event = {}) => {
+  const { productionCustomerPaymentsBlocked, GARAGE_COPY } = require('../lib/stripe-customer-payments');
+  if (productionCustomerPaymentsBlocked(process.env) && event.httpMethod !== 'OPTIONS') {
+    if (event.httpMethod === 'POST') {
+      return json(403, { ok: false, error: 'customer_payments_unavailable', stripeCalled: false });
+    }
+    return chrome({
+      title: 'Payment',
+      statusCode: 403,
+      body: `<section class="card"><h1>Online payment is temporarily unavailable</h1><p class="sub">${GARAGE_COPY}</p></section>`,
+    });
+  }
   const previewRefusal = refuseSharedWrite('payment-resume');
   if (previewRefusal && event.httpMethod !== 'OPTIONS') return previewRefusal;
   if (event.httpMethod === 'OPTIONS') {

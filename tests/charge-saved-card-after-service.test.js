@@ -20,6 +20,8 @@ const ENV = {
   STRIPE_SECRET_KEY: 'sk_test_after_service_isolated',
   CONTEXT: 'production',
   SITE_URL: 'https://cardetail1.com',
+  // Isolated suite opts into the production customer-payment path.
+  STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED: 'true',
 };
 
 let bookingSeq = 0;

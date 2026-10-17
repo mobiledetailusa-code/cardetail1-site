@@ -11,6 +11,17 @@ const json = (statusCode, body) => ({
 });
 
 exports.handler = async () => {
+  const { customerPaymentsPolicy } = require('../lib/stripe-customer-payments');
+  const payments = customerPaymentsPolicy(process.env);
+  if (!payments.enabled) {
+    return json(200, {
+      ok: true,
+      customerPaymentsEnabled: false,
+      publishableKey: '',
+      mode: '',
+    });
+  }
+
   const isLocalDev = process.env.NETLIFY_DEV === 'true';
   const isDeployPreview =
     process.env.CONTEXT === 'deploy-preview' ||
@@ -22,7 +33,7 @@ exports.handler = async () => {
       process.env.STRIPE_PUBLISHABLE_KEY || process.env.STRIPE_PUBLISHABLE_KEY_LOCAL_TEST || ''
     ).trim();
     if (localKey.startsWith('pk_test_')) {
-      return json(200, { ok: true, publishableKey: localKey, mode: 'test' });
+      return json(200, { ok: true, customerPaymentsEnabled: true, publishableKey: localKey, mode: 'test' });
     }
   }
 
@@ -34,5 +45,5 @@ exports.handler = async () => {
     return json(503, { ok: false, error: 'stripe_test_mode_required' });
   }
 
-  return json(200, { ok: true, publishableKey: key, mode });
+  return json(200, { ok: true, customerPaymentsEnabled: true, publishableKey: key, mode });
 };

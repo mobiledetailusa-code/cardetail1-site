@@ -224,6 +224,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/ceramic-checkout-intent.js',
     // Read-only historical payment audit (dry-run, production only).
     'netlify/functions/financial-reconciliation-audit.js',
+    // Production customer Stripe payments fail closed unless explicitly enabled.
+    'netlify/functions/stripe-config.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

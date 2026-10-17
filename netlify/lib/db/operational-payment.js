@@ -277,6 +277,17 @@ async function prepareEmbeddedPaymentInner({
     };
   }
 
+  const { productionCustomerPaymentsBlocked } = require('../stripe-customer-payments');
+  if (productionCustomerPaymentsBlocked(env)) {
+    return {
+      ok: false,
+      error: 'customer_payments_unavailable',
+      statusCode: 403,
+      stripeCalled: false,
+      projection: mapProjectionForPortals(projection),
+    };
+  }
+
   const stripeCustomerId = booking.stripeCustomerId || null;
   const created = await authority.reserveAndCreatePaymentIntent({
     bookingId: ensured.bookingId,

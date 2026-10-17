@@ -14,6 +14,7 @@ const ENV = {
   CONTEXT: 'production',
   SITE_URL: 'https://cardetail1.com',
   CD1_POSTGRES_PAYMENT: '1',
+  STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED: 'true',
 };
 
 function memoryStore(seed = {}) {

@@ -312,7 +312,10 @@
 
   function syncCeramicPaymentChoices() {
     var online = document.getElementById('pc-online');
-    if (online) online.hidden = false;
+    var allowed = global.Cardetail1BookingReview
+      && typeof global.Cardetail1BookingReview.customerPaymentsEnabled === 'function'
+      && global.Cardetail1BookingReview.customerPaymentsEnabled() === true;
+    if (online) online.hidden = !allowed;
   }
 
   function syncPanel() {

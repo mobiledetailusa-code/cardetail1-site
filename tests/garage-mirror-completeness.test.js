@@ -769,8 +769,9 @@ describe('blob-only financial lockout', () => {
     });
   }
 
-  it('keeps canPay for a postgres booking with a real remaining balance', async () => {
+  it('keeps the balance and closes customer pay while production payments are off', async () => {
     process.env.CD1_POSTGRES_PAYMENT = '0';
+    delete process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED;
     const due = {
       id: 'CD1-PG-DUE',
       sourceAuthority: 'postgres',
@@ -787,9 +788,17 @@ describe('blob-only financial lockout', () => {
     };
     const portal = require(PORTAL_PATH);
     const payment = await portal.__test.safePaymentStateAsync(due);
-    assert.equal(payment.canPay, true);
-    assert.equal(payment.canGeneratePayLink, true);
+    assert.equal(payment.canPay, false);
+    assert.equal(payment.canGeneratePayLink, false);
+    assert.equal(payment.customerPaymentsUnavailable, true);
+    assert.equal(payment.state, 'due');
+    assert.equal(payment.paymentStatus, 'due');
     assert.ok(payment.remainingCents > 0);
+    process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED = 'true';
+    const reopened = await portal.__test.safePaymentStateAsync(due);
+    assert.equal(reopened.canPay, true);
+    assert.equal(reopened.canGeneratePayLink, true);
+    delete process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED;
   });
 
   it('blocks saved-card charge and balance PaymentIntent for blob-only', async () => {

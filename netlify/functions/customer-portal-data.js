@@ -76,7 +76,15 @@ function safePaymentStateFromProjection(booking, money, authority) {
   // that authority — offering it as payable produces a permanent 409, so the
   // balance is reported as temporarily unpayable instead.
   const degraded = authority === 'blob_degraded';
-  const canPay = !!(payAllowed.ok && money.paymentStatus !== 'paid' && money.remainingCents > 0 && !degraded);
+  const { productionCustomerPaymentsBlocked, GARAGE_COPY } = require('../lib/stripe-customer-payments');
+  const customerPaymentsUnavailable = productionCustomerPaymentsBlocked(process.env);
+  const canPay = !!(
+    !customerPaymentsUnavailable
+    && payAllowed.ok
+    && money.paymentStatus !== 'paid'
+    && money.remainingCents > 0
+    && !degraded
+  );
   const piRef = money.stripeReference || money.paymentIntentIdPrefix || null;
   return {
     state: money.paymentStatus,
@@ -101,6 +109,8 @@ function safePaymentStateFromProjection(booking, money, authority) {
     canCreatePayLink: canPay,
     canGeneratePayLink: canPay,
     embeddedPayAvailable: authority === 'postgres' && canPay,
+    customerPaymentsUnavailable,
+    customerPaymentsMessage: customerPaymentsUnavailable ? GARAGE_COPY : '',
     paymentAuthorityDegraded: degraded,
     authority: degraded ? 'blob' : authority,
     stripeCheckoutSessionIdPrefix: money.stripeCheckoutSessionIdPrefix || null,

@@ -66,8 +66,15 @@ test('only the selected payment option is shown', () => {
   assert.equal(p.cof.disabled, true);
   assert.equal(p.cof.checked, false);
 
+  assert.equal(w.document.getElementById('pc-online').hidden, true);
+  assert.match(w.document.getElementById('bk-customer-pay-note').textContent, /Nothing is charged when you book/);
+  R.selectRequestPaymentPreference('online_after_service');
+  assert.notEqual(w.ST.payMethod, 'online_after_service');
+  assert.equal(panel(w).wrap.hidden, true);
+  R.setCustomerPaymentsEnabled(true);
   R.selectRequestPaymentPreference('online_after_service');
   p = panel(w);
+  assert.equal(w.document.getElementById('pc-online').hidden, false);
   assert.equal(p.wrap.hidden, false);
   assert.equal(p.card.hidden, true);
   assert.equal(p.cash.hidden, true);
@@ -114,7 +121,7 @@ test('ceramic pay at service offers card or cash and does not charge to reserve'
   w.CD1CeramicBooking.boot();
   assert.equal(w.document.querySelector('input[name="ceramic-plan"]'), null);
   assert.equal(w.document.querySelector('input[name="ceramic-water"]'), null);
-  assert.equal(w.document.getElementById('pc-online').hidden, false);
+  assert.equal(w.document.getElementById('pc-online').hidden, true);
   assert.equal(w.document.getElementById('pc-onsite').hidden, false);
   assert.equal(w.document.getElementById('pc-cash').hidden, false);
   const charged = w.document.getElementById('bk-charged-copy').textContent;
@@ -129,18 +136,24 @@ test('ceramic pay at service offers card or cash and does not charge to reserve'
   w.Cardetail1BookingReview.selectRequestPaymentPreference('card_onsite');
   assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
   w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');
+  assert.notEqual(w.ST.payMethod, 'online_after_service');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
+  assert.equal(w.document.querySelector('.bk-charged-stack .bk-charged-amt').textContent, '$0.00');
+
+  w.Cardetail1BookingReview.setCustomerPaymentsEnabled(true);
+  w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');
   assert.equal(w.ST.payMethod, 'online_after_service');
   assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, false);
   assert.match(w.document.getElementById('bk-online-rec-msg').textContent, /Nothing is charged today/);
   assert.match(w.document.getElementById('cof-policy-ok').parentElement.textContent, /approved total after the service is completed/i);
-  assert.equal(w.document.querySelector('.bk-charged-stack .bk-charged-amt').textContent, '$0.00');
 
+  w.Cardetail1BookingReview.setCustomerPaymentsEnabled(false);
   w.ST.pkgId = 'full';
   w.CD1CeramicBooking.boot();
-  assert.equal(w.document.getElementById('pc-online').hidden, false);
+  assert.equal(w.document.getElementById('pc-online').hidden, true);
   w.Cardetail1BookingReview.selectRequestPaymentPreference('online_after_service');
-  assert.equal(w.ST.payMethod, 'online_after_service');
-  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, false);
+  assert.notEqual(w.ST.payMethod, 'online_after_service');
+  assert.equal(w.document.getElementById('bk-online-card-wrap').hidden, true);
 });
 
 test('deploy preview states the block at checkout start and does not offer a card retry', () => {

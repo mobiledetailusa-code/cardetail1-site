@@ -539,6 +539,18 @@ async function chargeSavedCardAfterService({
     };
   }
 
+  const { productionCustomerPaymentsBlocked } = require('./stripe-customer-payments');
+  if (productionCustomerPaymentsBlocked(env)) {
+    return {
+      ok: false,
+      error: 'customer_payments_unavailable',
+      statusCode: 403,
+      charged: false,
+      stripeCalled: false,
+      message: 'Online payment is temporarily unavailable. Pay at your appointment or contact us for a secure invoice.',
+    };
+  }
+
   const recovering = !!(prior && prior.status === 'charging' && prior.idempotencyKey === key);
   if (!recovering && typeof persistBooking === 'function') {
     const claimed = cloneBooking(booking);

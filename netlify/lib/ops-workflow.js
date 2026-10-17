@@ -342,6 +342,10 @@ function projectJobForAdminList(b) {
     issueNotes: b.issueNotes ? String(b.issueNotes).slice(0, 240) : '',
     completedAt: b.completedAt || '',
     paymentMethodPreference: b.paymentMethodPreference || b.paymentMethod || '',
+    ...(() => {
+      const { annotateAdminPaymentHandling } = require('./stripe-customer-payments');
+      return annotateAdminPaymentHandling(b) || {};
+    })(),
     cardOnFileSaved: b.cardOnFileStatus === 'saved',
     isTest: !!b.isTest,
     archived: !!b.archived,
@@ -381,10 +385,20 @@ function projectJobForAdmin(b) {
     safe.paymentWorkflowStatus = money.paymentWorkflowStatus;
     safe.financialPaymentStatus = money.paymentStatus;
     safe.canGeneratePayLink = money.canGeneratePayLink;
+    const { annotateAdminPaymentHandling, productionCustomerPaymentsBlocked } = require('./stripe-customer-payments');
+    if (productionCustomerPaymentsBlocked(process.env)) safe.canGeneratePayLink = false;
+    const handling = annotateAdminPaymentHandling(safe);
+    if (handling) Object.assign(safe, handling);
     safe.stripeCheckoutSessionIdPrefix = money.stripeCheckoutSessionIdPrefix;
     safe.paymentIntentIdPrefix = money.paymentIntentIdPrefix;
   } catch {
     safe.paymentWorkflowStatus = normalizePaymentWorkflowStatus(safe);
+  }
+  if (!safe.customerPaymentHandling) {
+    const { annotateAdminPaymentHandling, productionCustomerPaymentsBlocked } = require('./stripe-customer-payments');
+    if (productionCustomerPaymentsBlocked(process.env)) safe.canGeneratePayLink = false;
+    const handling = annotateAdminPaymentHandling(safe);
+    if (handling) Object.assign(safe, handling);
   }
   // Multi-vehicle display projection — server dollars; keep top-level primary fields.
   safe.vehicles = projectVehiclesForAdmin(safe);

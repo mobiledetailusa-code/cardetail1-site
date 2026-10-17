@@ -3925,7 +3925,11 @@ async function loadTechs(fetchOpts, loadOpts) {
       // knows whether a change is allowed here and says why when it is not.
       '<div class="full"><label>Payment preference</label>'+
       '<p class="hint" style="margin:0">'+esc(String(j.paymentMethodPreference||'not set').replace(/_/g,' '))+
-      ' — change it in the Payment method section below.</p></div>'+
+      ' — change it in the Payment method section below.</p>'+
+      (j.customerPaymentHandling==='external_manual'
+        ? '<p class="hint" data-customer-payment-handling="external_manual">'+esc(j.customerPaymentHandlingLabel||'Payment will be handled externally / manually. The saved card preference stays on the appointment and is not reclassified as cash.')+'</p>'
+        : '')+
+      '</div>'+
       '<div class="full"><label>Legacy hosted Checkout (disabled)</label><input type="url" id="dPayLink" value="'+esc(j.payLink||'')+'" disabled></div>'+
       '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
       '<div class="full actions">'+
