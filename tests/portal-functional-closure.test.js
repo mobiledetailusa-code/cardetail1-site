@@ -607,7 +607,7 @@ function payRoutes(counters) {
       counters.intents += 1;
       return { data: { ok: true, clientSecret: 'cs_test_123', amountCents: 12500 } };
     },
-    'stripe-config': () => ({ data: { publishableKey: 'pk_test_1' } }),
+    'stripe-config': () => ({ data: { customerPaymentsEnabled: true, publishableKey: 'pk_test_1' } }),
     'customer-portal-data': () => ({ data: { ok: true } }),
   };
 }

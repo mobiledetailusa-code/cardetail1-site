@@ -709,6 +709,15 @@
     return list.find(function (v) { return v.vehicleId === id; }) || null;
   }
 
+  function customerPaymentsBlocked(data, proj) {
+    if (data && data.customerPaymentsUnavailable) return true;
+    if (proj && proj.customerPaymentsUnavailable) return true;
+    if (state.payment && state.payment.customerPaymentsUnavailable) return true;
+    return false;
+  }
+
+  var GARAGE_PAYMENTS_COPY = 'Online payment is temporarily unavailable. Pay at your appointment or contact us for a secure invoice.';
+
   function applyAuthoritativeMoney(data) {
     if (!data) return;
     var proj = data.postgresProjection || data.financialProjection || null;
@@ -722,8 +731,10 @@
         amountDueApproved: (proj.remainingCents || 0) / 100,
         state: proj.paymentStatus || (state.payment && state.payment.state) || null,
         paymentStatus: proj.paymentStatus || (state.payment && state.payment.paymentStatus) || null,
-        canPay: (proj.remainingCents || 0) > 0,
-        canCreatePayLink: (proj.remainingCents || 0) > 0,
+        canPay: customerPaymentsBlocked(data, proj) ? false : (proj.remainingCents || 0) > 0,
+        canCreatePayLink: customerPaymentsBlocked(data, proj) ? false : (proj.remainingCents || 0) > 0,
+        canGeneratePayLink: customerPaymentsBlocked(data, proj) ? false : (proj.remainingCents || 0) > 0,
+        customerPaymentsUnavailable: customerPaymentsBlocked(data, proj),
         quoteVersion: data.quoteVersion != null
           ? data.quoteVersion
           : (proj.quoteVersion != null ? proj.quoteVersion : (state.payment && state.payment.quoteVersion)),
@@ -736,8 +747,10 @@
         approvedTotal: (data.approvedCents || 0) / 100,
         amountPaid: (data.settledCents || 0) / 100,
         amountDueApproved: (data.remainingCents || 0) / 100,
-        canPay: (data.remainingCents || 0) > 0,
-        canCreatePayLink: (data.remainingCents || 0) > 0,
+        canPay: customerPaymentsBlocked(data, null) ? false : (data.remainingCents || 0) > 0,
+        canCreatePayLink: customerPaymentsBlocked(data, null) ? false : (data.remainingCents || 0) > 0,
+        canGeneratePayLink: customerPaymentsBlocked(data, null) ? false : (data.remainingCents || 0) > 0,
+        customerPaymentsUnavailable: customerPaymentsBlocked(data, null),
         quoteVersion: data.quoteVersion != null
           ? data.quoteVersion
           : (state.payment && state.payment.quoteVersion),
@@ -1868,7 +1881,7 @@
    */
   function syncPayBalanceButton(pay) {
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
+    var can = !pay.customerPaymentsUnavailable && !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     syncStickyPayBar(can, due);
     syncMoneyActionButtons(pay);
   }
@@ -1898,11 +1911,16 @@
     var empty = $('payments-empty');
     if (!panel) return;
     var due = Number(pay.amountDueApproved || 0);
-    var can = !!(pay.canPay || pay.canCreatePayLink) && due > 0;
+    var can = !pay.customerPaymentsUnavailable && !!(pay.canPay || pay.canCreatePayLink) && due > 0;
     var paid = invoiceIsPaid(pay);
     if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
       panel.innerHTML = '';
-      if (empty) show(empty, true);
+      if (empty) {
+        empty.textContent = pay.customerPaymentsUnavailable
+          ? GARAGE_PAYMENTS_COPY
+          : 'No balance due.';
+        show(empty, true);
+      }
       return;
     }
     if (empty) show(empty, false);
@@ -1924,11 +1942,13 @@
         : (paid
           ? '<p class="pay-settled" data-pay-settled><strong>Paid</strong></p>' +
             '<p class="hint">Invoice paid. You can still add services — any new balance appears here. Package and vehicle changes stay closed.</p>'
+          : (pay.customerPaymentsUnavailable
+            ? '<p class="hint" data-customer-payments-unavailable>' + esc(GARAGE_PAYMENTS_COPY) + '</p>'
           : (pay.paymentAuthorityDegraded
             // A balance is genuinely open; the payment authority just cannot
             // confirm it right now. Saying "no balance is due" would be false.
             ? '<p class="hint" data-pay-degraded>Payment is temporarily unavailable while we confirm your balance. Nothing was charged — this page retries automatically.</p>'
-            : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>'))) +
+            : '<p class="hint">No balance is due yet, or payment is locked until admin approval.</p>')))) +
       receiptActionsHtml(pay) +
       '</div>';
     var btn = $('btn-pay-balance');
@@ -2824,11 +2844,36 @@
     setEmbeddedPayMsg('', false);
   }
 
+  function loadStripeJsOnce() {
+    if (typeof global.Stripe === 'function') return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      var script = document.createElement('script');
+      script.src = 'https://js.stripe.com/v3/';
+      script.async = true;
+      var timer = setTimeout(function () {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        resolve(false);
+      }, 8000);
+      script.onload = function () {
+        clearTimeout(timer);
+        resolve(typeof global.Stripe === 'function');
+      };
+      script.onerror = function () {
+        clearTimeout(timer);
+        if (script.parentNode) script.parentNode.removeChild(script);
+        resolve(false);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
   async function loadStripePublishableKey() {
     try {
       var res = await fetch(API + 'stripe-config', { method: 'GET', credentials: 'same-origin' });
       var data = await res.json();
-      return data && data.publishableKey ? data.publishableKey : null;
+      if (!data || data.customerPaymentsEnabled !== true || !data.publishableKey) return null;
+      var loaded = await loadStripeJsOnce();
+      return loaded ? data.publishableKey : null;
     } catch (e) {
       return null;
     }
@@ -2877,6 +2922,10 @@
     }
     var pay = state.payment || {};
     var due = Number(pay.amountDueApproved || 0);
+    if (pay.customerPaymentsUnavailable) {
+      showToast(GARAGE_PAYMENTS_COPY, true);
+      return;
+    }
     if ((!pay.canPay && !pay.canCreatePayLink) || !(due > 0)) {
       showToast('No balance is due yet, or payment is locked until approval.', true);
       return;
@@ -2941,12 +2990,8 @@
     }
 
     if (intent.data && intent.data.ok && intent.data.clientSecret) {
-      if (typeof global.Stripe !== 'function') {
-        showToast('Stripe.js failed to load. Check your connection and try again.', true);
-        return startHostedCheckoutFallback();
-      }
       var pk = await loadStripePublishableKey();
-      if (!pk) {
+      if (!pk || typeof global.Stripe !== 'function') {
         showToast('Payment config is temporarily unavailable. Try again shortly.', true);
         return startHostedCheckoutFallback();
       }

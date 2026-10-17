@@ -1934,6 +1934,7 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
 <script src="assets/seasonal-driveway-addon.js"></script>
 <script src="assets/booking-line-items.js" defer></script>
 <script src="assets/booking-review-runtime.js" defer></script>
+<script src="assets/customer-payments-gate.js" defer></script>
 <script src="assets/ceramic-booking.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
@@ -3410,10 +3411,11 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
             <div class="oc-t">Preferred payment method</div>
             <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
               <div class="bk-pay-pref-row">
-                <button type="button" class="pay-choice" id="pc-online" aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Card online — charged after service</span></button>
+                <button type="button" class="pay-choice" id="pc-online" hidden disabled aria-hidden="true" tabindex="-1" aria-pressed="false"><span>Card online — charged after service</span></button>
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
+              <p class="bk-pay-pref-help" id="bk-customer-pay-note">Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed.</p>
               <p class="bk-pay-pref-help" id="bk-onsite-card-copy" hidden>Card at service — no card needed to submit. Pay by card when we finish the job.</p>
               <p class="bk-pay-pref-help" id="bk-onsite-cash-copy" hidden>Cash at service — no card needed to submit. Pay with cash when we finish the job.</p>
               <div class="bk-online-card-wrap" id="bk-online-card-wrap" hidden>
@@ -3596,7 +3598,6 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
   </div>
 </div>
 
-<script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="assets/car-pkg-detail-modal.js"></script>
 <script src="assets/icon-3d.js"></script>
@@ -9786,7 +9787,7 @@ body.cd1-booking-embed #cd-chat{display:none!important}
       chips:[{label:'📅 Start booking',act:'book'},{label:'💳 Deposit/payment',q:'Do I pay now?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['pay','payment','deposit','charge now','credit card','card','stripe','money','pay now','upfront'], fn:()=>({
-      reply:"You're <b>not charged when you submit</b> — it's a request first, and no card or payment method is required. After review, use Pay Online in My Garage or pay at service when available.",
+      reply:"You're <b>not charged when you submit</b> — it's a request first, and no card or payment method is required. After review, use Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed.",
       chips:[{label:'📅 Book now',act:'book'},{label:'❌ Cancellation policy',q:'What is your cancellation policy?'},{label:'🧑‍🔧 Talk to a human',act:'human'}] }) },
 
     { keys:['hour','hours','open','time','when are you','availability','available','today','same day','same-day','weekend'], fn:()=>({

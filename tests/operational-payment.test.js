@@ -397,7 +397,9 @@ describe('operational payment — pure guards', () => {
     assert.doesNotMatch(js, /Payment received by Stripe — balance will update shortly/);
     const html = fs.readFileSync(path.join(__dirname, '../my-garage.html'), 'utf8');
     assert.match(html, /id="payment-element"/);
-    assert.match(html, /js\.stripe\.com\/v3/);
+    assert.doesNotMatch(html, /js\.stripe\.com\/v3/);
+    assert.match(js, /customerPaymentsEnabled !== true/);
+    assert.match(js, /js\.stripe\.com\/v3/);
   });
 
   test('admin-ops exposes Reconcile with Stripe action', () => {

@@ -385,7 +385,12 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
     // the only stripe-named file a diff may include. An empty diff is valid:
     // master and any branch that does not edit Stripe must pass. Any other
     // stripe path, and any SMS-file rewrite of refund or quote authority, fails.
-    const stripeAllowlist = new Set(['netlify/functions/stripe-webhook.js']);
+    const stripeAllowlist = new Set([
+      'netlify/functions/stripe-webhook.js',
+      // Fail-closed customer payment switch. Does not change SMS, refunds, or quotes.
+      'netlify/functions/stripe-config.js',
+      'netlify/lib/stripe-customer-payments.js',
+    ]);
     const unexpectedStripe = (files) => files.filter((file) => !stripeAllowlist.has(file));
     assert.deepEqual(unexpectedStripe([]), []);
     assert.deepEqual(unexpectedStripe(['netlify/functions/stripe-webhook.js']), []);

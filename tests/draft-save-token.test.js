@@ -56,9 +56,16 @@ beforeEach(() => {
   delete process.env.ADMIN_SESSION_SECRET;
   delete process.env.NETLIFY_DEV;
   process.env.CONTEXT = 'production';
+  // This file proves the SetupIntent token gate. Production customer payments
+  // stay closed unless the exact flag is present.
+  process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED = 'true';
+  const payments = require('../netlify/lib/stripe-customer-payments');
+  payments.setBakedCustomerPaymentsSnapshot(payments.SANDBOX_BAKE);
 });
 
 afterEach(() => {
+  const payments = require('../netlify/lib/stripe-customer-payments');
+  payments.clearBakedCustomerPaymentsSnapshot();
   restoreEnv(envSnap);
 });
 

@@ -280,7 +280,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
       <button type="button" class="portal-home-card" id="home-card-pay" data-home-card="pay" hidden>
         <span class="portal-home-card-kicker">Balance</span>
         <strong id="home-card-pay-title">Amount due</strong>
-        <span class="portal-home-card-sub">Jump to Payments &amp; Receipts — Pay securely stays there</span>
+        <span class="portal-home-card-sub">Receipts and payment status for this appointment.</span>
       </button>
       <a class="portal-home-card is-primary" id="home-card-book" href="/">
         <span class="portal-home-card-kicker" id="home-card-book-kicker">Book</span>
@@ -365,7 +365,7 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
 
     <section class="section" id="payments" aria-labelledby="pay-h">
       <h3 id="pay-h">Payments &amp; Receipts</h3>
-      <p id="payments-empty" class="empty">No balance due. When a balance is approved, Pay securely opens card payment in this page (Stripe Payment Element).</p>
+      <p id="payments-empty" class="empty">Online payment is temporarily unavailable. Pay at your appointment or contact us for a secure invoice.</p>
       <div id="payments-panel"></div>
       <div id="embedded-pay-panel" class="panel pay-card" role="region" aria-labelledby="embedded-pay-h" tabindex="-1" hidden>
         <p class="card-kicker">Secure payment</p>
@@ -489,7 +489,6 @@ if(typeof clarity==='function'){try{clarity('set','mask','.wrap');}catch(e){}}
   <button type="button" class="btn primary" id="pay-sticky-btn">Pay securely</button>
 </div>
 
-<script src="https://js.stripe.com/v3/"></script>
 <script src="assets/portal-analytics.js" defer></script>
 <script src="assets/operational-refresh.js?v=20260805-sync-pr3" defer></script>
 <script src="assets/my-garage-dashboard.js" defer></script>

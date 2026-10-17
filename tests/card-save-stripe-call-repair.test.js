@@ -78,10 +78,14 @@ function withCardSaveEnv(fn) {
     process.env.DRAFT_TOKEN_SECRET = TEST_SECRET;
     process.env.STRIPE_SECRET_KEY = 'sk_test_fake';
     process.env.CONTEXT = 'production';
+    process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED = 'true';
     delete process.env.NETLIFY_DEV;
+    const payments = require('../netlify/lib/stripe-customer-payments');
+    payments.setBakedCustomerPaymentsSnapshot(payments.SANDBOX_BAKE);
     try {
       await fn(t);
     } finally {
+      payments.clearBakedCustomerPaymentsSnapshot();
       global.fetch = originalFetch;
       for (const key of Object.keys(process.env)) delete process.env[key];
       Object.assign(process.env, envSnap);

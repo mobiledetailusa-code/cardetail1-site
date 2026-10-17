@@ -28,6 +28,10 @@ const json = (status, body) => ({ statusCode: status, headers: CORS, body: JSON.
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return json(204, {});
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'method_not_allowed' });
+  const { productionCustomerPaymentsBlocked } = require('../lib/stripe-customer-payments');
+  if (productionCustomerPaymentsBlocked(process.env)) {
+    return json(403, { ok: false, error: 'customer_payments_unavailable', stripeCalled: false });
+  }
   const previewRefusal = refuseSharedWrite('ceramic-payment-intent', CORS);
   if (previewRefusal) return previewRefusal;
 

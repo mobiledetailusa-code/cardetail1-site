@@ -448,6 +448,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/booking-cancel.js',
     'netlify/lib/payment-resume-token.js',
     'netlify/lib/quick-ops-html.js',
+    // Production customer Stripe payments fail closed unless explicitly enabled.
+    'netlify/functions/stripe-config.js',
+    'netlify/lib/stripe-customer-payments.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

@@ -208,7 +208,19 @@
         "anchor": "#pc-online",
         "match": "contains",
         "texts": ["Card online — charged after service"],
-        "why": "Card online — charged after service remains available as a payment preference (without a Recommended badge)."
+        "visibility": {
+          "exemptIndices": [0],
+          "revealedBy": "#bk-customer-pay-note",
+          "$why": "The online choice stays in the markup for an explicit server re-enable, and is [hidden] while customer payments are closed."
+        },
+        "why": "Card online — charged after service stays in the markup but is hidden until the server enables customer payments. It is not a Recommended badge."
+      },
+      {
+        "id": "customer-payments-closed-note",
+        "anchor": "#bk-customer-pay-note",
+        "match": "exact",
+        "texts": ["Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed."],
+        "why": "While customer card payments are closed, the review step offers card at service and cash at service and does not mention a processor problem."
       },
       {
         "id": "pay-later-options",

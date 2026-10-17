@@ -14,6 +14,8 @@ function siIdPrefix(id) {
  */
 async function reconcileCardOnFileFromStripe(store, existing, env = process.env, fetchImpl = globalThis.fetch) {
   if (!existing || existing.cardOnFileStatus === 'saved') return existing;
+  const { productionCustomerPaymentsBlocked } = require('./stripe-customer-payments');
+  if (productionCustomerPaymentsBlocked(env)) return existing;
   const setupIntentId = String(existing.setupIntentId || '').trim();
   if (!setupIntentId) {
     console.log('[card-on-file] reconcile skipped: missing setupIntentId', {

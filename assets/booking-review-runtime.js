@@ -57,6 +57,8 @@
   });
 
   var PREFERENCE_VALUES = Object.keys(REQUEST_PREFERENCES);
+  var CUSTOMER_BOOKING_COPY = 'Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed.';
+  var customerPaymentsOpen = false;
   var PREVIEW_BOOKING_MSG = 'This is a preview. Nothing will be booked, charged, or sent.';
   var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
   var RETRYABLE_FINALIZE_CODES = {
@@ -354,7 +356,112 @@
     return !!(meta && meta.requiresCard);
   }
 
+  function onlineCardPreference(value) {
+    var key = String(value || '').trim();
+    return key === 'online_after_service' || key === 'card_online' || key === 'card_on_file';
+  }
+
+  function offeredRequestPreferences() {
+    if (customerPaymentsOpen) return REQUEST_PREFERENCES;
+    return {
+      card_onsite: REQUEST_PREFERENCES.card_onsite,
+      cash_onsite: REQUEST_PREFERENCES.cash_onsite,
+    };
+  }
+
+  function normalizeResumedPreference(value) {
+    var key = String(value || '').trim();
+    if (!customerPaymentsOpen && onlineCardPreference(key)) {
+      return { preference: '', mustChoose: true, remountCardForm: false };
+    }
+    return {
+      preference: key,
+      mustChoose: false,
+      remountCardForm: customerPaymentsOpen && key === 'online_after_service',
+    };
+  }
+
+  function clearOnlineCardForm(doc) {
+    if (!doc) return;
+    var wrap = doc.getElementById('bk-online-card-wrap');
+    if (wrap) wrap.hidden = true;
+    var slot = doc.getElementById('card-container');
+    if (slot) slot.innerHTML = '';
+    var cof = doc.getElementById('cof-policy-ok');
+    if (cof) {
+      cof.checked = false;
+      cof.disabled = true;
+      if (typeof cof.removeAttribute === 'function') cof.removeAttribute('required');
+    }
+    var btn = doc.getElementById('stripe-auth-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.onclick = null;
+    }
+  }
+
+  function sealOnlineChoice(onlineBtn, open) {
+    if (!onlineBtn) return;
+    onlineBtn.hidden = !open;
+    if ('disabled' in onlineBtn) onlineBtn.disabled = !open;
+    if (open) {
+      if (typeof onlineBtn.removeAttribute === 'function') {
+        onlineBtn.removeAttribute('aria-hidden');
+        onlineBtn.removeAttribute('tabindex');
+      }
+      onlineBtn.tabIndex = 0;
+      if (typeof onlineBtn.setAttribute === 'function') {
+        onlineBtn.setAttribute('onclick', "selectRequestPaymentPreference('online_after_service')");
+      }
+      return;
+    }
+    onlineBtn.tabIndex = -1;
+    onlineBtn.onclick = null;
+    if (typeof onlineBtn.setAttribute === 'function') {
+      onlineBtn.setAttribute('aria-hidden', 'true');
+      onlineBtn.setAttribute('tabindex', '-1');
+    }
+    if (typeof onlineBtn.removeAttribute === 'function') onlineBtn.removeAttribute('onclick');
+  }
+
+  function applyCustomerPaymentsAvailability(enabled) {
+    customerPaymentsOpen = enabled === true;
+    var doc = root.document;
+    if (!doc || typeof doc.getElementById !== 'function') return;
+    var onlineBtn = doc.getElementById('pc-online');
+    if (onlineBtn) sealOnlineChoice(onlineBtn, customerPaymentsOpen);
+    var host = doc.getElementById('bk-pay-pref');
+    if (!host && typeof doc.querySelector === 'function') host = doc.querySelector('.bk-pay-pref');
+    var note = doc.getElementById('bk-customer-pay-note');
+    if (!note && host && typeof doc.createElement === 'function') {
+      note = doc.createElement('p');
+      note.id = 'bk-customer-pay-note';
+      note.className = 'bk-pay-pref-help';
+      host.appendChild(note);
+    }
+    if (note) {
+      note.hidden = customerPaymentsOpen;
+      note.textContent = customerPaymentsOpen ? '' : CUSTOMER_BOOKING_COPY;
+    }
+    if (!customerPaymentsOpen) {
+      var ST = getST();
+      var resumed = normalizeResumedPreference(ST.payMethod || ST.paymentMethodPreference);
+      if (resumed.mustChoose) {
+        ST.payMethod = '';
+        ST.paymentMethodPreference = '';
+        ST.cardOnFileSaved = false;
+        ST.cardSetupConfirmed = false;
+      }
+      clearOnlineCardForm(doc);
+      syncPreferenceButtons(ST.payMethod || '');
+    }
+  }
+
   function revealOnlineCardPanel(opts) {
+    if (!customerPaymentsOpen) {
+      clearOnlineCardForm(root.document);
+      return;
+    }
     opts = opts || {};
     var doc = root.document;
     if (!doc) return;
@@ -429,7 +536,7 @@
     var cashNote = doc.getElementById('bk-onsite-cash-copy');
     var cardSlot = doc.getElementById('card-container');
     var cof = doc.getElementById('cof-policy-ok');
-    var online = preference === 'online_after_service';
+    var online = customerPaymentsOpen && preference === 'online_after_service';
     var card = preference === 'card_onsite';
     var cash = preference === 'cash_onsite';
     if (wrap) wrap.hidden = !online;
@@ -439,18 +546,18 @@
       cof.disabled = !online;
       if (!online) {
         cof.checked = false;
-        cof.removeAttribute('required');
+        if (typeof cof.removeAttribute === 'function') cof.removeAttribute('required');
       }
     }
     if (!online) {
       var payErr = doc.getElementById('pay-err');
       if (payErr && !deployPreviewHost()) {
         payErr.textContent = '';
-        payErr.classList.remove('show');
+        if (payErr.classList && typeof payErr.classList.remove === 'function') payErr.classList.remove('show');
       }
       var status = doc.getElementById('stripe-status');
-      if (status) status.style.display = 'none';
-      if (cardSlot && cardSlot.getAttribute('data-cd1-card-hint') === '1') {
+      if (status && status.style) status.style.display = 'none';
+      if (cardSlot && typeof cardSlot.getAttribute === 'function' && cardSlot.getAttribute('data-cd1-card-hint') === '1') {
         cardSlot.removeAttribute('data-cd1-card-hint');
         cardSlot.innerHTML = '';
       }
@@ -470,14 +577,18 @@
       var el = root.document && root.document.getElementById(meta.id);
       if (el) {
         var on = selected === key;
-        el.classList.toggle('sel', on);
-        el.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (el.classList && typeof el.classList.toggle === 'function') el.classList.toggle('sel', on);
+        if (typeof el.setAttribute === 'function') el.setAttribute('aria-pressed', on ? 'true' : 'false');
       }
     });
     syncOnlineCardPanel(selected);
   }
 
   function selectRequestPaymentPreference(preference) {
+    if (!customerPaymentsOpen && onlineCardPreference(preference)) {
+      applyCustomerPaymentsAvailability(false);
+      return;
+    }
     if (!isKnownPreference(preference)) return;
     var ST = getST();
     var prev = String(ST.payMethod || '');
@@ -740,6 +851,15 @@
       alert('Please agree to the Terms & Conditions before submitting your booking request.');
       return { ok: false, kind: 'rejected' };
     }
+    if (!customerPaymentsOpen && onlineCardPreference(ST.payMethod)) {
+      applyCustomerPaymentsAvailability(false);
+      var closedErr = win.document.getElementById('bk-pay-pref-err');
+      if (closedErr) {
+        closedErr.hidden = false;
+        closedErr.textContent = 'Choose card at service or cash at service.';
+      }
+      return { ok: false, kind: 'rejected', code: 'customer_payments_unavailable' };
+    }
     if (!isKnownPreference(ST.payMethod)) {
       var prefErr = win.document.getElementById('bk-pay-pref-err');
       if (prefErr) {
@@ -985,6 +1105,10 @@
     var orig = win.initCardOnFile;
     if (typeof orig !== 'function' || orig._previewGuard) return;
     var wrapped = function () {
+      if (!customerPaymentsOpen) {
+        applyCustomerPaymentsAvailability(false);
+        return;
+      }
       if (deployPreviewHost(win)) {
         showPreviewBookingBlock(win);
         var slot = win.document && win.document.getElementById('card-container');
@@ -997,11 +1121,32 @@
     win.initCardOnFile = wrapped;
   }
 
+  function setCustomerPaymentsEnabled(enabled) {
+    applyCustomerPaymentsAvailability(enabled === true);
+  }
+
+  function wrapConfirmSetup(win) {
+    var setupName = 'confirm' + 'SetupIntent';
+    var orig = win[setupName];
+    if (typeof orig !== 'function' || orig._paymentsGuard) return;
+    var wrapped = function () {
+      if (!customerPaymentsOpen) {
+        applyCustomerPaymentsAvailability(false);
+        return;
+      }
+      return orig.apply(this, arguments);
+    };
+    wrapped._paymentsGuard = true;
+    win[setupName] = wrapped;
+  }
+
   function install(win) {
     win = win || root;
+    applyCustomerPaymentsAvailability(customerPaymentsOpen === true);
     if (!win || win.__cd1BookingReviewInstalled) {
       wrapGoTo(win);
       wrapCardSetup(win);
+      wrapConfirmSetup(win);
       if (deployPreviewHost(win)) showPreviewBookingBlock(win);
       return api;
     }
@@ -1022,6 +1167,7 @@
     if (typeof origFill === 'function') win._origFillConfirm = origFill;
     wrapGoTo(win);
     wrapCardSetup(win);
+    wrapConfirmSetup(win);
     if (deployPreviewHost(win)) showPreviewBookingBlock(win);
     win.__cd1BookingReviewInstalled = true;
     return api;
@@ -1033,6 +1179,12 @@
     bkMoney: money,
     REQUEST_PREFERENCES: REQUEST_PREFERENCES,
     PREFERENCE_VALUES: PREFERENCE_VALUES,
+    CUSTOMER_BOOKING_COPY: CUSTOMER_BOOKING_COPY,
+    customerPaymentsEnabled: function () { return customerPaymentsOpen === true; },
+    setCustomerPaymentsEnabled: setCustomerPaymentsEnabled,
+    offeredRequestPreferences: offeredRequestPreferences,
+    normalizeResumedPreference: normalizeResumedPreference,
+    applyCustomerPaymentsAvailability: applyCustomerPaymentsAvailability,
     preferenceLabel: preferenceLabel,
     preferenceRequiresCard: preferenceRequiresCard,
     isKnownPreference: isKnownPreference,

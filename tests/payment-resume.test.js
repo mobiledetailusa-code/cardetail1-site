@@ -5,7 +5,7 @@
  * Amount comes from remainingCents + quoteVersion. No Stripe Payment Links.
  */
 
-const { describe, it, before, beforeEach, afterEach } = require('node:test');
+const { describe, it, before, after, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('path');
@@ -68,6 +68,16 @@ before(() => {
   process.env.PAYMENT_RESUME_SECRET = SECRET;
   process.env.ADMIN_QUICK_OPS_SECRET = QO_SECRET;
   process.env.CD1_POSTGRES_PAYMENT = 'false';
+  // Isolated suite exercises the resume Payment Element. Production stays closed
+  // unless this exact flag is set.
+  process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED = 'true';
+  const payments = require('../netlify/lib/stripe-customer-payments');
+  payments.setBakedCustomerPaymentsSnapshot(payments.SANDBOX_BAKE);
+});
+
+after(() => {
+  const payments = require('../netlify/lib/stripe-customer-payments');
+  payments.clearBakedCustomerPaymentsSnapshot();
 });
 
 beforeEach(() => {

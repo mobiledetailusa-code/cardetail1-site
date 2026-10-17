@@ -368,6 +368,8 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/ceramic-checkout-intent.js',
     // Read-only historical payment audit (dry-run, production only).
     'netlify/functions/financial-reconciliation-audit.js',
+    // Production customer Stripe payments fail closed unless explicitly enabled.
+    'netlify/functions/stripe-config.js',
   ]);
   for (const file of functionChanges) {
     assert.ok(allowed.has(file), `unexpected function change: ${file}`);

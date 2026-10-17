@@ -312,7 +312,20 @@
 
   function syncCeramicPaymentChoices() {
     var online = document.getElementById('pc-online');
-    if (online) online.hidden = false;
+    var allowed = global.Cardetail1BookingReview
+      && typeof global.Cardetail1BookingReview.customerPaymentsEnabled === 'function'
+      && global.Cardetail1BookingReview.customerPaymentsEnabled() === true;
+    if (!online) return;
+    online.hidden = !allowed;
+    if (allowed) return;
+    online.disabled = true;
+    online.tabIndex = -1;
+    if (typeof online.setAttribute === 'function') {
+      online.setAttribute('aria-hidden', 'true');
+      online.setAttribute('tabindex', '-1');
+    }
+    online.onclick = null;
+    if (typeof online.removeAttribute === 'function') online.removeAttribute('onclick');
   }
 
   function syncPanel() {
@@ -1213,6 +1226,7 @@
     displayPrice: displayPrice,
     addonVisible: addonVisible,
     renderCeramicCheckout: renderCeramicCheckout,
+    injectCheckoutSummary: injectCheckoutSummary,
     appointmentMinutes: appointmentMinutes,
     waterRepellentName: WATER_REPELLENT.name,
     boot: boot
