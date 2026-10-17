@@ -795,9 +795,12 @@ describe('blob-only financial lockout', () => {
     assert.equal(payment.paymentStatus, 'due');
     assert.ok(payment.remainingCents > 0);
     process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED = 'true';
+    const payments = require('../netlify/lib/stripe-customer-payments');
+    payments.setBakedCustomerPaymentsSnapshot(payments.SANDBOX_BAKE);
     const reopened = await portal.__test.safePaymentStateAsync(due);
     assert.equal(reopened.canPay, true);
     assert.equal(reopened.canGeneratePayLink, true);
+    payments.clearBakedCustomerPaymentsSnapshot();
     delete process.env.STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED;
   });
 

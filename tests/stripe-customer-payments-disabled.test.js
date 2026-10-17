@@ -12,9 +12,12 @@ const {
   FLAG,
   CUSTOMER_BOOKING_COPY,
   GARAGE_COPY,
+  SANDBOX_BAKE,
   customerPaymentsPolicy,
   productionCustomerPaymentsBlocked,
   annotateAdminPaymentHandling,
+  setBakedCustomerPaymentsSnapshot,
+  clearBakedCustomerPaymentsSnapshot,
 } = require('../netlify/lib/stripe-customer-payments');
 const { guardStripeOrReject } = require('../netlify/lib/stripe-mode');
 const Review = require('../assets/booking-review-runtime.js');
@@ -42,6 +45,7 @@ function productionEnv(flag) {
 }
 
 test.afterEach(() => {
+  clearBakedCustomerPaymentsSnapshot();
   restoreEnv();
 });
 
@@ -49,12 +53,13 @@ test('production customer payments stay closed when the flag is absent', () => {
   productionEnv(undefined);
   const policy = customerPaymentsPolicy(process.env);
   assert.equal(policy.enabled, false);
-  assert.equal(policy.reason, 'flag_absent');
+  assert.equal(policy.reason, 'baked_identity_absent');
   assert.equal(policy.error, 'customer_payments_unavailable');
   assert.equal(productionCustomerPaymentsBlocked(process.env), true);
 });
 
 test('empty and invalid flag values stay closed', () => {
+  setBakedCustomerPaymentsSnapshot(SANDBOX_BAKE);
   for (const value of ['', '1', 'yes', 'TRUE', 'false', ' true ', 'on']) {
     productionEnv(value);
     const policy = customerPaymentsPolicy(process.env);
@@ -64,6 +69,7 @@ test('empty and invalid flag values stay closed', () => {
 });
 
 test('browser query, body, host, and cookie cannot enable production payments', () => {
+  setBakedCustomerPaymentsSnapshot({ ...SANDBOX_BAKE, [FLAG]: false });
   productionEnv(undefined);
   const policy = customerPaymentsPolicy({
     ...process.env,
@@ -77,7 +83,7 @@ test('browser query, body, host, and cookie cannot enable production payments', 
   assert.equal(productionCustomerPaymentsBlocked({
     CONTEXT: 'production',
     [FLAG]: 'true',
-  }), false);
+  }), true);
   productionEnv(undefined);
   assert.equal(customerPaymentsPolicy({
     CONTEXT: 'production',
@@ -86,9 +92,14 @@ test('browser query, body, host, and cookie cannot enable production payments', 
   }).enabled, false);
 });
 
-test('only the exact production flag re-enables customer payments', () => {
+test('runtime true alone stays closed until the baked boolean is also true', () => {
+  productionEnv('true');
+  assert.equal(customerPaymentsPolicy(process.env).enabled, false);
+  assert.equal(productionCustomerPaymentsBlocked(process.env), true);
+  setBakedCustomerPaymentsSnapshot(SANDBOX_BAKE);
   productionEnv('true');
   assert.equal(customerPaymentsPolicy(process.env).enabled, true);
+  assert.equal(customerPaymentsPolicy(process.env).reason, 'explicit_flag');
   assert.equal(productionCustomerPaymentsBlocked(process.env), false);
 });
 
@@ -352,6 +363,7 @@ test('stripe-config returns no key and no secret while customer payments are clo
 });
 
 test('the explicit flag lets SetupIntent reach Stripe in the isolated path', async () => {
+  setBakedCustomerPaymentsSnapshot(SANDBOX_BAKE);
   productionEnv('true');
   process.env.DRAFT_TOKEN_SECRET = 'test-draft-token-secret-32chars!!';
   process.env.STRIPE_SECRET_KEY = 'sk_test_isolated_customer_pay';

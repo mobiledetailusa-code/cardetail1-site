@@ -10,4 +10,5 @@ module.exports = {
   DEPLOY_ID: '',
   REVIEW_ID: '',
   SITE_NAME: '',
+  STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED: false,
 };

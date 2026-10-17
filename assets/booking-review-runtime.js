@@ -400,22 +400,36 @@
     }
   }
 
+  function sealOnlineChoice(onlineBtn, open) {
+    if (!onlineBtn) return;
+    onlineBtn.hidden = !open;
+    if ('disabled' in onlineBtn) onlineBtn.disabled = !open;
+    if (open) {
+      if (typeof onlineBtn.removeAttribute === 'function') {
+        onlineBtn.removeAttribute('aria-hidden');
+        onlineBtn.removeAttribute('tabindex');
+      }
+      onlineBtn.tabIndex = 0;
+      if (typeof onlineBtn.setAttribute === 'function') {
+        onlineBtn.setAttribute('onclick', "selectRequestPaymentPreference('online_after_service')");
+      }
+      return;
+    }
+    onlineBtn.tabIndex = -1;
+    onlineBtn.onclick = null;
+    if (typeof onlineBtn.setAttribute === 'function') {
+      onlineBtn.setAttribute('aria-hidden', 'true');
+      onlineBtn.setAttribute('tabindex', '-1');
+    }
+    if (typeof onlineBtn.removeAttribute === 'function') onlineBtn.removeAttribute('onclick');
+  }
+
   function applyCustomerPaymentsAvailability(enabled) {
     customerPaymentsOpen = enabled === true;
     var doc = root.document;
     if (!doc || typeof doc.getElementById !== 'function') return;
     var onlineBtn = doc.getElementById('pc-online');
-    if (onlineBtn) {
-      onlineBtn.hidden = !customerPaymentsOpen;
-      if ('disabled' in onlineBtn) onlineBtn.disabled = !customerPaymentsOpen;
-      if (typeof onlineBtn.setAttribute === 'function') {
-        if (customerPaymentsOpen && typeof onlineBtn.removeAttribute === 'function') {
-          onlineBtn.removeAttribute('aria-hidden');
-        } else if (!customerPaymentsOpen) {
-          onlineBtn.setAttribute('aria-hidden', 'true');
-        }
-      }
-    }
+    if (onlineBtn) sealOnlineChoice(onlineBtn, customerPaymentsOpen);
     var host = doc.getElementById('bk-pay-pref');
     if (!host && typeof doc.querySelector === 'function') host = doc.querySelector('.bk-pay-pref');
     var note = doc.getElementById('bk-customer-pay-note');

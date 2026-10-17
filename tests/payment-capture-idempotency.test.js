@@ -7,6 +7,11 @@ const { getPrisma } = require('../netlify/lib/prisma');
 const { financialProjection } = require('../netlify/lib/payment-service');
 const { chargeSavedCardAfterService, PURPOSE } = require('../netlify/lib/charge-saved-card-after-service');
 const { observeProviderPaymentIntent } = require('../netlify/lib/db/payment-authority-service');
+const {
+  SANDBOX_BAKE,
+  setBakedCustomerPaymentsSnapshot,
+  clearBakedCustomerPaymentsSnapshot,
+} = require('../netlify/lib/stripe-customer-payments');
 
 const secret = 'whsec_capture_idempotency_test_only';
 const ENV = {
@@ -174,6 +179,7 @@ function captureRows(ledger, piId) {
 }
 
 before(() => {
+  setBakedCustomerPaymentsSnapshot(SANDBOX_BAKE);
   process.env.STRIPE_WEBHOOK_SECRET = secret;
   delete process.env.ADMIN_EMAIL;
   delete process.env.RESEND_API_KEY;
@@ -183,6 +189,7 @@ before(() => {
 });
 
 after(() => {
+  clearBakedCustomerPaymentsSnapshot();
   webhook.__test.setBlobsStoreOverride(null);
   delete process.env.STRIPE_WEBHOOK_SECRET;
 });

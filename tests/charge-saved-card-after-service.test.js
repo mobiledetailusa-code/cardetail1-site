@@ -1,6 +1,6 @@
 'use strict';
 
-const test = require('node:test');
+const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,6 +15,14 @@ const {
   AFTER_SERVICE_CHARGE_CONSENT_VERSION,
 } = require('../netlify/lib/charge-saved-card-after-service');
 const { stampAfterServiceChargeConsent } = require('../netlify/lib/customer-policy');
+const {
+  SANDBOX_BAKE,
+  setBakedCustomerPaymentsSnapshot,
+  clearBakedCustomerPaymentsSnapshot,
+} = require('../netlify/lib/stripe-customer-payments');
+
+before(() => setBakedCustomerPaymentsSnapshot(SANDBOX_BAKE));
+after(() => clearBakedCustomerPaymentsSnapshot());
 
 const ENV = {
   STRIPE_SECRET_KEY: 'sk_test_after_service_isolated',

@@ -64,6 +64,9 @@
   align-items:flex-start;
   gap:6px;
 }
+.bk-pay-pref .pay-choice[hidden]{
+  display:none !important;
+}
 .bk-pay-rec-badge{
   display:inline-block;
   font-size:10px;

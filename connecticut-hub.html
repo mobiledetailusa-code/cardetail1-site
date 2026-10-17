@@ -3623,7 +3623,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
             <div class="oc-t">Preferred payment method</div>
             <div class="bk-pay-pref" role="group" aria-label="Preferred payment method">
               <div class="bk-pay-pref-row">
-                <button type="button" class="pay-choice" id="pc-online" hidden aria-pressed="false" onclick="selectRequestPaymentPreference('online_after_service')"><span>Card online — charged after service</span></button>
+                <button type="button" class="pay-choice" id="pc-online" hidden disabled aria-hidden="true" tabindex="-1" aria-pressed="false"><span>Card online — charged after service</span></button>
                 <button type="button" class="pay-choice" id="pc-onsite" aria-pressed="false" onclick="selectRequestPaymentPreference('card_onsite')">Card at service</button>
                 <button type="button" class="pay-choice" id="pc-cash" aria-pressed="false" onclick="selectRequestPaymentPreference('cash_onsite')">Cash at service</button>
               </div>
@@ -3808,7 +3808,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
-<script src="https://js.stripe.com/v3/"></script>
 <script src="/netlify/lib/admin-session-client.js"></script>
 <script src="assets/car-pkg-detail-modal.js"></script>
 <script src="assets/icon-3d.js"></script>
@@ -6168,7 +6167,7 @@ function showSuccess(payload){
     const notify=b.notificationState&&b.notificationState.status==='failed'
       ? ' We could not send the confirmation email automatically — your booking is still saved and our team can resend your access link.'
       : ' Check your email for your appointment access link.';
-    subEl.textContent='Your booking request was submitted.'+ref+' No payment was collected and no card was required.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment. We\'ll contact you with your booking update. If you opted in for SMS, updates may be sent by text. Pay Online in My Garage or pay at service when available.';
+    subEl.textContent='Your booking request was submitted.'+ref+' No payment was collected and no card was required.'+notify+' Cardetail1 will review your location, schedule, and vehicle details before confirming the appointment. We\'ll contact you with your booking update. If you opted in for SMS, updates may be sent by text. Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed.';
   }
   const em=document.getElementById('ok-email'); if(em)em.href=mailtoForBooking(b);
   const sm=document.getElementById('ok-sms'); if(sm)sm.href=smsForBooking(b);

@@ -1915,7 +1915,12 @@
     var paid = invoiceIsPaid(pay);
     if (!can && !(due > 0) && !(Number(pay.approvedTotal || 0) > 0) && !paid) {
       panel.innerHTML = '';
-      if (empty) show(empty, true);
+      if (empty) {
+        empty.textContent = pay.customerPaymentsUnavailable
+          ? GARAGE_PAYMENTS_COPY
+          : 'No balance due.';
+        show(empty, true);
+      }
       return;
     }
     if (empty) show(empty, false);
@@ -2839,11 +2844,36 @@
     setEmbeddedPayMsg('', false);
   }
 
+  function loadStripeJsOnce() {
+    if (typeof global.Stripe === 'function') return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      var script = document.createElement('script');
+      script.src = 'https://js.stripe.com/v3/';
+      script.async = true;
+      var timer = setTimeout(function () {
+        if (script.parentNode) script.parentNode.removeChild(script);
+        resolve(false);
+      }, 8000);
+      script.onload = function () {
+        clearTimeout(timer);
+        resolve(typeof global.Stripe === 'function');
+      };
+      script.onerror = function () {
+        clearTimeout(timer);
+        if (script.parentNode) script.parentNode.removeChild(script);
+        resolve(false);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
   async function loadStripePublishableKey() {
     try {
       var res = await fetch(API + 'stripe-config', { method: 'GET', credentials: 'same-origin' });
       var data = await res.json();
-      return data && data.publishableKey ? data.publishableKey : null;
+      if (!data || data.customerPaymentsEnabled !== true || !data.publishableKey) return null;
+      var loaded = await loadStripeJsOnce();
+      return loaded ? data.publishableKey : null;
     } catch (e) {
       return null;
     }
@@ -2960,12 +2990,8 @@
     }
 
     if (intent.data && intent.data.ok && intent.data.clientSecret) {
-      if (typeof global.Stripe !== 'function') {
-        showToast('Stripe.js failed to load. Check your connection and try again.', true);
-        return startHostedCheckoutFallback();
-      }
       var pk = await loadStripePublishableKey();
-      if (!pk) {
+      if (!pk || typeof global.Stripe !== 'function') {
         showToast('Payment config is temporarily unavailable. Try again shortly.', true);
         return startHostedCheckoutFallback();
       }
