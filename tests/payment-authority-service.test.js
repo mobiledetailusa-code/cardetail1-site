@@ -20,7 +20,10 @@ function nextId(label) {
   return label === 'pi' ? `pi_${id}` : id;
 }
 
-const FAKE_ENV = { STRIPE_SECRET_KEY: 'sk_test_fake000000000000000000' };
+const FAKE_ENV = {
+  STRIPE_SECRET_KEY: 'sk_test_fake000000000000000000',
+  STRIPE_LEGACY_REFUNDS_ENABLED: 'true',
+};
 
 function fakePaymentIntentCreateFetch({ id = 'pi_fake', calls } = {}) {
   return async (url, opts) => {
