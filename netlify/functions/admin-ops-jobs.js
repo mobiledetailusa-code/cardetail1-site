@@ -2543,6 +2543,16 @@ async function handleAdminAction(body, testOpts = {}) {
   }
 
   if (action === 'record_refund_request') {
+    const refundEnv = testOpts.env || process.env;
+    const { legacyStripeRefundsEnabled } = require('../lib/stripe-legacy-refunds');
+    if (!legacyStripeRefundsEnabled(refundEnv)) {
+      return jsonCors(403, {
+        ok: false,
+        error: 'legacy_stripe_refunds_disabled',
+        stripeCalled: false,
+        refunded: false,
+      });
+    }
     const reason = sanitizeText(body.reason, 500);
     const amountNumber = Number(body.amount);
     const amountCents = Math.round(amountNumber * 100);
@@ -2578,6 +2588,7 @@ async function handleAdminAction(body, testOpts = {}) {
       requestKey: sanitizeText(body.requestKey, 96),
       expectedQuoteVersion: body.expectedQuoteVersion || projection?.quoteVersion,
       requestedBy: 'admin',
+      env: refundEnv,
     });
     if (!result.ok) {
       return jsonCors(result.statusCode || 400, {

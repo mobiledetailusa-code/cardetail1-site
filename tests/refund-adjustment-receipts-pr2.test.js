@@ -12,7 +12,10 @@ const { ensureBookingFinancial } = require('../netlify/lib/db/ensure-booking-fin
 const { handleWebhookDelivery } = require('../netlify/lib/db/webhook-inbox');
 
 const RUN = `PR2-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
-const STRIPE_ENV = { STRIPE_SECRET_KEY: 'sk_test_pr2_fake000000000000000' };
+const STRIPE_ENV = {
+  STRIPE_SECRET_KEY: 'sk_test_pr2_fake000000000000000',
+  STRIPE_LEGACY_REFUNDS_ENABLED: 'true',
+};
 let counter = 0;
 
 function unique(label) {

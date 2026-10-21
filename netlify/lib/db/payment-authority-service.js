@@ -15,6 +15,11 @@
 
 const crypto = require('node:crypto');
 const { guardStripeOrReject } = require('../stripe-mode');
+const {
+  legacyStripeRefundsEnabled,
+  legacyStripeRefundsDisabledResult,
+  stripeRefundAttemptEligible,
+} = require('../stripe-legacy-refunds');
 const { getPrisma, tryGetPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
 const { computeFinancialProjection } = require('./financial-projection');
@@ -1444,6 +1449,8 @@ async function createRefund({
   env = process.env,
   fetchImpl = globalThis.fetch,
 }) {
+  if (!legacyStripeRefundsEnabled(env)) return legacyStripeRefundsDisabledResult();
+
   const id = String(bookingId || '').trim();
   const cents = Math.round(Number(amountCents) || 0);
   const note = String(reason || '').trim().slice(0, 500);
@@ -1513,7 +1520,7 @@ async function createRefund({
       let remainingToReserve = cents;
       const allocations = [];
       for (const attempt of attempts) {
-        if (!attempt.providerObjectId || !String(attempt.providerObjectId).startsWith('pi_')) continue;
+        if (!stripeRefundAttemptEligible(attempt)) continue;
         const settledForAttempt = ledgerEntries
           .filter((entry) => entry.kind === 'settlement' && entry.paymentAttemptId === attempt.id)
           .reduce((sum, entry) => sum + Math.max(0, Math.round(Number(entry.amountCents) || 0)), 0);
@@ -1606,7 +1613,20 @@ async function createRefund({
     }
     const attempt = attemptById.get(request.paymentAttemptId);
     if (!attempt?.providerObjectId) {
-      return { ok: false, error: 'refund_payment_attempt_missing', statusCode: 409 };
+      return { ok: false, error: 'refund_payment_attempt_missing', statusCode: 409, stripeCalled: false };
+    }
+    if (!stripeRefundAttemptEligible(attempt)) {
+      await prisma.refundRequest.update({
+        where: { id: request.id },
+        data: { status: 'canceled', failureCode: 'non_stripe_refund_refused' },
+      }).catch(() => {});
+      return {
+        ok: false,
+        error: 'non_stripe_refund_refused',
+        statusCode: 409,
+        stripeCalled: false,
+        refunded: false,
+      };
     }
     const form = new URLSearchParams({
       payment_intent: attempt.providerObjectId,

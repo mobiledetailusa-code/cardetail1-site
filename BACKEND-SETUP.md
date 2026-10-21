@@ -87,6 +87,9 @@ Stripe → *Developers → Webhooks → Add endpoint* (ou edite o endpoint exist
 |---|---|---|
 | `STRIPE_PUBLISHABLE_KEY` | Netlify (servidor) + browser via `stripe-config` | `pk_live_…` / `pk_test_…` |
 | `SITE_URL` | Netlify | `https://cardetail1.com` (URLs success/cancel do checkout de assinatura) |
+| `STRIPE_LEGACY_REFUNDS_ENABLED` | **só servidor** | ausente ou diferente de `true` = reembolsos administrativos históricos fechados. Não reabre pagamentos de clientes. |
+
+Reembolsos Stripe de pagamentos históricos só podem ser iniciados quando `STRIPE_LEGACY_REFUNDS_ENABLED` é exatamente `true`. Com o controle fechado, `record_refund_request` responde `legacy_stripe_refunds_disabled` e não cria reserva nem chama `POST /v1/refunds`. O webhook assinado continua podendo conciliar um reembolso que a Stripe já tenha aceitado. A flag não altera `STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED`. Detalhe em `docs/audit/stripe-legacy-refunds.md`.
 
 ### Modelo de cobrança (preço por pé variável de barco/RV)
 `create-payment-intent` usa `capture_method: 'manual'` por padrão → **autoriza** (segura) o valor no cartão; depois do serviço você **captura o valor final** no painel do Stripe. Para cobrar na hora, mande `capture: 'auto'` no body.
