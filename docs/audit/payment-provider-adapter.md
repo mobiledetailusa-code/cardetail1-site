@@ -64,11 +64,11 @@ Historical Stripe customer payments remain behind `STRIPE_PRODUCTION_CUSTOMER_PA
 ## Current limits
 
 - The adapter is not connected to any customer or admin flow.
-- No Square SDK, credential, location, or sandbox client is installed.
+- No Square SDK is installed. A separate sandbox client can call Square only from an explicit local script. It is not selected by `getActivePaymentProvider()`.
 - No production flag can turn the adapter on.
 - Historical reads and settlements stay in the existing services.
 - `getPayment` does not query the ledger. Existing financial screens keep their current reads.
 
-## Next step for Square
+## Square Sandbox
 
-A later change can add a Square sandbox implementation behind this interface. That work needs its own review. It has to keep `none` as the production selection, keep offline settlement off the adapter, keep the Stripe gates closed, and avoid live charges, live refunds, schema changes, and edits to booking, catalog, My Garage, Quick Ops, and Admin until a separate authorization connects a flow.
+`netlify/lib/square-sandbox-provider.js` implements `createPayment` and `getPayment` against Square Sandbox only. The active provider remains `none`. See `docs/audit/square-sandbox-provider.md`. Booking, the ledger, and production Square are not connected.
