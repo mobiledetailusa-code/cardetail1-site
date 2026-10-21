@@ -2589,7 +2589,6 @@ async function handleAdminAction(body, testOpts = {}) {
       expectedQuoteVersion: body.expectedQuoteVersion || projection?.quoteVersion,
       requestedBy: 'admin',
       env: refundEnv,
-      fetchImpl: testOpts.fetch || globalThis.fetch,
     });
     if (!result.ok) {
       return jsonCors(result.statusCode || 400, {
