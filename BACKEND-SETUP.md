@@ -27,11 +27,14 @@ No painel: **Site settings → Environment variables**. Nenhuma fica no código 
 | `ADMIN_SMS` | número que recebe o aviso, ex: `+1XXXXXXXXXX` |
 
 ### Pagamento (Square)
+
+Status: not an active integration. `netlify/functions/create-payment.js` returns 403 `endpoint_disabled` and does not call Square. Do not add `SQUARE_ACCESS_TOKEN` or a Web Payments SDK snippet for production. The inventory of the current processor is `docs/audit/stripe-financial-safety-baseline.md`.
+
 | Variável | Valor |
 |---|---|
-| `SQUARE_ACCESS_TOKEN` | https://developer.squareup.com/apps → seu app → Credentials |
-| `SQUARE_LOCATION_ID` | mesmo painel → Locations |
-| `SQUARE_ENV` | `sandbox` para testar, `production` para valer |
+| `SQUARE_ACCESS_TOKEN` | historical note only — not read by the disabled endpoint |
+| `SQUARE_LOCATION_ID` | historical note only |
+| `SQUARE_ENV` | historical note only |
 
 ## 3. Ligar o front-end ao backend
 
@@ -49,7 +52,9 @@ Com `BACKEND_URL` apontando para `/.netlify/...` (mesma origem), o site faz um f
 
 ## 3b. (Opção) Pagamento via Stripe — também no Netlify
 
-Funções **aditivas**, sem dependências npm: `create-payment-intent.js` e `stripe-webhook.js`.
+Status: customer payments in production stay closed unless `STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED` is exactly true in both the baked snapshot and the function runtime. `create-payment-intent.js`, `capture-payment.js`, `create-payment-link.js`, and `customer-portal-pay.js` are tombstones and do not call Stripe. `stripe-webhook.js` remains the signed inbound endpoint. See `docs/audit/stripe-financial-safety-baseline.md`.
+
+Funções sem dependências npm: `stripe-webhook.js` e os módulos listados nesse inventário.
 
 ### Variáveis de ambiente (Netlify)
 | Variável | Onde fica | Valor |
