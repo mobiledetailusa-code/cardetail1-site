@@ -453,6 +453,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/stripe-customer-payments.js',
     // Historical Stripe refunds stay closed unless explicitly enabled.
     'netlify/lib/stripe-legacy-refunds.js',
+    // Disabled payment-provider boundary. Not wired to booking or Stripe.
+    'netlify/lib/payment-provider-adapter.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

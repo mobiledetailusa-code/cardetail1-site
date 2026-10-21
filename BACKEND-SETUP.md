@@ -91,6 +91,8 @@ Stripe → *Developers → Webhooks → Add endpoint* (ou edite o endpoint exist
 
 Reembolsos Stripe de pagamentos históricos só podem ser iniciados quando `STRIPE_LEGACY_REFUNDS_ENABLED` é exatamente `true`. Com o controle fechado, `record_refund_request` responde `legacy_stripe_refunds_disabled` e não cria reserva nem chama `POST /v1/refunds`. O webhook assinado continua podendo conciliar um reembolso que a Stripe já tenha aceitado. A flag não altera `STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED`. Detalhe em `docs/audit/stripe-legacy-refunds.md`.
 
+O adaptador interno de processador (`netlify/lib/payment-provider-adapter.js`) escolhe `none`: nenhum processador novo está ativo. As operações de criar pagamento, consultar, reembolsar, salvar cartão, cobrar cartão salvo e criar link devolvem `payment_provider_disabled` e não chamam Stripe nem Square. Ele não está ligado ao booking, My Garage, Quick Ops, Admin ou ao webhook. Cash e cartão no local continuam nos caminhos atuais. Detalhe em `docs/audit/payment-provider-adapter.md`.
+
 ### Modelo de cobrança (preço por pé variável de barco/RV)
 `create-payment-intent` usa `capture_method: 'manual'` por padrão → **autoriza** (segura) o valor no cartão; depois do serviço você **captura o valor final** no painel do Stripe. Para cobrar na hora, mande `capture: 'auto'` no body.
 
