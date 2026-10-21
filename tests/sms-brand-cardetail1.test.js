@@ -390,6 +390,8 @@ describe('STOP/HELP, secure links, consent, outbox, payments', () => {
       // Fail-closed customer payment switch. Does not change SMS, refunds, or quotes.
       'netlify/functions/stripe-config.js',
       'netlify/lib/stripe-customer-payments.js',
+      // Fail-closed historical refund switch. Does not change SMS, quotes, or customer charges.
+      'netlify/lib/stripe-legacy-refunds.js',
     ]);
     const unexpectedStripe = (files) => files.filter((file) => !stripeAllowlist.has(file));
     assert.deepEqual(unexpectedStripe([]), []);
