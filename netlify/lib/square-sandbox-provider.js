@@ -431,7 +431,7 @@ async function squareFetch({ url, method, token, body, fetchImpl, timeoutMs }) {
 class SquareSandboxProvider {
   constructor({ env, fetchImpl, confirmation, timeoutMs } = {}) {
     this.env = env || {};
-    this.fetchImpl = fetchImpl;
+    this.fetchImpl = fetchImpl || globalThis.fetch;
     this.confirmation = confirmation;
     this.timeoutMs = Number.isInteger(timeoutMs) && timeoutMs > 0 ? timeoutMs : 15000;
     this.id = PROVIDER_ID;

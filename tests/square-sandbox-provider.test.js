@@ -106,6 +106,29 @@ test('the active provider remains none when the sandbox client exists', () => {
   }
 });
 
+test('the smoke client uses the process fetch when no mock is injected', async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push(String(url));
+    assert.equal(init.signal.aborted, false);
+    return jsonResponse(200, paymentBody());
+  };
+  try {
+    const client = createSquareSandboxProvider({
+      env: localEnv(),
+      confirmation: LOCAL_CONFIRMATION,
+      timeoutMs: 1000,
+    });
+    const result = await client.createPayment(request());
+    assert.equal(result.completed, true);
+    assert.equal(calls.length, 1);
+    assert.equal(new URL(calls[0]).origin, SANDBOX_ORIGIN);
+  } finally {
+    globalThis.fetch = previous;
+  }
+});
+
 test('a completed sandbox payment is accepted only when the status is COMPLETED', async () => {
   const network = mockFetch(async () => jsonResponse(200, paymentBody()));
   const result = await provider(network.fetchImpl).createPayment(request());
