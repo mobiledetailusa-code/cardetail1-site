@@ -93,6 +93,8 @@ Reembolsos Stripe de pagamentos históricos só podem ser iniciados quando `STRI
 
 O adaptador interno de processador (`netlify/lib/payment-provider-adapter.js`) escolhe `none`: nenhum processador novo está ativo. As operações de criar pagamento, consultar, reembolsar, salvar cartão, cobrar cartão salvo e criar link devolvem `payment_provider_disabled` e não chamam Stripe nem Square. Ele não está ligado ao booking, My Garage, Quick Ops, Admin ou ao webhook. Cash e cartão no local continuam nos caminhos atuais. Detalhe em `docs/audit/payment-provider-adapter.md`.
 
+O cliente Square Sandbox (`netlify/lib/square-sandbox-provider.js`) não muda essa escolha. Ele só fala com `https://connect.squareupsandbox.com` quando um script local passa a confirmação explícita e a variável `SQUARE_SANDBOX_ACCESS_TOKEN`. Produção, preview e branch deploy recusam a chamada. Não há endpoint público. O teste manual está em `scripts/square-sandbox-smoke-test.js`. Detalhe em `docs/audit/square-sandbox-provider.md`.
+
 ### Modelo de cobrança (preço por pé variável de barco/RV)
 `create-payment-intent` usa `capture_method: 'manual'` por padrão → **autoriza** (segura) o valor no cartão; depois do serviço você **captura o valor final** no painel do Stripe. Para cobrar na hora, mande `capture: 'auto'` no body.
 
