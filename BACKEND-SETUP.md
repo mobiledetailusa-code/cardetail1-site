@@ -95,6 +95,8 @@ O adaptador interno de processador (`netlify/lib/payment-provider-adapter.js`) e
 
 O cliente Square Sandbox (`netlify/lib/square-sandbox-provider.js`) não muda essa escolha. Ele só fala com `https://connect.squareupsandbox.com` quando um script local passa a confirmação explícita e a variável `SQUARE_SANDBOX_ACCESS_TOKEN`. Produção, preview e branch deploy recusam a chamada. Não há endpoint público. O teste manual está em `scripts/square-sandbox-smoke-test.js`. Detalhe em `docs/audit/square-sandbox-provider.md`.
 
+A validação de webhook do Square (`netlify/lib/square-webhook-verifier.js`) só confere a assinatura HMAC-SHA256 do corpo cru mais a URL de notificação. Ela não abre endpoint, não lê o header Host para montar a URL e não grava no ledger. `payment.created` e `payment.updated` viram uma representação do evento. HTTP 200 não confirma pagamento. O provider ativo continua `none`. Detalhe em `docs/audit/square-webhook-verifier.md`.
+
 ### Modelo de cobrança (preço por pé variável de barco/RV)
 `create-payment-intent` usa `capture_method: 'manual'` por padrão → **autoriza** (segura) o valor no cartão; depois do serviço você **captura o valor final** no painel do Stripe. Para cobrar na hora, mande `capture: 'auto'` no body.
 

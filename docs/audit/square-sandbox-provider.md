@@ -75,3 +75,4 @@ Use the sandbox nonce `cnon:card-nonce-declined` only in a mock or in a future e
 - Refunds, saved cards, and payment links are still disabled.
 - No Square SDK is installed. The client uses `fetch`.
 - A live sandbox smoke test has to be run by a person with a sandbox access token. CI never does that.
+- Webhook signature verification is a separate module. It does not call this client and it does not expose an endpoint. See `docs/audit/square-webhook-verifier.md`.
