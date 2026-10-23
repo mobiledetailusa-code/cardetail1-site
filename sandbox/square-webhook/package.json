@@ -1,0 +1,8 @@
+{
+  "name": "cardetail1-square-sandbox-webhook",
+  "private": true,
+  "description": "Isolated Square Sandbox webhook receiver. Not the Cardetail1 commercial site.",
+  "dependencies": {
+    "pg": "^8.22.0"
+  }
+}

@@ -443,5 +443,8 @@ test('validation does not write money, call the network, reopen Stripe, or selec
   }
   const functions = fs.readdirSync(path.join(ROOT, 'netlify/functions'));
   assert.equal(functions.some((name) => /square/i.test(name)), false);
-  assert.doesNotMatch(read('.github/workflows/integration.yml'), /SQUARE_SANDBOX|square-webhook/);
+  const workflow = read('.github/workflows/integration.yml');
+  assert.doesNotMatch(workflow, /SQUARE_SANDBOX_ACCESS_TOKEN|SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY|connect\.squareupsandbox\.com/);
+  assert.match(workflow, /verify-build-isolation\.mjs --main-dist \.netlify\/functions/);
+  assert.doesNotMatch(workflow, /functions\s*=\s*["']sandbox/);
 });

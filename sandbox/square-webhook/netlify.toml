@@ -1,0 +1,16 @@
+# Square Sandbox webhook site.
+# The commercial site keeps the repository-root netlify.toml.
+# Create the site later with Package directory = sandbox/square-webhook
+# and Base directory left empty. Paths below are relative to the repository root.
+
+[build]
+  command = "true"
+  publish = "sandbox/square-webhook/public"
+  functions = "sandbox/square-webhook/netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  # zip-it-and-ship-it copies @prisma/client into every function when the
+  # commercial client is resolvable from the repository root. This site must
+  # not publish that client or the generated commercial schema.
+  included_files = ["!node_modules/@prisma/**", "!node_modules/.prisma/**", "!prisma/**"]

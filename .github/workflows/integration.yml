@@ -226,6 +226,8 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund --prefix .github/netlify-build
       - name: Build Netlify preview without project credentials
         run: .github/netlify-build/node_modules/.bin/netlify build --offline --context deploy-preview
+      - name: Verify the Square Sandbox receiver stays out of the commercial bundle
+        run: node sandbox/square-webhook/scripts/verify-build-isolation.mjs --main-dist .netlify/functions
       - name: Assert preview cannot enable Twilio provider
         run: >-
           node -e "const assert=require('node:assert/strict');
