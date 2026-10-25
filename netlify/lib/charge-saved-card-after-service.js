@@ -651,8 +651,18 @@ async function chargeSavedCardAfterService({
     }
   } else if (outcome === 'succeeded' || outcome === 'requires_action' || outcome === 'declined') {
     const { observeProviderPaymentIntent } = require('./db/payment-authority-service');
+    // This function created the PaymentIntent. Record that id on the booking
+    // passed to observation so the webhook guard can tell this authorized
+    // charge from an unassociated signed event. A different id already stored
+    // on the booking is left unchanged and will not match.
+    const storedIntentId = String(
+      booking.paymentIntentId || booking.stripePaymentIntentId || ''
+    ).trim();
+    const observationBooking = storedIntentId
+      ? booking
+      : { ...booking, paymentIntentId: paymentIntent.id };
     const observed = await observeProviderPaymentIntent({
-      booking,
+      booking: observationBooking,
       paymentIntent: observedIntent,
       stripeEventId: `charge_${paymentIntent.id}_${eventType}`,
       type: eventType,

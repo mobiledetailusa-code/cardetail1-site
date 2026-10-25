@@ -6,11 +6,12 @@ const assert = require('node:assert/strict');
 const { getPrisma } = require('../netlify/lib/prisma');
 const { financialProjection } = require('../netlify/lib/payment-service');
 const { chargeSavedCardAfterService, PURPOSE } = require('../netlify/lib/charge-saved-card-after-service');
-const { observeProviderPaymentIntent } = require('../netlify/lib/db/payment-authority-service');
+const { observeProviderPaymentIntent, reconcileRefundEvent } = require('../netlify/lib/db/payment-authority-service');
 const {
   SANDBOX_BAKE,
   setBakedCustomerPaymentsSnapshot,
   clearBakedCustomerPaymentsSnapshot,
+  productionCustomerPaymentsBlocked,
 } = require('../netlify/lib/stripe-customer-payments');
 
 const secret = 'whsec_capture_idempotency_test_only';
@@ -56,7 +57,7 @@ function legacyEvent(type, bookingId, piId, extra = {}) {
   return {
     id: extra.eventId || id('evt'),
     type,
-    created: Math.floor(Date.now() / 1000),
+    created: extra.created || Math.floor(Date.now() / 1000),
     data: {
       object: {
         id: piId,
@@ -352,7 +353,7 @@ test('postgres disabled refuses to mark a succeeded saved-card charge paid', asy
 test('a repeated legacy webhook and two concurrent deliveries credit one settlement', async () => {
   const bookingId = id('BK-LEGACY');
   const piId = id('pi_legacy');
-  stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId }));
+  stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId, paymentIntentId: piId }));
   const event = legacyEvent('payment_intent.succeeded', bookingId, piId);
   const first = await webhook.handler(signedRequest(event));
   assert.equal(first.statusCode, 200, first.body);
@@ -368,7 +369,7 @@ test('a repeated legacy webhook and two concurrent deliveries credit one settlem
 
   const otherId = id('BK-CONCURRENT');
   const otherPi = id('pi_concurrent');
-  stores['cd1-bookings'].values.set(otherId, booking({ id: otherId }));
+  stores['cd1-bookings'].values.set(otherId, booking({ id: otherId, paymentIntentId: otherPi }));
   const concurrent = legacyEvent('payment_intent.succeeded', otherId, otherPi);
   const responses = await Promise.all([
     webhook.handler(signedRequest(concurrent)),
@@ -428,7 +429,7 @@ test('a blob capture missing its ledger is repaired once and does not charge', a
 test('an existing ledger row finishes the blob mirror without a second credit', async () => {
   const bookingId = id('BK-NOBLOB');
   const piId = id('pi_noblob');
-  const current = booking({ id: bookingId });
+  const current = booking({ id: bookingId, paymentIntentId: piId });
   const previousFetch = global.fetch;
   global.fetch = () => { throw new Error('stripe_called'); };
   try {
@@ -495,7 +496,7 @@ test('amount, currency, and purpose divergence are quarantined and do not mark p
 
   const purposeId = id('BK-PURPOSE');
   const purposePi = id('pi_purpose');
-  stores['cd1-bookings'].values.set(purposeId, booking({ id: purposeId }));
+  stores['cd1-bookings'].values.set(purposeId, booking({ id: purposeId, paymentIntentId: purposePi }));
   const seeded = await observeProviderPaymentIntent({
     booking: stores['cd1-bookings'].values.get(purposeId),
     paymentIntent: {
@@ -551,7 +552,11 @@ test('legacy failure and authentication events stay unpaid', async () => {
   ]) {
     const bookingId = id(`BK-${expected}`);
     const piId = id('pi_ops');
-    stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId, paymentStatus: 'authorization_pending' }));
+    stores['cd1-bookings'].values.set(bookingId, booking({
+      id: bookingId,
+      paymentStatus: 'authorization_pending',
+      paymentIntentId: piId,
+    }));
     const response = await webhook.handler(signedRequest(legacyEvent(type, bookingId, piId)));
     assert.equal(response.statusCode, 200, `${type}: ${response.body}`);
     assert.equal(stores['cd1-bookings'].values.get(bookingId).paymentStatus, expected);
@@ -560,4 +565,175 @@ test('legacy failure and authentication events stay unpaid', async () => {
     assert.equal(stored.attempts.length, 1);
     assert.notEqual(stored.attempts[0].status, 'succeeded');
   }
+});
+
+test('a signed unknown PaymentIntent does not create an attempt, ledger row, or paid booking', async () => {
+  const bookingId = id('BK-UNKNOWN');
+  const piId = id('pi_unknown');
+  stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId }));
+  const response = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.succeeded', bookingId, piId)
+  ));
+  assert.equal(response.statusCode, 200, response.body);
+  const body = JSON.parse(response.body);
+  assert.equal(body.quarantined, true);
+  assert.equal(body.error, 'unassociated_payment_intent');
+  assert.equal(body.settled, undefined);
+  const saved = stores['cd1-bookings'].values.get(bookingId);
+  assert.equal(saved.paymentStatus, 'due');
+  assert.equal(saved.paymentIntentId, undefined);
+  const stored = await rows(bookingId);
+  assert.equal(stored.attempts.length, 0);
+  assert.equal(stored.ledger.length, 0);
+  assert.equal(stored.events.some((event) => event.status === 'failed' && event.errorCode === 'unassociated_payment_intent'), true);
+});
+
+test('an existing PaymentAttempt reconciles without a booking-stored PaymentIntent id', async () => {
+  const bookingId = id('BK-ATTEMPT-ONLY');
+  const piId = id('pi_attempt_only');
+  stores['cd1-bookings'].values.set(bookingId, booking({
+    id: bookingId,
+    paymentStatus: 'authorization_pending',
+    paymentIntentId: piId,
+  }));
+  const opened = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.payment_failed', bookingId, piId)
+  ));
+  assert.equal(opened.statusCode, 200, opened.body);
+  const stripped = stores['cd1-bookings'].values.get(bookingId);
+  delete stripped.paymentIntentId;
+  stores['cd1-bookings'].values.set(bookingId, stripped);
+  const settled = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.succeeded', bookingId, piId)
+  ));
+  assert.equal(settled.statusCode, 200, settled.body);
+  assert.equal(JSON.parse(settled.body).settled, true);
+  assert.equal(stores['cd1-bookings'].values.get(bookingId).paymentStatus, 'paid');
+  const stored = await rows(bookingId);
+  assert.equal(stored.attempts.length, 1);
+  assert.equal(stored.attempts[0].provider, 'stripe');
+  assert.equal(stored.attempts[0].providerObjectId, piId);
+  assert.equal(captureRows(stored.ledger, piId).length, 1);
+});
+
+test('a stored booking PaymentIntent id still reconciles, and a different id does not', async () => {
+  const bookingId = id('BK-STORED');
+  const piId = id('pi_stored');
+  stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId, stripePaymentIntentId: piId }));
+  const matched = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.succeeded', bookingId, piId)
+  ));
+  assert.equal(matched.statusCode, 200, matched.body);
+  assert.equal(JSON.parse(matched.body).settled, true);
+  assert.equal(captureRows((await rows(bookingId)).ledger, piId).length, 1);
+
+  const otherId = id('BK-OTHER-PI');
+  const storedPi = id('pi_kept');
+  const incomingPi = id('pi_foreign');
+  stores['cd1-bookings'].values.set(otherId, booking({ id: otherId, paymentIntentId: storedPi }));
+  const mismatched = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.succeeded', otherId, incomingPi)
+  ));
+  assert.equal(JSON.parse(mismatched.body).quarantined, true);
+  assert.equal(JSON.parse(mismatched.body).error, 'unassociated_payment_intent');
+  assert.equal(stores['cd1-bookings'].values.get(otherId).paymentStatus, 'due');
+  assert.equal((await rows(otherId)).attempts.length, 0);
+  assert.equal((await rows(otherId)).ledger.length, 0);
+});
+
+test('metadata for a different booking does not settle the PaymentIntent', async () => {
+  const bookingId = id('BK-OWNER');
+  const otherId = id('BK-METADATA');
+  const piId = id('pi_cross');
+  const result = await observeProviderPaymentIntent({
+    booking: booking({ id: bookingId, paymentIntentId: piId }),
+    paymentIntent: {
+      id: piId,
+      amount: 5000,
+      amount_received: 5000,
+      currency: 'usd',
+      status: 'succeeded',
+      metadata: { bookingId: otherId, booking_id: otherId, purpose: 'authoritative_balance' },
+    },
+    stripeEventId: id('evt_cross'),
+    type: 'payment_intent.succeeded',
+  });
+  assert.equal(result.quarantined, true);
+  assert.equal(result.error, 'payment_booking_mismatch');
+  assert.equal((await rows(bookingId)).ledger.length, 0);
+  assert.equal((await rows(otherId)).attempts.length, 0);
+});
+
+test('closed customer charges still reconcile a previously associated historical intent', async () => {
+  const closed = { ...ENV, STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED: 'false' };
+  assert.equal(productionCustomerPaymentsBlocked(closed), true);
+  const current = partialBooking();
+  const blocked = await chargeSavedCardAfterService({
+    booking: current,
+    projection: financialProjection(current),
+    env: closed,
+    fetchImpl: stripeFetch(200, succeededIntent(15000, id('pi_blocked'))),
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+  });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.stripeCalled, false);
+  assert.equal(blocked.charged, false);
+  assert.equal(blocked.error, 'customer_payments_unavailable');
+
+  const bookingId = id('BK-HISTORICAL-CLOSED');
+  const piId = id('pi_historical_closed');
+  stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId, paymentIntentId: piId }));
+  const response = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.succeeded', bookingId, piId)
+  ));
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(JSON.parse(response.body).settled, true);
+  assert.equal(captureRows((await rows(bookingId)).ledger, piId).length, 1);
+});
+
+test('an older event does not regress a settled PaymentIntent', async () => {
+  const bookingId = id('BK-ORDER');
+  const piId = id('pi_order');
+  const now = Math.floor(Date.now() / 1000);
+  stores['cd1-bookings'].values.set(bookingId, booking({ id: bookingId, paymentIntentId: piId }));
+  const settled = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.succeeded', bookingId, piId, { created: now })
+  ));
+  assert.equal(settled.statusCode, 200, settled.body);
+  assert.equal(JSON.parse(settled.body).settled, true);
+  const older = await webhook.handler(signedRequest(
+    legacyEvent('payment_intent.canceled', bookingId, piId, { created: now - 3600 })
+  ));
+  assert.equal(older.statusCode, 200, older.body);
+  assert.equal(JSON.parse(older.body).quarantined, true);
+  assert.equal(JSON.parse(older.body).error, 'out_of_order_event');
+  assert.equal(stores['cd1-bookings'].values.get(bookingId).paymentStatus, 'paid');
+  const stored = await rows(bookingId);
+  assert.equal(captureRows(stored.ledger, piId).length, 1);
+  assert.equal(stored.attempts[0].status, 'succeeded');
+});
+
+test('an unknown refund event does not append a ledger entry', async () => {
+  const bookingId = id('BK-REFUND');
+  const result = await reconcileRefundEvent({
+    stripeEventId: id('evt_refund_unknown'),
+    type: 'refund.created',
+    refund: {
+      id: `re_${crypto.randomBytes(8).toString('hex')}`,
+      amount: 500,
+      currency: 'usd',
+      status: 'succeeded',
+      payment_intent: id('pi_refund'),
+      metadata: {
+        purpose: 'customer_refund',
+        bookingId,
+        booking_id: bookingId,
+      },
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.quarantined, true);
+  assert.equal(result.error, 'no_matching_refund_request');
+  assert.equal((await rows(bookingId)).ledger.length, 0);
 });

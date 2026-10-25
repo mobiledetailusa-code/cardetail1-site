@@ -2418,11 +2418,29 @@ async function quarantineObservedEvent({
   return { ok: false, error: errorCode, quarantined: true, failureRecorded: true, statusCode: 409 };
 }
 
+function trustedStoredPaymentIntentIds(booking) {
+  const charge = booking?.afterServiceCharge;
+  return [
+    booking?.paymentIntentId,
+    booking?.stripePaymentIntentId,
+    charge && typeof charge === 'object' ? charge.paymentIntentId : '',
+  ].map((value) => String(value || '').trim()).filter(Boolean);
+}
+
+function bookingStoresPaymentIntent(booking, paymentIntentId) {
+  const id = String(paymentIntentId || '').trim();
+  return !!id && trustedStoredPaymentIntentIds(booking).includes(id);
+}
+
 /**
  * Record a PaymentIntent that Stripe already created (saved-card charge or a
  * legacy operational intent). This function never calls Stripe and never
  * captures. The server balance, not the caller, decides the attempt amount.
  * A mismatch is quarantined and does not settle.
+ *
+ * Webhook metadata is not a trusted association. An unknown PaymentIntent is
+ * quarantined unless a PaymentAttempt already points at it, or the booking
+ * already stores that exact PaymentIntent id from an earlier workflow.
  */
 async function observeProviderPaymentIntent({
   booking,
@@ -2497,6 +2515,28 @@ async function observeProviderPaymentIntent({
     : `legacy_${purpose}_${bookingId}_${quoteVersion}_${paymentIntent.id}`;
 
   let attempt = await repo.findPaymentAttemptByProviderObjectId(paymentIntent.id);
+  if (attempt && (
+    String(attempt.provider || '').toLowerCase() !== 'stripe'
+    || attempt.bookingId !== bookingId
+    || attempt.providerObjectId !== paymentIntent.id
+  )) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: attempt.bookingId !== bookingId
+        ? 'payment_booking_mismatch'
+        : 'payment_attempt_divergence',
+    });
+  }
+  if (!attempt && !bookingStoresPaymentIntent(booking, paymentIntent.id)) {
+    return quarantineObservedEvent({
+      stripeEventId,
+      type,
+      paymentIntent,
+      errorCode: 'unassociated_payment_intent',
+    });
+  }
   if (!attempt) {
     const reserved = await foundation.reservePaymentObligation({
       bookingId,
@@ -2554,6 +2594,20 @@ async function observeProviderPaymentIntent({
   });
   if (result.ok && result.duplicate && !result.projection) {
     result.projection = await getFinancialProjection(bookingId);
+  }
+  if (
+    result.ok
+    && result.ignored
+    && (result.reason === 'out_of_order_event' || result.reason === 'terminal_state_preserved')
+  ) {
+    return {
+      ok: false,
+      quarantined: true,
+      settled: false,
+      duplicate: false,
+      error: result.reason,
+      projection: result.projection || null,
+    };
   }
   return result;
 }
