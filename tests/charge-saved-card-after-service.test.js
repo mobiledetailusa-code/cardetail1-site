@@ -80,11 +80,46 @@ function booking(extra = {}) {
   };
 }
 
+function echoProviderBody(body, opts) {
+  const params = new URLSearchParams(String(opts?.body || ''));
+  const metadata = params.get('metadata[purpose]')
+    ? {
+      purpose: params.get('metadata[purpose]'),
+      bookingId: params.get('metadata[bookingId]'),
+      booking_id: params.get('metadata[booking_id]'),
+      quoteVersion: params.get('metadata[quoteVersion]'),
+      amountCents: params.get('metadata[amountCents]'),
+    }
+    : null;
+  if (!body || typeof body !== 'object') return body;
+  if (body.object === 'payment_intent') {
+    return {
+      ...body,
+      currency: body.currency || params.get('currency') || 'usd',
+      metadata: body.metadata || metadata || undefined,
+    };
+  }
+  if (body.error && body.error.payment_intent) {
+    return {
+      ...body,
+      error: {
+        ...body.error,
+        payment_intent: {
+          ...body.error.payment_intent,
+          currency: body.error.payment_intent.currency || 'usd',
+          metadata: body.error.payment_intent.metadata || metadata || undefined,
+        },
+      },
+    };
+  }
+  return body;
+}
+
 function stripeFetch(httpStatus, body) {
   const calls = [];
   const impl = async (url, opts) => {
-    calls.push({ url, body: String(opts.body || ''), headers: opts.headers });
-    return { status: httpStatus, json: async () => body };
+    calls.push({ url, method: opts.method || 'POST', body: String(opts.body || ''), headers: opts.headers });
+    return { status: httpStatus, json: async () => echoProviderBody(body, opts) };
   };
   impl.calls = calls;
   return impl;
@@ -103,9 +138,35 @@ function succeededIntent(amount, id) {
   };
 }
 
-test('success charges only the unpaid approved balance and marks paid after Stripe succeeds', async () => {
+test('success creates an unconfirmed PaymentIntent, stores it, then confirms once', async () => {
   const intent = succeededIntent(15000);
-  const fetchImpl = stripeFetch(200, intent);
+  const calls = [];
+  const fetchImpl = async (url, opts) => {
+    const method = opts.method || 'POST';
+    const body = String(opts.body || '');
+    calls.push({ url: String(url), method, body, headers: opts.headers });
+    const params = new URLSearchParams(body);
+    const metadata = {
+      purpose: params.get('metadata[purpose]') || PURPOSE,
+      bookingId: params.get('metadata[bookingId]') || undefined,
+      booking_id: params.get('metadata[booking_id]') || undefined,
+      quoteVersion: params.get('metadata[quoteVersion]') || '2',
+    };
+    if (method === 'GET' || String(url).endsWith('/confirm')) {
+      return { status: 200, json: async () => ({ ...intent, metadata, currency: 'usd' }) };
+    }
+    return {
+      status: 200,
+      json: async () => ({
+        ...intent,
+        status: 'requires_confirmation',
+        amount_received: 0,
+        currency: 'usd',
+        metadata,
+      }),
+    };
+  };
+  fetchImpl.calls = calls;
   const current = booking();
   const result = await chargeSavedCardAfterService({
     booking: current,
@@ -115,18 +176,25 @@ test('success charges only the unpaid approved balance and marks paid after Stri
     confirmCharge: true,
     expectedChargeCents: 15000,
   });
-  assert.equal(result.charged, true);
+  assert.equal(result.charged, true, result.error);
   assert.equal(result.stripeCalled, true);
   assert.equal(result.amountCents, 15000);
-  assert.equal(fetchImpl.calls.length, 1);
-  const params = new URLSearchParams(fetchImpl.calls[0].body);
-  assert.equal(params.get('amount'), '15000');
-  assert.equal(params.get('off_session'), 'true');
-  assert.equal(params.get('confirm'), 'true');
-  assert.equal(params.get('metadata[purpose]'), PURPOSE);
-  assert.equal(params.get('capture_method'), null);
-  assert.equal(params.get('payment_method_types[0]'), null);
-  assert.equal(fetchImpl.calls[0].headers['Idempotency-Key'], `after_service_${current.id}_2_15000`);
+  assert.equal(calls.length, 2);
+  const created = new URLSearchParams(calls[0].body);
+  assert.equal(calls[0].method, 'POST');
+  assert.equal(calls[0].url, 'https://api.stripe.com/v1/payment_intents');
+  assert.equal(created.get('amount'), '15000');
+  assert.equal(created.get('confirm'), null);
+  assert.equal(created.get('off_session'), null);
+  assert.equal(created.get('capture_method'), null);
+  assert.equal(created.get('metadata[purpose]'), PURPOSE);
+  assert.equal(calls[0].headers['Idempotency-Key'], `after_service_${current.id}_2_15000`);
+  assert.equal(calls[1].url, `https://api.stripe.com/v1/payment_intents/${intent.id}/confirm`);
+  const confirmed = new URLSearchParams(calls[1].body);
+  assert.equal(confirmed.get('off_session'), 'true');
+  assert.equal(confirmed.get('confirm'), null);
+  assert.equal(confirmed.get('amount'), null);
+  assert.equal(calls[1].headers['Idempotency-Key'], `after_service_${current.id}_2_15000:confirm`);
   assert.equal(result.booking.paymentStatus, 'paid');
   assert.equal(result.booking.jobStatus, 'completed_paid');
   assert.equal(result.booking.balanceDue, 0);
@@ -141,7 +209,7 @@ test('a declined card leaves the appointment completed and the balance pending w
       code: 'card_declined',
       message: 'Your card was declined.',
       payment_intent: {
-        id: 'pi_after_declined',
+        id: `pi_after_declined_${Date.now().toString(36)}`,
         object: 'payment_intent',
         status: 'requires_payment_method',
         amount: 15000,
@@ -169,7 +237,7 @@ test('a declined card leaves the appointment completed and the balance pending w
 
 test('additional authentication does not mark the booking paid', async () => {
   const fetchImpl = stripeFetch(200, {
-    id: 'pi_after_auth',
+    id: `pi_after_auth_${Date.now().toString(36)}`,
     object: 'payment_intent',
     status: 'requires_action',
     amount: 15000,
@@ -351,11 +419,12 @@ test('admin completion charges a saved card, and a service line does not', async
 
 test('admin cash completion and a declined retry do not create a second charge', async () => {
   const previousPostgres = process.env.CD1_POSTGRES_PAYMENT;
+  const declinedIntentId = `pi_admin_declined_${Date.now().toString(36)}`;
   const fetchImpl = stripeFetch(402, {
     error: {
       code: 'card_declined',
       payment_intent: {
-        id: 'pi_after_declined',
+        id: declinedIntentId,
         object: 'payment_intent',
         status: 'requires_payment_method',
         amount: 15000,
@@ -371,7 +440,7 @@ test('admin cash completion and a declined retry do not create a second charge',
     stripeCustomerId: '',
     stripePaymentMethodId: '',
   });
-  const online = booking({ id: 'CD1-DECLINE-1' });
+  const online = booking({ id: `CD1-DECLINE-${Date.now().toString(36)}` });
   const store = createCasMemoryStore({ [cash.id]: cash, [online.id]: online });
   setBookingStoreOverride(store);
   const { handleAdminAction } = require('../netlify/functions/admin-ops-jobs');
@@ -505,12 +574,26 @@ test('two simultaneous completions create at most one charge', async () => {
   const calls = [];
   const intent = succeededIntent(15000);
   const fetchImpl = async (url, opts) => {
-    calls.push({ url, headers: opts.headers });
+    const method = opts.method || 'POST';
+    calls.push({ url: String(url), method, headers: opts.headers });
     if (calls.length === 1) await hold;
-    return { status: 200, json: async () => intent };
+    const params = new URLSearchParams(String(opts.body || ''));
+    return {
+      status: 200,
+      json: async () => ({
+        ...intent,
+        currency: 'usd',
+        metadata: {
+          purpose: params.get('metadata[purpose]') || PURPOSE,
+          bookingId: params.get('metadata[bookingId]') || seed.id,
+          booking_id: params.get('metadata[booking_id]') || seed.id,
+          quoteVersion: params.get('metadata[quoteVersion]') || '2',
+        },
+      }),
+    };
   };
   fetchImpl.calls = calls;
-  const seed = booking({ id: 'CD1-RACE-1' });
+  const seed = booking({ id: `CD1-RACE-${Date.now().toString(36)}` });
   const store = createCasMemoryStore({ [seed.id]: seed });
   setBookingStoreOverride(store);
   const { handleAdminAction } = require('../netlify/functions/admin-ops-jobs');
@@ -534,8 +617,9 @@ test('two simultaneous completions create at most one charge', async () => {
     const bodies = results.map((res) => JSON.parse(res.body));
     const saved = JSON.parse(store._data.get(seed.id).value);
     const settlements = saved.ledger.entries.filter((entry) => entry.providerEventId === intent.id);
-    const keys = calls.map((call) => call.headers['Idempotency-Key']);
-    assert.ok(calls.length >= 1);
+    const creates = calls.filter((call) => call.method === 'POST' && call.url === 'https://api.stripe.com/v1/payment_intents');
+    const keys = creates.map((call) => call.headers['Idempotency-Key']);
+    assert.equal(creates.length, 1);
     assert.equal(new Set(keys).size, 1);
     assert.equal(settlements.length, 1);
     assert.equal(saved.ledger.settledCents, 18000);
@@ -545,17 +629,34 @@ test('two simultaneous completions create at most one charge', async () => {
   }
 });
 
-test('a lost Stripe response retries the same operation', async () => {
-  const byKey = new Map();
+test('a lost confirmation response retries the original PaymentIntent', async () => {
   const calls = [];
-  const fetchImpl = async (url, opts) => {
-    const key = opts.headers['Idempotency-Key'];
-    calls.push(key);
-    if (!byKey.has(key)) byKey.set(key, lostIntent);
-    return { status: 200, json: async () => byKey.get(key) };
-  };
   const lostIntent = succeededIntent(15000, `pi_lost_${Date.now().toString(36)}`);
   const current = booking({ id: `CD1-LOST-${Date.now().toString(36)}` });
+  const fetchImpl = async (url, opts) => {
+    const method = opts.method || 'POST';
+    const target = String(url);
+    calls.push({ url: target, method, key: opts.headers['Idempotency-Key'] || '' });
+    const params = new URLSearchParams(String(opts.body || ''));
+    const metadata = {
+      purpose: params.get('metadata[purpose]') || PURPOSE,
+      bookingId: params.get('metadata[bookingId]') || current.id,
+      booking_id: params.get('metadata[booking_id]') || current.id,
+      quoteVersion: params.get('metadata[quoteVersion]') || '2',
+    };
+    if (method === 'GET' || target.endsWith('/confirm')) {
+      return { status: 200, json: async () => ({ ...lostIntent, metadata }) };
+    }
+    return {
+      status: 200,
+      json: async () => ({
+        ...lostIntent,
+        status: 'requires_confirmation',
+        amount_received: 0,
+        metadata,
+      }),
+    };
+  };
   const store = { booking: current };
   let dropResult = true;
   const persistBooking = async (next) => {
@@ -578,7 +679,9 @@ test('a lost Stripe response retries the same operation', async () => {
   });
   assert.equal(first.stripeCalled, true);
   assert.equal(first.persisted, false);
+  assert.equal(first.ledgerSettled, true);
   assert.equal(store.booking.afterServiceCharge.status, 'charging');
+  assert.equal(store.booking.paymentIntentId, lostIntent.id);
   assert.equal(store.booking.ledger.settledCents, 3000);
   dropResult = false;
   const second = await chargeSavedCardAfterService({
@@ -590,10 +693,11 @@ test('a lost Stripe response retries the same operation', async () => {
     expectedChargeCents: 15000,
     persistBooking,
   });
-  assert.equal(second.charged, true);
+  assert.equal(second.charged, true, second.error);
   assert.equal(second.paymentIntentId, lostIntent.id);
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0], calls[1]);
+  const creates = calls.filter((call) => call.method === 'POST' && call.url === 'https://api.stripe.com/v1/payment_intents');
+  assert.equal(creates.length, 1);
+  assert.equal(creates[0].key, `after_service_${current.id}_2_15000`);
   assert.equal(second.booking.ledger.entries.filter((entry) => entry.providerEventId === lostIntent.id).length, 1);
   assert.equal(second.booking.ledger.settledCents, 18000);
 });
