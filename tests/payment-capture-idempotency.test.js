@@ -147,8 +147,21 @@ function partialBooking(extra = {}) {
 function stripeFetch(httpStatus, body) {
   const calls = [];
   const impl = async (url, opts) => {
-    calls.push({ url, body: String(opts.body || ''), headers: opts.headers });
-    return { status: httpStatus, json: async () => body };
+    calls.push({ url: String(url), method: opts.method || 'POST', body: String(opts.body || ''), headers: opts.headers });
+    const params = new URLSearchParams(String(opts.body || ''));
+    const metadata = params.get('metadata[purpose]')
+      ? {
+        purpose: params.get('metadata[purpose]'),
+        bookingId: params.get('metadata[bookingId]'),
+        booking_id: params.get('metadata[booking_id]'),
+        quoteVersion: params.get('metadata[quoteVersion]'),
+      }
+      : null;
+    let echoed = body;
+    if (body && body.object === 'payment_intent' && !body.metadata && metadata) {
+      echoed = { ...body, metadata, currency: body.currency || 'usd' };
+    }
+    return { status: httpStatus, json: async () => echoed };
   };
   impl.calls = calls;
   return impl;
@@ -248,8 +261,28 @@ test('a timeout retry reuses the same Stripe idempotency key and one ledger cred
   const piId = id('pi_timeout');
   const calls = [];
   const fetchImpl = async (url, opts) => {
-    calls.push(opts.headers['Idempotency-Key']);
-    return { status: 200, json: async () => succeededIntent(15000, piId) };
+    const method = opts.method || 'POST';
+    const target = String(url);
+    calls.push({ key: opts.headers['Idempotency-Key'] || '', method, url: target });
+    const params = new URLSearchParams(String(opts.body || ''));
+    const metadata = {
+      purpose: params.get('metadata[purpose]') || PURPOSE,
+      bookingId: params.get('metadata[bookingId]') || current.id,
+      booking_id: params.get('metadata[booking_id]') || current.id,
+      quoteVersion: params.get('metadata[quoteVersion]') || '2',
+    };
+    if (method === 'GET' || target.endsWith('/confirm')) {
+      return { status: 200, json: async () => ({ ...succeededIntent(15000, piId), metadata }) };
+    }
+    return {
+      status: 200,
+      json: async () => ({
+        ...succeededIntent(15000, piId),
+        status: 'requires_confirmation',
+        amount_received: 0,
+        metadata,
+      }),
+    };
   };
   let dropResult = true;
   const persistBooking = async (next) => {
@@ -281,8 +314,9 @@ test('a timeout retry reuses the same Stripe idempotency key and one ledger cred
     persistBooking,
   });
   assert.equal(second.charged, true, second.error);
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0], calls[1]);
+  const creates = calls.filter((call) => call.method === 'POST' && call.url === 'https://api.stripe.com/v1/payment_intents');
+  assert.equal(creates.length, 1);
+  assert.equal(creates[0].key, `after_service_${current.id}_2_15000`);
   const stored = await rows(current.id);
   assert.equal(captureRows(stored.ledger, piId).length, 1);
 });
@@ -343,8 +377,9 @@ test('postgres disabled refuses to mark a succeeded saved-card charge paid', asy
   assert.equal(result.ok, false);
   assert.equal(result.charged, false);
   assert.equal(result.error, 'postgres_payment_disabled');
+  assert.equal(result.stripeCalled, false);
   assert.notEqual(result.booking.paymentStatus, 'paid');
-  assert.equal(fetchImpl.calls.length, 1);
+  assert.equal(fetchImpl.calls.length, 0);
   const stored = await rows(current.id);
   assert.equal(stored.attempts.length, 0);
   assert.equal(stored.ledger.length, 0);
@@ -736,4 +771,162 @@ test('an unknown refund event does not append a ledger entry', async () => {
   assert.equal(result.quarantined, true);
   assert.equal(result.error, 'no_matching_refund_request');
   assert.equal((await rows(bookingId)).ledger.length, 0);
+});
+
+test('confirmation waits until the PaymentIntent id is stored, and an in-flight webhook can settle it', async () => {
+  const current = partialBooking();
+  const piId = id('pi_inflight');
+  const calls = [];
+  let duringConfirm = null;
+  const fetchImpl = async (url, opts) => {
+    const method = opts.method || 'POST';
+    const target = String(url);
+    calls.push({ method, url: target });
+    const params = new URLSearchParams(String(opts.body || ''));
+    const metadata = {
+      purpose: params.get('metadata[purpose]') || PURPOSE,
+      bookingId: params.get('metadata[bookingId]') || current.id,
+      booking_id: params.get('metadata[booking_id]') || current.id,
+      quoteVersion: '2',
+    };
+    if (target.endsWith('/confirm')) {
+      const mid = await rows(current.id);
+      assert.equal(mid.attempts.length, 1);
+      assert.equal(mid.attempts[0].providerObjectId, piId);
+      assert.equal(mid.attempts[0].idempotencyKey, `after_service_${current.id}_2_15000`);
+      stores['cd1-bookings'].values.set(current.id, {
+        ...current,
+        paymentIntentId: piId,
+      });
+      duringConfirm = await webhook.handler(signedRequest(legacyEvent(
+        'payment_intent.succeeded',
+        current.id,
+        piId,
+        {
+          metadata: {
+            purpose: PURPOSE,
+            bookingId: current.id,
+            booking_id: current.id,
+            quoteVersion: '2',
+          },
+          intent: {
+            amount: 15000,
+            amount_received: 15000,
+            currency: 'usd',
+          },
+        },
+      )));
+      return {
+        status: 200,
+        json: async () => ({
+          id: piId,
+          object: 'payment_intent',
+          status: 'succeeded',
+          currency: 'usd',
+          amount: 15000,
+          amount_received: 15000,
+          metadata,
+        }),
+      };
+    }
+    return {
+      status: 200,
+      json: async () => ({
+        id: piId,
+        object: 'payment_intent',
+        status: 'requires_confirmation',
+        currency: 'usd',
+        amount: 15000,
+        amount_received: 0,
+        metadata,
+      }),
+    };
+  };
+  const result = await chargeSavedCardAfterService({
+    booking: current,
+    projection: financialProjection(current),
+    env: ENV,
+    fetchImpl,
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+  });
+  assert.equal(result.charged, true, result.error);
+  assert.equal(duringConfirm.statusCode, 200, duringConfirm.body);
+  assert.equal(JSON.parse(duringConfirm.body).quarantined, false);
+  assert.notEqual(JSON.parse(duringConfirm.body).error, 'unassociated_payment_intent');
+  assert.equal(calls.filter((call) => call.method === 'POST' && call.url === 'https://api.stripe.com/v1/payment_intents').length, 1);
+  assert.equal(calls.filter((call) => call.url.endsWith('/confirm')).length, 1);
+  assert.equal(captureRows((await rows(current.id)).ledger, piId).length, 1);
+});
+
+test('a Stripe outage before a PaymentIntent exists does not confirm or settle', async () => {
+  const current = partialBooking();
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(String(url));
+    throw new Error('stopped before a provider id existed');
+  };
+  const result = await chargeSavedCardAfterService({
+    booking: current,
+    projection: financialProjection(current),
+    env: ENV,
+    fetchImpl,
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.charged, false);
+  assert.equal(result.error, 'stripe_network_error');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0], 'https://api.stripe.com/v1/payment_intents');
+  const stored = await rows(current.id);
+  assert.equal(stored.attempts.length, 1);
+  assert.equal(stored.attempts[0].providerObjectId, null);
+  assert.equal(stored.attempts[0].status, 'creating');
+  assert.equal(captureRows(stored.ledger, 'pi_missing').length, 0);
+});
+
+test('a client-supplied PaymentIntent id cannot start a charge', async () => {
+  const current = partialBooking({ stripePaymentIntentId: 'pi_client_supplied' });
+  const calls = [];
+  const result = await chargeSavedCardAfterService({
+    booking: current,
+    projection: financialProjection(current),
+    env: ENV,
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      throw new Error('stripe must not be called');
+    },
+    confirmCharge: true,
+    expectedChargeCents: 15000,
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.error, 'stored_payment_intent_conflict');
+  assert.equal(result.stripeCalled, false);
+  assert.equal(calls.length, 0);
+  assert.equal((await rows(current.id)).attempts.length, 0);
+});
+
+test('public booking input cannot set or replace trusted payment identifiers', () => {
+  const { __test } = require('../netlify/functions/submit-booking');
+  const submitted = {
+    paymentIntentId: 'pi_client',
+    stripePaymentIntentId: 'pi_client_stripe',
+    afterServiceCharge: { status: 'charging', paymentIntentId: 'pi_client_charge' },
+  };
+  __test.stripUntrustedPaymentIdentifiers(submitted);
+  assert.equal(submitted.paymentIntentId, undefined);
+  assert.equal(submitted.stripePaymentIntentId, undefined);
+  assert.equal(submitted.afterServiceCharge.paymentIntentId, undefined);
+  assert.equal(submitted.afterServiceCharge.status, 'charging');
+
+  const retained = {};
+  __test.retainServerPaymentIdentifiers(retained, {
+    paymentIntentId: 'pi_server',
+    stripePaymentIntentId: 'pi_server_stripe',
+    afterServiceCharge: { paymentIntentId: 'pi_server_charge' },
+  });
+  assert.equal(retained.paymentIntentId, 'pi_server');
+  assert.equal(retained.stripePaymentIntentId, 'pi_server_stripe');
+  assert.equal(retained.afterServiceCharge.paymentIntentId, 'pi_server_charge');
 });

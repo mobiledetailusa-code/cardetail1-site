@@ -24,7 +24,7 @@
 // Payment state is owned exclusively by stripe-webhook.js (HMAC-verified).
 // Admin/assignment state is owned by admin-authenticated endpoints.
 const CLIENT_BLOCKED_FIELDS = [
-  'paymentStatus', 'paymentIntentId', 'amountAuthorizedCents', 'amountCapturedCents',
+  'paymentStatus', 'paymentIntentId', 'stripePaymentIntentId', 'amountAuthorizedCents', 'amountCapturedCents',
   'capturedAt', 'captureInitiatedAt', 'stripeCustomerId', 'paymentMethodId',
   'stripePaymentMethodId', 'setupIntentId', 'cardOnFileSavedAt',
   // cardOnFileStatus is set exclusively by stripe-webhook (setup_intent.succeeded).
@@ -45,6 +45,30 @@ const CLIENT_BLOCKED_FIELDS = [
   // select the server mode or authorize a class override.
   'catalogTierMode', 'catalogTierOverride', 'adminTierOverride',
 ];
+
+function stripUntrustedPaymentIdentifiers(booking) {
+  if (!booking || typeof booking !== 'object') return booking;
+  delete booking.paymentIntentId;
+  delete booking.stripePaymentIntentId;
+  const charge = booking.afterServiceCharge;
+  if (charge && typeof charge === 'object') delete charge.paymentIntentId;
+  return booking;
+}
+
+function retainServerPaymentIdentifiers(booking, existing) {
+  if (!booking || !existing || typeof existing !== 'object') return booking;
+  if (existing.paymentIntentId) booking.paymentIntentId = existing.paymentIntentId;
+  if (existing.stripePaymentIntentId) booking.stripePaymentIntentId = existing.stripePaymentIntentId;
+  const stored = existing.afterServiceCharge;
+  if (stored && typeof stored === 'object' && stored.paymentIntentId) {
+    const charge = booking.afterServiceCharge && typeof booking.afterServiceCharge === 'object'
+      ? booking.afterServiceCharge
+      : {};
+    charge.paymentIntentId = stored.paymentIntentId;
+    booking.afterServiceCharge = charge;
+  }
+  return booking;
+}
 
 const PAYMENT_PREFERENCES = new Set([
   'cash_onsite',
@@ -1196,6 +1220,7 @@ exports.handler = async (event) => {
 
   // C-1: Strip all fields the browser must never control.
   for (const f of CLIENT_BLOCKED_FIELDS) delete b[f];
+  stripUntrustedPaymentIdentifiers(b);
   for (const f of CLIENT_OFFER_BLOCKED_FIELDS) delete b[f];
   stripClientOfferFields(b);
   // C-3: Ignore any client-submitted ID entirely.
@@ -1612,6 +1637,7 @@ exports.handler = async (event) => {
         }
         : { cardOnFileStatus: 'not_collected' }),
     };
+    retainServerPaymentIdentifiers(b, existing);
 
     // Duplicate matching reuses the occupancy scan when the legacy Blobs path
     // ran. When the slot index answered occupancy (slotBookings stays null),
@@ -1824,6 +1850,8 @@ exports.__test = {
   },
   resolveSlotScanTimeoutMs,
   buildDraftRecord,
+  stripUntrustedPaymentIdentifiers,
+  retainServerPaymentIdentifiers,
   rejectClosedOnlinePreference,
   issueDraftSaveResponse,
   reconcileCardOnFileFromStripe,

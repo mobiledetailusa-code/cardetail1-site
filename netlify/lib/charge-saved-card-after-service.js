@@ -4,9 +4,11 @@
  * Charge a saved card for the unpaid approved balance after the whole
  * appointment is completed.
  *
- * This is an off-session PaymentIntent (confirm + capture now). It is not a
- * SetupIntent and not a manual-capture hold. The card was saved earlier; funds
- * are requested only when an admin explicitly confirms this charge.
+ * The card was saved earlier. Funds move only when an admin explicitly confirms
+ * this charge. The server first records a PaymentAttempt, creates an
+ * unconfirmed PaymentIntent, stores that id, and only then confirms it.
+ * Confirmation is the money-moving call. It is not a SetupIntent and not a
+ * manual-capture hold.
  *
  * Cash at service and card at service never reach Stripe here. A single
  * service line never reaches this module. Paid is set only after Stripe
@@ -416,21 +418,24 @@ function applyAfterServiceStripeEvent(booking, paymentIntent, { stripeEventId = 
   return { ok: true, ignored: true, booking };
 }
 
-async function createOffSessionPayment({
-  booking,
-  amountCents,
-  secret,
-  idempotencyKey,
-  fetchImpl,
-}) {
+const STRIPE_PAYMENT_INTENTS_URL = 'https://api.stripe.com/v1/payment_intents';
+
+function storedPaymentIntentIds(booking) {
+  const charge = booking?.afterServiceCharge;
+  return [
+    booking?.paymentIntentId,
+    booking?.stripePaymentIntentId,
+    charge && typeof charge === 'object' ? charge.paymentIntentId : '',
+  ].map((value) => String(value || '').trim()).filter(Boolean);
+}
+
+function unconfirmedPaymentIntentForm(booking, amountCents) {
   const id = bookingIdOf(booking);
-  const form = new URLSearchParams({
+  return new URLSearchParams({
     amount: String(amountCents),
     currency: 'usd',
     customer: String(booking.stripeCustomerId),
     payment_method: String(booking.stripePaymentMethodId),
-    off_session: 'true',
-    confirm: 'true',
     description: `Cardetail1 approved balance after service · ${id}`,
     'metadata[purpose]': PURPOSE,
     'metadata[bookingId]': id,
@@ -438,17 +443,285 @@ async function createOffSessionPayment({
     'metadata[quoteVersion]': String(quoteVersionOf(booking)),
     'metadata[amountCents]': String(amountCents),
   });
-  const res = await fetchImpl('https://api.stripe.com/v1/payment_intents', {
+}
+
+function confirmPaymentIntentForm(booking) {
+  return new URLSearchParams({
+    payment_method: String(booking.stripePaymentMethodId),
+    off_session: 'true',
+  });
+}
+
+function chargeState(paymentIntent, httpStatus) {
+  const status = String(paymentIntent?.status || '').trim();
+  const code = String(paymentIntent?.last_payment_error?.code || '').trim();
+  if (status === 'succeeded') return 'succeeded';
+  if (status === 'requires_action' || code === 'authentication_required') return 'requires_action';
+  if (status === 'processing') return 'processing';
+  if (status === 'requires_confirmation') return 'needs_confirm';
+  if (status === 'requires_payment_method' && httpStatus < 400 && !code) return 'needs_confirm';
+  if (status === 'requires_payment_method' || status === 'canceled' || httpStatus === 402 || code === 'card_declined') {
+    return 'declined';
+  }
+  if (httpStatus >= 400) return 'declined';
+  return 'needs_confirm';
+}
+
+function providerIntentAccepted(paymentIntent, booking, amountCents) {
+  if (!paymentIntent || !String(paymentIntent.id || '').startsWith('pi_')) return false;
+  const amount = Math.round(Number(paymentIntent.amount) || 0);
+  const currency = String(paymentIntent.currency || '').toLowerCase();
+  if (amount !== amountCents || currency !== 'usd') return false;
+  const metadata = paymentIntent.metadata && typeof paymentIntent.metadata === 'object'
+    ? paymentIntent.metadata
+    : {};
+  const metadataBooking = String(metadata.bookingId || metadata.booking_id || '').trim();
+  const purpose = String(metadata.purpose || '').trim();
+  if (metadataBooking && metadataBooking !== bookingIdOf(booking)) return false;
+  if (purpose && purpose !== PURPOSE) return false;
+  if (!metadataBooking || purpose !== PURPOSE) return false;
+  const customer = String(paymentIntent.customer || '').trim();
+  if (customer && customer !== String(booking.stripeCustomerId || '').trim()) return false;
+  return true;
+}
+
+function persistedIntentAccepted(paymentIntent, attempt, amountCents) {
+  if (!paymentIntent || paymentIntent.id !== attempt.providerObjectId) return false;
+  const amount = Math.round(Number(paymentIntent.amount) || 0);
+  const currency = String(paymentIntent.currency || '').toLowerCase();
+  return amount === amountCents && currency === 'usd';
+}
+
+async function postStripe({ url, secret, idempotencyKey, form, fetchImpl }) {
+  const headers = {
+    Authorization: `Bearer ${secret}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+  const res = await fetchImpl(url, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Idempotency-Key': idempotencyKey,
-    },
-    body: form,
+    headers,
+    body: form ? form.toString() : '',
   });
   const body = await res.json().catch(() => ({}));
   return { httpStatus: res.status, body };
+}
+
+async function retrievePaymentIntent({ paymentIntentId, secret, fetchImpl }) {
+  const res = await fetchImpl(`${STRIPE_PAYMENT_INTENTS_URL}/${encodeURIComponent(paymentIntentId)}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  const body = await res.json().catch(() => ({}));
+  return { httpStatus: res.status, body, paymentIntent: paymentIntentFromStripeBody(body) };
+}
+
+async function reserveUnconfirmedPaymentIntent({
+  booking,
+  amountCents,
+  idempotencyKey,
+  secret,
+  fetchImpl,
+}) {
+  const stored = storedPaymentIntentIds(booking);
+  const conflicting = stored.filter((value, index) => stored.indexOf(value) === index);
+  if (conflicting.length > 1) {
+    return { ok: false, error: 'stored_payment_intent_conflict', statusCode: 409, stripeCalled: false };
+  }
+  const { ensureBookingFinancial } = require('./db/ensure-booking-financial');
+  const ensured = await ensureBookingFinancial(booking);
+  if (!ensured.ok) {
+    return {
+      ok: false,
+      error: ensured.error || 'booking_not_ensured',
+      statusCode: 503,
+      stripeCalled: false,
+    };
+  }
+  if (ensured.quoteVersion !== quoteVersionOf(booking)) {
+    return { ok: false, error: 'payment_quote_mismatch', statusCode: 409, stripeCalled: false };
+  }
+
+  const { getPrisma } = require('./prisma');
+  const foundation = require('./db/foundation-services');
+  const repo = require('./db/repositories');
+  const prisma = getPrisma();
+  const bookingId = bookingIdOf(booking);
+  const existingAttempt = await prisma.paymentAttempt.findUnique({ where: { idempotencyKey } });
+  if (!existingAttempt && conflicting.length > 0) {
+    return { ok: false, error: 'stored_payment_intent_conflict', statusCode: 409, stripeCalled: false };
+  }
+  const lockKey = ['after_service_charge', bookingId, ensured.quoteVersion, amountCents].join(':');
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRawUnsafe(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))::text AS lock_acquired',
+      lockKey,
+    );
+    const reserved = await foundation.reservePaymentObligation({
+      bookingId,
+      quoteVersion: ensured.quoteVersion,
+      amountCents,
+      purpose: PURPOSE,
+      providerCustomerId: booking.stripeCustomerId || null,
+      providerObjectType: 'payment_intent',
+      providerObjectId: null,
+      idempotencyKey,
+      generation: 1,
+      prisma: tx,
+      prelocked: true,
+    });
+    if (!reserved.ok) {
+      return { ok: false, error: reserved.error || 'attempt_not_reserved', statusCode: 503, stripeCalled: false };
+    }
+    let attempt = reserved.attempt;
+    if (
+      !attempt
+      || attempt.bookingId !== bookingId
+      || attempt.purpose !== PURPOSE
+      || attempt.amountCents !== amountCents
+      || String(attempt.currency || 'usd').toLowerCase() !== 'usd'
+      || String(attempt.provider || 'stripe').toLowerCase() !== 'stripe'
+    ) {
+      return { ok: false, error: 'active_obligation_conflict', statusCode: 409, stripeCalled: false };
+    }
+    if (attempt.providerObjectId) {
+      if (conflicting.length === 1 && conflicting[0] !== attempt.providerObjectId) {
+        return {
+          ok: false,
+          error: 'stored_payment_intent_conflict',
+          statusCode: 409,
+          stripeCalled: false,
+          paymentIntentId: attempt.providerObjectId,
+        };
+      }
+      return { ok: true, attempt, paymentIntent: null, stripeCalled: false };
+    }
+    if (conflicting.length === 1) {
+      return { ok: false, error: 'stored_payment_intent_conflict', statusCode: 409, stripeCalled: false };
+    }
+
+    let created;
+    try {
+      created = await postStripe({
+        url: STRIPE_PAYMENT_INTENTS_URL,
+        secret,
+        idempotencyKey,
+        form: unconfirmedPaymentIntentForm(booking, amountCents),
+        fetchImpl,
+      });
+    } catch {
+      return { ok: false, error: 'stripe_network_error', statusCode: 502, stripeCalled: true };
+    }
+    const paymentIntent = paymentIntentFromStripeBody(created.body);
+    if (!providerIntentAccepted(paymentIntent, booking, amountCents)) {
+      return {
+        ok: false,
+        error: 'stripe_payment_intent_invariant_failed',
+        statusCode: 502,
+        stripeCalled: true,
+      };
+    }
+    const providerCustomerId = String(paymentIntent.customer || '').trim() || null;
+    try {
+      attempt = await repo.updatePaymentAttempt(attempt.id, {
+        providerObjectId: paymentIntent.id,
+        providerCustomerId,
+        status: chargeState(paymentIntent, created.httpStatus) === 'declined' ? 'failed' : 'open',
+      }, tx);
+    } catch {
+      return {
+        ok: false,
+        error: 'payment_attempt_not_persisted',
+        statusCode: 503,
+        stripeCalled: true,
+        paymentIntentId: paymentIntent.id,
+      };
+    }
+    return {
+      ok: true,
+      attempt,
+      paymentIntent,
+      httpStatus: created.httpStatus,
+      stripeCalled: true,
+    };
+  }, { maxWait: 5000, timeout: 14000 });
+}
+
+async function rememberPersistedIntent(booking, attempt, idempotencyKey, amountCents, persistBooking) {
+  const next = cloneBooking(booking);
+  next.paymentIntentId = attempt.providerObjectId;
+  rememberCharge(next, {
+    idempotencyKey,
+    status: 'charging',
+    amountCents,
+    quoteVersion: quoteVersionOf(next),
+    paymentIntentId: attempt.providerObjectId,
+    startedAt: next.afterServiceCharge?.startedAt || new Date().toISOString(),
+  });
+  if (typeof persistBooking !== 'function') return next;
+  const saved = await persistBooking(next, booking);
+  if (!saved || saved.ok !== true) return next;
+  return saved.booking || next;
+}
+
+async function confirmPersistedPaymentIntent({
+  attempt,
+  paymentIntent,
+  httpStatus = 200,
+  booking,
+  amountCents,
+  secret,
+  idempotencyKey,
+  fetchImpl,
+}) {
+  let current = paymentIntent;
+  let statusCode = httpStatus;
+  if (!current) {
+    try {
+      const retrieved = await retrievePaymentIntent({
+        paymentIntentId: attempt.providerObjectId,
+        secret,
+        fetchImpl,
+      });
+      current = retrieved.paymentIntent;
+      statusCode = retrieved.httpStatus;
+    } catch {
+      return { ok: false, error: 'payment_intent_retrieve_failed', statusCode: 502 };
+    }
+  }
+  if (!current) return { ok: false, error: 'payment_intent_retrieve_failed', statusCode: 502 };
+  if (chargeState(current, statusCode) === 'needs_confirm') {
+    try {
+      const confirmed = await postStripe({
+        url: `${STRIPE_PAYMENT_INTENTS_URL}/${encodeURIComponent(attempt.providerObjectId)}/confirm`,
+        secret,
+        idempotencyKey: `${idempotencyKey}:confirm`,
+        form: confirmPaymentIntentForm(booking),
+        fetchImpl,
+      });
+      current = paymentIntentFromStripeBody(confirmed.body);
+      statusCode = confirmed.httpStatus;
+    } catch {
+      current = null;
+    }
+    if (!current) {
+      try {
+        const retrieved = await retrievePaymentIntent({
+          paymentIntentId: attempt.providerObjectId,
+          secret,
+          fetchImpl,
+        });
+        current = retrieved.paymentIntent;
+        statusCode = retrieved.httpStatus;
+      } catch {
+        return { ok: false, error: 'confirmation_outcome_unknown', statusCode: 502 };
+      }
+    }
+  }
+  if (!persistedIntentAccepted(current, attempt, amountCents)) {
+    return { ok: false, error: 'payment_intent_mismatch', statusCode: 409 };
+  }
+  return { ok: true, paymentIntent: current, httpStatus: statusCode };
 }
 
 /**
@@ -586,41 +859,69 @@ async function chargeSavedCardAfterService({
     };
   }
 
-  const stripe = await createOffSessionPayment({
+  const { postgresPaymentEnabled } = require('./db/operational-payment');
+  if (!postgresPaymentEnabled(env)) {
+    return {
+      ok: false,
+      error: 'postgres_payment_disabled',
+      statusCode: 503,
+      charged: false,
+      stripeCalled: false,
+      amountCents: gate.amountCents,
+      booking,
+    };
+  }
+
+  const prepared = await reserveUnconfirmedPaymentIntent({
+    booking,
+    amountCents: gate.amountCents,
+    idempotencyKey: key,
+    secret: guard.secret,
+    fetchImpl,
+  });
+  if (!prepared.ok || !prepared.attempt?.providerObjectId) {
+    return {
+      ok: false,
+      error: prepared.error || 'payment_not_prepared',
+      statusCode: prepared.statusCode || 503,
+      charged: false,
+      stripeCalled: !!prepared.stripeCalled,
+      paymentIntentId: prepared.paymentIntentId || prepared.attempt?.providerObjectId || null,
+      amountCents: gate.amountCents,
+    };
+  }
+
+  booking = await rememberPersistedIntent(
+    booking,
+    prepared.attempt,
+    key,
+    gate.amountCents,
+    persistBooking,
+  );
+  const confirmed = await confirmPersistedPaymentIntent({
+    attempt: prepared.attempt,
+    paymentIntent: prepared.paymentIntent,
+    httpStatus: prepared.httpStatus,
     booking,
     amountCents: gate.amountCents,
     secret: guard.secret,
     idempotencyKey: key,
     fetchImpl,
   });
-  const paymentIntent = paymentIntentFromStripeBody(stripe.body);
-  if (!paymentIntent) {
-    const next = cloneBooking(booking);
-    const recoveryUrl = recoveryUrlFor(booking, env);
-    rememberCharge(next, {
-      idempotencyKey: key,
-      status: 'declined',
-      amountCents: gate.amountCents,
-      quoteVersion: quoteVersionOf(booking),
-      recoveryUrl,
-      updatedAt: new Date().toISOString(),
-    });
-    if (String(next.paymentStatus || '').toLowerCase() !== 'paid') {
-      next.paymentWorkflowStatus = 'payment_action_required';
-    }
-    return commitChargeResult(next, booking, persistBooking, {
-      ok: true,
+  if (!confirmed.ok) {
+    return {
+      ok: false,
+      error: confirmed.error || 'payment_not_confirmed',
+      statusCode: confirmed.statusCode || 502,
       charged: false,
       stripeCalled: true,
-      paymentPending: true,
-      stripeStatus: 'declined',
-      recoveryUrl,
+      paymentIntentId: prepared.attempt.providerObjectId,
       amountCents: gate.amountCents,
-      error: stripe.body?.error?.code || stripe.body?.error?.message || 'stripe_charge_failed',
-    });
+    };
   }
 
-  const outcome = outcomeFor(paymentIntent, stripe.httpStatus);
+  const paymentIntent = confirmed.paymentIntent;
+  const outcome = outcomeFor(paymentIntent, confirmed.httpStatus);
   const eventType = outcome === 'succeeded'
     ? 'payment_intent.succeeded'
     : (outcome === 'requires_action' ? 'payment_intent.requires_action' : 'payment_intent.payment_failed');
@@ -635,34 +936,10 @@ async function chargeSavedCardAfterService({
       quoteVersion: String(quoteVersionOf(booking)),
     },
   };
-  const { postgresPaymentEnabled } = require('./db/operational-payment');
-  if (!postgresPaymentEnabled(env)) {
-    if (outcome === 'succeeded') {
-      return {
-        ok: false,
-        charged: false,
-        stripeCalled: true,
-        persisted: false,
-        paymentIntentId: paymentIntent.id,
-        amountCents: gate.amountCents,
-        error: 'postgres_payment_disabled',
-        booking,
-      };
-    }
-  } else if (outcome === 'succeeded' || outcome === 'requires_action' || outcome === 'declined') {
+  if (outcome === 'succeeded' || outcome === 'requires_action' || outcome === 'declined') {
     const { observeProviderPaymentIntent } = require('./db/payment-authority-service');
-    // This function created the PaymentIntent. Record that id on the booking
-    // passed to observation so the webhook guard can tell this authorized
-    // charge from an unassociated signed event. A different id already stored
-    // on the booking is left unchanged and will not match.
-    const storedIntentId = String(
-      booking.paymentIntentId || booking.stripePaymentIntentId || ''
-    ).trim();
-    const observationBooking = storedIntentId
-      ? booking
-      : { ...booking, paymentIntentId: paymentIntent.id };
     const observed = await observeProviderPaymentIntent({
-      booking: observationBooking,
+      booking,
       paymentIntent: observedIntent,
       stripeEventId: `charge_${paymentIntent.id}_${eventType}`,
       type: eventType,
@@ -712,6 +989,7 @@ async function commitChargeResult(next, claimed, persistBooking, result) {
       ok: false,
       charged: false,
       persisted: false,
+      ledgerSettled: result.charged === true,
       booking: claimed,
       statusCode: 409,
       error: (saved && saved.error) || 'charge_result_not_persisted',
