@@ -71,6 +71,6 @@ Historical Stripe customer payments remain behind `STRIPE_PRODUCTION_CUSTOMER_PA
 
 ## Square Sandbox
 
-`netlify/lib/square-sandbox-provider.js` implements `createPayment` and `getPayment` against Square Sandbox only. The active provider remains `none`. See `docs/audit/square-sandbox-provider.md`. Booking, the ledger, and production Square are not connected.
+`netlify/lib/square-sandbox-provider.js` implements `createPayment` and `getPayment` against Square Sandbox only. The active provider remains `none`. `netlify/lib/square-sandbox-adapter-contract.js` adds the validation contract for a future reconciliation step. It does not settle a booking. See `docs/audit/square-sandbox-provider.md`. Booking, the ledger, and production Square are not connected.
 
 `netlify/lib/square-webhook-verifier.js` checks a Square webhook signature and stops there. It is not an HTTP endpoint and it does not select a provider. See `docs/audit/square-webhook-verifier.md`.

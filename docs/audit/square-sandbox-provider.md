@@ -68,6 +68,16 @@ Square's rule is: the same key and the same request return the original payment;
 
 Use the sandbox nonce `cnon:card-nonce-declined` only in a mock or in a future explicit sandbox experiment. Square answers `CreatePayment` with HTTP 400 and `GENERIC_DECLINE`. This client maps that, and Square's other payment-method errors, to `square_sandbox_declined`. The payment is not completed. Automated tests cover that response without a network call.
 
+## Reconciliation contract
+
+`netlify/lib/square-sandbox-adapter-contract.js` is the boundary a future settlement component can read. It is not selected by `getActivePaymentProvider()`. It does not insert `PaymentAttempt` or `LedgerEntry`, mark a booking paid, send a notification, or open the webhook event database.
+
+A call is accepted only with the explicit test context `noncommercial-test`, the existing sandbox confirmation, a server-supplied `TEST-` booking reference, the purpose `sandbox_adapter_test`, and synthetic expected location and merchant ids. A commercial `bookingId` is still refused before any request. The booking reference is returned on the contract and is not sent to Square. Browser prices are rejected: the amount must be an integer number of cents and the currency must be `USD`.
+
+Square `COMPLETED` is the only status eligible for a later reconciliation, and only after payment id, amount, currency, location, and merchant all match. `APPROVED` is authorized and not settled. `PENDING`, `CANCELED`, and `FAILED` are not settled. An unknown status is not successful. `paid` stays false on every result. An HTTP 2xx response is not itself a settlement.
+
+The contract and the Square Sandbox webhook receiver stay separate. They can later be compared, without either calling the other, on payment id, location id, merchant id, amount in cents, currency, and Square status. The receiver stores those fields on an authenticated event. This contract returns them only after a mock or sandbox read. Neither side writes the commercial ledger.
+
 ## Current limits
 
 - Production payments are not implemented.
