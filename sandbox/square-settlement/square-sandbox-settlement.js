@@ -8,22 +8,22 @@
  * This branch is not PR #373 and does not change that pull request.
  * It also does not contain Stripe Draft PR #372.
  *
- * The prototype stores a test obligation before it accepts a payment,
- * then settles that obligation at most once. It does not write commercial
- * financial tables, commercial bookings, or the Square webhook event table.
- * It does not call Square or Stripe. Provider reads go through the adapter
- * contract and an injected mock client.
+ * Three boundaries stay separate. An observation is stored evidence.
+ * Provider verification is an internal retrieval through the adapter
+ * contract and an injected mock client. Financial settlement is a
+ * committed sandbox_settlement row. The mock does not authenticate a
+ * real Square account, and a caller cannot supply that decision.
  *
- * financiallySettled is true only after a settlement row has committed,
- * or when a later call sees that committed row. paid stays false.
- * A receipt URL is never accepted as proof.
+ * The service builds the adapter's configuredBy literal itself because
+ * that contract requires it. The literal is not accepted from the caller
+ * and is not Square authentication. Receipt URLs are never proof.
+ * paid stays false. No commercial table is written.
  */
 
 const crypto = require('crypto');
 const { connectProven } = require('./database');
 const {
   TEST_CONTEXT,
-  normalizeSquarePaymentStatus,
   retrieveSimulatedPayment,
 } = require('../../netlify/lib/square-sandbox-adapter-contract');
 const { LOCAL_CONFIRMATION } = require('../../netlify/lib/square-sandbox-provider');
@@ -37,6 +37,21 @@ const BOOKING_PATTERN = /^TEST-[A-Z0-9-]{1,32}$/;
 const PAYMENT_PATTERN = /^[A-Za-z0-9]{8,80}$/;
 const OPERATION_KEY_PATTERN = /^sandbox-op-[A-Za-z0-9._:-]{1,40}$/;
 const EVENT_PATTERN = /^evt-[A-Za-z0-9._:-]{1,64}$/;
+const OPEN_EVENT_STATUSES = ['stored', 'awaiting_association', 'pending', 'verification_required'];
+const AUTHENTICATION_MARKERS = [
+  'sourceKind',
+  'configuredBy',
+  'authenticated',
+  'verified',
+  'verificationBypass',
+  'bypassVerification',
+  'financiallySettled',
+  'settlementCommitted',
+  'settlementAuthorized',
+  'providerCompleted',
+  'eligibleForReconciliation',
+  'trusted',
+];
 
 function result(fields = {}) {
   return {
@@ -60,8 +75,24 @@ function result(fields = {}) {
   };
 }
 
-function trustedIdentity(input, options = {}) {
+function authenticationMarker(input) {
   const source = input && typeof input === 'object' ? input : {};
+  for (const key of AUTHENTICATION_MARKERS) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      return 'square_settlement_authentication_marker_rejected';
+    }
+  }
+  const trusted = source.trustedSandbox;
+  if (trusted && typeof trusted === 'object' && Object.prototype.hasOwnProperty.call(trusted, 'configuredBy')) {
+    return 'square_settlement_authentication_marker_rejected';
+  }
+  return '';
+}
+
+function expectedContext(input, options = {}) {
+  const source = input && typeof input === 'object' ? input : {};
+  const marker = authenticationMarker(source);
+  if (marker) return { ok: false, error: marker };
   const callerIdentity = source.expectedMerchantId || source.expectedLocationId || source.callerMerchantId || source.callerLocationId;
   const eventIdentity = !options.allowEventIdentity && (source.merchantId || source.locationId);
   if (callerIdentity || eventIdentity) {
@@ -74,7 +105,7 @@ function trustedIdentity(input, options = {}) {
     return { ok: false, error: 'square_settlement_test_context_required' };
   }
   const trusted = source.trustedSandbox;
-  if (!trusted || trusted.configuredBy !== 'server') {
+  if (!trusted || typeof trusted !== 'object') {
     return { ok: false, error: 'square_settlement_merchant_untrusted' };
   }
   if (typeof trusted.merchantId !== 'string' || !MERCHANT_PATTERN.test(trusted.merchantId)) {
@@ -89,64 +120,42 @@ function trustedIdentity(input, options = {}) {
   return { ok: true, merchantId: trusted.merchantId, locationId: trusted.locationId };
 }
 
-function lastOf(rows) {
-  return rows.length ? rows[rows.length - 1] : null;
+function settlementAgrees(row, expected) {
+  if (!row || row.currency !== 'USD' || !(row.settled_amount_cents > 0)) return false;
+  if (!row.obligation_id || !row.operation_id || !row.square_payment_id) return false;
+  if (expected.obligationId && row.obligation_id !== expected.obligationId) return false;
+  if (expected.operationId && row.operation_id !== expected.operationId) return false;
+  if (expected.squarePaymentId && row.square_payment_id !== expected.squarePaymentId) return false;
+  if (expected.amountCents != null && row.settled_amount_cents !== expected.amountCents) return false;
+  if (expected.currency && row.currency !== expected.currency) return false;
+  return expected.obligationId && expected.operationId && expected.squarePaymentId
+    && expected.amountCents != null && expected.currency === 'USD';
 }
 
-function sameFacts(left, right) {
-  return left.square_payment_id === right.square_payment_id
-    && left.payment_status === right.payment_status
-    && left.amount_cents === right.amount_cents
-    && left.currency === right.currency
-    && left.location_id === right.location_id
-    && left.merchant_id === right.merchant_id;
+function confirmedSettlement(row) {
+  return result({
+    result: 'already_settled',
+    operationId: row.operation_id,
+    obligationId: row.obligation_id,
+    squarePaymentId: row.square_payment_id,
+    processingStatus: 'already_settled',
+    settlementStatus: 'settled',
+    financiallySettled: true,
+    settlementCommitted: false,
+    retrySafe: true,
+  });
 }
 
-function matchesOperation(operation, event) {
+function sameIdentity(operation, event) {
   return event.square_payment_id === operation.square_payment_id
     && event.amount_cents === operation.expected_amount_cents
     && event.currency === operation.currency
     && event.location_id === operation.expected_location_id
-    && event.merchant_id === operation.expected_merchant_id
-    && (event.source_kind === 'trusted_mock' || event.source_kind === 'authenticated_event');
+    && event.merchant_id === operation.expected_merchant_id;
 }
 
-function decide(operation, events) {
-  const webhooks = events.filter((event) => event.event_type !== 'provider.retrieve');
-  const retrievals = events.filter((event) => event.event_type === 'provider.retrieve');
-  const latestWebhook = lastOf(webhooks);
-  const latestRetrieval = lastOf(retrievals);
-  if (latestWebhook && latestRetrieval && !sameFacts(latestWebhook, latestRetrieval)) {
-    return { result: 'quarantined', processing: 'inconsistent', providerCompleted: false };
-  }
-  const latest = lastOf(events);
-  if (!latest) return { result: 'pending', processing: 'pending', providerCompleted: false };
-  if (!matchesOperation(operation, latest)) {
-    return { result: 'quarantined', processing: 'quarantined', providerCompleted: false };
-  }
-  const normalized = normalizeSquarePaymentStatus(latest.payment_status);
-  if (!normalized.recognized || normalized.status === 'FAILED' || normalized.status === 'CANCELED') {
-    return { result: 'rejected', processing: 'rejected', providerCompleted: false };
-  }
-  if (normalized.status !== 'COMPLETED') {
-    return { result: 'pending', processing: 'pending', providerCompleted: false };
-  }
-  return {
-    result: 'settled',
-    processing: 'settled',
-    providerCompleted: true,
-    eventId: latest.event_id,
-  };
-}
-
-async function markOpenEvents(client, paymentId, status) {
-  await client.query(
-    `UPDATE sandbox_payment_event
-     SET processing_status = $2
-     WHERE square_payment_id = $1
-       AND processing_status IN ('stored', 'awaiting_association', 'pending')`,
-    [paymentId, status]
-  );
+function packaged(response, extra = {}) {
+  return { response, ...extra };
 }
 
 async function transaction(connectionString, work) {
@@ -167,20 +176,15 @@ async function transaction(connectionString, work) {
     } catch {
       // The connection is discarded below.
     }
+    if (error.code === '23505' && error.table === 'sandbox_settlement') {
+      return confirmCommittedSettlement(connectionString, error.settlementAttempt);
+    }
     if (error.code === '23505') {
-      const table = String(error.table || '');
-      if (table === 'sandbox_settlement') {
-        return result({
-          result: 'already_settled',
-          financiallySettled: true,
-          settlementCommitted: false,
-          retrySafe: true,
-          settlementStatus: 'settled',
-        });
-      }
       return result({
         result: 'rejected',
         error: 'square_settlement_conflict',
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: false,
       });
     }
@@ -205,109 +209,540 @@ async function transaction(connectionString, work) {
   }
 }
 
-async function reconcile(client, paymentId) {
-  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [paymentId]);
+async function confirmCommittedSettlement(connectionString, attempt) {
+  if (!attempt) {
+    return result({
+      result: 'rejected',
+      error: 'square_settlement_conflict',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: false,
+    });
+  }
+  let client;
+  try {
+    client = await connectProven(connectionString);
+    const found = await client.query(
+      `SELECT * FROM sandbox_settlement
+       WHERE obligation_id = $1 OR operation_id = $2 OR square_payment_id = $3`,
+      [attempt.obligationId, attempt.operationId, attempt.squarePaymentId]
+    );
+    const row = found.rows.find((candidate) => settlementAgrees(candidate, attempt));
+    if (row) return confirmedSettlement(row);
+    return result({
+      result: 'rejected',
+      error: 'square_settlement_conflict',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: false,
+    });
+  } catch {
+    return result({
+      result: 'failed',
+      error: 'square_settlement_failed',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: true,
+    });
+  } finally {
+    if (client) await client.end();
+  }
+}
+
+async function markOpenEvents(client, paymentId, status) {
+  await client.query(
+    `UPDATE sandbox_payment_event
+     SET processing_status = $2
+     WHERE square_payment_id = $1
+       AND processing_status = ANY($3::text[])`,
+    [paymentId, status, OPEN_EVENT_STATUSES]
+  );
+}
+
+async function loadSettlement(client, operation) {
+  const found = await client.query(
+    `SELECT * FROM sandbox_settlement
+     WHERE square_payment_id = $1 OR obligation_id = $2 OR operation_id = $3
+     FOR UPDATE`,
+    [operation.square_payment_id, operation.obligation_id, operation.operation_id]
+  );
+  return found.rows[0] || null;
+}
+
+function attemptFrom(operation, obligation) {
+  return {
+    obligationId: obligation.obligation_id,
+    operationId: operation.operation_id,
+    squarePaymentId: operation.square_payment_id,
+    amountCents: obligation.amount_cents,
+    currency: obligation.currency,
+  };
+}
+
+async function reviewInbox(client, paymentId) {
   const operations = await client.query(
     'SELECT * FROM sandbox_payment_operation WHERE square_payment_id = $1 FOR UPDATE',
     [paymentId]
   );
   const operation = operations.rows[0];
+  const events = (await client.query(
+    `SELECT * FROM sandbox_payment_event
+     WHERE square_payment_id = $1
+     ORDER BY event_id ASC
+     FOR UPDATE`,
+    [paymentId]
+  )).rows;
   if (!operation) {
     await markOpenEvents(client, paymentId, 'awaiting_association');
-    return result({
+    return packaged(result({
       result: 'stored',
       squarePaymentId: paymentId,
       processingStatus: 'awaiting_association',
+      financiallySettled: false,
+      settlementCommitted: false,
       retrySafe: true,
-    });
+    }), { verificationRequested: false });
   }
   const obligations = await client.query(
     'SELECT * FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE',
     [operation.obligation_id]
   );
   const obligation = obligations.rows[0];
-  const settlements = await client.query(
-    `SELECT * FROM sandbox_settlement
-     WHERE square_payment_id = $1 OR obligation_id = $2 OR operation_id = $3
-     FOR UPDATE`,
-    [paymentId, operation.obligation_id, operation.operation_id]
-  );
-  const events = (await client.query(
-    `SELECT * FROM sandbox_payment_event
-     WHERE square_payment_id = $1
-     ORDER BY observed_at ASC, created_at ASC
-     FOR UPDATE`,
-    [paymentId]
-  )).rows;
+  const settlement = await loadSettlement(client, operation);
   const shared = {
     operationId: operation.operation_id,
     obligationId: operation.obligation_id,
     squarePaymentId: paymentId,
   };
-  if (settlements.rows[0] || (obligation && obligation.status === 'settled')) {
-    await markOpenEvents(client, paymentId, 'already_settled');
-    return result({
+  if (settlement || (obligation && obligation.status === 'settled')) {
+    if (obligation && settlementAgrees(settlement, attemptFrom(operation, obligation))) {
+      await markOpenEvents(client, paymentId, 'already_settled');
+      return packaged(confirmedSettlement(settlement), {
+        verificationRequested: false,
+        operationId: operation.operation_id,
+      });
+    }
+    return packaged(result({
       ...shared,
-      result: 'already_settled',
-      processingStatus: 'already_settled',
-      settlementStatus: 'settled',
-      financiallySettled: true,
+      result: 'failed',
+      error: 'square_settlement_state_inconsistent',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: false,
+    }), { verificationRequested: false });
+  }
+  const mismatched = events.filter((event) => !sameIdentity(operation, event));
+  if (mismatched.length > 0) {
+    await markOpenEvents(client, paymentId, 'inconsistent');
+    return packaged(result({
+      ...shared,
+      result: 'quarantined',
+      processingStatus: 'inconsistent',
+      error: 'square_settlement_observations_conflict',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: false,
+    }), { verificationRequested: false, operationId: operation.operation_id });
+  }
+  const known = new Set(['APPROVED', 'PENDING', 'COMPLETED', 'FAILED', 'CANCELED']);
+  const completed = events.some((event) => String(event.payment_status || '').trim().toUpperCase() === 'COMPLETED');
+  const terminal = events.some((event) => {
+    const status = String(event.payment_status || '').trim().toUpperCase();
+    return status === 'FAILED' || status === 'CANCELED';
+  });
+  const unrecognized = events.some((event) => !known.has(String(event.payment_status || '').trim().toUpperCase()));
+  if (unrecognized && !completed) {
+    await markOpenEvents(client, paymentId, 'rejected');
+    return packaged(result({
+      ...shared,
+      result: 'rejected',
+      processingStatus: 'rejected',
+      error: 'square_settlement_status_rejected',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: false,
+    }), { verificationRequested: false, operationId: operation.operation_id });
+  }
+  if (completed) {
+    await markOpenEvents(client, paymentId, 'verification_required');
+    return packaged(result({
+      ...shared,
+      result: 'stored',
+      processingStatus: 'verification_required',
+      financiallySettled: false,
       settlementCommitted: false,
       retrySafe: true,
-    });
+    }), { verificationRequested: true, operationId: operation.operation_id });
   }
-  const decision = decide(operation, events);
-  if (decision.result !== 'settled') {
-    await markOpenEvents(client, paymentId, decision.processing);
-    return result({
-      ...shared,
-      result: decision.result,
-      processingStatus: decision.processing,
-      providerCompleted: false,
-      retrySafe: decision.result === 'pending' || decision.result === 'stored',
-    });
+  const processing = terminal ? 'rejected' : 'pending';
+  await markOpenEvents(client, paymentId, processing);
+  return packaged(result({
+    ...shared,
+    result: processing === 'rejected' ? 'rejected' : 'pending',
+    processingStatus: processing,
+    financiallySettled: false,
+    settlementCommitted: false,
+    retrySafe: processing === 'pending',
+  }), { verificationRequested: false, operationId: operation.operation_id });
+}
+
+async function insertSettlement(client, attempt, settlementId) {
+  try {
+    await client.query(
+      `INSERT INTO sandbox_settlement
+        (settlement_id, obligation_id, operation_id, square_payment_id, settled_amount_cents, currency)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        settlementId,
+        attempt.obligationId,
+        attempt.operationId,
+        attempt.squarePaymentId,
+        attempt.amountCents,
+        attempt.currency,
+      ]
+    );
+  } catch (error) {
+    error.settlementAttempt = attempt;
+    throw error;
   }
-  const settlementId = `stl_${crypto.randomUUID()}`;
+}
+
+function eventFromInput(input) {
+  if (typeof input.eventId !== 'string' || !EVENT_PATTERN.test(input.eventId)) {
+    return { ok: false, error: 'square_settlement_event_invalid' };
+  }
+  if (input.eventType !== 'payment.created' && input.eventType !== 'payment.updated' && input.eventType !== 'provider.retrieve') {
+    return { ok: false, error: 'square_settlement_event_invalid' };
+  }
+  if (typeof input.squarePaymentId !== 'string' || !PAYMENT_PATTERN.test(input.squarePaymentId)) {
+    return { ok: false, error: 'square_settlement_payment_id_invalid' };
+  }
+  if (typeof input.merchantId !== 'string' || typeof input.locationId !== 'string') {
+    return { ok: false, error: 'square_settlement_event_invalid' };
+  }
+  if (!Number.isInteger(input.amountCents) || typeof input.currency !== 'string') {
+    return { ok: false, error: 'square_settlement_amount_invalid' };
+  }
+  let observedAt = null;
+  if (input.observedAt != null && input.observedAt !== '') {
+    const parsed = new Date(input.observedAt);
+    if (Number.isNaN(parsed.getTime())) return { ok: false, error: 'square_settlement_event_invalid' };
+    observedAt = parsed.toISOString();
+  }
+  if (input.payment && Object.prototype.hasOwnProperty.call(input.payment, 'merchant_id')) {
+    return { ok: false, error: 'square_settlement_undocumented_merchant_field' };
+  }
+  if (input.payment && Object.prototype.hasOwnProperty.call(input.payment, 'receipt_url')) {
+    return { ok: false, error: 'square_settlement_receipt_not_proof' };
+  }
+  return {
+    ok: true,
+    event: {
+      eventId: input.eventId,
+      eventType: input.eventType,
+      paymentId: input.squarePaymentId,
+      merchantId: input.merchantId,
+      locationId: input.locationId,
+      status: String(input.paymentStatus || ''),
+      amountCents: input.amountCents,
+      currency: input.currency,
+      observedAt,
+    },
+  };
+}
+
+async function insertObservation(client, event) {
   await client.query(
-    `INSERT INTO sandbox_settlement
-      (settlement_id, obligation_id, operation_id, square_payment_id, settled_amount_cents, currency)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO sandbox_payment_event
+      (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
+       amount_cents, currency, processing_status, source_kind, observed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'stored', 'unverified_observation', COALESCE($9::timestamptz, now()))
+     ON CONFLICT (event_id) DO NOTHING`,
     [
-      settlementId,
-      operation.obligation_id,
-      operation.operation_id,
-      paymentId,
-      operation.expected_amount_cents,
-      operation.currency,
+      event.eventId,
+      event.paymentId,
+      event.eventType,
+      event.merchantId,
+      event.locationId,
+      event.status,
+      event.amountCents,
+      event.currency,
+      event.observedAt,
     ]
   );
-  await client.query(
-    "UPDATE sandbox_payment_obligation SET status = 'settled' WHERE obligation_id = $1",
-    [operation.obligation_id]
-  );
-  await client.query(
-    "UPDATE sandbox_payment_operation SET status = 'settled', updated_at = now() WHERE operation_id = $1",
-    [operation.operation_id]
-  );
-  await client.query(
-    "UPDATE sandbox_payment_event SET processing_status = 'settled' WHERE event_id = $1",
-    [decision.eventId]
-  );
-  await markOpenEvents(client, paymentId, 'ignored_stale');
-  return result({
-    ...shared,
-    result: 'settled',
-    processingStatus: 'settled',
-    settlementStatus: 'settled',
-    providerCompleted: true,
-    financiallySettled: true,
-    settlementCommitted: true,
-    retrySafe: true,
+}
+
+function callerPaymentMismatch(input, storedPaymentId) {
+  return typeof input.squarePaymentId === 'string'
+    && input.squarePaymentId !== ''
+    && input.squarePaymentId !== storedPaymentId;
+}
+
+async function readOperation(connectionString, input) {
+  return transaction(connectionString, async (client) => {
+    if (typeof input.operationId !== 'string' || input.operationId === '') {
+      return packaged(result({
+        result: 'rejected',
+        error: 'square_settlement_operation_unknown',
+        retrySafe: false,
+      }));
+    }
+    const operations = await client.query(
+      'SELECT * FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
+      [input.operationId]
+    );
+    const operation = operations.rows[0];
+    if (!operation) {
+      return packaged(result({
+        result: 'rejected',
+        error: 'square_settlement_operation_unknown',
+        retrySafe: false,
+      }));
+    }
+    const obligations = await client.query(
+      'SELECT * FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE',
+      [operation.obligation_id]
+    );
+    const obligation = obligations.rows[0];
+    if (!obligation) {
+      return packaged(result({
+        result: 'rejected',
+        error: 'square_settlement_obligation_unknown',
+        retrySafe: false,
+      }));
+    }
+    if (!operation.square_payment_id) {
+      return packaged(result({
+        result: 'rejected',
+        operationId: operation.operation_id,
+        obligationId: obligation.obligation_id,
+        error: 'square_settlement_payment_unassociated',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      }));
+    }
+    if (callerPaymentMismatch(input, operation.square_payment_id)) {
+      return packaged(result({
+        result: 'rejected',
+        operationId: operation.operation_id,
+        obligationId: obligation.obligation_id,
+        squarePaymentId: operation.square_payment_id,
+        error: 'square_settlement_payment_id_mismatch',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      }));
+    }
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [operation.square_payment_id]);
+    const settlement = await loadSettlement(client, operation);
+    if (settlement && settlementAgrees(settlement, attemptFrom(operation, obligation))) {
+      return packaged(confirmedSettlement(settlement), { ready: false });
+    }
+    if (!settlement && obligation.status === 'settled') {
+      return packaged(result({
+        result: 'failed',
+        operationId: operation.operation_id,
+        obligationId: obligation.obligation_id,
+        squarePaymentId: operation.square_payment_id,
+        error: 'square_settlement_state_inconsistent',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      }));
+    }
+    if (operation.expected_merchant_id !== obligation.merchant_id
+      || operation.expected_location_id !== obligation.location_id
+      || operation.expected_amount_cents !== obligation.amount_cents
+      || operation.currency !== obligation.currency) {
+      return packaged(result({
+        result: 'quarantined',
+        operationId: operation.operation_id,
+        obligationId: obligation.obligation_id,
+        squarePaymentId: operation.square_payment_id,
+        error: 'square_settlement_context_mismatch',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      }));
+    }
+    return {
+      ready: true,
+      operationId: operation.operation_id,
+      obligationId: obligation.obligation_id,
+      squarePaymentId: operation.square_payment_id,
+      amountCents: obligation.amount_cents,
+      currency: obligation.currency,
+      merchantId: obligation.merchant_id,
+      locationId: obligation.location_id,
+      bookingRef: obligation.booking_ref,
+    };
+  });
+}
+
+function classifyRetrieval(retrieved, stored) {
+  const error = retrieved && retrieved.error;
+  if (error === 'square_sandbox_identity_mismatch' || error === 'square_sandbox_payment_id_missing') {
+    return { result: 'quarantined', error: 'square_settlement_payment_id_mismatch', processing: 'quarantined' };
+  }
+  if (error === 'square_sandbox_amount_mismatch') {
+    return { result: 'quarantined', error: 'square_settlement_amount_mismatch', processing: 'quarantined' };
+  }
+  if (error === 'square_sandbox_currency_mismatch') {
+    return { result: 'quarantined', error: 'square_settlement_currency_mismatch', processing: 'quarantined' };
+  }
+  if (error === 'square_sandbox_location_mismatch') {
+    return { result: 'quarantined', error: 'square_settlement_location_mismatch', processing: 'quarantined' };
+  }
+  if (!retrieved || retrieved.providerCalled !== true || retrieved.outcomeUnknown === true) {
+    return {
+      result: 'failed',
+      error: error || 'square_settlement_provider_unknown',
+      processing: 'stored',
+      retrySafe: true,
+    };
+  }
+  const status = retrieved.normalized && retrieved.normalized.status
+    ? retrieved.normalized.status
+    : String(retrieved.status || '').toUpperCase();
+  if (!retrieved.normalized || retrieved.normalized.recognized !== true || status === 'FAILED' || status === 'CANCELED') {
+    return { result: 'rejected', error: error || 'square_settlement_status_rejected', processing: 'rejected' };
+  }
+  if (status !== 'COMPLETED') {
+    return { result: 'pending', processing: 'pending', retrySafe: true };
+  }
+  const verified = retrieved.ok === true
+    && retrieved.providerCompleted === true
+    && retrieved.eligibleForReconciliation === true
+    && retrieved.outcomeUnknown === false
+    && retrieved.paid === false
+    && retrieved.financiallySettled === false
+    && retrieved.settled === false
+    && retrieved.paymentId === stored.squarePaymentId
+    && retrieved.amountCents === stored.amountCents
+    && retrieved.currency === 'USD'
+    && retrieved.locationAccepted === true
+    && retrieved.merchantAccepted === true
+    && retrieved.liveMerchantVerification === false;
+  if (!verified) {
+    return { result: 'quarantined', error: 'square_settlement_verification_unproven', processing: 'quarantined' };
+  }
+  return { result: 'verified', processing: 'settled' };
+}
+
+async function sandboxFetch(fetchImpl, url, init) {
+  if (!String(url).startsWith('https://connect.squareupsandbox.com/')) {
+    throw new Error('square_settlement_host_rejected');
+  }
+  return fetchImpl(url, init);
+}
+
+async function recordVerification(connectionString, stored, retrieved, decision) {
+  const amount = retrieved && Number.isInteger(retrieved.amountCents) ? retrieved.amountCents : null;
+  const currency = retrieved && typeof retrieved.currency === 'string' ? retrieved.currency : null;
+  const status = retrieved && retrieved.normalized && retrieved.normalized.status
+    ? retrieved.normalized.status
+    : '';
+  await transaction(connectionString, async (client) => {
+    await client.query(
+      `INSERT INTO sandbox_payment_event
+        (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
+         amount_cents, currency, processing_status, source_kind, observed_at)
+       VALUES ($1, $2, 'provider.retrieve', $3, $4, $5, $6, $7, $8, 'verified_provider_retrieval', now())`,
+      [
+        `evt-v-${crypto.randomUUID()}`,
+        stored.squarePaymentId,
+        stored.merchantId,
+        stored.locationId,
+        status,
+        amount,
+        currency,
+        decision.processing,
+      ]
+    );
+    return result({ result: 'stored' });
+  });
+}
+
+async function commitSettlement(connectionString, input, stored) {
+  return transaction(connectionString, async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [stored.squarePaymentId]);
+    const operations = await client.query(
+      'SELECT * FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
+      [stored.operationId]
+    );
+    const operation = operations.rows[0];
+    const obligations = await client.query(
+      'SELECT * FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE',
+      [stored.obligationId]
+    );
+    const obligation = obligations.rows[0];
+    if (!operation || !obligation || operation.square_payment_id !== stored.squarePaymentId) {
+      return result({
+        result: 'quarantined',
+        error: 'square_settlement_payment_id_mismatch',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      });
+    }
+    const settlement = await loadSettlement(client, operation);
+    if (settlement && settlementAgrees(settlement, attemptFrom(operation, obligation))) {
+      return confirmedSettlement(settlement);
+    }
+    if (!settlement && obligation.status === 'settled') {
+      return result({
+        result: 'failed',
+        error: 'square_settlement_state_inconsistent',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      });
+    }
+    const attempt = attemptFrom(operation, obligation);
+    const settlementId = `stl_${crypto.randomUUID()}`;
+    await insertSettlement(client, attempt, settlementId);
+    await client.query(
+      "UPDATE sandbox_payment_obligation SET status = 'settled' WHERE obligation_id = $1",
+      [operation.obligation_id]
+    );
+    await client.query(
+      "UPDATE sandbox_payment_operation SET status = 'settled', updated_at = now() WHERE operation_id = $1",
+      [operation.operation_id]
+    );
+    await client.query(
+      `INSERT INTO sandbox_payment_event
+        (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
+         amount_cents, currency, processing_status, source_kind, observed_at)
+       VALUES ($1, $2, 'provider.retrieve', $3, $4, 'COMPLETED', $5, 'USD', 'settled',
+               'verified_provider_retrieval', now())`,
+      [
+        `evt-v-${crypto.randomUUID()}`,
+        operation.square_payment_id,
+        obligation.merchant_id,
+        obligation.location_id,
+        obligation.amount_cents,
+      ]
+    );
+    await markOpenEvents(client, operation.square_payment_id, 'already_settled');
+    if (input.fault === 'before_commit') return { fault: true };
+    return result({
+      operationId: operation.operation_id,
+      obligationId: obligation.obligation_id,
+      squarePaymentId: operation.square_payment_id,
+      result: 'settled',
+      processingStatus: 'settled',
+      settlementStatus: 'settled',
+      providerCompleted: true,
+      financiallySettled: true,
+      settlementCommitted: true,
+      retrySafe: true,
+    });
   });
 }
 
 async function createObligation(connectionString, input = {}) {
-  const trusted = trustedIdentity(input);
+  const trusted = expectedContext(input);
   if (!trusted.ok) return result({ result: 'rejected', error: trusted.error, retrySafe: false });
   if (typeof input.bookingRef !== 'string' || !BOOKING_PATTERN.test(input.bookingRef)) {
     return result({ result: 'rejected', error: 'square_settlement_booking_ref_invalid', retrySafe: false });
@@ -339,7 +774,7 @@ async function createObligation(connectionString, input = {}) {
 }
 
 async function createOperation(connectionString, input = {}) {
-  const trusted = trustedIdentity(input);
+  const trusted = expectedContext(input);
   if (!trusted.ok) return result({ result: 'rejected', error: trusted.error, retrySafe: false });
   if (typeof input.obligationId !== 'string' || input.obligationId === '') {
     return result({ result: 'rejected', error: 'square_settlement_obligation_unknown', retrySafe: false });
@@ -362,11 +797,33 @@ async function createOperation(connectionString, input = {}) {
       });
     }
     if (obligation.status === 'settled') {
+      const existing = await client.query(
+        'SELECT * FROM sandbox_settlement WHERE obligation_id = $1',
+        [obligation.obligation_id]
+      );
+      const row = existing.rows[0];
+      if (row && row.obligation_id === obligation.obligation_id
+        && row.settled_amount_cents === obligation.amount_cents
+        && row.currency === obligation.currency
+        && row.operation_id && row.square_payment_id) {
+        return result({
+          result: 'rejected',
+          error: 'square_settlement_obligation_already_settled',
+          operationId: row.operation_id,
+          obligationId: row.obligation_id,
+          squarePaymentId: row.square_payment_id,
+          processingStatus: 'already_settled',
+          settlementStatus: 'settled',
+          financiallySettled: true,
+          settlementCommitted: false,
+          retrySafe: false,
+        });
+      }
       return result({
-        result: 'rejected',
+        result: 'failed',
         obligationId: obligation.obligation_id,
-        error: 'square_settlement_obligation_already_settled',
-        financiallySettled: true,
+        error: 'square_settlement_state_inconsistent',
+        financiallySettled: false,
         settlementCommitted: false,
         retrySafe: false,
       });
@@ -398,6 +855,8 @@ async function createOperation(connectionString, input = {}) {
           operationId: row.operation_id,
           obligationId: obligation.obligation_id,
           error: 'square_settlement_idempotency_conflict',
+          financiallySettled: false,
+          settlementCommitted: false,
           retrySafe: false,
         });
       }
@@ -407,6 +866,8 @@ async function createOperation(connectionString, input = {}) {
         obligationId: row.obligation_id,
         squarePaymentId: row.square_payment_id || '',
         processingStatus: row.status,
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: true,
       });
     }
@@ -415,6 +876,8 @@ async function createOperation(connectionString, input = {}) {
         result: 'rejected',
         obligationId: obligation.obligation_id,
         error: 'square_settlement_amount_not_server_controlled',
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: false,
       });
     }
@@ -423,6 +886,8 @@ async function createOperation(connectionString, input = {}) {
         result: 'rejected',
         obligationId: obligation.obligation_id,
         error: 'square_settlement_currency_invalid',
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: false,
       });
     }
@@ -447,18 +912,20 @@ async function createOperation(connectionString, input = {}) {
       operationId,
       obligationId: obligation.obligation_id,
       processingStatus: 'open',
+      financiallySettled: false,
+      settlementCommitted: false,
       retrySafe: true,
     });
   });
 }
 
 async function associatePayment(connectionString, input = {}) {
-  const trusted = trustedIdentity(input);
+  const trusted = expectedContext(input);
   if (!trusted.ok) return result({ result: 'rejected', error: trusted.error, retrySafe: false });
   if (typeof input.operationId !== 'string' || typeof input.squarePaymentId !== 'string' || !PAYMENT_PATTERN.test(input.squarePaymentId)) {
     return result({ result: 'rejected', error: 'square_settlement_payment_id_invalid', retrySafe: false });
   }
-  return transaction(connectionString, async (client) => {
+  const associated = await transaction(connectionString, async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [input.squarePaymentId]);
     const operations = await client.query(
       'SELECT * FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
@@ -474,6 +941,8 @@ async function associatePayment(connectionString, input = {}) {
         operationId: operation.operation_id,
         obligationId: operation.obligation_id,
         error: 'square_settlement_context_mismatch',
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: false,
       });
     }
@@ -484,6 +953,8 @@ async function associatePayment(connectionString, input = {}) {
         obligationId: operation.obligation_id,
         squarePaymentId: operation.square_payment_id,
         error: 'square_settlement_payment_already_associated',
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: false,
       });
     }
@@ -495,171 +966,124 @@ async function associatePayment(connectionString, input = {}) {
         [operation.operation_id, input.squarePaymentId]
       );
     }
-    const outcome = await reconcile(client, input.squarePaymentId);
-    return input.fault === 'before_commit' ? { fault: true } : outcome;
+    if (input.fault === 'before_commit') return { fault: true };
+    const reviewed = await reviewInbox(client, input.squarePaymentId);
+    return reviewed;
   });
-}
-
-function eventFromInput(input, trusted) {
-  if (typeof input.eventId !== 'string' || !EVENT_PATTERN.test(input.eventId)) {
-    return { ok: false, error: 'square_settlement_event_invalid' };
+  if (!associated || !associated.response) return associated;
+  if (associated.verificationRequested === true && typeof input.fetchImpl === 'function') {
+    return verifyAndSettle(connectionString, {
+      testContext: input.testContext,
+      trustedSandbox: input.trustedSandbox,
+      operationId: associated.operationId,
+      env: input.env,
+      fetchImpl: input.fetchImpl,
+      timeoutMs: input.timeoutMs,
+    });
   }
-  if (input.eventType !== 'payment.created' && input.eventType !== 'payment.updated' && input.eventType !== 'provider.retrieve') {
-    return { ok: false, error: 'square_settlement_event_invalid' };
-  }
-  if (input.sourceKind !== 'trusted_mock' && input.sourceKind !== 'authenticated_event') {
-    return { ok: false, error: 'square_settlement_source_untrusted' };
-  }
-  if (typeof input.squarePaymentId !== 'string' || !PAYMENT_PATTERN.test(input.squarePaymentId)) {
-    return { ok: false, error: 'square_settlement_payment_id_invalid' };
-  }
-  if (typeof input.merchantId !== 'string' || typeof input.locationId !== 'string') {
-    return { ok: false, error: 'square_settlement_event_invalid' };
-  }
-  if (!Number.isInteger(input.amountCents) || typeof input.currency !== 'string') {
-    return { ok: false, error: 'square_settlement_amount_invalid' };
-  }
-  const observedAt = new Date(input.observedAt);
-  if (Number.isNaN(observedAt.getTime())) {
-    return { ok: false, error: 'square_settlement_event_invalid' };
-  }
-  if (input.payment && Object.prototype.hasOwnProperty.call(input.payment, 'merchant_id')) {
-    return { ok: false, error: 'square_settlement_undocumented_merchant_field' };
-  }
-  return {
-    ok: true,
-    event: {
-      eventId: input.eventId,
-      eventType: input.eventType,
-      paymentId: input.squarePaymentId,
-      merchantId: input.merchantId,
-      locationId: input.locationId,
-      status: String(input.paymentStatus || ''),
-      amountCents: input.amountCents,
-      currency: input.currency,
-      sourceKind: input.sourceKind,
-      observedAt,
-      trustedMerchantId: trusted.merchantId,
-      trustedLocationId: trusted.locationId,
-    },
-  };
+  return associated.response;
 }
 
 async function ingestObservation(connectionString, input = {}) {
-  const trusted = trustedIdentity(input, { allowEventIdentity: true });
+  const trusted = expectedContext(input, { allowEventIdentity: true });
   if (!trusted.ok) return result({ result: 'rejected', error: trusted.error, retrySafe: false });
-  const parsed = eventFromInput(input, trusted);
+  const parsed = eventFromInput(input);
   if (!parsed.ok) return result({ result: 'rejected', error: parsed.error, retrySafe: false });
-  const event = parsed.event;
-  return transaction(connectionString, async (client) => {
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [event.paymentId]);
-    await client.query(
-      `INSERT INTO sandbox_payment_event
-        (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
-         amount_cents, currency, processing_status, source_kind, observed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'stored', $9, $10)
-       ON CONFLICT (event_id) DO NOTHING`,
-      [
-        event.eventId,
-        event.paymentId,
-        event.eventType,
-        event.merchantId,
-        event.locationId,
-        event.status,
-        event.amountCents,
-        event.currency,
-        event.sourceKind,
-        event.observedAt,
-      ]
-    );
-    const outcome = await reconcile(client, event.paymentId);
-    return input.fault === 'before_commit' ? { fault: true } : outcome;
+  const recorded = await transaction(connectionString, async (client) => {
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [parsed.event.paymentId]);
+    await insertObservation(client, parsed.event);
+    return reviewInbox(client, parsed.event.paymentId);
   });
+  if (!recorded || !recorded.response) return recorded;
+  if (recorded.verificationRequested === true && typeof input.fetchImpl === 'function') {
+    return verifyAndSettle(connectionString, {
+      testContext: input.testContext,
+      trustedSandbox: input.trustedSandbox,
+      operationId: recorded.operationId,
+      env: input.env,
+      fetchImpl: input.fetchImpl,
+      timeoutMs: input.timeoutMs,
+      fault: input.fault,
+    });
+  }
+  return recorded.response;
 }
 
-async function retrieveAndReconcile(connectionString, input = {}) {
-  const trusted = trustedIdentity(input);
+async function verifyAndSettle(connectionString, input = {}) {
+  const trusted = expectedContext(input);
   if (!trusted.ok) return result({ result: 'rejected', error: trusted.error, retrySafe: false });
-  if (typeof input.squarePaymentId !== 'string' || !PAYMENT_PATTERN.test(input.squarePaymentId)) {
-    return result({ result: 'rejected', error: 'square_settlement_payment_id_invalid', retrySafe: false });
+  if (typeof input.fetchImpl !== 'function') {
+    return result({
+      result: 'failed',
+      error: 'square_settlement_provider_unavailable',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: true,
+    });
   }
-  const captured = {};
-  const fetchImpl = async (url, init) => {
-    const target = String(url);
-    if (!target.startsWith('https://connect.squareupsandbox.com/')) {
-      throw new Error('square_settlement_host_rejected');
-    }
-    const response = await input.fetchImpl(url, init);
-    const text = typeof response.text === 'function' ? await response.text() : '';
-    captured.text = text;
-    return {
-      status: response.status,
-      async text() { return text; },
-    };
-  };
+  const loaded = await readOperation(connectionString, input);
+  if (!loaded || loaded.ready !== true) return loaded && loaded.response ? loaded.response : loaded;
+  if (loaded.merchantId !== trusted.merchantId || loaded.locationId !== trusted.locationId) {
+    return result({
+      result: 'quarantined',
+      operationId: loaded.operationId,
+      obligationId: loaded.obligationId,
+      squarePaymentId: loaded.squarePaymentId,
+      error: 'square_settlement_context_mismatch',
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: false,
+    });
+  }
   let retrieved;
   try {
     retrieved = await retrieveSimulatedPayment({
       testContext: TEST_CONTEXT,
       confirmation: LOCAL_CONFIRMATION,
       purpose: 'sandbox_adapter_test',
-      serverBookingRef: input.serverBookingRef,
-      trustedSandbox: input.trustedSandbox,
-      amountCents: input.amountCents,
+      serverBookingRef: loaded.bookingRef,
+      trustedSandbox: {
+        configuredBy: 'server',
+        merchantId: loaded.merchantId,
+        locationId: loaded.locationId,
+        locationMerchantId: loaded.merchantId,
+      },
+      amountCents: loaded.amountCents,
       currency: 'USD',
-      paymentId: input.squarePaymentId,
+      paymentId: loaded.squarePaymentId,
       env: input.env,
       timeoutMs: input.timeoutMs || 50,
-      fetchImpl,
+      fetchImpl: (url, init) => sandboxFetch(input.fetchImpl, url, init),
     });
   } catch {
     return result({
       result: 'failed',
-      squarePaymentId: input.squarePaymentId,
+      operationId: loaded.operationId,
+      obligationId: loaded.obligationId,
+      squarePaymentId: loaded.squarePaymentId,
       error: 'square_settlement_provider_unknown',
-      retrySafe: true,
-    });
-  }
-  let payment = null;
-  try {
-    const body = JSON.parse(captured.text || '');
-    payment = body && body.payment && typeof body.payment === 'object' ? body.payment : null;
-  } catch {
-    payment = null;
-  }
-  if (!payment) {
-    return result({
-      result: 'failed',
-      squarePaymentId: input.squarePaymentId,
-      error: retrieved && retrieved.error ? retrieved.error : 'square_settlement_provider_unknown',
-      providerCompleted: false,
       financiallySettled: false,
       settlementCommitted: false,
       retrySafe: true,
     });
   }
-  if (Object.prototype.hasOwnProperty.call(payment, 'merchant_id')) {
+  const decision = classifyRetrieval(retrieved, loaded);
+  if (decision.result !== 'verified') {
+    await recordVerification(connectionString, loaded, retrieved, decision);
     return result({
-      result: 'rejected',
-      squarePaymentId: input.squarePaymentId,
-      error: payment ? 'square_settlement_undocumented_merchant_field' : 'square_settlement_provider_invalid',
-      retrySafe: false,
+      result: decision.result,
+      operationId: loaded.operationId,
+      obligationId: loaded.obligationId,
+      squarePaymentId: loaded.squarePaymentId,
+      processingStatus: decision.processing,
+      error: decision.error || '',
+      providerCompleted: false,
+      financiallySettled: false,
+      settlementCommitted: false,
+      retrySafe: decision.retrySafe === true,
     });
   }
-  return ingestObservation(connectionString, {
-    ...input,
-    eventId: input.retrievalEventId,
-    eventType: 'provider.retrieve',
-    sourceKind: 'trusted_mock',
-    merchantId: trusted.merchantId,
-    locationId: typeof payment.location_id === 'string' ? payment.location_id : '',
-    squarePaymentId: typeof payment.id === 'string' ? payment.id : input.squarePaymentId,
-    paymentStatus: typeof payment.status === 'string' ? payment.status : '',
-    amountCents: payment.amount_money && payment.amount_money.amount,
-    currency: payment.amount_money && payment.amount_money.currency,
-    observedAt: input.observedAt,
-    payment: undefined,
-  });
+  return commitSettlement(connectionString, input, loaded);
 }
 
 module.exports = {
@@ -670,5 +1094,6 @@ module.exports = {
   createOperation,
   associatePayment,
   ingestObservation,
-  retrieveAndReconcile,
+  verifyAndSettle,
+  retrieveAndReconcile: verifyAndSettle,
 };

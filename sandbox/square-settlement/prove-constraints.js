@@ -14,14 +14,15 @@ async function expectCode(client, sql, params) {
 }
 
 async function main() {
+  db.assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_square_settlement_7d');
   let refused = '';
   try {
-    db.assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_square_settlement_7d');
+    db.assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_ci');
   } catch (error) {
     refused = error.message;
   }
   if (refused !== 'square_settlement_database_unproven') {
-    throw new Error('port 5432 was not refused');
+    throw new Error('ci database was not refused');
   }
   refused = '';
   try {
@@ -78,7 +79,7 @@ async function main() {
         (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
          amount_cents, currency, processing_status, source_kind, observed_at)
        VALUES ('evt-1', 'sandboxPay7dA', 'payment.created', 'MERCHANT_TEST_7D', 'LOC_TEST_7D',
-               'COMPLETED', 100, 'USD', 'stored', 'authenticated_event', now())`
+               'COMPLETED', 100, 'USD', 'stored', 'unverified_observation', now())`
     );
     const secondEvent = await expectCode(
       client,
@@ -86,7 +87,7 @@ async function main() {
         (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
          amount_cents, currency, processing_status, source_kind, observed_at)
        VALUES ('evt-2', 'sandboxPay7dA', 'payment.updated', 'MERCHANT_TEST_7D', 'LOC_TEST_7D',
-               'COMPLETED', 100, 'USD', 'stored', 'authenticated_event', now())`
+               'COMPLETED', 100, 'USD', 'stored', 'unverified_observation', now())`
     );
     const duplicateEvent = await expectCode(
       client,
@@ -94,7 +95,7 @@ async function main() {
         (event_id, square_payment_id, event_type, merchant_id, location_id, payment_status,
          amount_cents, currency, processing_status, source_kind, observed_at)
        VALUES ('evt-1', 'sandboxPay7dA', 'payment.created', 'MERCHANT_TEST_7D', 'LOC_TEST_7D',
-               'APPROVED', 100, 'USD', 'stored', 'authenticated_event', now())`
+               'APPROVED', 100, 'USD', 'stored', 'unverified_observation', now())`
     );
     const settlement = await expectCode(
       client,

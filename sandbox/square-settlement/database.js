@@ -4,9 +4,11 @@
  * Connection gate for the isolated Square Sandbox settlement prototype.
  *
  * This module opens only the disposable local database
- * cardetail1_square_settlement_7d on 127.0.0.1 port 5433.
- * It does not read DATABASE_URL. A remote host, another port, or another
- * database name fails before any SQL is sent.
+ * cardetail1_square_settlement_7d on loopback port 5432 or 5433.
+ * Port 5433 is the local disposable server. Port 5432 is accepted only for
+ * that same database name, so a future CI job can create it beside the
+ * existing loopback service. This module does not read DATABASE_URL.
+ * A remote host, another port, or another database name fails before any SQL.
  *
  * Depends on Square adapter commit f68c9b46af83d747e55139eaac5fb724db0e43e4
  * (Draft PR #373). This branch is not that pull request.
@@ -18,6 +20,7 @@ const { Client } = require('pg');
 
 const LOCAL_DATABASE_NAME = 'cardetail1_square_settlement_7d';
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost']);
+const LOCAL_PORTS = new Set(['5432', '5433']);
 const LOCAL_PORT = '5433';
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
@@ -33,7 +36,8 @@ function assertLocalSettlementUrl(connectionString) {
   if (url.protocol !== 'postgresql:' && url.protocol !== 'postgres:') {
     throw new Error('square_settlement_database_unproven');
   }
-  if (!LOCAL_HOSTS.has(host) || String(url.port) !== LOCAL_PORT) {
+  const port = String(url.port);
+  if (!LOCAL_HOSTS.has(host) || !LOCAL_PORTS.has(port)) {
     throw new Error('square_settlement_database_unproven');
   }
   if (database !== LOCAL_DATABASE_NAME) {
@@ -42,11 +46,11 @@ function assertLocalSettlementUrl(connectionString) {
   if (/neon|amazonaws|supabase|squareup/i.test(connectionString)) {
     throw new Error('square_settlement_database_unproven');
   }
-  return { host, database };
+  return { host, database, port };
 }
 
 async function connectProven(connectionString) {
-  assertLocalSettlementUrl(connectionString);
+  const target = assertLocalSettlementUrl(connectionString);
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 5000,
@@ -59,7 +63,7 @@ async function connectProven(connectionString) {
   const row = proof.rows[0] || {};
   const address = String(row.address || '');
   const localAddress = address === '127.0.0.1' || address === '::1' || address === '127.0.0.1/32';
-  if (row.database !== LOCAL_DATABASE_NAME || row.port !== LOCAL_PORT || !localAddress) {
+  if (row.database !== LOCAL_DATABASE_NAME || row.port !== target.port || !LOCAL_PORTS.has(row.port) || !localAddress) {
     await client.end();
     throw new Error('square_settlement_database_unproven');
   }
@@ -98,6 +102,7 @@ async function emptySettlementTables(connectionString) {
 module.exports = {
   LOCAL_DATABASE_NAME,
   LOCAL_PORT,
+  LOCAL_PORTS,
   assertLocalSettlementUrl,
   connectProven,
   applySettlementSchema,

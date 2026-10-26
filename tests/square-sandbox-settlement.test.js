@@ -19,22 +19,29 @@ const {
   createObligation,
   createOperation,
   ingestObservation,
-  retrieveAndReconcile,
+  verifyAndSettle,
 } = require('../sandbox/square-settlement/square-sandbox-settlement');
 const { ACTIVE_PAYMENT_PROVIDER } = require('../netlify/lib/payment-provider-adapter');
 
 const ROOT = path.join(__dirname, '..');
-const URL = 'postgresql://cardetail1_ci@127.0.0.1:5433/cardetail1_square_settlement_7d';
 const TOKEN = 'EAAA_sandbox_mock_token_not_a_real_credential_00';
 const PAYMENT_ID = 'sandboxPay7dOnly';
 const MERCHANT_ID = 'MERCHANT_TEST_7D';
 const LOCATION_ID = 'LOC_TEST_7D';
 
+function settlementTestUrl() {
+  const configured = process.env.SQUARE_SETTLEMENT_TEST_PORT;
+  const port = configured == null || configured === '' ? '5433' : String(configured);
+  if (port !== '5432' && port !== '5433') throw new Error('square_settlement_database_unproven');
+  return `postgresql://cardetail1_ci@127.0.0.1:${port}/${LOCAL_DATABASE_NAME}`;
+}
+
+const URL = settlementTestUrl();
+
 function context(overrides = {}) {
   return {
     testContext: 'noncommercial-test',
     trustedSandbox: {
-      configuredBy: 'server',
       merchantId: MERCHANT_ID,
       locationId: LOCATION_ID,
       locationMerchantId: MERCHANT_ID,
@@ -47,7 +54,6 @@ function observation(overrides = {}) {
   return context({
     eventId: 'evt-7d-completed',
     eventType: 'payment.updated',
-    sourceKind: 'authenticated_event',
     squarePaymentId: PAYMENT_ID,
     merchantId: MERCHANT_ID,
     locationId: LOCATION_ID,
@@ -70,6 +76,7 @@ function paymentBody(overrides = {}) {
     },
   };
   assert.equal(Object.hasOwn(payment, 'merchant_id'), false);
+  assert.equal(Object.hasOwn(payment, 'receipt_url'), false);
   return { payment };
 }
 
@@ -77,6 +84,15 @@ function mockFetch(body, status = 200) {
   return async () => ({
     status,
     async text() { return JSON.stringify(body); },
+  });
+}
+
+function provider(operationId, overrides = {}, bodyOverrides = {}) {
+  return context({
+    operationId,
+    env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN },
+    fetchImpl: mockFetch(paymentBody(bodyOverrides)),
+    ...overrides,
   });
 }
 
@@ -115,22 +131,40 @@ async function authorizedPair(paymentId = PAYMENT_ID, key = 'sandbox-op-7d-001')
   return { obligation, operation, associated };
 }
 
+function assertUnsettled(outcome) {
+  assert.equal(outcome.financiallySettled, false);
+  assert.equal(outcome.settlementCommitted, false);
+  assert.equal(outcome.paid, false);
+  assert.equal(outcome.ledgerWrite, false);
+  assert.equal(outcome.bookingWrite, false);
+}
+
 describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
   beforeEach(async () => {
     await emptySettlementTables(URL);
     await applySettlementSchema(URL);
   });
 
-  test('the connection gate rejects remote and non-local databases', () => {
+  test('the connection gate allows only the dedicated loopback database', () => {
     assert.equal(LOCAL_DATABASE_NAME, 'cardetail1_square_settlement_7d');
+    assert.equal(assertLocalSettlementUrl(URL).database, LOCAL_DATABASE_NAME);
+    assert.doesNotThrow(() => assertLocalSettlementUrl(
+      'postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_square_settlement_7d'
+    ));
     assert.throws(
-      () => assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_square_settlement_7d'),
+      () => assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_ci'),
       /square_settlement_database_unproven/
     );
     assert.throws(
       () => assertLocalSettlementUrl('postgresql://user@ep-example.neon.tech/cardetail1_square_settlement_7d'),
       /square_settlement_database_unproven/
     );
+    assert.throws(
+      () => assertLocalSettlementUrl('postgresql://cardetail1_ci@example.com:5433/cardetail1_square_settlement_7d'),
+      /square_settlement_database_unproven/
+    );
+    const databaseSource = fs.readFileSync(path.join(ROOT, 'sandbox/square-settlement/database.js'), 'utf8');
+    assert.equal(databaseSource.includes('process.env'), false);
     assert.equal(ADAPTER_COMMIT, 'f68c9b46af83d747e55139eaac5fb724db0e43e4');
     assert.equal(DEPENDS_ON_PULL_REQUEST, 373);
   });
@@ -139,11 +173,8 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     const { obligation, operation, associated } = await authorizedPair();
     assert.equal(obligation.result, 'stored');
     assert.equal(operation.result, 'stored');
-    assert.equal(operation.obligationId, obligation.obligationId);
     assert.equal(associated.result, 'pending');
-    assert.equal(associated.financiallySettled, false);
-    assert.equal(associated.settlementCommitted, false);
-    assert.equal(associated.paid, false);
+    assertUnsettled(associated);
     const state = await counts();
     assert.equal(state.settlements, 0);
     assert.equal(state.obligations, 1);
@@ -151,121 +182,287 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assert.equal(state.commercial_attempt, null);
   });
 
-  test('COMPLETED settles once and non-completed statuses do not', async () => {
+  test('an unverified COMPLETED observation does not settle', async () => {
+    await authorizedPair();
+    const stored = await ingestObservation(URL, observation());
+    assert.equal(stored.result, 'stored');
+    assert.equal(stored.processingStatus, 'verification_required');
+    assert.equal(stored.providerCompleted, false);
+    assertUnsettled(stored);
+    assert.equal((await counts()).settlements, 0);
+    assert.equal((await counts()).events, 1);
+  });
+
+  test('a verified COMPLETED retrieval settles from the stored payment', async () => {
     const { obligation, operation } = await authorizedPair();
-    const settled = await ingestObservation(URL, observation());
+    let calls = 0;
+    const settled = await verifyAndSettle(URL, provider(operation.operationId, {
+      amountCents: 1,
+      squarePaymentId: PAYMENT_ID,
+      fetchImpl: async () => {
+        calls += 1;
+        return { status: 200, async text() { return JSON.stringify(paymentBody()); } };
+      },
+    }));
+    assert.equal(calls, 1);
     assert.equal(settled.result, 'settled');
     assert.equal(settled.providerCompleted, true);
     assert.equal(settled.financiallySettled, true);
     assert.equal(settled.settlementCommitted, true);
     assert.equal(settled.paid, false);
-    assert.equal(settled.ledgerWrite, false);
-    assert.equal(settled.bookingWrite, false);
     assert.equal(settled.operationId, operation.operationId);
     assert.equal(settled.obligationId, obligation.obligationId);
     assert.equal(settled.squarePaymentId, PAYMENT_ID);
+    assert.equal(JSON.stringify(settled).includes(TOKEN), false);
+    assert.equal(JSON.stringify(settled).includes('receipt'), false);
+    assert.equal((await counts()).settlements, 1);
+  });
+
+  test('an unknown payment identity and a provider id mismatch do not settle', async () => {
+    const { operation } = await authorizedPair();
+    const missing = await verifyAndSettle(URL, provider('op-missing'));
+    assert.equal(missing.error, 'square_settlement_operation_unknown');
+    assertUnsettled(missing);
+    const unassociated = await createOperation(URL, context({
+      obligationId: (await createObligation(URL, context({
+        bookingRef: 'TEST-SQ-7D-C',
+        purpose: PURPOSE,
+        amountCents: 100,
+        currency: 'USD',
+      }))).obligationId,
+      idempotencyKey: 'sandbox-op-open-only',
+    }));
+    const open = await verifyAndSettle(URL, provider(unassociated.operationId));
+    assert.equal(open.error, 'square_settlement_payment_unassociated');
+    assertUnsettled(open);
+    let calls = 0;
+    const mismatch = await verifyAndSettle(URL, provider(operation.operationId, {
+      squarePaymentId: 'sandboxPayOther',
+      fetchImpl: async () => {
+        calls += 1;
+        return { status: 200, async text() { return JSON.stringify(paymentBody()); } };
+      },
+    }));
+    assert.equal(calls, 0);
+    assert.equal(mismatch.error, 'square_settlement_payment_id_mismatch');
+    assertUnsettled(mismatch);
+    const returned = await verifyAndSettle(URL, provider(operation.operationId, {}, { id: 'sandboxPayOther' }));
+    assert.equal(returned.result, 'quarantined');
+    assert.equal(returned.error, 'square_settlement_payment_id_mismatch');
+    assertUnsettled(returned);
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  test('wrong amount, currency, merchant, and location do not settle', async () => {
+    const { operation } = await authorizedPair();
+    const cases = [
+      [provider(operation.operationId, {}, { amount: 250 }), 'square_settlement_amount_mismatch'],
+      [provider(operation.operationId, {}, { currency: 'EUR' }), 'square_settlement_currency_mismatch'],
+      [provider(operation.operationId, {}, { locationId: 'LOC_TEST_OTHER' }), 'square_settlement_location_mismatch'],
+    ];
+    for (const [input, error] of cases) {
+      await emptySettlementTables(URL);
+      await applySettlementSchema(URL);
+      const paired = await authorizedPair();
+      const outcome = await verifyAndSettle(URL, { ...input, operationId: paired.operation.operationId });
+      assert.equal(outcome.result, 'quarantined', error);
+      assert.equal(outcome.error, error);
+      assertUnsettled(outcome);
+      assert.equal((await counts()).settlements, 0, error);
+    }
+    await emptySettlementTables(URL);
+    await applySettlementSchema(URL);
+    const paired = await authorizedPair();
+    const merchant = await verifyAndSettle(URL, provider(paired.operation.operationId, {
+      trustedSandbox: {
+        merchantId: 'MERCHANT_TEST_OTHER',
+        locationId: LOCATION_ID,
+        locationMerchantId: 'MERCHANT_TEST_OTHER',
+      },
+    }));
+    assert.equal(merchant.result, 'quarantined');
+    assertUnsettled(merchant);
+    const observed = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-merchant',
+      merchantId: 'MERCHANT_TEST_OTHER',
+    }));
+    assert.equal(observed.result, 'quarantined');
+    assertUnsettled(observed);
+    assert.equal((await counts()).settlements, 0);
+    assert.equal((await counts()).events >= 1, true);
+  });
+
+  test('caller-forged trust markers and timestamps cannot settle', async () => {
+    const { operation } = await authorizedPair();
+    const forgedSource = await ingestObservation(URL, observation({ sourceKind: 'authenticated_event' }));
+    const forgedMarker = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-marker',
+      trustedSandbox: {
+        configuredBy: 'server',
+        merchantId: MERCHANT_ID,
+        locationId: LOCATION_ID,
+        locationMerchantId: MERCHANT_ID,
+      },
+    }));
+    const forgedFlag = await verifyAndSettle(URL, provider(operation.operationId, { verified: true }));
+    const future = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-future',
+      observedAt: '2099-01-01T00:00:00.000Z',
+    }));
+    const past = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-past',
+      observedAt: '2000-01-01T00:00:00.000Z',
+    }));
+    const missingTime = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-notime',
+      observedAt: undefined,
+    }));
+    for (const outcome of [forgedSource, forgedMarker, forgedFlag, future, past, missingTime]) {
+      assertUnsettled(outcome);
+    }
+    assert.equal(forgedSource.error, 'square_settlement_authentication_marker_rejected');
+    assert.equal(forgedMarker.error, 'square_settlement_authentication_marker_rejected');
+    assert.equal(forgedFlag.error, 'square_settlement_authentication_marker_rejected');
+    assert.equal(future.processingStatus, 'verification_required');
+    assert.equal(past.processingStatus, 'verification_required');
+    assert.equal(missingTime.processingStatus, 'verification_required');
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  test('conflicting webhook observations stay stored and do not settle', async () => {
+    const { operation } = await authorizedPair();
+    const first = await ingestObservation(URL, observation({ eventId: 'evt-7d-amount-a', amountCents: 100 }));
+    const second = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-amount-b',
+      amountCents: 250,
+      observedAt: '2099-01-01T00:00:00.000Z',
+    }));
+    assert.equal(first.processingStatus, 'verification_required');
+    assert.equal(second.result, 'quarantined');
+    assertUnsettled(first);
+    assertUnsettled(second);
+    assert.equal((await counts()).events, 2);
+    assert.equal((await counts()).settlements, 0);
+    const disagreed = await verifyAndSettle(URL, provider(operation.operationId, {}, { amount: 250 }));
+    assert.equal(disagreed.result, 'quarantined');
+    assertUnsettled(disagreed);
+    const verified = await verifyAndSettle(URL, provider(operation.operationId));
+    assert.equal(verified.result, 'settled');
+    assert.equal(verified.settlementCommitted, true);
+    const client = await connectProven(URL);
+    try {
+      const conflict = await client.query(
+        "SELECT count(*)::int AS conflicts FROM sandbox_payment_event WHERE processing_status = 'inconsistent'"
+      );
+      assert.equal(conflict.rows[0].conflicts >= 1, true);
+    } finally {
+      await client.end();
+    }
+    assert.equal((await counts()).settlements, 1);
+  });
+
+  test('payment.created and payment.updated settle only after verification', async () => {
+    const createdPair = await authorizedPair(PAYMENT_ID, 'sandbox-op-created');
+    const created = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-created',
+      eventType: 'payment.created',
+    }));
+    assert.equal(created.processingStatus, 'verification_required');
+    assertUnsettled(created);
+    const createdSettled = await ingestObservation(URL, provider(createdPair.operation.operationId, observation({
+      eventId: 'evt-7d-created-ok',
+      eventType: 'payment.created',
+    })));
+    assert.equal(createdSettled.result, 'settled');
+    assert.equal(createdSettled.settlementCommitted, true);
+
+    await emptySettlementTables(URL);
+    await applySettlementSchema(URL);
+    const updatedPair = await authorizedPair(PAYMENT_ID, 'sandbox-op-updated');
+    const updated = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-updated',
+      eventType: 'payment.updated',
+    }));
+    assertUnsettled(updated);
+    const updatedSettled = await ingestObservation(URL, provider(updatedPair.operation.operationId, observation({
+      eventId: 'evt-7d-updated-ok',
+      eventType: 'payment.updated',
+    })));
+    assert.equal(updatedSettled.result, 'settled');
+    assert.equal((await counts()).settlements, 1);
+  });
+
+  test('APPROVED, PENDING, FAILED, and CANCELED do not settle', async () => {
     for (const status of ['APPROVED', 'PENDING', 'FAILED', 'CANCELED']) {
       await emptySettlementTables(URL);
       await applySettlementSchema(URL);
-      await authorizedPair();
-      const outcome = await ingestObservation(URL, observation({
+      const { operation } = await authorizedPair();
+      const observed = await ingestObservation(URL, observation({
         eventId: `evt-7d-${status}`,
         paymentStatus: status,
       }));
-      assert.equal(outcome.settlementCommitted, false, status);
-      assert.equal(outcome.financiallySettled, false, status);
-      assert.equal(outcome.paid, false, status);
-      if (status === 'APPROVED' || status === 'PENDING') assert.equal(outcome.result, 'pending', status);
-      else assert.equal(outcome.result, 'rejected', status);
+      const verified = await verifyAndSettle(URL, provider(operation.operationId, {}, { status }));
+      assertUnsettled(observed);
+      assertUnsettled(verified);
+      if (status === 'APPROVED' || status === 'PENDING') {
+        assert.equal(observed.result, 'pending', status);
+        assert.equal(verified.result, 'pending', status);
+      } else {
+        assert.equal(observed.result, 'rejected', status);
+        assert.equal(verified.result, 'rejected', status);
+      }
       assert.equal((await counts()).settlements, 0, status);
     }
   });
 
-  test('unknown status, bad identity, amount, and currency do not settle', async () => {
-    await authorizedPair();
-    const cases = [
-      [observation({ eventId: 'evt-7d-unknown', paymentStatus: 'CAPTURED' }), 'rejected'],
-      [observation({ eventId: 'evt-7d-merchant', merchantId: 'MERCHANT_TEST_OTHER' }), 'quarantined'],
-      [observation({ eventId: 'evt-7d-location', locationId: 'LOC_TEST_OTHER' }), 'quarantined'],
-      [observation({ eventId: 'evt-7d-amount', amountCents: 250 }), 'quarantined'],
-      [observation({ eventId: 'evt-7d-currency', currency: 'EUR' }), 'quarantined'],
-    ];
-    for (const [event, expected] of cases) {
-      await emptySettlementTables(URL);
-      await applySettlementSchema(URL);
-      await authorizedPair();
-      const outcome = await ingestObservation(URL, event);
-      assert.equal(outcome.result, expected, event.eventId);
-      assert.equal(outcome.settlementCommitted, false, event.eventId);
-      assert.equal(outcome.financiallySettled, false, event.eventId);
-      assert.equal((await counts()).events, 1, event.eventId);
-      assert.equal((await counts()).settlements, 0, event.eventId);
-    }
-  });
-
-  test('commercial booking input and an unknown obligation are rejected', async () => {
-    const commercial = await createObligation(URL, context({
-      bookingRef: 'CD1-REAL',
-      purpose: PURPOSE,
-      amountCents: 100,
-      currency: 'USD',
-    }));
-    assert.equal(commercial.result, 'rejected');
-    const browser = await createObligation(URL, context({
-      bookingRef: 'TEST-SQ-7D',
-      purpose: PURPOSE,
-      amountCents: 100,
-      currency: 'USD',
-      browserAmountCents: 1,
-    }));
-    assert.equal(browser.result, 'rejected');
-    const missing = await createOperation(URL, context({
-      obligationId: 'obl-missing',
-      idempotencyKey: 'sandbox-op-missing',
-    }));
-    assert.equal(missing.error, 'square_settlement_obligation_unknown');
-    assert.equal((await counts()).settlements, 0);
-  });
-
-  test('duplicate events and a repeated payment do not create a second settlement', async () => {
-    await authorizedPair();
+  test('duplicate and distinct events leave one settlement', async () => {
+    const { operation } = await authorizedPair();
     const first = await ingestObservation(URL, observation({ eventId: 'evt-7d-a' }));
-    const duplicate = await ingestObservation(URL, observation({ eventId: 'evt-7d-a', paymentStatus: 'APPROVED' }));
+    const duplicate = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-a',
+      paymentStatus: 'APPROVED',
+    }));
+    assertUnsettled(first);
+    assertUnsettled(duplicate);
+    assert.equal((await counts()).events, 1);
+    const settled = await verifyAndSettle(URL, provider(operation.operationId));
     const otherEvent = await ingestObservation(URL, observation({
       eventId: 'evt-7d-b',
       eventType: 'payment.created',
-      observedAt: '2026-10-26T03:00:00.000Z',
+      observedAt: '2026-10-26T02:00:00.000Z',
     }));
-    assert.equal(first.settlementCommitted, true);
-    assert.equal(duplicate.result, 'already_settled');
-    assert.equal(duplicate.settlementCommitted, false);
-    assert.equal(duplicate.financiallySettled, true);
+    assert.equal(settled.settlementCommitted, true);
     assert.equal(otherEvent.result, 'already_settled');
+    assert.equal(otherEvent.financiallySettled, true);
+    assert.equal(otherEvent.settlementCommitted, false);
     assert.equal((await counts()).settlements, 1);
-    assert.equal((await counts()).events, 2);
+    assert.equal((await counts()).events >= 2, true);
   });
 
-  test('concurrent settlement attempts leave one row', async () => {
-    await authorizedPair();
+  test('concurrent verification leaves one settlement row', async () => {
+    const { operation } = await authorizedPair();
     const [left, right] = await Promise.all([
-      ingestObservation(URL, observation({ eventId: 'evt-7d-left' })),
-      ingestObservation(URL, observation({ eventId: 'evt-7d-right', eventType: 'payment.created' })),
+      verifyAndSettle(URL, provider(operation.operationId)),
+      verifyAndSettle(URL, provider(operation.operationId)),
     ]);
     const results = [left.result, right.result].sort();
     assert.deepEqual(results, ['already_settled', 'settled']);
+    assert.equal(left.financiallySettled, true);
+    assert.equal(right.financiallySettled, true);
     assert.equal(left.settlementCommitted !== right.settlementCommitted, true);
     assert.equal((await counts()).settlements, 1);
-    assert.equal((await counts()).events, 2);
   });
 
   test('a second payment cannot settle an obligation, and one payment cannot bind two obligations', async () => {
-    const { obligation } = await authorizedPair();
-    await ingestObservation(URL, observation());
+    const { obligation, operation } = await authorizedPair();
+    await verifyAndSettle(URL, provider(operation.operationId));
     const secondOperation = await createOperation(URL, context({
       obligationId: obligation.obligationId,
       idempotencyKey: 'sandbox-op-7d-second',
     }));
     assert.equal(secondOperation.result, 'rejected');
+    assert.equal(secondOperation.financiallySettled, true);
+    assert.equal(secondOperation.settlementCommitted, false);
     assert.equal((await counts()).settlements, 1);
 
     await emptySettlementTables(URL);
@@ -286,23 +483,52 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
       squarePaymentId: PAYMENT_ID,
     }));
     assert.equal(stolen.result, 'rejected');
-    assert.equal(stolen.settlementCommitted, false);
-    const settled = await ingestObservation(URL, observation());
+    assertUnsettled(stolen);
+    const settled = await verifyAndSettle(URL, provider(first.operation.operationId));
     assert.equal(settled.obligationId, first.obligation.obligationId);
     assert.equal((await counts()).settlements, 1);
   });
 
-  test('a rolled-back settlement is not success and can be retried without a new payment', async () => {
-    await authorizedPair();
-    const failed = await ingestObservation(URL, observation({ fault: 'before_commit' }));
+  test('settlement rollback can be retried, and a conflicting row is read back', async () => {
+    const { operation } = await authorizedPair();
+    await ingestObservation(URL, observation({ eventId: 'evt-7d-kept' }));
+    const failed = await verifyAndSettle(URL, provider(operation.operationId, { fault: 'before_commit' }));
     assert.equal(failed.result, 'failed');
-    assert.equal(failed.settlementCommitted, false);
-    assert.equal(failed.financiallySettled, false);
+    assert.equal(failed.error, 'square_settlement_rolled_back');
+    assertUnsettled(failed);
     assert.equal(failed.retrySafe, true);
     assert.equal((await counts()).settlements, 0);
-    const retried = await ingestObservation(URL, observation());
+    assert.equal((await counts()).events, 1);
+    const retried = await verifyAndSettle(URL, provider(operation.operationId));
     assert.equal(retried.result, 'settled');
     assert.equal(retried.settlementCommitted, true);
+    const again = await verifyAndSettle(URL, provider(operation.operationId));
+    assert.equal(again.result, 'already_settled');
+    assert.equal(again.financiallySettled, true);
+    assert.equal(again.settlementCommitted, false);
+    assert.equal(again.obligationId, retried.obligationId);
+    assert.equal(again.operationId, retried.operationId);
+    assert.equal(again.squarePaymentId, PAYMENT_ID);
+    assert.equal((await counts()).settlements, 1);
+
+    await emptySettlementTables(URL);
+    await applySettlementSchema(URL);
+    const conflicted = await authorizedPair(PAYMENT_ID, 'sandbox-op-conflict');
+    const client = await connectProven(URL);
+    try {
+      await client.query(
+        `INSERT INTO sandbox_settlement
+          (settlement_id, obligation_id, operation_id, square_payment_id, settled_amount_cents, currency)
+         VALUES ('stl-manual', $1, $2, $3, 50, 'USD')`,
+        [conflicted.obligation.obligationId, conflicted.operation.operationId, PAYMENT_ID]
+      );
+    } finally {
+      await client.end();
+    }
+    const conflict = await verifyAndSettle(URL, provider(conflicted.operation.operationId));
+    assert.equal(conflict.result, 'rejected');
+    assert.equal(conflict.error, 'square_settlement_conflict');
+    assertUnsettled(conflict);
     assert.equal((await counts()).settlements, 1);
   });
 
@@ -340,120 +566,97 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assert.equal((await counts()).settlements, 0);
   });
 
-  test('a webhook before association is kept and settles once the operation exists', async () => {
+  test('an early event waits for association and verified completion', async () => {
     const early = await ingestObservation(URL, observation({ eventId: 'evt-7d-early' }));
     assert.equal(early.result, 'stored');
     assert.equal(early.processingStatus, 'awaiting_association');
-    assert.equal(early.settlementCommitted, false);
-    assert.equal((await counts()).events, 1);
-    const paired = await authorizedPair();
-    assert.equal(paired.associated.result, 'settled');
-    assert.equal(paired.associated.settlementCommitted, true);
-    const late = await ingestObservation(URL, observation({
-      eventId: 'evt-7d-late',
-      observedAt: '2026-10-26T02:05:00.000Z',
+    assertUnsettled(early);
+    assert.equal((await counts()).operations, 0);
+    assert.equal((await counts()).settlements, 0);
+    const obligation = await createObligation(URL, context({
+      bookingRef: 'TEST-SQ-7D',
+      purpose: PURPOSE,
+      amountCents: 100,
+      currency: 'USD',
     }));
-    assert.equal(late.result, 'already_settled');
-    assert.equal(late.settlementCommitted, false);
-    assert.equal(late.financiallySettled, true);
+    const operation = await createOperation(URL, context({
+      obligationId: obligation.obligationId,
+      idempotencyKey: 'sandbox-op-7d-001',
+    }));
+    const waiting = await associatePayment(URL, context({
+      operationId: operation.operationId,
+      squarePaymentId: PAYMENT_ID,
+    }));
+    assert.equal(waiting.processingStatus, 'verification_required');
+    assertUnsettled(waiting);
+    const associated = await associatePayment(URL, provider(operation.operationId, {
+      squarePaymentId: PAYMENT_ID,
+    }));
+    assert.equal(associated.result, 'settled');
+    assert.equal(associated.settlementCommitted, true);
+    const repeated = await verifyAndSettle(URL, provider(operation.operationId));
+    assert.equal(repeated.result, 'already_settled');
+    assert.equal(repeated.financiallySettled, true);
+    assert.equal(repeated.settlementCommitted, false);
     assert.equal((await counts()).settlements, 1);
-    assert.equal((await counts()).events, 2);
+    assert.equal((await counts()).events >= 2, true);
   });
 
-  test('an older pending event does not regress a completed settlement', async () => {
-    await authorizedPair();
-    const completed = await ingestObservation(URL, observation({
-      eventId: 'evt-7d-done',
-      observedAt: '2026-10-26T02:00:00.000Z',
+  test('event order and forged timestamps do not regress a committed settlement', async () => {
+    const { operation } = await authorizedPair();
+    const pending = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-pending',
+      paymentStatus: 'PENDING',
+      observedAt: '2026-10-26T03:00:00.000Z',
     }));
-    const older = await ingestObservation(URL, observation({
+    const completed = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-completed-later',
+      observedAt: '2026-10-26T01:00:00.000Z',
+    }));
+    assert.equal(pending.result, 'pending');
+    assert.equal(completed.processingStatus, 'verification_required');
+    assertUnsettled(pending);
+    assertUnsettled(completed);
+    const settled = await verifyAndSettle(URL, provider(operation.operationId));
+    const olderPending = await ingestObservation(URL, observation({
       eventId: 'evt-7d-old-pending',
       paymentStatus: 'PENDING',
-      observedAt: '2026-10-26T01:00:00.000Z',
+      observedAt: '2000-01-01T00:00:00.000Z',
     }));
     const approvedLater = await ingestObservation(URL, observation({
       eventId: 'evt-7d-approved-later',
       eventType: 'payment.created',
       paymentStatus: 'APPROVED',
-      observedAt: '2026-10-26T04:00:00.000Z',
+      observedAt: '2099-01-01T00:00:00.000Z',
     }));
-    assert.equal(completed.result, 'settled');
-    assert.equal(older.result, 'already_settled');
+    const sameTime = await ingestObservation(URL, observation({
+      eventId: 'evt-7d-same-time',
+      observedAt: '2026-10-26T01:00:00.000Z',
+    }));
+    assert.equal(settled.result, 'settled');
+    assert.equal(olderPending.result, 'already_settled');
     assert.equal(approvedLater.result, 'already_settled');
+    assert.equal(sameTime.result, 'already_settled');
     assert.equal(approvedLater.financiallySettled, true);
     assert.equal(approvedLater.settlementCommitted, false);
     assert.equal((await counts()).settlements, 1);
   });
 
-  test('pending then completed settles once', async () => {
-    await authorizedPair();
-    const pending = await ingestObservation(URL, observation({
-      eventId: 'evt-7d-pending',
-      paymentStatus: 'PENDING',
-      observedAt: '2026-10-26T01:00:00.000Z',
-    }));
-    const completed = await ingestObservation(URL, observation({
-      eventId: 'evt-7d-later',
-      observedAt: '2026-10-26T02:00:00.000Z',
-    }));
-    assert.equal(pending.result, 'pending');
-    assert.equal(pending.financiallySettled, false);
-    assert.equal(completed.result, 'settled');
-    assert.equal((await counts()).settlements, 1);
-  });
-
   test('a provider retrieval that disagrees with the webhook does not settle', async () => {
-    await authorizedPair();
-    const mismatch = await retrieveAndReconcile(URL, context({
-      serverBookingRef: 'TEST-SQ-7D',
-      amountCents: 100,
-      squarePaymentId: PAYMENT_ID,
-      retrievalEventId: 'evt-7d-retrieve',
-      observedAt: '2026-10-26T02:00:00.000Z',
-      env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN },
-      fetchImpl: mockFetch(paymentBody({ amount: 250 })),
-    }));
-    const webhook = await ingestObservation(URL, observation({
-      eventId: 'evt-7d-webhook',
-      observedAt: '2026-10-26T02:10:00.000Z',
-    }));
-    assert.equal(mismatch.settlementCommitted, false);
-    assert.equal(webhook.result, 'quarantined');
-    assert.equal(webhook.processingStatus, 'inconsistent');
-    assert.equal(webhook.settlementCommitted, false);
-    assert.equal(webhook.financiallySettled, false);
-    assert.equal(webhook.paid, false);
+    const { operation } = await authorizedPair();
+    await ingestObservation(URL, observation({ eventId: 'evt-7d-webhook' }));
+    const mismatch = await verifyAndSettle(URL, provider(operation.operationId, {
+      timeoutMs: 50,
+    }, { amount: 250 }));
+    assert.equal(mismatch.result, 'quarantined');
+    assertUnsettled(mismatch);
     assert.equal((await counts()).settlements, 0);
+    assert.equal((await counts()).events >= 1, true);
   });
 
-  test('a matching mock retrieval settles and a timeout does not', async () => {
-    await authorizedPair();
-    const matched = await retrieveAndReconcile(URL, context({
-      serverBookingRef: 'TEST-SQ-7D',
-      amountCents: 100,
-      squarePaymentId: PAYMENT_ID,
-      retrievalEventId: 'evt-7d-retrieve-ok',
-      observedAt: '2026-10-26T02:00:00.000Z',
-      env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN },
-      fetchImpl: mockFetch(paymentBody()),
-    }));
-    assert.equal(matched.result, 'settled');
-    assert.equal(matched.providerCompleted, true);
-    assert.equal(matched.financiallySettled, true);
-    assert.equal(matched.paid, false);
-    assert.equal(JSON.stringify(matched).includes(TOKEN), false);
-    assert.equal(JSON.stringify(matched).includes('receipt'), false);
-
-    await emptySettlementTables(URL);
-    await applySettlementSchema(URL);
-    await authorizedPair();
-    const timeout = await retrieveAndReconcile(URL, context({
-      serverBookingRef: 'TEST-SQ-7D',
-      amountCents: 100,
-      squarePaymentId: PAYMENT_ID,
-      retrievalEventId: 'evt-7d-timeout',
-      observedAt: '2026-10-26T02:00:00.000Z',
-      env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN },
+  test('a provider timeout does not settle', async () => {
+    const { operation } = await authorizedPair();
+    const timeout = await verifyAndSettle(URL, provider(operation.operationId, {
       timeoutMs: 30,
       fetchImpl: (_url, init) => new Promise((_resolve, reject) => {
         init.signal.addEventListener('abort', () => {
@@ -465,8 +668,57 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     }));
     assert.equal(timeout.result, 'failed');
     assert.equal(timeout.retrySafe, true);
-    assert.equal(timeout.settlementCommitted, false);
-    assert.equal(timeout.financiallySettled, false);
+    assertUnsettled(timeout);
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  test('settled obligation status without a settlement row is not financially settled', async () => {
+    const { obligation } = await authorizedPair();
+    const client = await connectProven(URL);
+    try {
+      await client.query(
+        "UPDATE sandbox_payment_obligation SET status = 'settled' WHERE obligation_id = $1",
+        [obligation.obligationId]
+      );
+    } finally {
+      await client.end();
+    }
+    const outcome = await createOperation(URL, context({
+      obligationId: obligation.obligationId,
+      idempotencyKey: 'sandbox-op-status-only',
+    }));
+    assert.equal(outcome.result, 'failed');
+    assert.equal(outcome.error, 'square_settlement_state_inconsistent');
+    assertUnsettled(outcome);
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  test('commercial booking input and an unknown obligation are rejected', async () => {
+    const commercial = await createObligation(URL, context({
+      bookingRef: 'CD1-REAL',
+      purpose: PURPOSE,
+      amountCents: 100,
+      currency: 'USD',
+    }));
+    assert.equal(commercial.result, 'rejected');
+    const browser = await createObligation(URL, context({
+      bookingRef: 'TEST-SQ-7D',
+      purpose: PURPOSE,
+      amountCents: 100,
+      currency: 'USD',
+      browserAmountCents: 1,
+    }));
+    assert.equal(browser.result, 'rejected');
+    const missing = await createOperation(URL, context({
+      obligationId: 'obl-missing',
+      idempotencyKey: 'sandbox-op-missing',
+    }));
+    assert.equal(missing.error, 'square_settlement_obligation_unknown');
+    const receipt = await ingestObservation(URL, observation({
+      payment: { receipt_url: 'https://example.invalid/receipt' },
+    }));
+    assert.equal(receipt.error, 'square_settlement_receipt_not_proof');
+    assertUnsettled(receipt);
     assert.equal((await counts()).settlements, 0);
   });
 
@@ -474,6 +726,9 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assert.equal(ACTIVE_PAYMENT_PROVIDER, 'none');
     const src = fs.readFileSync(path.join(ROOT, 'sandbox/square-settlement/square-sandbox-settlement.js'), 'utf8');
     assert.equal(src.includes(ADAPTER_COMMIT), true);
+    assert.equal(src.includes("configuredBy: 'server'"), true);
+    assert.doesNotMatch(src, /sourceKind === 'authenticated_event'/);
+    assert.doesNotMatch(src, /trusted\.configuredBy/);
     assert.doesNotMatch(src, /require\([^)]*(payment-service|payment-authority-service|@prisma|prisma|stripe|square-sandbox-webhook)/);
     assert.doesNotMatch(src, /PaymentAttempt|LedgerEntry|booking\.paymentStatus/);
     const schema = fs.readFileSync(path.join(ROOT, 'sandbox/square-settlement/schema.sql'), 'utf8');

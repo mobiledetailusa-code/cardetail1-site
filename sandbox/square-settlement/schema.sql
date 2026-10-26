@@ -48,9 +48,10 @@ CREATE TABLE sandbox_payment_event (
     'quarantined',
     'rejected',
     'ignored_stale',
-    'inconsistent'
+    'inconsistent',
+    'verification_required'
   )),
-  source_kind TEXT NOT NULL CHECK (source_kind IN ('trusted_mock', 'authenticated_event')),
+  source_kind TEXT NOT NULL CHECK (source_kind IN ('unverified_observation', 'verified_provider_retrieval')),
   observed_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
