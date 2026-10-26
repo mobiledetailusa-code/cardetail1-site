@@ -457,6 +457,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/payment-provider-adapter.js',
     // Explicit local Square Sandbox client. Not the active provider.
     'netlify/lib/square-sandbox-provider.js',
+    // V2 reconciliation contract. Not a ledger writer and not the active provider.
+    'netlify/lib/square-sandbox-adapter-contract.js',
     // Square webhook signature check. No public endpoint and no ledger write.
     'netlify/lib/square-webhook-verifier.js',
     'netlify/lib/square-webhook-event.js',
