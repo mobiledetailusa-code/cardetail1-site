@@ -70,6 +70,8 @@ Use the sandbox nonce `cnon:card-nonce-declined` only in a mock or in a future e
 
 ## Reconciliation contract
 
+Phase 7E.9E requires a successful HTTP 2xx response, following the existing sandbox client's HTTP contract, before interpreting payment data. Every non-success status is rejected regardless of embedded `COMPLETED` fields. A nonempty or malformed error envelope and contradictory provider failure indicators also prevent reconciliation eligibility. Valid successful Payments API V2 responses still do not require a receipt URL. Retrieval failures never create a synthetic success response; the contract remains financially unsettled and does not persist a settlement.
+
 `netlify/lib/square-sandbox-adapter-contract.js` is the boundary a future settlement component can read. It is not selected by `getActivePaymentProvider()`. It does not insert `PaymentAttempt` or `LedgerEntry`, mark a booking paid, send a notification, or open the webhook event database.
 
 The contract follows the Payments API V2 Payment object for version `2026-09-16`: `id`, `status`, `amount_money.amount`, `amount_money.currency`, `location_id`, and `receipt_url` when Square includes it. That object does not document `merchant_id`. The contract does not require one and does not add one to a response. Square's Location object is where `merchant_id` is documented. This phase does not call RetrieveLocation.
