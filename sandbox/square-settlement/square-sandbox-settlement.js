@@ -31,6 +31,7 @@ const { LOCAL_CONFIRMATION } = require('../../netlify/lib/square-sandbox-provide
 const PURPOSE = 'sandbox_settlement_test';
 const ADAPTER_COMMIT = 'f68c9b46af83d747e55139eaac5fb724db0e43e4';
 const DEPENDS_ON_PULL_REQUEST = 373;
+const SETTLEMENT_TRANSACTION_LOCK = 'cardetail1.square-settlement.transaction.v1';
 const MERCHANT_PATTERN = /^MERCHANT_TEST_[A-Z0-9_]{1,48}$/;
 const LOCATION_PATTERN = /^LOC_TEST_[A-Z0-9_]{1,40}$/;
 const BOOKING_PATTERN = /^TEST-[A-Z0-9-]{1,32}$/;
@@ -162,6 +163,11 @@ async function transaction(connectionString, work) {
   const client = await connectProven(connectionString);
   try {
     await client.query('BEGIN');
+    // All financial SQL enters this database-scoped gate before taking any
+    // payment, row, foreign-key, or unique-index lock. This serializes the short
+    // database phases, including operation retries that lock obligation first.
+    // Provider retrieval is outside transaction(), never inside this gate.
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [SETTLEMENT_TRANSACTION_LOCK]);
     const outcome = await work(client);
     if (outcome && outcome.fault) {
       const error = new Error('sandbox_settlement_injected_fault');
@@ -487,10 +493,9 @@ async function readOperation(connectionString, input) {
         retrySafe: false,
       }));
     }
-    // Every path that can contend on an associated payment takes the payment
-    // advisory lock before locking the operation row. Reading the immutable
-    // association first avoids the inverse operation-row -> advisory-lock
-    // order, which can deadlock with concurrent webhook ingestion.
+    // The component transaction gate is already held. Payment-oriented paths
+    // also take the payment advisory lock before the operation row. Revalidate
+    // this preliminary association after locking rather than trusting the read.
     const identities = await client.query(
       'SELECT square_payment_id FROM sandbox_payment_operation WHERE operation_id = $1',
       [input.operationId]

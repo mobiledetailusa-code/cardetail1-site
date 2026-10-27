@@ -150,6 +150,105 @@ function assertUnsettled(outcome) {
   assert.equal(outcome.bookingWrite, false);
 }
 
+async function waitForLockState(client, query, excludedPids = []) {
+  const deadline = Date.now() + 4000;
+  while (Date.now() < deadline) {
+    const found = await client.query(
+      `SELECT a.pid, a.query,
+              EXISTS (SELECT 1 FROM pg_locks l
+                      WHERE l.pid = a.pid AND l.locktype = 'advisory' AND l.granted) AS holds_advisory
+       FROM pg_stat_activity a
+       WHERE a.datname = current_database() AND a.wait_event_type = 'Lock'
+         AND ($1::text IS NULL OR a.query = $1)
+         AND NOT (a.pid = ANY($2::int[]))`,
+      [query, excludedPids]
+    );
+    if (found.rows[0]) return found.rows[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`timed out waiting for PostgreSQL lock state: ${query || 'competing session'}`);
+}
+
+async function deadlockCount(client) {
+  const found = await client.query(
+    'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
+  );
+  return found.rows[0].deadlocks;
+}
+
+async function contendWithOperationRetry(pair, competing) {
+  const observer = await connectProven(URL);
+  const operationBlocker = await connectProven(URL);
+  const obligationBlocker = await connectProven(URL);
+  let retryPromise;
+  let competingPromise;
+  try {
+    const before = await deadlockCount(observer);
+    await operationBlocker.query('BEGIN');
+    await operationBlocker.query(
+      'SELECT operation_id FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
+      [pair.operation.operationId]
+    );
+    await obligationBlocker.query('BEGIN');
+    await obligationBlocker.query(
+      'SELECT obligation_id FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE',
+      [pair.obligation.obligationId]
+    );
+    retryPromise = createOperation(URL, context({
+      obligationId: pair.obligation.obligationId,
+      idempotencyKey: 'sandbox-op-7d-001',
+    }));
+    const retryWait = await waitForLockState(
+      observer, 'SELECT * FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE'
+    );
+    competingPromise = competing();
+    const competingWait = await waitForLockState(observer, null, [retryWait.pid]);
+    assert.notEqual(retryWait.pid, competingWait.pid);
+
+    // On the old implementation the competitor is queued for the operation.
+    // Releasing the obligation first lets the retry hold it while also queuing
+    // for the operation. Releasing the operation then exposes the exact cycle.
+    // The corrected implementation must make this same schedule complete safely.
+    await obligationBlocker.query('COMMIT');
+    await waitForLockState(
+      observer, 'SELECT * FROM sandbox_payment_operation WHERE idempotency_key = $1 FOR UPDATE'
+    );
+    await operationBlocker.query('COMMIT');
+    const [retry, other] = await Promise.all([retryPromise, competingPromise]);
+    return { retry, other, deadlocksBefore: before, deadlocksAfter: await deadlockCount(observer) };
+  } finally {
+    await obligationBlocker.query('ROLLBACK').catch(() => {});
+    await operationBlocker.query('ROLLBACK').catch(() => {});
+    await Promise.allSettled([retryPromise, competingPromise].filter(Boolean));
+    await Promise.all([observer.end(), operationBlocker.end(), obligationBlocker.end()]);
+  }
+}
+
+async function assertCommittedPair(pair) {
+  const client = await connectProven(URL);
+  try {
+    const found = await client.query(
+      `SELECT s.obligation_id, s.operation_id, s.square_payment_id,
+              s.settled_amount_cents, s.currency,
+              o.status AS obligation_status, p.status AS operation_status
+       FROM sandbox_settlement s
+       JOIN sandbox_payment_obligation o ON o.obligation_id = s.obligation_id
+       JOIN sandbox_payment_operation p ON p.operation_id = s.operation_id`
+    );
+    assert.deepEqual(found.rows, [{
+      obligation_id: pair.obligation.obligationId,
+      operation_id: pair.operation.operationId,
+      square_payment_id: PAYMENT_ID,
+      settled_amount_cents: 100,
+      currency: 'USD',
+      obligation_status: 'settled',
+      operation_status: 'settled',
+    }]);
+  } finally {
+    await client.end();
+  }
+}
+
 describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
   beforeEach(async () => {
     await emptySettlementTables(URL);
@@ -543,6 +642,261 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assert.equal(right.financiallySettled, true);
     assert.equal(left.settlementCommitted !== right.settlementCommitted, true);
     assert.equal((await counts()).settlements, 1);
+  });
+
+  test('operation retry versus verification preserves identity without a row-lock deadlock', async () => {
+    const pair = await authorizedPair();
+    const outcomes = await contendWithOperationRetry(pair, () =>
+      verifyAndSettle(URL, provider(pair.operation.operationId))
+    );
+    assert.equal(outcomes.deadlocksAfter, outcomes.deadlocksBefore, 'PostgreSQL detected a deadlock');
+    assert.equal(outcomes.retry.result, 'stored');
+    assert.equal(outcomes.retry.operationId, pair.operation.operationId);
+    assert.equal(outcomes.retry.squarePaymentId, PAYMENT_ID);
+    assert.equal(outcomes.other.result, 'settled');
+    assert.equal(outcomes.other.settlementCommitted, true);
+    assert.equal(outcomes.other.financiallySettled, true);
+    await assertCommittedPair(pair);
+  });
+
+  test('operation retry versus webhook ingestion completes without a row-lock deadlock', async () => {
+    const pair = await authorizedPair();
+    const outcomes = await contendWithOperationRetry(pair, () => ingestObservation(
+      URL, provider(pair.operation.operationId, observation({ eventId: 'evt-7d-retry-webhook' }))
+    ));
+    assert.equal(outcomes.deadlocksAfter, outcomes.deadlocksBefore);
+    assert.equal(outcomes.retry.result, 'stored');
+    assert.equal(outcomes.retry.operationId, pair.operation.operationId);
+    assert.equal(outcomes.other.result, 'settled');
+    assert.equal(outcomes.other.settlementCommitted, true);
+    await assertCommittedPair(pair);
+  });
+
+  test('operation retry versus payment association completes without a row-lock deadlock', async () => {
+    const pair = await authorizedPair();
+    const outcomes = await contendWithOperationRetry(pair, () => associatePayment(URL, context({
+      operationId: pair.operation.operationId, squarePaymentId: PAYMENT_ID,
+    })));
+    assert.equal(outcomes.deadlocksAfter, outcomes.deadlocksBefore);
+    assert.equal(outcomes.retry.result, 'stored');
+    assert.equal(outcomes.retry.operationId, pair.operation.operationId);
+    assert.equal(outcomes.other.result, 'pending');
+    assert.equal(outcomes.other.operationId, pair.operation.operationId);
+    assertUnsettled(outcomes.other);
+    assert.equal((await counts()).operations, 1);
+    assert.equal((await counts()).settlements, 0);
+    await verifyAndSettle(URL, provider(pair.operation.operationId));
+    await assertCommittedPair(pair);
+  });
+
+  test('two operation retries preserve one operation under controlled contention', async () => {
+    const pair = await authorizedPair();
+    const outcomes = await contendWithOperationRetry(pair, () => createOperation(URL, context({
+      obligationId: pair.obligation.obligationId, idempotencyKey: 'sandbox-op-7d-001',
+    })));
+    assert.equal(outcomes.deadlocksAfter, outcomes.deadlocksBefore);
+    for (const retry of [outcomes.retry, outcomes.other]) {
+      assert.equal(retry.result, 'stored');
+      assert.equal(retry.operationId, pair.operation.operationId);
+      assert.equal(retry.squarePaymentId, PAYMENT_ID);
+      assertUnsettled(retry);
+    }
+    assert.equal((await counts()).operations, 1);
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  test('verification versus webhook ingestion preserves the advisory-lock regression', async () => {
+    const pair = await authorizedPair();
+    const observer = await connectProven(URL);
+    const blocker = await connectProven(URL);
+    let verification;
+    let webhook;
+    try {
+      const before = await deadlockCount(observer);
+      await blocker.query('BEGIN');
+      await blocker.query(
+        'SELECT operation_id FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
+        [pair.operation.operationId]
+      );
+      verification = verifyAndSettle(URL, provider(pair.operation.operationId));
+      const verifier = await waitForLockState(
+        observer, 'SELECT * FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE'
+      );
+      assert.equal(verifier.holds_advisory, true);
+      webhook = ingestObservation(URL, provider(pair.operation.operationId, observation({
+        eventId: 'evt-7d-advisory-regression',
+      })));
+      const receiver = await waitForLockState(
+        observer, 'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [verifier.pid]
+      );
+      assert.notEqual(receiver.pid, verifier.pid);
+      await blocker.query('COMMIT');
+      const outcomes = await Promise.all([verification, webhook]);
+      assert.deepEqual(outcomes.map((item) => item.result).sort(), ['already_settled', 'settled']);
+      assert.equal(outcomes.filter((item) => item.settlementCommitted).length, 1);
+      assert.equal(outcomes.every((item) => item.financiallySettled), true);
+      assert.equal(await deadlockCount(observer), before);
+      await assertCommittedPair(pair);
+    } finally {
+      await blocker.query('ROLLBACK').catch(() => {});
+      await Promise.allSettled([verification, webhook].filter(Boolean));
+      await Promise.all([observer.end(), blocker.end()]);
+    }
+  });
+
+  test('concurrent creation and association preserve obligation, key, and payment uniqueness', async () => {
+    const obligations = await Promise.all(['A', 'B'].map((suffix) => createObligation(URL, context({
+      bookingRef: `TEST-SQ-CONCURRENT-${suffix}`, purpose: PURPOSE, amountCents: 100, currency: 'USD',
+    }))));
+    const sharedKey = await Promise.all(obligations.map((item) => createOperation(URL, context({
+      obligationId: item.obligationId, idempotencyKey: 'sandbox-op-shared-key',
+    }))));
+    const first = sharedKey.find((item) => item.result === 'stored');
+    assert.ok(first);
+    assert.equal(sharedKey.filter((item) => item.result === 'rejected').length, 1);
+    const remaining = obligations.find((item) => item.obligationId !== first.obligationId);
+    const sharedObligation = await Promise.all(['a', 'b'].map((suffix) => createOperation(URL, context({
+      obligationId: remaining.obligationId, idempotencyKey: `sandbox-op-new-${suffix}`,
+    }))));
+    const second = sharedObligation.find((item) => item.result === 'stored');
+    assert.ok(second);
+    assert.equal(sharedObligation.filter((item) => item.result === 'rejected').length, 1);
+    assert.notEqual(first.operationId, second.operationId);
+    assert.equal((await counts()).operations, 2);
+    const associations = await Promise.all([first, second].map((item) => associatePayment(URL, context({
+      operationId: item.operationId, squarePaymentId: PAYMENT_ID,
+    }))));
+    const associated = associations.find((item) => item.result === 'pending');
+    assert.ok(associated);
+    assert.equal(associations.filter((item) => item.result === 'rejected').length, 1);
+    const committed = await verifyAndSettle(URL, provider(associated.operationId));
+    assert.equal(committed.result, 'settled');
+    await assertCommittedPair({
+      operation: { operationId: associated.operationId },
+      obligation: { obligationId: associated.obligationId },
+    });
+  });
+
+  test('simultaneous duplicate webhooks retain one inbox event and one settlement', async () => {
+    const pair = await authorizedPair();
+    const input = provider(pair.operation.operationId, observation({ eventId: 'evt-7d-concurrent-duplicate' }));
+    const outcomes = await Promise.all([ingestObservation(URL, input), ingestObservation(URL, input)]);
+    assert.deepEqual(outcomes.map((item) => item.result).sort(), ['already_settled', 'settled']);
+    assert.equal(outcomes.filter((item) => item.settlementCommitted).length, 1);
+    const client = await connectProven(URL);
+    try {
+      const event = await client.query(
+        'SELECT count(*)::int AS count FROM sandbox_payment_event WHERE event_id = $1',
+        ['evt-7d-concurrent-duplicate']
+      );
+      assert.equal(event.rows[0].count, 1);
+    } finally {
+      await client.end();
+    }
+    await assertCommittedPair(pair);
+  });
+
+  test('idempotent operation retries cannot rewrite financial identity or authorization', async () => {
+    const pair = await authorizedPair();
+    const client = await connectProven(URL);
+    const sql = `SELECT operation_id, obligation_id, idempotency_key, square_payment_id,
+                        expected_amount_cents, currency, expected_merchant_id, expected_location_id, status
+                 FROM sandbox_payment_operation WHERE operation_id = $1`;
+    try {
+      const before = (await client.query(sql, [pair.operation.operationId])).rows;
+      const other = await createObligation(URL, context({
+        bookingRef: 'TEST-SQ-OTHER-OBLIGATION', purpose: PURPOSE, amountCents: 100, currency: 'USD',
+      }));
+      for (const changed of [{ amountCents: 101 }, { currency: 'EUR' }, { obligationId: other.obligationId }]) {
+        const rejected = await createOperation(URL, context({
+          obligationId: pair.obligation.obligationId, idempotencyKey: 'sandbox-op-7d-001', ...changed,
+        }));
+        assert.equal(rejected.result, 'rejected');
+        assert.equal(rejected.error, 'square_settlement_idempotency_conflict');
+        assertUnsettled(rejected);
+      }
+      // A supplied payment id is not an association command and is ignored.
+      const replay = await createOperation(URL, context({
+        obligationId: pair.obligation.obligationId, idempotencyKey: 'sandbox-op-7d-001',
+        squarePaymentId: 'sandboxPay7dReplacement',
+      }));
+      assert.equal(replay.result, 'stored');
+      assert.equal(replay.operationId, pair.operation.operationId);
+      assert.equal(replay.squarePaymentId, PAYMENT_ID);
+      assert.deepEqual((await client.query(sql, [pair.operation.operationId])).rows, before);
+      assert.equal((await counts()).operations, 1);
+      assert.equal((await counts()).settlements, 0);
+    } finally {
+      await client.end();
+    }
+  });
+
+  test('a retry after settlement follows the rejected already-settled contract without reopening', async () => {
+    const pair = await authorizedPair();
+    await verifyAndSettle(URL, provider(pair.operation.operationId));
+    const [retry, verified] = await Promise.all([
+      createOperation(URL, context({
+        obligationId: pair.obligation.obligationId, idempotencyKey: 'sandbox-op-7d-001',
+      })),
+      verifyAndSettle(URL, provider(pair.operation.operationId)),
+    ]);
+    assert.equal(retry.result, 'rejected');
+    assert.equal(retry.error, 'square_settlement_obligation_already_settled');
+    assert.equal(retry.operationId, pair.operation.operationId);
+    assert.equal(retry.squarePaymentId, PAYMENT_ID);
+    assert.equal(retry.financiallySettled, true);
+    assert.equal(retry.settlementCommitted, false);
+    assert.equal(verified.result, 'already_settled');
+    assert.equal(verified.settlementCommitted, false);
+    await assertCommittedPair(pair);
+  });
+
+  test('provider retrieval holds no transaction gate or financial row lock', async () => {
+    const pair = await authorizedPair();
+    let retry;
+    const settled = await verifyAndSettle(URL, provider(pair.operation.operationId, {
+      timeoutMs: 3000,
+      fetchImpl: async () => {
+        retry = await createOperation(URL, context({
+          obligationId: pair.obligation.obligationId, idempotencyKey: 'sandbox-op-7d-001',
+        }));
+        return mockFetch(paymentBody())();
+      },
+    }));
+    assert.equal(retry.result, 'stored');
+    assert.equal(retry.operationId, pair.operation.operationId);
+    assert.equal(settled.result, 'settled');
+    await assertCommittedPair(pair);
+  });
+
+  test('association rollback releases locks and preserves the early event for recovery', async () => {
+    const obligation = await createObligation(URL, context({
+      bookingRef: 'TEST-SQ-ASSOCIATION-ROLLBACK', purpose: PURPOSE, amountCents: 100, currency: 'USD',
+    }));
+    const operation = await createOperation(URL, context({
+      obligationId: obligation.obligationId, idempotencyKey: 'sandbox-op-7d-001',
+    }));
+    await ingestObservation(URL, observation({ eventId: 'evt-7d-association-rollback' }));
+    const rolledBack = await associatePayment(URL, context({
+      operationId: operation.operationId, squarePaymentId: PAYMENT_ID, fault: 'before_commit',
+    }));
+    assert.equal(rolledBack.error, 'square_settlement_rolled_back');
+    assertUnsettled(rolledBack);
+    const client = await connectProven(URL);
+    try {
+      const stored = await client.query(
+        'SELECT square_payment_id, status FROM sandbox_payment_operation WHERE operation_id = $1',
+        [operation.operationId]
+      );
+      assert.deepEqual(stored.rows, [{ square_payment_id: null, status: 'open' }]);
+      assert.equal((await counts()).events, 1);
+      assert.equal((await counts()).settlements, 0);
+    } finally {
+      await client.end();
+    }
+    const recovered = await associatePayment(URL, provider(operation.operationId, { squarePaymentId: PAYMENT_ID }));
+    assert.equal(recovered.result, 'settled');
+    await assertCommittedPair({ obligation, operation });
   });
 
   test('a second payment cannot settle an obligation, and one payment cannot bind two obligations', async () => {
