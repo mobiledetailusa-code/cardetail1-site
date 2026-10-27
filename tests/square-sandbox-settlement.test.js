@@ -33,7 +33,18 @@ function settlementTestUrl() {
   const configured = process.env.SQUARE_SETTLEMENT_TEST_PORT;
   const port = configured == null || configured === '' ? '5433' : String(configured);
   if (port !== '5432' && port !== '5433') throw new Error('square_settlement_database_unproven');
-  return `postgresql://cardetail1_ci@127.0.0.1:${port}/${LOCAL_DATABASE_NAME}`;
+  if (process.env.SQUARE_SETTLEMENT_TEST_HOST != null && process.env.SQUARE_SETTLEMENT_TEST_HOST !== '') {
+    throw new Error('square_settlement_database_unproven');
+  }
+  const password = process.env.SQUARE_SETTLEMENT_TEST_PASSWORD;
+  let userinfo = 'cardetail1_ci';
+  if (password != null && password !== '') {
+    if (typeof password !== 'string' || /[\s@:/\\]/.test(password) || /neon|amazonaws|supabase|squareup/i.test(password)) {
+      throw new Error('square_settlement_database_unproven');
+    }
+    userinfo = `cardetail1_ci:${encodeURIComponent(password)}`;
+  }
+  return `postgresql://${userinfo}@127.0.0.1:${port}/${LOCAL_DATABASE_NAME}`;
 }
 
 const URL = settlementTestUrl();
@@ -163,10 +174,88 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
       () => assertLocalSettlementUrl('postgresql://cardetail1_ci@example.com:5433/cardetail1_square_settlement_7d'),
       /square_settlement_database_unproven/
     );
+    assert.throws(
+      () => assertLocalSettlementUrl('postgresql://user@ep-summer-glade.neon.tech/cardetail1_square_settlement_7d'),
+      /square_settlement_database_unproven/
+    );
+    assert.throws(
+      () => assertLocalSettlementUrl('postgresql://user@cardetail1.cluster.us-east-1.rds.amazonaws.com:5432/cardetail1_square_settlement_7d'),
+      /square_settlement_database_unproven/
+    );
+    assert.throws(
+      () => assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5434/cardetail1_square_settlement_7d'),
+      /square_settlement_database_unproven/
+    );
+    assert.throws(
+      () => assertLocalSettlementUrl('postgresql://cardetail1_ci@127.0.0.1:5432/cardetail1_production'),
+      /square_settlement_database_unproven/
+    );
+    assert.throws(
+      () => assertLocalSettlementUrl('postgresql://cardetail1_ci@connect.squareup.com:5432/cardetail1_square_settlement_7d'),
+      /square_settlement_database_unproven/
+    );
     const databaseSource = fs.readFileSync(path.join(ROOT, 'sandbox/square-settlement/database.js'), 'utf8');
     assert.equal(databaseSource.includes('process.env'), false);
     assert.equal(ADAPTER_COMMIT, 'f68c9b46af83d747e55139eaac5fb724db0e43e4');
     assert.equal(DEPENDS_ON_PULL_REQUEST, 373);
+  });
+
+  test('untrusted settlement environment overrides cannot select a database', () => {
+    const previous = {
+      port: process.env.SQUARE_SETTLEMENT_TEST_PORT,
+      host: process.env.SQUARE_SETTLEMENT_TEST_HOST,
+      password: process.env.SQUARE_SETTLEMENT_TEST_PASSWORD,
+      databaseUrl: process.env.DATABASE_URL,
+    };
+    try {
+      process.env.SQUARE_SETTLEMENT_TEST_PORT = '5434';
+      assert.throws(() => settlementTestUrl(), /square_settlement_database_unproven/);
+      process.env.SQUARE_SETTLEMENT_TEST_PORT = '5432';
+      process.env.SQUARE_SETTLEMENT_TEST_HOST = 'ep-example.neon.tech';
+      assert.throws(() => settlementTestUrl(), /square_settlement_database_unproven/);
+      delete process.env.SQUARE_SETTLEMENT_TEST_HOST;
+      process.env.SQUARE_SETTLEMENT_TEST_PASSWORD = 'cardetail1_ci';
+      process.env.DATABASE_URL = 'postgresql://user@ep-example.neon.tech/cardetail1_ci';
+      const url = settlementTestUrl();
+      const parsed = assertLocalSettlementUrl(url);
+      assert.equal(parsed.host, '127.0.0.1');
+      assert.equal(parsed.port, '5432');
+      assert.equal(parsed.database, LOCAL_DATABASE_NAME);
+      assert.equal(url.includes('neon'), false);
+      process.env.SQUARE_SETTLEMENT_TEST_PASSWORD = 'https://ep-example.neon.tech';
+      assert.throws(() => settlementTestUrl(), /square_settlement_database_unproven/);
+    } finally {
+      for (const [key, name] of [
+        ['SQUARE_SETTLEMENT_TEST_PORT', previous.port],
+        ['SQUARE_SETTLEMENT_TEST_HOST', previous.host],
+        ['SQUARE_SETTLEMENT_TEST_PASSWORD', previous.password],
+        ['DATABASE_URL', previous.databaseUrl],
+      ]) {
+        if (name == null) delete process.env[key];
+        else process.env[key] = name;
+      }
+    }
+  });
+
+  test('the full-test job prepares a separate loopback settlement database', () => {
+    const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/integration.yml'), 'utf8');
+    assert.match(workflow, /DATABASE_URL: postgresql:\/\/cardetail1_ci:cardetail1_ci@127\.0\.0\.1:5432\/cardetail1_ci/);
+    const fullTest = workflow.slice(workflow.indexOf('  full_test:'), workflow.indexOf('  financial_invariants:'));
+    assert.match(fullTest, /cardetail1_square_settlement_7d/);
+    assert.match(fullTest, /SQUARE_SETTLEMENT_TEST_PORT: '5432'/);
+    assert.match(fullTest, /nsenter -t "\$pid" -n/);
+    assert.equal(fullTest.includes('schema.sql'), false);
+    assert.equal(fullTest.includes('neon.tech'), false);
+    for (const marker of ['  financial_invariants:', '  portal_parity:', '  netlify_build:', '  stripe_test_mode:']) {
+      assert.equal(workflow.includes(marker), true, marker);
+    }
+    const financial = workflow.slice(workflow.indexOf('  financial_invariants:'), workflow.indexOf('  portal_parity:'));
+    const portal = workflow.slice(workflow.indexOf('  portal_parity:'), workflow.indexOf('  netlify_build:'));
+    const netlify = workflow.slice(workflow.indexOf('  netlify_build:'), workflow.indexOf('  stripe_test_mode:'));
+    const stripe = workflow.slice(workflow.indexOf('  stripe_test_mode:'));
+    for (const section of [financial, portal, netlify, stripe]) {
+      assert.equal(section.includes('cardetail1_square_settlement_7d'), false);
+    }
   });
 
   test('an obligation and operation are stored before any settlement', async () => {

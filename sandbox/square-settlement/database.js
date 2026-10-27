@@ -5,9 +5,10 @@
  *
  * This module opens only the disposable local database
  * cardetail1_square_settlement_7d on loopback port 5432 or 5433.
- * Port 5433 is the local disposable server. Port 5432 is accepted only for
- * that same database name, so a future CI job can create it beside the
- * existing loopback service. This module does not read DATABASE_URL.
+ * Port 5433 is the local disposable server. Port 5432 is the ephemeral
+ * GitHub Actions service. The full-test job runs these tests in that
+ * service's network namespace, so the server address check still requires
+ * loopback. This module does not read DATABASE_URL.
  * A remote host, another port, or another database name fails before any SQL.
  *
  * Depends on Square adapter commit f68c9b46af83d747e55139eaac5fb724db0e43e4
