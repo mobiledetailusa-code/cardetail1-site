@@ -1,6 +1,6 @@
 # Verified Square reconciliation bridge
 
-Local prototype inheriting corrected draft settlement commit `cb678658e7c28e8e023de39e44bd4e44584b4473` through a merge that preserves the original bridge commit. It does not modify draft PRs #372, #373, or #374, deploy, or call Square. Phase 7E.5 publication is blocked by the additional concurrency limitation below.
+Local prototype inheriting globally hardened settlement commit `4432d8000e2c8a6712b26cde3fcbb51933a9bf17` through a merge from preserved bridge checkpoint `6389624f0db1ffbca1b5aafdbd30aa96aa1a6b70`. The original Cursor bridge and earlier Codex history remain intact. This integration does not modify draft PRs #372, #373, or #374, deploy, or call Square.
 
 The published sandbox webhook receiver is unchanged. Signature checks call `verifySquareWebhookSignature`. Event interpretation calls `interpretVerifiedSquareWebhook`. Settlement calls the existing sandbox settlement service. The bridge does not implement a second HMAC.
 
@@ -18,15 +18,23 @@ A future internal Square Sandbox retrieval client must be a server-owned depende
 
 Provider retrieval runs after the read transaction commits. A new transaction is opened only after the retrieval result has been classified, so no database row or advisory lock is held across the injected call.
 
-## Remaining operation-retry lock cycle
+## Operation-retry lock cycle and inherited correction
 
 Phase 7E.5 local validation reproduced a separate PostgreSQL `40P01` deadlock between an idempotent `createOperation` retry and `verifyAndSettle`. The retry locks the obligation before the existing operation, whereas verification locks the operation before the obligation. Two temporary blocker transactions and `pg_stat_activity` lock barriers establish the ordering before releasing the blockers; this is not a timing-only stress result.
 
-The same diagnostic reproduced on original bridge commit `1b2197b115431515082c628636e070abcced8752` and corrected settlement commit `cb678658e7c28e8e023de39e44bd4e44584b4473`. Each reproduction incremented the database deadlock counter by one and returned `square_settlement_failed` for one operation. Rollback left a recoverable state, and a subsequent verification left exactly one settlement. No financial source change is made here. This inherited settlement lock cycle must be corrected and independently validated before publishing the bridge dependency update. The bridge's deterministic verification-versus-webhook regression covers the original advisory-lock cycle, not this operation-retry cycle.
+The same diagnostic reproduced on original bridge commit `1b2197b115431515082c628636e070abcced8752` and earlier settlement correction `cb678658e7c28e8e023de39e44bd4e44584b4473`. Each reproduction incremented the database deadlock counter by one and returned `square_settlement_failed` for one operation. Rollback left a recoverable state, and a subsequent verification left exactly one settlement.
+
+Settlement commit `4432d8000e2c8a6712b26cde3fcbb51933a9bf17` corrects this cycle by acquiring a shared transaction gate before financial SQL. Its authoritative PR #374 Actions run [40506707071](https://github.com/mobiledetailusa-code/cardetail1-site/actions/runs/40506707071) passed all six jobs, including 35 settlement tests and the operation-retry regressions. This bridge integration inherits those source changes and tests unchanged. It adds no independent financial correction or gate bypass. The gate's cooperative-writer and throughput limitations remain documented in `square-sandbox-settlement.md`.
+
+## Deterministic bridge synchronization
+
+The earlier verification-versus-webhook row-blocking schedule still passed after the settlement merge. Its synchronization was strengthened to identify the shared gate specifically, rather than accepting any advisory lock. A short observer transaction discovers the gate's actual `pg_locks` tag and releases it before starting either participant. A blocker then holds the operation row; verification must hold that exact gate while waiting for the row. Webhook ingestion must wait on the same gate, with `pg_blocking_pids` identifying verification as its blocker.
+
+Releasing the operation row lets both requests complete. All existing financial assertions remain unchanged: one `settled`, one `already_settled`, exactly one committed matching row, both financially settled, no failed financial result, and no deadlock-counter increase. After completion, the observer must reacquire the shared gate immediately and acquire operation, obligation, settlement and event rows using `FOR UPDATE NOWAIT`; this verifies that locks were released. No timing-only substitute or weaker outcome expectation was introduced. The settlement suite separately retains the operation-retry, association, uniqueness, rollback and retrieval-outside-transaction proofs.
 
 ## CI password-log follow-up
 
-Phase 7E.5 inherits the credential remediation from PR #374; it does not duplicate that correction. The following historical audit describes public Actions run `40431732525` before the correction, without copying secret values into this note:
+Phase 7E.8 inherits the credential remediation from PR #374; it does not duplicate that correction. The following historical audit describes public Actions run `40431732525` before the correction, without copying secret values into this note:
 
 1. The ephemeral Postgres password is hardcoded in `.github/workflows/integration.yml`. It is the same literal as the ephemeral role name.
 2. It is the service password for the CI Postgres containers and the settlement test step. Local settlement tests do not require it. It is not a Neon credential and it is not a Square credential.

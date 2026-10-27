@@ -31,6 +31,7 @@ const PAYMENT_ID = 'sandboxPay7eOnly';
 const MERCHANT_ID = 'MERCHANT_TEST_7E';
 const LOCATION_ID = 'LOC_TEST_7E';
 const FINGERPRINT = 'fp-must-not-leak';
+const TRANSACTION_GATE_KEY = 'cardetail1.square-settlement.transaction.v1';
 
 function settlementTestUrl() {
   const configured = process.env.SQUARE_SETTLEMENT_TEST_PORT;
@@ -192,10 +193,10 @@ async function state() {
   }
 }
 
-async function waitForLockState(client, sql, description) {
+async function waitForLockState(client, sql, description, params = []) {
   const deadline = Date.now() + 3000;
   while (Date.now() < deadline) {
-    const observed = await client.query(sql);
+    const observed = await client.query(sql, params);
     if (observed.rows[0]) return observed.rows[0];
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
@@ -594,6 +595,18 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
     let verificationPromise;
     let webhookPromise;
     try {
+      // Discover the shared gate's actual lock tag instead of accepting any
+      // advisory lock (the service also retains its payment advisory lock).
+      await observer.query('BEGIN');
+      await observer.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [TRANSACTION_GATE_KEY]);
+      const gateLocks = await observer.query(
+        `SELECT database, classid, objid, objsubid FROM pg_locks
+         WHERE pid = pg_backend_pid() AND locktype = 'advisory' AND granted`
+      );
+      assert.equal(gateLocks.rows.length, 1);
+      const gate = gateLocks.rows[0];
+      const gateTag = [gate.database, gate.classid, gate.objid, gate.objsubid];
+      await observer.query('COMMIT');
       const before = await observer.query(
         'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
       );
@@ -617,7 +630,9 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
                   WHERE held.pid = a.pid
                     AND held.locktype = 'advisory'
                     AND held.granted
-                ) AS holds_advisory
+                    AND held.database = $1::oid AND held.classid = $2::oid
+                    AND held.objid = $3::oid AND held.objsubid = $4::int
+                ) AS holds_shared_gate
          FROM pg_stat_activity a
          WHERE a.datname = current_database()
            AND a.wait_event_type = 'Lock'
@@ -627,11 +642,14 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
              WHERE held.pid = a.pid
                AND held.locktype = 'advisory'
                AND held.granted
+               AND held.database = $1::oid AND held.classid = $2::oid
+               AND held.objid = $3::oid AND held.objsubid = $4::int
            )
          LIMIT 1`,
-        'verification to hold the advisory lock while waiting for the operation row'
+        'verification to hold the shared transaction gate while waiting for the operation row',
+        gateTag
       );
-      assert.equal(verificationWait.holds_advisory, true);
+      assert.equal(verificationWait.holds_shared_gate, true);
 
       webhookPromise = receiveVerifiedWebhook(
         SETTLEMENT_URL,
@@ -648,22 +666,28 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
                   WHERE waiting.pid = a.pid
                     AND waiting.locktype = 'advisory'
                     AND NOT waiting.granted
-                ) AS waits_for_advisory
+                    AND waiting.database = $1::oid AND waiting.classid = $2::oid
+                    AND waiting.objid = $3::oid AND waiting.objsubid = $4::int
+                ) AS waits_for_shared_gate
          FROM pg_stat_activity a
          WHERE a.datname = current_database()
            AND a.wait_event_type = 'Lock'
            AND position('pg_advisory_xact_lock' in a.query) > 0
+           AND $5::int = ANY (pg_blocking_pids(a.pid))
            AND EXISTS (
              SELECT 1 FROM pg_locks waiting
              WHERE waiting.pid = a.pid
                AND waiting.locktype = 'advisory'
                AND NOT waiting.granted
+               AND waiting.database = $1::oid AND waiting.classid = $2::oid
+               AND waiting.objid = $3::oid AND waiting.objsubid = $4::int
            )
          LIMIT 1`,
-        'webhook ingestion to wait behind the verification advisory lock'
+        'webhook ingestion to wait on the same shared gate held by verification',
+        [...gateTag, verificationWait.pid]
       );
       assert.notEqual(webhookWait.pid, verificationWait.pid);
-      assert.equal(webhookWait.waits_for_advisory, true);
+      assert.equal(webhookWait.waits_for_shared_gate, true);
 
       await blocker.query('COMMIT');
       blockerReleased = true;
@@ -692,11 +716,29 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
         operation_status: 'settled',
       }]);
 
+      // Completion must release both the shared gate and every financial row
+      // lock. Acquire them without waiting so a leaked lock fails the test.
+      await observer.query('BEGIN');
+      const released = await observer.query(
+        'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS acquired',
+        [TRANSACTION_GATE_KEY]
+      );
+      assert.equal(released.rows[0].acquired, true);
+      for (const [sql, params] of [
+        ['SELECT operation_id FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE NOWAIT', [operation.operationId]],
+        ['SELECT obligation_id FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE NOWAIT', [obligation.obligationId]],
+        ['SELECT settlement_id FROM sandbox_settlement WHERE operation_id = $1 FOR UPDATE NOWAIT', [operation.operationId]],
+        ['SELECT event_id FROM sandbox_payment_event WHERE square_payment_id = $1 ORDER BY event_id FOR UPDATE NOWAIT', [PAYMENT_ID]],
+      ]) {
+        assert.ok((await observer.query(sql, params)).rowCount > 0);
+      }
+      await observer.query('COMMIT');
       const after = await observer.query(
         'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
       );
       assert.equal(after.rows[0].deadlocks, before.rows[0].deadlocks);
     } finally {
+      await observer.query('ROLLBACK').catch(() => {});
       if (!blockerReleased) {
         await blocker.query('ROLLBACK').catch(() => {});
       }
