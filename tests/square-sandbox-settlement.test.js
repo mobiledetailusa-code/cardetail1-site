@@ -299,6 +299,29 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assert.equal(DEPENDS_ON_PULL_REQUEST, 373);
   });
 
+  test('the canonical client proves its loopback database, role and timeout over a real connection', async () => {
+    const client = await connectProven(URL);
+    try {
+      assert.equal(client.connectionParameters.host, '127.0.0.1');
+      assert.equal(client.connectionParameters.port, Number(new globalThis.URL(URL).port));
+      assert.equal(client.connectionParameters.database, LOCAL_DATABASE_NAME);
+      assert.equal(client.connectionParameters.user, 'cardetail1_ci');
+      assert.equal(client.connectionParameters.ssl, false);
+      assert.equal(client.connectionParameters.statement_timeout, 8000);
+      const proof = await client.query(
+        `SELECT current_database() AS database, current_user AS role,
+                inet_server_addr()::text AS address,
+                current_setting('statement_timeout') AS statement_timeout`
+      );
+      assert.equal(proof.rows[0].database, LOCAL_DATABASE_NAME);
+      assert.equal(proof.rows[0].role, 'cardetail1_ci');
+      assert.match(proof.rows[0].address, /^127\.0\.0\.1(?:\/32)?$/);
+      assert.equal(proof.rows[0].statement_timeout, '8s');
+    } finally {
+      await client.end();
+    }
+  });
+
   test('untrusted settlement environment overrides cannot select a database', () => {
     const previous = {
       port: process.env.SQUARE_SETTLEMENT_TEST_PORT,
