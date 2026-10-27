@@ -109,8 +109,6 @@ jobs:
       - name: Prepare legacy performance-artifact path
         run: mkdir -p 'C:/Projects/Cardetail1/artifacts/temp'
       - name: Create isolated Square settlement database
-        env:
-          SQUARE_SETTLEMENT_TEST_PASSWORD: cardetail1_ci
         run: |
           node <<'NODE'
           'use strict';
@@ -120,12 +118,10 @@ jobs:
           const SETTLEMENT_DATABASE = 'cardetail1_square_settlement_7d';
           const COMMERCIAL_DATABASE = 'cardetail1_ci';
           const USER = 'cardetail1_ci';
-          const password = process.env.SQUARE_SETTLEMENT_TEST_PASSWORD || '';
           function refuse(message) {
             console.error(message);
             process.exit(1);
           }
-          if (!/^[A-Za-z0-9_]+$/.test(password)) refuse('settlement ci password refused');
           const commercialUrl = process.env.DATABASE_URL || '';
           let commercial;
           try {
@@ -133,8 +129,12 @@ jobs:
           } catch {
             refuse('commercial ci database target refused');
           }
+          const password = decodeURIComponent(commercial.password || '');
+          if (!/^[A-Za-z0-9_]+$/.test(password)) refuse('settlement ci password refused');
           const commercialName = decodeURIComponent(commercial.pathname.replace(/^\//, '').split('?')[0]);
-          if (commercial.hostname !== HOST || String(commercial.port) !== String(PORT) || commercialName !== COMMERCIAL_DATABASE) {
+          const commercialUser = decodeURIComponent(commercial.username || '');
+          if (commercial.hostname !== HOST || String(commercial.port) !== String(PORT)
+            || commercialName !== COMMERCIAL_DATABASE || commercialUser !== USER) {
             refuse('commercial ci database target refused');
           }
           if (/neon|amazonaws|supabase|squareup/i.test(commercialUrl)) refuse('remote database target refused');
@@ -201,9 +201,36 @@ jobs:
       - name: Run Square settlement tests on the service loopback
         env:
           SQUARE_SETTLEMENT_TEST_PORT: '5432'
-          SQUARE_SETTLEMENT_TEST_PASSWORD: cardetail1_ci
         run: |
           set -euo pipefail
+          SQUARE_SETTLEMENT_TEST_PASSWORD="$(
+          node <<'NODE'
+          'use strict';
+          function refuse() {
+            console.error('settlement ci password derivation refused');
+            process.exit(1);
+          }
+          let configured;
+          try {
+            configured = new URL(process.env.DATABASE_URL || '');
+          } catch {
+            refuse();
+          }
+          const database = decodeURIComponent(configured.pathname.replace(/^\//, '').split('?')[0]);
+          const user = decodeURIComponent(configured.username || '');
+          const password = decodeURIComponent(configured.password || '');
+          if (configured.hostname !== '127.0.0.1' || configured.port !== '5432'
+            || database !== 'cardetail1_ci' || user !== 'cardetail1_ci'
+            || !/^[A-Za-z0-9_]+$/.test(password)
+            || /neon|amazonaws|supabase|squareup/i.test(String(process.env.DATABASE_URL || ''))) {
+            refuse();
+          }
+          process.stdout.write(password);
+          NODE
+          )"
+          test -n "$SQUARE_SETTLEMENT_TEST_PASSWORD"
+          echo "::add-mask::$SQUARE_SETTLEMENT_TEST_PASSWORD"
+          export SQUARE_SETTLEMENT_TEST_PASSWORD
           mapfile -t ids < <(docker ps -q --filter ancestor=postgres:16-alpine)
           if [ "${#ids[@]}" -ne 1 ]; then
             echo "expected one ephemeral postgres service"

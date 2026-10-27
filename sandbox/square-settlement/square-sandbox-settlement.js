@@ -487,6 +487,33 @@ async function readOperation(connectionString, input) {
         retrySafe: false,
       }));
     }
+    // Every path that can contend on an associated payment takes the payment
+    // advisory lock before locking the operation row. Reading the immutable
+    // association first avoids the inverse operation-row -> advisory-lock
+    // order, which can deadlock with concurrent webhook ingestion.
+    const identities = await client.query(
+      'SELECT square_payment_id FROM sandbox_payment_operation WHERE operation_id = $1',
+      [input.operationId]
+    );
+    const identity = identities.rows[0];
+    if (!identity) {
+      return packaged(result({
+        result: 'rejected',
+        error: 'square_settlement_operation_unknown',
+        retrySafe: false,
+      }));
+    }
+    if (!identity.square_payment_id) {
+      return packaged(result({
+        result: 'rejected',
+        operationId: input.operationId,
+        error: 'square_settlement_payment_unassociated',
+        financiallySettled: false,
+        settlementCommitted: false,
+        retrySafe: false,
+      }));
+    }
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [identity.square_payment_id]);
     const operations = await client.query(
       'SELECT * FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
       [input.operationId]
@@ -496,6 +523,18 @@ async function readOperation(connectionString, input) {
       return packaged(result({
         result: 'rejected',
         error: 'square_settlement_operation_unknown',
+        retrySafe: false,
+      }));
+    }
+    if (operation.square_payment_id !== identity.square_payment_id) {
+      return packaged(result({
+        result: 'quarantined',
+        operationId: operation.operation_id,
+        obligationId: operation.obligation_id,
+        squarePaymentId: operation.square_payment_id || '',
+        error: 'square_settlement_payment_id_mismatch',
+        financiallySettled: false,
+        settlementCommitted: false,
         retrySafe: false,
       }));
     }
@@ -534,7 +573,6 @@ async function readOperation(connectionString, input) {
         retrySafe: false,
       }));
     }
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [operation.square_payment_id]);
     const settlement = await loadSettlement(client, operation);
     if (settlement && settlementAgrees(settlement, attemptFrom(operation, obligation))) {
       return packaged(confirmedSettlement(settlement), { ready: false });

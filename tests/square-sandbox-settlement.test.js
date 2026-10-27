@@ -243,6 +243,9 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     const fullTest = workflow.slice(workflow.indexOf('  full_test:'), workflow.indexOf('  financial_invariants:'));
     assert.match(fullTest, /cardetail1_square_settlement_7d/);
     assert.match(fullTest, /SQUARE_SETTLEMENT_TEST_PORT: '5432'/);
+    assert.equal(fullTest.includes('SQUARE_SETTLEMENT_TEST_PASSWORD: cardetail1_ci'), false);
+    assert.match(fullTest, /const password = decodeURIComponent\(commercial\.password \|\| ''\)/);
+    assert.match(fullTest, /echo "::add-mask::\$SQUARE_SETTLEMENT_TEST_PASSWORD"/);
     assert.match(fullTest, /nsenter -t "\$pid" -n/);
     assert.equal(fullTest.includes('schema.sql'), false);
     assert.equal(fullTest.includes('neon.tech'), false);
