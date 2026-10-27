@@ -16,6 +16,7 @@ const {
   PURPOSE,
   createObligation,
   createOperation,
+  verifyAndSettle,
 } = require('../sandbox/square-settlement/square-sandbox-settlement');
 const {
   SYNTHETIC_RETRIEVAL_TOKEN,
@@ -189,6 +190,16 @@ async function state() {
   } finally {
     await client.end();
   }
+}
+
+async function waitForLockState(client, sql, description) {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    const observed = await client.query(sql);
+    if (observed.rows[0]) return observed.rows[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`timed out waiting for ${description}`);
 }
 
 async function openOperation(key = 'sandbox-op-7e-001', bookingRef = 'TEST-SQ-7E') {
@@ -573,6 +584,126 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
     assert.equal(right.financiallySettled, true);
     assert.equal(left.settlementCommitted !== right.settlementCommitted, true);
     assert.equal((await state()).settlements, 1);
+  });
+
+  test('verification and webhook ingestion cannot recreate the operation-row advisory-lock deadlock', async () => {
+    const { operation, obligation } = await storedOperation();
+    const blocker = await connectProven(SETTLEMENT_URL);
+    const observer = await connectProven(SETTLEMENT_URL);
+    let blockerReleased = false;
+    let verificationPromise;
+    let webhookPromise;
+    try {
+      const before = await observer.query(
+        'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
+      );
+      await blocker.query('BEGIN');
+      await blocker.query(
+        'SELECT operation_id FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
+        [operation.operationId]
+      );
+
+      verificationPromise = verifyAndSettle(SETTLEMENT_URL, context({
+        operationId: operation.operationId,
+        env: { SQUARE_SANDBOX_ACCESS_TOKEN: SYNTHETIC_RETRIEVAL_TOKEN },
+        fetchImpl: mockFetch(),
+      }));
+
+      const verificationWait = await waitForLockState(
+        observer,
+        `SELECT a.pid,
+                EXISTS (
+                  SELECT 1 FROM pg_locks held
+                  WHERE held.pid = a.pid
+                    AND held.locktype = 'advisory'
+                    AND held.granted
+                ) AS holds_advisory
+         FROM pg_stat_activity a
+         WHERE a.datname = current_database()
+           AND a.wait_event_type = 'Lock'
+           AND position('sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE' in a.query) > 0
+           AND EXISTS (
+             SELECT 1 FROM pg_locks held
+             WHERE held.pid = a.pid
+               AND held.locktype = 'advisory'
+               AND held.granted
+           )
+         LIMIT 1`,
+        'verification to hold the advisory lock while waiting for the operation row'
+      );
+      assert.equal(verificationWait.holds_advisory, true);
+
+      webhookPromise = receiveVerifiedWebhook(
+        SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-7e-lock-order' }), {
+          input: { fetchImpl: mockFetch() },
+        })
+      );
+
+      const webhookWait = await waitForLockState(
+        observer,
+        `SELECT a.pid,
+                EXISTS (
+                  SELECT 1 FROM pg_locks waiting
+                  WHERE waiting.pid = a.pid
+                    AND waiting.locktype = 'advisory'
+                    AND NOT waiting.granted
+                ) AS waits_for_advisory
+         FROM pg_stat_activity a
+         WHERE a.datname = current_database()
+           AND a.wait_event_type = 'Lock'
+           AND position('pg_advisory_xact_lock' in a.query) > 0
+           AND EXISTS (
+             SELECT 1 FROM pg_locks waiting
+             WHERE waiting.pid = a.pid
+               AND waiting.locktype = 'advisory'
+               AND NOT waiting.granted
+           )
+         LIMIT 1`,
+        'webhook ingestion to wait behind the verification advisory lock'
+      );
+      assert.notEqual(webhookWait.pid, verificationWait.pid);
+      assert.equal(webhookWait.waits_for_advisory, true);
+
+      await blocker.query('COMMIT');
+      blockerReleased = true;
+      const outcomes = await Promise.all([verificationPromise, webhookPromise]);
+      assert.deepEqual(outcomes.map((outcome) => outcome.result).sort(), ['already_settled', 'settled']);
+      assert.equal(outcomes.filter((outcome) => outcome.settlementCommitted).length, 1);
+      assert.equal(outcomes.every((outcome) => outcome.financiallySettled), true);
+      assert.equal(outcomes.some((outcome) => outcome.result === 'failed'), false);
+
+      const committed = await observer.query(
+        `SELECT s.obligation_id, s.operation_id, s.square_payment_id,
+                s.settled_amount_cents, s.currency,
+                o.status AS obligation_status,
+                p.status AS operation_status
+         FROM sandbox_settlement s
+         JOIN sandbox_payment_obligation o ON o.obligation_id = s.obligation_id
+         JOIN sandbox_payment_operation p ON p.operation_id = s.operation_id`
+      );
+      assert.deepEqual(committed.rows, [{
+        obligation_id: obligation.obligationId,
+        operation_id: operation.operationId,
+        square_payment_id: PAYMENT_ID,
+        settled_amount_cents: 100,
+        currency: 'USD',
+        obligation_status: 'settled',
+        operation_status: 'settled',
+      }]);
+
+      const after = await observer.query(
+        'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
+      );
+      assert.equal(after.rows[0].deadlocks, before.rows[0].deadlocks);
+    } finally {
+      if (!blockerReleased) {
+        await blocker.query('ROLLBACK').catch(() => {});
+      }
+      await Promise.allSettled([verificationPromise, webhookPromise].filter(Boolean));
+      await blocker.end();
+      await observer.end();
+    }
   });
 
   test('a transaction rollback reports no settlement and can be retried once', async () => {
