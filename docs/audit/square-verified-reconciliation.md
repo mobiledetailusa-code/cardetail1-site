@@ -1,6 +1,6 @@
 # Verified Square reconciliation bridge
 
-Local prototype inheriting globally hardened settlement commit `4432d8000e2c8a6712b26cde3fcbb51933a9bf17` through a merge from preserved bridge checkpoint `6389624f0db1ffbca1b5aafdbd30aa96aa1a6b70`. The original Cursor bridge and earlier Codex history remain intact. This integration does not modify draft PRs #372, #373, or #374, deploy, or call Square.
+Local prototype inheriting settlement isolation correction `8c7ee9a8f7d18136218d2a37708c632157eb5eab` through a merge into preserved bridge integration `544e5e910cc09f47884f543d5da297d0dda36fe8`, which retains checkpoint `6389624f0db1ffbca1b5aafdbd30aa96aa1a6b70`. The original Cursor bridge and earlier Codex history remain intact. This integration does not modify draft PRs #372, #373, or #374, deploy, or call Square.
 
 The published sandbox webhook receiver is unchanged. Signature checks call `verifySquareWebhookSignature`. Event interpretation calls `interpretVerifiedSquareWebhook`. Settlement calls the existing sandbox settlement service. The bridge does not implement a second HMAC.
 
@@ -25,6 +25,12 @@ Phase 7E.5 local validation reproduced a separate PostgreSQL `40P01` deadlock be
 The same diagnostic reproduced on original bridge commit `1b2197b115431515082c628636e070abcced8752` and earlier settlement correction `cb678658e7c28e8e023de39e44bd4e44584b4473`. Each reproduction incremented the database deadlock counter by one and returned `square_settlement_failed` for one operation. Rollback left a recoverable state, and a subsequent verification left exactly one settlement.
 
 Settlement commit `4432d8000e2c8a6712b26cde3fcbb51933a9bf17` corrects this cycle by acquiring a shared transaction gate before financial SQL. Its authoritative PR #374 Actions run [40506707071](https://github.com/mobiledetailusa-code/cardetail1-site/actions/runs/40506707071) passed all six jobs, including 35 settlement tests and the operation-retry regressions. This bridge integration inherits those source changes and tests unchanged. It adds no independent financial correction or gate bypass. The gate's cooperative-writer and throughput limitations remain documented in `square-sandbox-settlement.md`.
+
+## Inherited PostgreSQL destination isolation
+
+Phase 7E.9C inherits the canonical PostgreSQL client boundary and its 52 offline isolation regressions unchanged from PR #374 commit `8c7ee9a8f7d18136218d2a37708c632157eb5eab`. Its authoritative Actions run [40596512215](https://github.com/mobiledetailusa-code/cardetail1-site/actions/runs/40596512215) passed all six jobs, including those 52 cases and 36 settlement tests. Connection-setting queries, fragments, sockets and unauthorized destinations are rejected before client construction; explicit driver settings prevent environment fallback, and server identity is checked after connection. Details and limitations remain in `square-sandbox-settlement.md`.
+
+The bridge implementation and its financial and synchronization assertions are unchanged. Bridge tests now resolve the inherited corrected settlement/database modules directly, without validation-only dependency aliases. PR #375 adds no independent isolation implementation or settlement patch.
 
 ## Deterministic bridge synchronization
 
