@@ -5,3 +5,9 @@ This component depends on the Square adapter contract in commit `f68c9b46af83d74
 Observations are stored as unverified evidence. Settlement commits only after this service retrieves the payment through the adapter contract, using the payment id already stored on the operation and an injected mock client. That mock is synthetic test input. It is not Square authentication. Caller-supplied trust labels and timestamps cannot authorize settlement. `financiallySettled` is true only when the call committed a matching `sandbox_settlement` row or a later read confirmed that row.
 
 The connection gate opens only `cardetail1_square_settlement_7d` on loopback port `5432` or `5433`. It does not read `DATABASE_URL`. Local tests use port `5433` unless `SQUARE_SETTLEMENT_TEST_PORT` is explicitly `5432` or `5433`. The full-test job creates that database on the ephemeral Postgres service and runs the settlement tests in the service network namespace. Commercial migrations stay on `cardetail1_ci`. The settlement schema is applied by the test harness, not by the workflow.
+
+## CI credential handling
+
+The settlement setup and test steps derive their disposable PostgreSQL password inside the script from the existing loopback-only `DATABASE_URL`; they do not declare another plaintext step-level password. The test launcher registers the derived value with GitHub Actions masking before forwarding it into the PostgreSQL service namespace.
+
+The same disposable static password remains in the PostgreSQL service-container configuration and can appear in container startup logs before any user step can register a mask. Fully hiding that startup value would require a long-lived Actions secret or a broader service-authentication change, neither of which is introduced here. This credential is not a Neon, Square, Stripe, or production credential.
