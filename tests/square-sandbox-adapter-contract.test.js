@@ -378,6 +378,68 @@ test('the sandbox client amount cap is not a contract price rule', async () => {
   assert.doesNotMatch(src, /amountCents > 100000/);
 });
 
+for (const status of [302, 400, 404, 409, 429, 500]) {
+  test(`retrieval HTTP ${status} cannot authorize a matching COMPLETED payment`, async () => {
+    const network = mockFetch(async () => jsonResponse(status, v2Payment()));
+    const result = await retrieveSimulatedPayment(request({ paymentId: PAYMENT_ID, fetchImpl: network.fetchImpl }));
+    assert.equal(result.ok, false);
+    assert.equal(result.statusCode, status);
+    assert.notEqual(result.error, '');
+    assertNotEligible(result);
+    assertNoSecret(result);
+    assert.equal(network.calls.length, 1);
+    assert.equal(network.calls[0].init.method, 'GET');
+  });
+}
+
+for (const [name, envelope] of [
+  ['decline', { errors: [{ code: 'CARD_DECLINED', category: 'PAYMENT_METHOD_ERROR' }] }],
+  ['API errors', { errors: [{ code: 'API_ERROR', detail: TOKEN }] }],
+  ['malformed error object', { errors: { code: 'API_ERROR' } }],
+  ['malformed error string', { errors: 'API_ERROR' }],
+  ['malformed null errors', { errors: null }],
+  ['singular error', { error: { code: 'API_ERROR' } }],
+]) {
+  test(`retrieval rejects HTTP 200 ${name} even with matching COMPLETED data`, async () => {
+    const network = mockFetch(async () => jsonResponse(200, { ...v2Payment(), ...envelope }));
+    const result = await retrieveSimulatedPayment(request({ paymentId: PAYMENT_ID, fetchImpl: network.fetchImpl }));
+    assert.equal(result.ok, false);
+    assert.notEqual(result.error, '');
+    assertNotEligible(result);
+    assertNoSecret(result);
+  });
+}
+
+for (const [name, body] of [
+  ['without receipt', v2Payment()],
+  ['with receipt metadata', v2Payment({ receiptUrl: `${SANDBOX_ORIGIN}/receipt/fixture` })],
+  ['with empty errors', { ...v2Payment(), errors: [] }],
+]) {
+  test(`successful COMPLETED retrieval remains eligible ${name}`, async () => {
+    const network = mockFetch(async () => jsonResponse(200, body));
+    const result = await retrieveSimulatedPayment(request({ paymentId: PAYMENT_ID, fetchImpl: network.fetchImpl }));
+    assert.equal(result.ok, true);
+    assert.equal(result.providerCompleted, true);
+    assert.equal(result.eligibleForReconciliation, true);
+    assert.equal(result.financiallySettled, false);
+    assertNoSecret(result);
+  });
+}
+
+test('malformed retrieval JSON cannot authorize reconciliation', async () => {
+  const network = mockFetch(async () => ({ status: 200, async text() { return '{invalid'; } }));
+  const result = await retrieveSimulatedPayment(request({ paymentId: PAYMENT_ID, fetchImpl: network.fetchImpl }));
+  assertNotEligible(result);
+  assert.equal(result.error, 'square_sandbox_invalid_response');
+});
+
+test('retrieval without required payment identity cannot authorize reconciliation', async () => {
+  const network = mockFetch(async () => jsonResponse(200, v2Payment({ id: '' })));
+  const result = await retrieveSimulatedPayment(request({ paymentId: PAYMENT_ID, fetchImpl: network.fetchImpl }));
+  assertNotEligible(result);
+  assert.equal(result.error, 'square_sandbox_payment_id_missing');
+});
+
 test('Square HTTP failures and timeouts do not settle', async () => {
   const cases = [
     [400, 'square_sandbox_bad_request', false],
