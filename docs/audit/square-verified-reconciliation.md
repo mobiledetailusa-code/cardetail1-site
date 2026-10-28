@@ -1,6 +1,6 @@
 # Verified Square reconciliation bridge
 
-Local prototype inheriting settlement isolation correction `8c7ee9a8f7d18136218d2a37708c632157eb5eab` through a merge into preserved bridge integration `544e5e910cc09f47884f543d5da297d0dda36fe8`, which retains checkpoint `6389624f0db1ffbca1b5aafdbd30aa96aa1a6b70`. The original Cursor bridge and earlier Codex history remain intact. This integration does not modify draft PRs #372, #373, or #374, deploy, or call Square.
+Local prototype inheriting adapter correction `3d30f9885c9a512776da95ee9edba6cbee1a2411` and settlement recovery correction `87806a7a7f9334e328f4762f759dd9fbb9650bdd` through normal local merges into published bridge checkpoint `25f545ab3153cc75af09bd60a5eadd15ef2045aa`. The inherited isolation correction `8c7ee9a8f7d18136218d2a37708c632157eb5eab`, bridge integrations `544e5e910cc09f47884f543d5da297d0dda36fe8` and `6389624f0db1ffbca1b5aafdbd30aa96aa1a6b70`, and original Cursor history remain intact. Phase 7E.9E is local only: no draft PR modification, push, GitHub Actions execution, deployment, or provider API request is authorized or performed. Historical CI results below do not validate these new local commits.
 
 The published sandbox webhook receiver is unchanged. Signature checks call `verifySquareWebhookSignature`. Event interpretation calls `interpretVerifiedSquareWebhook`. Settlement calls the existing sandbox settlement service. The bridge does not implement a second HMAC.
 
@@ -9,6 +9,16 @@ A fixture is eligible for settlement only when the synthetic signature matches t
 Retrieval uses the payment id on the stored operation. The mock is injected. The bridge does not call `globalThis.fetch` and does not read `process.env`. The signing key must match the synthetic prefix `synthetic-square-webhook-`. No Square signing key is retrieved.
 
 The database remains disposable local PostgreSQL `cardetail1_square_settlement_7d` on loopback. No schema migration was added. No commercial financial table is written.
+
+## Local P1 response and recovery remediation
+
+The adapter now rejects unsuccessful HTTP responses before inspecting payment authority, and rejects nonempty or malformed provider error envelopes even alongside matching `COMPLETED` data. Its existing HTTP 2xx success contract and valid receipt-optional responses remain supported. The settlement service separately requires a successful, error-free classified retrieval before committing.
+
+Failed server-generated retrieval attempts without payment status, amount, or currency remain durable audit history, but do not assert a conflicting payment identity. Normal bridge retries can retrieve again after 429, 500, invalid JSON, or timeout. This interpretation also covers legacy failed rows without rewriting them. Genuine contradictory evidence and quarantined provider identity conflicts continue to block retries; untrusted observations cannot select the server-origin marker. The database schema, canonical connection boundary, shared transaction gate, and lock ordering are unchanged.
+
+All 49 local PostgreSQL-backed bridge tests pass, with zero failures or skips. The 21 added cases cover eight signed contradictory-response flows (including HTTP 404 plus `NOT_FOUND` and matching `COMPLETED` data), eight same/new-event transient recovery flows, early-event recovery after association retrieval failure, and four persistent provider identity quarantines. Recovery assertions require a second real invocation of the injected GET mock, one exact committed settlement, unchanged stored authorization, preserved failed-attempt history, and duplicate recognition without another retrieval. The original bridge implementation is unchanged.
+
+The existing error-only HTTP 404 expectation changes from `quarantined` to `rejected`: unsuccessful retrieval is classified before absent payment fields can be mistaken for contradictory identity. Its no-settlement assertion remains unchanged. Original rollback, committed-row, synchronization, HMAC, merchant, association, and duplicate-event protections remain in place.
 
 ## Provider retrieval trust boundary
 
@@ -48,6 +58,12 @@ Phase 7E.8 inherits the credential remediation from PR #374; it does not duplica
 4. The settlement step environment is printed before the step script runs, so a mask emitted inside the script cannot hide that line.
 5. Phase 7E.2 removes both step-level `SQUARE_SETTLEMENT_TEST_PASSWORD` literals. Database preparation and the settlement-test launcher derive the disposable password inside their scripts from the already masked, loopback-only `DATABASE_URL`. The launcher registers the derived value with `::add-mask::` before forwarding it into the PostgreSQL network namespace.
 6. Remaining exposure: the static disposable password is still present in the PostgreSQL service-container configuration, which Actions logs before user steps run. Fully masking that line would require a repository/organization Actions secret available to the workflow, while removing the password would change service authentication. Neither broader change is made automatically in this phase. No Neon, Square, Stripe, or production credential is introduced.
+
+## CI external provider activity requiring later authorization
+
+The `stripe_test_mode` job in `.github/workflows/integration.yml` invokes `node scripts/isolated-balance-proof.js` in its "Prove the Stripe test-mode balance" step. That script and the application handlers it invokes use real Stripe test-mode API requests to create, retrieve, cancel, and confirm PaymentIntents and query charges. The job supplies `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` from Actions secrets. This workflow is therefore not completely offline.
+
+No provider credentials were retrieved, no secrets or workflows were modified, and that script was not executed during this local remediation. Before a later push or PR update can trigger this workflow, explicitly disclose the anticipated Stripe test-mode activity and obtain authorization, or implement a separately authorized gating change first. The publication sequence is adapter PR #373, settlement PR #374, then bridge PR #375; no publication is authorized in this phase.
 
 ## Skipped repository test
 

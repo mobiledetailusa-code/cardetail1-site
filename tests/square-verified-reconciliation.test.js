@@ -229,6 +229,41 @@ async function storedOperation(paymentId = PAYMENT_ID, key = 'sandbox-op-7e-001'
   return { ...opened, associated };
 }
 
+async function inboxEvidence() {
+  const client = await connectProven(SETTLEMENT_URL);
+  try { return (await client.query('SELECT * FROM sandbox_payment_event ORDER BY event_id')).rows; }
+  finally { await client.end(); }
+}
+
+async function assertBridgeAssociation(pair, settled) {
+  const client = await connectProven(SETTLEMENT_URL);
+  try {
+    const found = await client.query(
+      `SELECT p.obligation_id, p.square_payment_id, p.expected_amount_cents, p.currency,
+              p.status AS operation_status, o.status AS obligation_status,
+              s.operation_id AS settled_operation, s.obligation_id AS settled_obligation,
+              s.square_payment_id AS settled_payment, s.settled_amount_cents, s.currency AS settled_currency
+       FROM sandbox_payment_operation p JOIN sandbox_payment_obligation o USING (obligation_id)
+       LEFT JOIN sandbox_settlement s ON s.operation_id = p.operation_id WHERE p.operation_id = $1`,
+      [pair.operation.operationId]
+    );
+    assert.deepEqual(found.rows, [{ obligation_id: pair.obligation.obligationId, square_payment_id: PAYMENT_ID,
+      expected_amount_cents: 100, currency: 'USD', operation_status: settled ? 'settled' : 'associated',
+      obligation_status: settled ? 'settled' : 'authorized', settled_operation: settled ? pair.operation.operationId : null,
+      settled_obligation: settled ? pair.obligation.obligationId : null, settled_payment: settled ? PAYMENT_ID : null,
+      settled_amount_cents: settled ? 100 : null, settled_currency: settled ? 'USD' : null }]);
+  } finally { await client.end(); }
+  assert.equal((await state()).settlements, settled ? 1 : 0);
+}
+
+function transientRetrieval(name) {
+  if (name === 'timeout') return async (_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => reject(new Error('synthetic_timeout')), { once: true });
+  });
+  if (name === 'malformed-json') return mockFetch({ rawText: '{invalid' });
+  return mockFetch({ httpStatus: Number(name), rawText: JSON.stringify({ errors: [{ code: 'API_ERROR' }] }) });
+}
+
 describe('verified Square reconciliation bridge', { concurrency: false }, () => {
   beforeEach(async () => {
     await emptySettlementTables(SETTLEMENT_URL);
@@ -792,12 +827,114 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
     assert.equal((await state()).settlements, 0);
   });
 
+  for (const [name, status, body] of [
+    ...[302, 400, 404, 409, 429, 500].map((status) => [String(status), status,
+      status === 404 ? { ...paymentBody(), errors: [{ code: 'NOT_FOUND' }] } : paymentBody()]),
+    ['decline', 200, { ...paymentBody(), errors: [{ code: 'CARD_DECLINED', category: 'PAYMENT_METHOD_ERROR' }] }],
+    ['API-error', 200, { ...paymentBody(), errors: [{ code: 'API_ERROR' }] }],
+  ]) {
+    test(`signed webhook cannot settle failed retrieval ${name} with matching COMPLETED data`, async () => {
+      const pair = await storedOperation();
+      const capture = { calls: [] };
+      const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+        input: { fetchImpl: mockFetch({ httpStatus: status, rawText: JSON.stringify(body) }, capture) },
+      }));
+      assert.equal(outcome.signatureAccepted, true);
+      assertUnsettled(outcome);
+      assert.notEqual(outcome.error, '');
+      assert.equal(capture.calls.length, 1);
+      assert.equal(capture.calls[0].method, 'GET');
+      assert.equal(capture.calls[0].hasBody, false);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
+  for (const failure of ['429', '500', 'malformed-json', 'timeout']) {
+    for (const delivery of ['same', 'new']) {
+      test(`signed bridge recovers ${failure} through ${delivery} event retry with durable history`, async () => {
+        const pair = await storedOperation();
+        const calls = [];
+        const unavailable = transientRetrieval(failure);
+        const fetchImpl = async (url, init) => {
+          calls.push({ method: init.method, hasBody: init.body != null });
+          return calls.length === 1 ? unavailable(url, init) : mockFetch()(url, init);
+        };
+        const firstBody = fixture({ eventId: `evt-bridge-recovery-${failure}-${delivery}` });
+        const input = { fetchImpl, timeoutMs: 20 };
+        const first = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(firstBody, { input }));
+        assert.equal(first.signatureAccepted, true);
+        assert.equal(first.result, 'failed');
+        assert.equal(first.retrySafe, true);
+        assertUnsettled(first);
+        await assertBridgeAssociation(pair, false);
+        const before = await inboxEvidence();
+        const attempt = before.find((row) => row.event_type === 'provider.retrieve');
+        assert.ok(attempt);
+        const nextBody = delivery === 'same' ? firstBody : fixture({ eventId: `evt-bridge-recovered-${failure}` });
+        const recovered = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(nextBody, { input }));
+        assert.equal(recovered.signatureAccepted, true);
+        assert.equal(recovered.result, 'settled');
+        assert.equal(recovered.financiallySettled, true);
+        assert.equal(recovered.settlementCommitted, true);
+        assert.equal(calls.length, 2);
+        await assertBridgeAssociation(pair, true);
+        const after = await inboxEvidence();
+        assert.deepEqual(after.find((row) => row.event_id === attempt.event_id), attempt);
+        assert.equal(after.length, delivery === 'same' ? 3 : 4);
+        const duplicate = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(nextBody, { input }));
+        assert.equal(duplicate.result, 'already_settled');
+        assert.equal(duplicate.settlementCommitted, false);
+        assert.equal(calls.length, 2);
+        assert.equal(calls.every((call) => call.method === 'GET' && !call.hasBody), true);
+        await assertBridgeAssociation(pair, true);
+      });
+    }
+  }
+
+  test('early signed event recovers after association retrieval failure through the bridge', async () => {
+    const pair = await openOperation();
+    const rawBody = fixture({ eventId: 'evt-early-retrieval-recovery' });
+    const capture = { calls: [] };
+    const early = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(rawBody, { input: { fetchImpl: mockFetch({}, capture) } }));
+    assert.equal(early.processingStatus, 'awaiting_association');
+    assert.equal(capture.calls.length, 0);
+    const failed = await associateTrustedPayment(SETTLEMENT_URL, context({ operationId: pair.operation.operationId,
+      squarePaymentId: PAYMENT_ID, fetchImpl: transientRetrieval('500') }));
+    assert.equal(failed.result, 'failed');
+    assert.equal(failed.retrySafe, true);
+    await assertBridgeAssociation(pair, false);
+    const recovered = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(rawBody, { input: { fetchImpl: mockFetch({}, capture) } }));
+    assert.equal(recovered.result, 'settled');
+    assert.equal(capture.calls.length, 1);
+    await assertBridgeAssociation(pair, true);
+  });
+
+  for (const [name, mismatch] of [
+    ['payment-id', { id: 'OtherPayment7eOnly' }], ['amount', { amount: 101 }],
+    ['currency', { currency: 'EUR' }], ['location', { locationId: 'LOC_TEST_OTHER' }],
+  ]) {
+    test(`signed bridge preserves genuine ${name} quarantine on a later valid event`, async () => {
+      const pair = await storedOperation();
+      let calls = 0;
+      const fetchImpl = async (url, init) => { calls++; return mockFetch(calls === 1 ? mismatch : {})(url, init); };
+      const first = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), { input: { fetchImpl } }));
+      assert.equal(first.result, 'quarantined');
+      assertUnsettled(first);
+      const retry = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: `evt-real-conflict-${name}` }), { input: { fetchImpl } }));
+      assert.equal(retry.result, 'quarantined');
+      assert.equal(retry.retrySafe, false);
+      assertUnsettled(retry);
+      assert.equal(calls, 1);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
   test('provider retrieval failures are not payment completion', async () => {
     const cases = [
       [{ httpStatus: 400, rawText: JSON.stringify({ errors: [{ code: 'BAD_REQUEST' }] }) }, 'rejected'],
       [{ httpStatus: 401, rawText: JSON.stringify({ errors: [{ code: 'UNAUTHORIZED' }] }) }, 'rejected'],
       [{ httpStatus: 403, rawText: JSON.stringify({ errors: [{ code: 'FORBIDDEN' }] }) }, 'rejected'],
-      [{ httpStatus: 404, rawText: JSON.stringify({ errors: [{ code: 'NOT_FOUND' }] }) }, 'quarantined'],
+      [{ httpStatus: 404, rawText: JSON.stringify({ errors: [{ code: 'NOT_FOUND' }] }) }, 'rejected'],
       [{ httpStatus: 429, rawText: JSON.stringify({ errors: [{ code: 'RATE_LIMITED' }] }) }, 'failed'],
       [{ httpStatus: 500, rawText: JSON.stringify({ errors: [{ code: 'SERVER_ERROR' }] }) }, 'failed'],
       [{ httpStatus: 200, rawText: '{not-json' }, 'failed'],
