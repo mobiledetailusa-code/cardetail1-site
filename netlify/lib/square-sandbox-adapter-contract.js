@@ -214,11 +214,11 @@ function validateRequest(operation, input) {
   return { ok: true, trusted };
 }
 
-function capturedPayment(capture) {
+function capturedResponse(capture) {
   if (!capture || typeof capture.text !== 'string' || capture.text === '') return null;
   try {
     const body = JSON.parse(capture.text);
-    return body && body.payment && typeof body.payment === 'object' ? body.payment : null;
+    return body && typeof body === 'object' && !Array.isArray(body) ? body : null;
   } catch {
     return null;
   }
@@ -277,9 +277,11 @@ function contractErrorForHttp(statusCode) {
   if (statusCode === 400) return 'square_sandbox_bad_request';
   if (statusCode === 401) return 'square_sandbox_credentials_invalid';
   if (statusCode === 403) return 'square_sandbox_forbidden';
+  if (statusCode === 404) return 'square_sandbox_not_found';
+  if (statusCode === 409) return 'square_sandbox_conflict';
   if (statusCode === 429) return 'square_sandbox_rate_limited';
   if (statusCode >= 500 || statusCode === 0) return 'square_sandbox_unknown';
-  return '';
+  return 'square_sandbox_invalid_response';
 }
 
 function applyProviderResult(operation, providerResult, capture, expected) {
@@ -311,27 +313,31 @@ function applyProviderResult(operation, providerResult, capture, expected) {
   }
 
   const httpStatus = capture && Number.isInteger(capture.httpStatus) ? capture.httpStatus : 0;
-  const payment = capturedPayment(capture);
+  const body = capturedResponse(capture);
+  const payment = body && body.payment && typeof body.payment === 'object' ? body.payment : null;
   const normalized = normalizeSquarePaymentStatus(payment && payment.status);
-  if (httpStatus === 429) {
-    return contractResult({
-      ...shared,
-      error: 'square_sandbox_rate_limited',
-      outcomeUnknown: true,
-    });
-  }
-  if (httpStatus === 401 || httpStatus === 403 || httpStatus >= 500 || httpStatus === 0) {
+  // Preserve the client's HTTP 2xx success contract. Payment-shaped error or
+  // redirect bodies never become authoritative retrieval evidence.
+  if (httpStatus < 200 || httpStatus >= 300) {
     return contractResult({
       ...shared,
       error: contractErrorForHttp(httpStatus),
-      outcomeUnknown: httpStatus >= 500 || httpStatus === 0,
+      outcomeUnknown: httpStatus < 400 || httpStatus === 408 || httpStatus === 429 || httpStatus >= 500,
     });
   }
-  if (httpStatus === 400 && !normalized.recognized) {
+  const errorEnvelope = body && (
+    (Object.prototype.hasOwnProperty.call(body, 'errors')
+      && (!Array.isArray(body.errors) || body.errors.length > 0))
+    || (Object.prototype.hasOwnProperty.call(body, 'error') && body.error != null && body.error !== '')
+  );
+  const contradictoryOutcome = normalized.status === 'COMPLETED'
+    && (providerResult.declined === true
+      || ['declined', 'rejected', 'idempotency_conflict'].includes(providerResult.outcome));
+  if (errorEnvelope || contradictoryOutcome) {
     return contractResult({
       ...shared,
-      error: 'square_sandbox_bad_request',
-      outcomeUnknown: false,
+      error: providerResult.declined === true ? 'square_sandbox_declined' : 'square_sandbox_provider_error',
+      outcomeUnknown: providerResult.declined !== true,
     });
   }
   if (!payment && providerResult.outcomeUnknown === true) {

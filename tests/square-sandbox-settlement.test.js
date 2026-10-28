@@ -4,6 +4,7 @@ const { describe, beforeEach, test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const Module = require('node:module');
 const {
   LOCAL_DATABASE_NAME,
   assertLocalSettlementUrl,
@@ -148,6 +149,68 @@ function assertUnsettled(outcome) {
   assert.equal(outcome.paid, false);
   assert.equal(outcome.ledgerWrite, false);
   assert.equal(outcome.bookingWrite, false);
+}
+
+function retrievalFailure(name) {
+  if (name === 'timeout') return async (_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => reject(new Error('synthetic_timeout')), { once: true });
+  });
+  if (name === 'malformed-json') return async () => ({ status: 200, async text() { return '{invalid'; } });
+  return mockFetch({ errors: [{ code: 'API_ERROR' }] }, Number(name));
+}
+
+async function inboxRows() {
+  const client = await connectProven(URL);
+  try {
+    return (await client.query(
+      'SELECT event_id, event_type, source_kind, payment_status, amount_cents, currency, processing_status FROM sandbox_payment_event ORDER BY event_id'
+    )).rows;
+  } finally { await client.end(); }
+}
+
+async function assertStoredAuthorization(pair) {
+  const client = await connectProven(URL);
+  try {
+    const found = await client.query(
+      `SELECT p.obligation_id, p.square_payment_id, p.expected_amount_cents, p.currency,
+              o.amount_cents, o.currency AS obligation_currency
+       FROM sandbox_payment_operation p JOIN sandbox_payment_obligation o USING (obligation_id)
+       WHERE p.operation_id = $1`, [pair.operation.operationId]
+    );
+    assert.deepEqual(found.rows, [{ obligation_id: pair.obligation.obligationId, square_payment_id: PAYMENT_ID,
+      expected_amount_cents: 100, currency: 'USD', amount_cents: 100, obligation_currency: 'USD' }]);
+  } finally { await client.end(); }
+}
+
+function serviceWithCommitFault(mode) {
+  const file = path.join(ROOT, 'sandbox/square-settlement/square-sandbox-settlement.js');
+  let injections = 0;
+  const database = require('../sandbox/square-settlement/database');
+  const decorated = { ...database, connectProven: async (url) => {
+    const client = await database.connectProven(url);
+    const query = client.query.bind(client);
+    let insertedSettlement = false;
+    client.query = async (sql, ...args) => {
+      if (sql === 'COMMIT' && insertedSettlement && injections === 0) {
+        injections++;
+        if (mode === 'after') await query(sql, ...args);
+        const error = new Error('synthetic_commit_ack_loss');
+        error.code = '08006';
+        throw error;
+      }
+      const result = await query(sql, ...args);
+      if (/INSERT INTO sandbox_settlement\b/.test(sql)) insertedSettlement = true;
+      return result;
+    };
+    return client;
+  } };
+  const loaded = new Module(file, module);
+  loaded.filename = file;
+  loaded.paths = Module._nodeModulePaths(path.dirname(file));
+  const original = loaded.require.bind(loaded);
+  loaded.require = (name) => name === './database' ? decorated : original(name);
+  loaded._compile(fs.readFileSync(file, 'utf8'), file);
+  return { api: loaded.exports, injections: () => injections };
 }
 
 async function waitForLockState(client, query, excludedPids = []) {
@@ -382,6 +445,130 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
       assert.equal(section.includes('cardetail1_square_settlement_7d'), false);
     }
   });
+
+  for (const failure of ['429', '500', 'malformed-json', 'timeout']) {
+    for (const delivery of ['same', 'new']) {
+      test(`transient ${failure} permits ${delivery} event verification retry without losing evidence`, async () => {
+        const pair = await authorizedPair();
+        let calls = 0;
+        const failedFetch = retrievalFailure(failure);
+        const fetchImpl = async (url, init) => {
+          assert.equal(init.method, 'GET');
+          calls++;
+          return calls === 1 ? failedFetch(url, init) : mockFetch(paymentBody())(url, init);
+        };
+        const input = observation({ eventId: `evt-recovery-${failure}-${delivery}`, env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN }, timeoutMs: 20, fetchImpl });
+        const failed = await ingestObservation(URL, input);
+        assert.equal(failed.result, 'failed');
+        assert.equal(failed.retrySafe, true);
+        assertUnsettled(failed);
+        assert.equal((await counts()).settlements, 0);
+        const before = await inboxRows();
+        const attempt = before.find((row) => row.event_type === 'provider.retrieve');
+        assert.ok(attempt);
+        const retryInput = { ...input, eventId: delivery === 'same' ? input.eventId : `${input.eventId}-new` };
+        const recovered = await ingestObservation(URL, retryInput);
+        assert.equal(recovered.result, 'settled');
+        assert.equal(recovered.settlementCommitted, true);
+        assert.equal(calls, 2);
+        await assertCommittedPair(pair);
+        const after = await inboxRows();
+        assert.deepEqual(after.find((row) => row.event_id === attempt.event_id), attempt);
+        assert.equal(after.length, delivery === 'same' ? 3 : 4);
+        const duplicate = await ingestObservation(URL, retryInput);
+        assert.equal(duplicate.result, 'already_settled');
+        assert.equal(duplicate.settlementCommitted, false);
+        assert.equal(calls, 2);
+        await assertCommittedPair(pair);
+      });
+    }
+  }
+
+  test('legacy unavailable retrieval history remains audit evidence after an old quarantine', async () => {
+    const pair = await authorizedPair();
+    const input = observation({ eventId: 'evt-legacy-recovery', env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN }, fetchImpl: retrievalFailure('500') });
+    assert.equal((await ingestObservation(URL, input)).result, 'failed');
+    const client = await connectProven(URL);
+    try {
+      await client.query("UPDATE sandbox_payment_event SET processing_status = 'inconsistent'");
+      await client.query("UPDATE sandbox_payment_event SET currency = '' WHERE event_type = 'provider.retrieve'");
+    } finally { await client.end(); }
+    const attempt = (await inboxRows()).find((row) => row.event_type === 'provider.retrieve');
+    const recovered = await ingestObservation(URL, { ...input, eventId: 'evt-legacy-recovery-new', fetchImpl: mockFetch(paymentBody()) });
+    assert.equal(recovered.result, 'settled');
+    assert.deepEqual((await inboxRows()).find((row) => row.event_id === attempt.event_id), attempt);
+    await assertCommittedPair(pair);
+  });
+
+  for (const [name, mismatch] of [
+    ['payment identity', { id: 'OtherPayment7dOnly' }],
+    ['amount', { amount: 101 }],
+    ['currency', { currency: 'EUR' }],
+    ['location', { locationId: 'LOC_TEST_OTHER' }],
+  ]) {
+    test(`genuine provider ${name} conflict remains quarantined on a valid event retry`, async () => {
+      const pair = await authorizedPair();
+      let calls = 0;
+      const fetchImpl = async () => {
+        calls++;
+        return mockFetch(paymentBody(calls === 1 ? mismatch : {}))();
+      };
+      const input = observation({ eventId: `evt-conflict-${name.replace(/ /g, '-')}`, env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN }, fetchImpl });
+      const conflict = await ingestObservation(URL, input);
+      assert.equal(conflict.result, 'quarantined');
+      assertUnsettled(conflict);
+      const retry = await ingestObservation(URL, { ...input, eventId: `${input.eventId}-new` });
+      assert.equal(retry.result, 'quarantined');
+      assert.equal(retry.retrySafe, false);
+      assert.equal(calls, 1);
+      assert.equal((await counts()).settlements, 0);
+      await assertStoredAuthorization(pair);
+    });
+  }
+
+  test('a caller cannot disguise conflicting observation data as retrieval failure evidence', async () => {
+    await authorizedPair();
+    const spoofed = await ingestObservation(URL, observation({ sourceKind: 'verified_provider_retrieval' }));
+    assert.equal(spoofed.error, 'square_settlement_authentication_marker_rejected');
+    assert.equal((await counts()).events, 0);
+    const conflict = await ingestObservation(URL, observation({ eventType: 'provider.retrieve', amountCents: 101 }));
+    assert.equal(conflict.result, 'quarantined');
+    const retry = await ingestObservation(URL, observation({ eventId: 'evt-after-forged-retrieval', fetchImpl: mockFetch(paymentBody()), env: { SQUARE_SANDBOX_ACCESS_TOKEN: TOKEN } }));
+    assert.equal(retry.result, 'quarantined');
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  for (const mode of ['before', 'after']) {
+    test(`commit acknowledgement failure ${mode} COMMIT resolves to one matching settlement`, async () => {
+      const pair = await authorizedPair();
+      const injected = serviceWithCommitFault(mode);
+      let calls = 0;
+      const input = provider(pair.operation.operationId, { fetchImpl: async () => { calls++; return mockFetch(paymentBody())(); } });
+      const first = await injected.api.verifyAndSettle(URL, input);
+      assert.equal(first.result, 'failed');
+      assert.equal(first.retrySafe, true);
+      assertUnsettled(first);
+      assert.equal(injected.injections(), 1);
+      assert.equal((await counts()).settlements, mode === 'after' ? 1 : 0);
+      const retry = await verifyAndSettle(URL, input);
+      assert.equal(retry.result, mode === 'after' ? 'already_settled' : 'settled');
+      assert.equal(calls, mode === 'after' ? 1 : 2);
+      await assertCommittedPair(pair);
+    });
+  }
+
+  for (const [name, status, body] of [
+    ...[302, 400, 404, 409, 429, 500].map((status) => [String(status), status, paymentBody()]),
+    ['decline', 200, { ...paymentBody(), errors: [{ code: 'CARD_DECLINED', category: 'PAYMENT_METHOD_ERROR' }] }],
+    ['API-error', 200, { ...paymentBody(), errors: [{ code: 'API_ERROR' }] }],
+  ]) {
+    test(`failed retrieval ${name} cannot commit even when payment identity fields match`, async () => {
+      const { operation } = await authorizedPair();
+      const outcome = await verifyAndSettle(URL, provider(operation.operationId, { fetchImpl: mockFetch(body, status) }));
+      assertUnsettled(outcome);
+      assert.equal((await counts()).settlements, 0);
+    });
+  }
 
   test('an obligation and operation are stored before any settlement', async () => {
     const { obligation, operation, associated } = await authorizedPair();
