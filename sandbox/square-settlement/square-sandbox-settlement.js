@@ -155,6 +155,17 @@ function sameIdentity(operation, event) {
     && event.merchant_id === operation.expected_merchant_id;
 }
 
+function isUnavailableRetrieval(event) {
+  // Only server-generated retrieval attempts can have this meaning. Missing
+  // payment data is not a contradictory identity assertion. This also covers
+  // legacy attempts whose processing status was already marked inconsistent.
+  return event.source_kind === 'verified_provider_retrieval'
+    && event.event_type === 'provider.retrieve'
+    && (event.payment_status == null || event.payment_status === '')
+    && event.amount_cents == null
+    && (event.currency == null || event.currency === '');
+}
+
 function packaged(response, extra = {}) {
   return { response, ...extra };
 }
@@ -260,7 +271,11 @@ async function markOpenEvents(client, paymentId, status) {
     `UPDATE sandbox_payment_event
      SET processing_status = $2
      WHERE square_payment_id = $1
-       AND processing_status = ANY($3::text[])`,
+       AND processing_status = ANY($3::text[])
+       AND NOT (source_kind = 'verified_provider_retrieval'
+                AND event_type = 'provider.retrieve'
+                AND COALESCE(payment_status, '') = ''
+                AND amount_cents IS NULL AND COALESCE(currency, '') = '')`,
     [paymentId, status, OPEN_EVENT_STATUSES]
   );
 }
@@ -337,8 +352,11 @@ async function reviewInbox(client, paymentId) {
       retrySafe: false,
     }), { verificationRequested: false });
   }
-  const mismatched = events.filter((event) => !sameIdentity(operation, event));
-  if (mismatched.length > 0) {
+  const paymentEvidence = events.filter((event) => !isUnavailableRetrieval(event));
+  const mismatched = paymentEvidence.filter((event) => !sameIdentity(operation, event));
+  const quarantinedRetrieval = paymentEvidence.some((event) =>
+    event.source_kind === 'verified_provider_retrieval' && event.processing_status === 'quarantined');
+  if (mismatched.length > 0 || quarantinedRetrieval) {
     await markOpenEvents(client, paymentId, 'inconsistent');
     return packaged(result({
       ...shared,
@@ -351,12 +369,12 @@ async function reviewInbox(client, paymentId) {
     }), { verificationRequested: false, operationId: operation.operation_id });
   }
   const known = new Set(['APPROVED', 'PENDING', 'COMPLETED', 'FAILED', 'CANCELED']);
-  const completed = events.some((event) => String(event.payment_status || '').trim().toUpperCase() === 'COMPLETED');
-  const terminal = events.some((event) => {
+  const completed = paymentEvidence.some((event) => String(event.payment_status || '').trim().toUpperCase() === 'COMPLETED');
+  const terminal = paymentEvidence.some((event) => {
     const status = String(event.payment_status || '').trim().toUpperCase();
     return status === 'FAILED' || status === 'CANCELED';
   });
-  const unrecognized = events.some((event) => !known.has(String(event.payment_status || '').trim().toUpperCase()));
+  const unrecognized = paymentEvidence.some((event) => !known.has(String(event.payment_status || '').trim().toUpperCase()));
   if (unrecognized && !completed) {
     await markOpenEvents(client, paymentId, 'rejected');
     return packaged(result({
@@ -655,6 +673,8 @@ function classifyRetrieval(retrieved, stored) {
     return { result: 'pending', processing: 'pending', retrySafe: true };
   }
   const verified = retrieved.ok === true
+    && retrieved.error === ''
+    && Number.isInteger(retrieved.statusCode) && retrieved.statusCode >= 200 && retrieved.statusCode < 300
     && retrieved.providerCompleted === true
     && retrieved.eligibleForReconciliation === true
     && retrieved.outcomeUnknown === false
@@ -682,7 +702,7 @@ async function sandboxFetch(fetchImpl, url, init) {
 
 async function recordVerification(connectionString, stored, retrieved, decision) {
   const amount = retrieved && Number.isInteger(retrieved.amountCents) ? retrieved.amountCents : null;
-  const currency = retrieved && typeof retrieved.currency === 'string' ? retrieved.currency : null;
+  const currency = retrieved && typeof retrieved.currency === 'string' && retrieved.currency !== '' ? retrieved.currency : null;
   const status = retrieved && retrieved.normalized && retrieved.normalized.status
     ? retrieved.normalized.status
     : '';
