@@ -232,6 +232,61 @@ async function waitForLockState(client, query, excludedPids = []) {
   throw new Error(`timed out waiting for PostgreSQL lock state: ${query || 'competing session'}`);
 }
 
+function serviceWithHistoryFault(mode) {
+  const file = path.join(ROOT, 'sandbox/square-settlement/square-sandbox-settlement.js');
+  const database = require('../sandbox/square-settlement/database');
+  let injections = 0;
+  let connections = 0;
+  const decorated = { ...database, connectProven: async (url) => {
+    connections++;
+    if (mode === 'outcome-connect' && connections === 3) {
+      injections++;
+      throw new Error('synthetic_history_connect_fault');
+    }
+    const client = await database.connectProven(url);
+    const query = client.query.bind(client);
+    const end = client.end.bind(client);
+    let outcomeWrite = false;
+    let registration = false;
+    let settlementWrite = false;
+    const fail = () => { injections++; const error = new Error('synthetic_history_ack_fault'); error.code = '08006'; throw error; };
+    client.query = async (sql, ...args) => {
+      if (mode === 'insert' && injections === 0 && /INSERT INTO sandbox_payment_event/.test(sql)) fail();
+      if (mode === 'inspect' && injections === 0 && /SELECT \* FROM sandbox_payment_event/.test(sql)) fail();
+      const target = mode.startsWith('registration-') ? registration : outcomeWrite;
+      if (sql === 'COMMIT' && injections === 0 && target && /-(before|after)$/.test(mode)) {
+        if (mode.endsWith('-after')) await query(sql, ...args);
+        fail();
+      }
+      const answer = await query(sql, ...args);
+      if (/UPDATE sandbox_payment_event\s+SET payment_status/.test(sql)) outcomeWrite = true;
+      if (/INSERT INTO sandbox_payment_event/.test(sql)) registration = true;
+      if (/INSERT INTO sandbox_settlement\b/.test(sql)) settlementWrite = true;
+      return answer;
+    };
+    client.end = async () => {
+      await end();
+      if (injections === 0 && ((mode === 'cleanup' && outcomeWrite) || (mode === 'settlement-cleanup' && settlementWrite))) fail();
+    };
+    return client;
+  } };
+  const loaded = new Module(file, module);
+  loaded.filename = file;
+  loaded.paths = Module._nodeModulePaths(path.dirname(file));
+  const original = loaded.require.bind(loaded);
+  loaded.require = (name) => {
+    if (name === './database') return decorated;
+    if (mode === 'adapter-throw' && name.endsWith('square-sandbox-adapter-contract')) {
+      return { ...original(name), retrieveSimulatedPayment: async () => {
+        injections++; throw new Error('unexpected_adapter_fault');
+      } };
+    }
+    return original(name);
+  };
+  loaded._compile(fs.readFileSync(file, 'utf8'), file);
+  return { api: loaded.exports, injections: () => injections };
+}
+
 async function deadlockCount(client) {
   const found = await client.query(
     'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
@@ -748,8 +803,9 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assert.equal(disagreed.result, 'quarantined');
     assertUnsettled(disagreed);
     const verified = await verifyAndSettle(URL, provider(operation.operationId));
-    assert.equal(verified.result, 'settled');
-    assert.equal(verified.settlementCommitted, true);
+    assert.equal(verified.result, 'quarantined');
+    assertUnsettled(verified);
+    assert.equal((await counts()).settlements, 0);
     const client = await connectProven(URL);
     try {
       const conflict = await client.query(
@@ -759,7 +815,7 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     } finally {
       await client.end();
     }
-    assert.equal((await counts()).settlements, 1);
+    assert.equal((await counts()).settlements, 0);
   });
 
   test('payment.created and payment.updated settle only after verification', async () => {
@@ -1154,7 +1210,11 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assertUnsettled(failed);
     assert.equal(failed.retrySafe, true);
     assert.equal((await counts()).settlements, 0);
-    assert.equal((await counts()).events, 1);
+    // Retrieval history is now durable before settlement starts. Rollback
+    // preserves that evidence while rolling back every financial mutation.
+    assert.equal((await counts()).events, 2);
+    assert.equal((await inboxRows()).filter((e) => e.event_type === 'provider.retrieve'
+      && e.processing_status === 'verification_required').length, 1);
     const retried = await verifyAndSettle(URL, provider(operation.operationId));
     assert.equal(retried.result, 'settled');
     assert.equal(retried.settlementCommitted, true);
@@ -1377,6 +1437,249 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
     assertUnsettled(receipt);
     assert.equal((await counts()).settlements, 0);
   });
+
+  for (const [name, mismatch] of [['amount', { amount: 101 }], ['identity', { id: 'DifferentPayment9j' }]]) {
+    test(`P1-3 durable ${name} quarantine defeats an earlier in-flight retrieval`, async () => {
+      const pair = await authorizedPair();
+      let enter;
+      const entered = new Promise((resolve) => { enter = resolve; });
+      let release;
+      const gate = new Promise((resolve) => { release = resolve; });
+      const earlier = ingestObservation(URL, provider(pair.operation.operationId, observation({
+        eventId: 'evt-9j-earlier', timeoutMs: 10000,
+        fetchImpl: async () => { enter(); await gate; return mockFetch(paymentBody())(); },
+      })));
+      try {
+        await entered;
+        const conflict = await ingestObservation(URL, provider(pair.operation.operationId,
+          observation({ eventId: 'evt-9j-conflict' }), mismatch));
+        assert.equal(conflict.result, 'quarantined');
+        assert.equal((await inboxRows()).filter((e) => e.processing_status === 'quarantined').length, 1);
+        assert.equal((await counts()).settlements, 0);
+        release();
+        const outcome = await earlier;
+        assert.equal(outcome.result, 'quarantined');
+        assertUnsettled(outcome);
+        assert.equal((await counts()).settlements, 0);
+        await assertStoredAuthorization(pair);
+      } finally { release(); await earlier; }
+    });
+  }
+
+  test('P1-3 a later conflicting event surfaces investigation without rewriting settlement', async () => {
+    const pair = await authorizedPair();
+    assert.equal((await verifyAndSettle(URL, provider(pair.operation.operationId))).result, 'settled');
+    const late = await ingestObservation(URL, observation({ eventId: 'evt-9j-late-conflict', amountCents: 101 }));
+    assert.equal(late.result, 'already_settled');
+    assert.equal(late.financiallySettled, true);
+    assert.equal(late.settlementCommitted, false);
+    assert.equal(late.investigationRequired, true);
+    assert.equal(late.error, 'square_settlement_observations_conflict');
+    assert.equal((await inboxRows()).find((e) => e.event_id === 'evt-9j-late-conflict').processing_status, 'inconsistent');
+    await assertCommittedPair(pair);
+  });
+
+  test('P1-4 failed outcome update leaves a durable fence that a good retry cannot erase', async () => {
+    const pair = await authorizedPair();
+    const client = await connectProven(URL);
+    try {
+      await client.query(`CREATE OR REPLACE FUNCTION fail_history_9j() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN IF NEW.event_type = 'provider.retrieve' AND NEW.processing_status = 'quarantined'
+          THEN RAISE EXCEPTION USING ERRCODE = '58000', MESSAGE = 'synthetic history fault'; END IF;
+        RETURN NEW; END $$`);
+      await client.query(`CREATE TRIGGER fail_history_9j BEFORE INSERT OR UPDATE ON sandbox_payment_event
+        FOR EACH ROW EXECUTE FUNCTION fail_history_9j()`);
+      const failed = await ingestObservation(URL, provider(pair.operation.operationId,
+        observation({ eventId: 'evt-9j-history-fault' }), { amount: 101 }));
+      assert.equal(failed.result, 'failed');
+      assert.equal(failed.error, 'square_settlement_verification_history_unconfirmed');
+      assert.equal(failed.databaseCommitState, 'rolled_back');
+      assertUnsettled(failed);
+      assert.equal((await counts()).settlements, 0);
+      assert.equal((await inboxRows()).filter((e) => e.processing_status === 'verification_pending').length, 1);
+    } finally {
+      await client.query('DROP TRIGGER IF EXISTS fail_history_9j ON sandbox_payment_event');
+      await client.query('DROP FUNCTION IF EXISTS fail_history_9j()');
+      await client.end();
+    }
+    const good = await ingestObservation(URL, provider(pair.operation.operationId, observation({ eventId: 'evt-9j-good-retry' })));
+    assert.equal(good.error, 'square_settlement_verification_pending');
+    assertUnsettled(good);
+    assert.equal((await counts()).settlements, 0);
+    const rechecked = await ingestObservation(URL, provider(pair.operation.operationId,
+      observation({ eventId: 'evt-9j-conflict-rechecked' }), { amount: 101 }));
+    assert.equal(rechecked.result, 'quarantined');
+    let calls = 0;
+    const later = await ingestObservation(URL, provider(pair.operation.operationId, observation({
+      eventId: 'evt-9j-after-recovery', fetchImpl: async () => { calls++; return mockFetch(paymentBody())(); },
+    })));
+    assert.equal(later.result, 'quarantined');
+    assert.equal(calls, 0);
+    assert.equal((await counts()).settlements, 0);
+    await assertStoredAuthorization(pair);
+  });
+
+  test('P1-4 insertion failure stops retrieval before financial evidence can be lost', async () => {
+    const pair = await authorizedPair();
+    const fault = serviceWithHistoryFault('insert');
+    let calls = 0;
+    const failed = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId, {
+      fetchImpl: async () => { calls++; return mockFetch(paymentBody({ amount: 101 }))(); },
+    }));
+    assert.equal(fault.injections(), 1);
+    assert.equal(calls, 0);
+    assert.equal(failed.result, 'failed');
+    assert.equal(failed.databaseCommitState, 'rolled_back');
+    assertUnsettled(failed);
+    assert.equal((await inboxRows()).length, 0);
+    const retry = await ingestObservation(URL, provider(pair.operation.operationId,
+      observation({ eventId: 'evt-9j-insert-recovery' }), { amount: 101 }));
+    assert.equal(retry.result, 'quarantined');
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  for (const mode of ['outcome-before', 'outcome-after', 'cleanup']) {
+    test(`P1-4 ${mode} persistence fault distinguishes durable quarantine from an unresolved fence`, async () => {
+      const pair = await authorizedPair();
+      const fault = serviceWithHistoryFault(mode);
+      const failed = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId, {}, { amount: 101 }));
+      assert.equal(fault.injections(), 1);
+      assert.equal(failed.result, 'failed');
+      assert.equal(failed.error, 'square_settlement_verification_history_unconfirmed');
+      assert.equal(failed.databaseCommitState, mode === 'cleanup' ? 'committed' : 'unknown');
+      assert.equal(failed.databaseCleanupFailed, mode === 'cleanup' ? true : undefined);
+      assertUnsettled(failed);
+      const evidence = (await inboxRows()).filter((e) => e.event_type === 'provider.retrieve');
+      assert.equal(evidence.length, 1);
+      assert.equal(evidence[0].processing_status, mode === 'outcome-before' ? 'verification_pending' : 'quarantined');
+      const retried = await ingestObservation(URL, provider(pair.operation.operationId,
+        observation({ eventId: 'evt-9j-ack-retry' })));
+      assertUnsettled(retried);
+      if (mode === 'outcome-before') {
+        assert.equal(retried.error, 'square_settlement_verification_pending');
+        const bad = await ingestObservation(URL, provider(pair.operation.operationId,
+          observation({ eventId: 'evt-9j-ack-recheck' }), { amount: 101 }));
+        assert.equal(bad.result, 'quarantined');
+      } else {
+        assert.equal(retried.result, 'quarantined');
+      }
+      assert.equal((await counts()).settlements, 0);
+      await assertStoredAuthorization(pair);
+    });
+  }
+
+  for (const mode of ['registration-before', 'registration-after']) {
+    test(`P1-4 ${mode} acknowledgement fault never starts retrieval`, async () => {
+      const pair = await authorizedPair();
+      const fault = serviceWithHistoryFault(mode);
+      let calls = 0;
+      const failed = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId, {
+        fetchImpl: async () => { calls++; return mockFetch(paymentBody())(); },
+      }));
+      assert.equal(fault.injections(), 1);
+      assert.equal(calls, 0);
+      assert.equal(failed.databaseCommitState, 'unknown');
+      assertUnsettled(failed);
+      assert.equal((await inboxRows()).length, mode === 'registration-after' ? 1 : 0);
+      const retry = await ingestObservation(URL, provider(pair.operation.operationId,
+        observation({ eventId: 'evt-9j-registration-retry' })));
+      if (mode === 'registration-after') {
+        assert.equal(retry.error, 'square_settlement_verification_pending');
+        assertUnsettled(retry);
+        assert.equal((await counts()).settlements, 0);
+      } else {
+        assert.equal(retry.result, 'settled');
+        await assertCommittedPair(pair);
+      }
+    });
+  }
+
+  test('P1-3 failure to inspect current evidence cannot authorize settlement', async () => {
+    const pair = await authorizedPair();
+    const fault = serviceWithHistoryFault('inspect');
+    const failed = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId));
+    assert.equal(fault.injections(), 1);
+    assert.equal(failed.result, 'failed');
+    assert.equal(failed.databaseCommitState, 'rolled_back');
+    assertUnsettled(failed);
+    assert.equal((await counts()).settlements, 0);
+    const retry = await verifyAndSettle(URL, provider(pair.operation.operationId));
+    assert.equal(retry.result, 'settled');
+    await assertCommittedPair(pair);
+  });
+
+  test('P1-4 cleanup failure preserves the truth of an acknowledged settlement COMMIT', async () => {
+    const pair = await authorizedPair();
+    const fault = serviceWithHistoryFault('settlement-cleanup');
+    const settled = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId));
+    assert.equal(fault.injections(), 1);
+    assert.equal(settled.result, 'settled');
+    assert.equal(settled.financiallySettled, true);
+    assert.equal(settled.settlementCommitted, true);
+    assert.equal(settled.databaseCleanupFailed, true);
+    assert.equal(settled.databaseCommitState, 'committed');
+    await assertCommittedPair(pair);
+  });
+
+  test('P1-4 an unresolved concurrent outcome blocks an earlier valid retrieval', async () => {
+    const pair = await authorizedPair();
+    let enter;
+    const entered = new Promise((resolve) => { enter = resolve; });
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const earlier = verifyAndSettle(URL, provider(pair.operation.operationId, {
+      timeoutMs: 10000, fetchImpl: async () => { enter(); await gate; return mockFetch(paymentBody())(); },
+    }));
+    try {
+      await entered;
+      const fault = serviceWithHistoryFault('outcome-before');
+      const failed = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId, {}, { amount: 101 }));
+      assert.equal(fault.injections(), 1);
+      assert.equal(failed.result, 'failed');
+      assertUnsettled(failed);
+      release();
+      const valid = await earlier;
+      assert.equal(valid.error, 'square_settlement_verification_pending');
+      assertUnsettled(valid);
+      assert.equal((await counts()).settlements, 0);
+      await assertStoredAuthorization(pair);
+    } finally { release(); await earlier; }
+  });
+
+  test('P1-4 a missing provider identity is quarantined even without usable payment fields', async () => {
+    const pair = await authorizedPair();
+    const body = paymentBody();
+    delete body.payment.id;
+    const bad = await verifyAndSettle(URL, provider(pair.operation.operationId, { fetchImpl: mockFetch(body) }));
+    assert.equal(bad.result, 'quarantined');
+    let calls = 0;
+    const retry = await ingestObservation(URL, provider(pair.operation.operationId, observation({
+      eventId: 'evt-9j-missing-identity', fetchImpl: async () => { calls++; return mockFetch(paymentBody())(); },
+    })));
+    assert.equal(retry.result, 'quarantined');
+    assert.equal(calls, 0);
+    assertUnsettled(retry);
+    assert.equal((await counts()).settlements, 0);
+  });
+
+  for (const mode of ['outcome-connect', 'adapter-throw']) {
+    test(`P1-4 ${mode} failure preserves an unresolved fence`, async () => {
+      const pair = await authorizedPair();
+      const fault = serviceWithHistoryFault(mode);
+      const failed = await fault.api.verifyAndSettle(URL, provider(pair.operation.operationId, {}, { amount: 101 }));
+      assert.equal(fault.injections(), 1);
+      assert.equal(failed.result, 'failed');
+      assert.equal(failed.error, mode === 'adapter-throw' ? 'square_settlement_provider_unknown'
+        : 'square_settlement_verification_history_unconfirmed');
+      assertUnsettled(failed);
+      assert.equal((await inboxRows()).filter((e) => e.processing_status === 'verification_pending').length, 1);
+      const retry = await ingestObservation(URL, provider(pair.operation.operationId,
+        observation({ eventId: 'evt-9j-unresolved-retry' })));
+      assert.equal(retry.error, 'square_settlement_verification_pending');
+      assertUnsettled(retry);
+      assert.equal((await counts()).settlements, 0);
+    });
+  }
 
   test('commercial financial code is not imported and the provider stays disabled', () => {
     assert.equal(ACTIVE_PAYMENT_PROVIDER, 'none');
