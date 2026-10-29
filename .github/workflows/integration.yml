@@ -195,7 +195,7 @@ jobs:
       - name: Run repository tests
         run: |
           set -euo pipefail
-          mapfile -t files < <(find tests -maxdepth 1 -type f -name '*.test.js' ! -name 'square-sandbox-settlement.test.js' | sort)
+          mapfile -t files < <(find tests -maxdepth 1 -type f -name '*.test.js' ! -name 'square-sandbox-settlement.test.js' ! -name 'square-verified-reconciliation.test.js' | sort)
           test "${#files[@]}" -gt 0
           node --test "${files[@]}"
       - name: Run Square settlement tests on the service loopback
@@ -241,7 +241,7 @@ jobs:
           command -v nsenter >/dev/null
           sudo --preserve-env=PATH,SQUARE_SETTLEMENT_TEST_PORT,SQUARE_SETTLEMENT_TEST_PASSWORD \
             nsenter -t "$pid" -n -- \
-            bash -c 'cd "$1" && exec node --test tests/square-sandbox-settlement.test.js' bash "$PWD"
+            bash -c 'cd "$1" && node --test tests/square-sandbox-settlement.test.js && node --test tests/square-verified-reconciliation.test.js' bash "$PWD"
 
   financial_invariants:
     name: integration / financial-invariants

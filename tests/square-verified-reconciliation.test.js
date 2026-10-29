@@ -1,0 +1,1352 @@
+'use strict';
+
+const { describe, beforeEach, test } = require('node:test');
+const assert = require('node:assert/strict');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { ACTIVE_PAYMENT_PROVIDER } = require('../netlify/lib/payment-provider-adapter');
+const {
+  LOCAL_DATABASE_NAME,
+  connectProven,
+  applySettlementSchema,
+  emptySettlementTables,
+} = require('../sandbox/square-settlement/database');
+const {
+  PURPOSE,
+  createObligation,
+  createOperation,
+  verifyAndSettle,
+} = require('../sandbox/square-settlement/square-sandbox-settlement');
+const {
+  SYNTHETIC_RETRIEVAL_TOKEN,
+  associateTrustedPayment,
+  receiveVerifiedWebhook,
+} = require('../sandbox/square-reconciliation/square-verified-bridge');
+
+const ROOT = path.join(__dirname, '..');
+const NOTIFICATION_URL = 'https://square-bridge-7e.example.test/hooks/square';
+const KEY = 'synthetic-square-webhook-7e-not-a-real-key';
+const PAYMENT_ID = 'sandboxPay7eOnly';
+const MERCHANT_ID = 'MERCHANT_TEST_7E';
+const LOCATION_ID = 'LOC_TEST_7E';
+const FINGERPRINT = 'fp-must-not-leak';
+const TRANSACTION_GATE_KEY = 'cardetail1.square-settlement.transaction.v1';
+
+function settlementTestUrl() {
+  const configured = process.env.SQUARE_SETTLEMENT_TEST_PORT;
+  const port = configured == null || configured === '' ? '5433' : String(configured);
+  if (port !== '5432' && port !== '5433') throw new Error('square_settlement_database_unproven');
+  if (process.env.SQUARE_SETTLEMENT_TEST_HOST != null && process.env.SQUARE_SETTLEMENT_TEST_HOST !== '') {
+    throw new Error('square_settlement_database_unproven');
+  }
+  const password = process.env.SQUARE_SETTLEMENT_TEST_PASSWORD;
+  let userinfo = 'cardetail1_ci';
+  if (password != null && password !== '') {
+    if (typeof password !== 'string' || /[\s@:/\\]/.test(password) || /neon|amazonaws|supabase|squareup/i.test(password)) {
+      throw new Error('square_settlement_database_unproven');
+    }
+    userinfo = `cardetail1_ci:${encodeURIComponent(password)}`;
+  }
+  return `postgresql://${userinfo}@127.0.0.1:${port}/${LOCAL_DATABASE_NAME}`;
+}
+
+const SETTLEMENT_URL = settlementTestUrl();
+
+function context(overrides = {}) {
+  return {
+    testContext: 'noncommercial-test',
+    trustedSandbox: {
+      merchantId: MERCHANT_ID,
+      locationId: LOCATION_ID,
+      locationMerchantId: MERCHANT_ID,
+    },
+    ...overrides,
+  };
+}
+
+function sign(url, body, key = KEY) {
+  return crypto.createHmac('sha256', key).update(Buffer.concat([
+    Buffer.from(url, 'utf8'),
+    Buffer.from(body, 'utf8'),
+  ])).digest('base64');
+}
+
+function fixture(overrides = {}) {
+  const paymentId = overrides.paymentId || PAYMENT_ID;
+  const payment = {
+    id: paymentId,
+    status: overrides.status || 'COMPLETED',
+    reference_id: Object.prototype.hasOwnProperty.call(overrides, 'referenceId')
+      ? overrides.referenceId
+      : 'TEST-NOT-A-BOOKING',
+    amount_money: {
+      amount: Object.prototype.hasOwnProperty.call(overrides, 'amount') ? overrides.amount : 100,
+      currency: overrides.currency || 'USD',
+    },
+    card_details: { card: { fingerprint: FINGERPRINT } },
+  };
+  if (overrides.locationId !== null) payment.location_id = overrides.locationId || LOCATION_ID;
+  if (overrides.paymentMerchantId) payment.merchant_id = overrides.paymentMerchantId;
+  return JSON.stringify({
+    merchant_id: overrides.merchantId || MERCHANT_ID,
+    type: overrides.type || 'payment.updated',
+    event_id: overrides.eventId || 'evt-7e-completed',
+    created_at: overrides.createdAt || '2026-10-26T12:00:00.000Z',
+    data: {
+      type: 'payment',
+      id: paymentId,
+      object: { payment },
+    },
+  });
+}
+
+function webhookInput(body, extra = {}) {
+  const notificationUrl = Object.prototype.hasOwnProperty.call(extra, 'notificationUrl')
+    ? extra.notificationUrl
+    : NOTIFICATION_URL;
+  const signatureKey = Object.prototype.hasOwnProperty.call(extra, 'signatureKey')
+    ? extra.signatureKey
+    : KEY;
+  const rawBody = Object.prototype.hasOwnProperty.call(extra, 'rawBody') ? extra.rawBody : body;
+  const signedBody = typeof rawBody === 'string' && !Object.prototype.hasOwnProperty.call(extra, 'signature')
+    && !Object.prototype.hasOwnProperty.call(extra, 'rawBody')
+    ? rawBody
+    : body;
+  const signedUrl = extra.signedUrl || NOTIFICATION_URL;
+  const signature = Object.prototype.hasOwnProperty.call(extra, 'signature')
+    ? extra.signature
+    : sign(signedUrl, signedBody, signatureKey || KEY);
+  return context({
+    rawBody,
+    notificationUrl,
+    signatureKey,
+    headers: extra.headers || { 'x-square-hmacsha256-signature': signature },
+    ...(extra.input || {}),
+  });
+}
+
+function paymentBody(overrides = {}) {
+  const payment = {
+    id: overrides.id || PAYMENT_ID,
+    status: overrides.status || 'COMPLETED',
+    location_id: overrides.locationId || LOCATION_ID,
+    amount_money: {
+      amount: Object.prototype.hasOwnProperty.call(overrides, 'amount') ? overrides.amount : 100,
+      currency: overrides.currency || 'USD',
+    },
+  };
+  if (overrides.includeMerchantId === true) payment.merchant_id = 'MERCHANT_IGNORED';
+  return { payment };
+}
+
+function mockFetch(overrides = {}, capture = null) {
+  return async (url, init) => {
+    if (capture) {
+      capture.calls.push({
+        url: String(url),
+        method: init && init.method,
+        hasBody: init && init.body != null,
+      });
+    }
+    const text = Object.prototype.hasOwnProperty.call(overrides, 'rawText')
+      ? overrides.rawText
+      : JSON.stringify(paymentBody(overrides));
+    return {
+      status: overrides.httpStatus || 200,
+      async text() { return text; },
+    };
+  };
+}
+
+function assertUnsettled(outcome) {
+  assert.equal(outcome.financiallySettled, false);
+  assert.equal(outcome.settlementCommitted, false);
+  assert.equal(outcome.paid, false);
+  assert.equal(outcome.ledgerWrite, false);
+  assert.equal(outcome.bookingWrite, false);
+  assert.equal(outcome.commercialDatabaseWrite, false);
+  assert.equal(JSON.stringify(outcome).includes(FINGERPRINT), false);
+  assert.equal(JSON.stringify(outcome).includes(SYNTHETIC_RETRIEVAL_TOKEN), false);
+  assert.equal(JSON.stringify(outcome).includes(KEY), false);
+}
+
+async function state() {
+  const client = await connectProven(SETTLEMENT_URL);
+  try {
+    const result = await client.query(
+      `SELECT
+         (SELECT count(*)::int FROM sandbox_settlement) AS settlements,
+         (SELECT count(*)::int FROM sandbox_payment_event) AS events,
+         (SELECT count(*)::int FROM sandbox_payment_operation) AS operations,
+         (SELECT count(*)::int FROM sandbox_payment_obligation) AS obligations,
+         (SELECT count(*)::int FROM sandbox_payment_obligation WHERE booking_ref = 'TEST-NOT-A-BOOKING') AS forged_bookings,
+         to_regclass('public."PaymentAttempt"') AS commercial_attempt,
+         to_regclass('public."LedgerEntry"') AS commercial_ledger`
+    );
+    const identity = await client.query(
+      'SELECT current_database() AS database, inet_server_addr()::text AS address, inet_server_port()::text AS port'
+    );
+    return { ...result.rows[0], ...identity.rows[0] };
+  } finally {
+    await client.end();
+  }
+}
+
+async function waitForLockState(client, sql, description, params = []) {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    const observed = await client.query(sql, params);
+    if (observed.rows[0]) return observed.rows[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`timed out waiting for ${description}`);
+}
+
+async function openOperation(key = 'sandbox-op-7e-001', bookingRef = 'TEST-SQ-7E') {
+  const obligation = await createObligation(SETTLEMENT_URL, context({
+    bookingRef,
+    purpose: PURPOSE,
+    amountCents: 100,
+    currency: 'USD',
+  }));
+  assert.equal(obligation.result, 'stored');
+  const operation = await createOperation(SETTLEMENT_URL, context({
+    obligationId: obligation.obligationId,
+    idempotencyKey: key,
+  }));
+  assert.equal(operation.result, 'stored');
+  return { obligation, operation };
+}
+
+async function storedOperation(paymentId = PAYMENT_ID, key = 'sandbox-op-7e-001') {
+  const opened = await openOperation(key);
+  const associated = await associateTrustedPayment(SETTLEMENT_URL, context({
+    operationId: opened.operation.operationId,
+    squarePaymentId: paymentId,
+  }));
+  assert.equal(associated.financiallySettled, false);
+  return { ...opened, associated };
+}
+
+async function inboxEvidence() {
+  const client = await connectProven(SETTLEMENT_URL);
+  try { return (await client.query('SELECT * FROM sandbox_payment_event ORDER BY event_id')).rows; }
+  finally { await client.end(); }
+}
+
+async function assertBridgeAssociation(pair, settled) {
+  const client = await connectProven(SETTLEMENT_URL);
+  try {
+    const found = await client.query(
+      `SELECT p.obligation_id, p.square_payment_id, p.expected_amount_cents, p.currency,
+              p.status AS operation_status, o.status AS obligation_status,
+              s.operation_id AS settled_operation, s.obligation_id AS settled_obligation,
+              s.square_payment_id AS settled_payment, s.settled_amount_cents, s.currency AS settled_currency
+       FROM sandbox_payment_operation p JOIN sandbox_payment_obligation o USING (obligation_id)
+       LEFT JOIN sandbox_settlement s ON s.operation_id = p.operation_id WHERE p.operation_id = $1`,
+      [pair.operation.operationId]
+    );
+    assert.deepEqual(found.rows, [{ obligation_id: pair.obligation.obligationId, square_payment_id: PAYMENT_ID,
+      expected_amount_cents: 100, currency: 'USD', operation_status: settled ? 'settled' : 'associated',
+      obligation_status: settled ? 'settled' : 'authorized', settled_operation: settled ? pair.operation.operationId : null,
+      settled_obligation: settled ? pair.obligation.obligationId : null, settled_payment: settled ? PAYMENT_ID : null,
+      settled_amount_cents: settled ? 100 : null, settled_currency: settled ? 'USD' : null }]);
+  } finally { await client.end(); }
+  assert.equal((await state()).settlements, settled ? 1 : 0);
+}
+
+function transientRetrieval(name) {
+  if (name === 'timeout') return async (_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener('abort', () => reject(new Error('synthetic_timeout')), { once: true });
+  });
+  if (name === 'malformed-json') return mockFetch({ rawText: '{invalid' });
+  return mockFetch({ httpStatus: Number(name), rawText: JSON.stringify({ errors: [{ code: 'API_ERROR' }] }) });
+}
+
+async function withHistoryFault(mode, run) {
+  const { Client } = require('pg');
+  const originalQuery = Client.prototype.query;
+  const originalEnd = Client.prototype.end;
+  const outcomeClients = new WeakSet();
+  let injections = 0;
+  const fail = () => { injections++; const error = new Error('synthetic_bridge_history_fault'); error.code = '08006'; throw error; };
+  Client.prototype.query = async function (sql, ...args) {
+    if (mode === 'insert' && injections === 0 && /INSERT INTO sandbox_payment_event/.test(sql)
+      && sql.includes("'provider.retrieve'")) fail();
+    if (sql === 'COMMIT' && outcomeClients.has(this) && injections === 0 && mode !== 'cleanup') {
+      if (mode === 'after') await originalQuery.call(this, sql, ...args);
+      fail();
+    }
+    const answer = await originalQuery.call(this, sql, ...args);
+    if (/UPDATE sandbox_payment_event\s+SET payment_status/.test(sql)) outcomeClients.add(this);
+    return answer;
+  };
+  Client.prototype.end = async function (...args) {
+    await originalEnd.apply(this, args);
+    if (mode === 'cleanup' && outcomeClients.has(this) && injections === 0) fail();
+  };
+  try { return { outcome: await run(), injections }; }
+  finally { Client.prototype.query = originalQuery; Client.prototype.end = originalEnd; }
+}
+
+describe('verified Square reconciliation bridge', { concurrency: false }, () => {
+  beforeEach(async () => {
+    await emptySettlementTables(SETTLEMENT_URL);
+    await applySettlementSchema(SETTLEMENT_URL);
+  });
+
+  test('a valid synthetic HMAC is accepted and does not settle by itself', async () => {
+    const { operation, obligation } = await storedOperation();
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture()));
+    assert.equal(outcome.signatureAccepted, true);
+    assert.equal(outcome.error, '');
+    assert.equal(outcome.processingStatus, 'verification_required');
+    assert.equal(outcome.operationId, operation.operationId);
+    assert.equal(outcome.obligationId, obligation.obligationId);
+    assertUnsettled(outcome);
+    assert.equal((await state()).settlements, 0);
+    assert.equal((await state()).events, 1);
+  });
+
+  test('an invalid HMAC is rejected and cannot become eligible later', async () => {
+    const body = fixture();
+    let calls = 0;
+    const invalid = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(body, {
+      signature: sign(NOTIFICATION_URL, body, 'synthetic-square-webhook-wrong-key-value'),
+      input: { fetchImpl: async () => { calls += 1; return { status: 200, async text() { return '{}'; } }; } },
+    }));
+    assert.equal(invalid.signatureAccepted, false);
+    assert.equal(invalid.error, 'square_webhook_signature_invalid');
+    assert.equal(calls, 0);
+    assertUnsettled(invalid);
+    const { operation } = await storedOperation();
+    const later = await associateTrustedPayment(SETTLEMENT_URL, context({
+      operationId: operation.operationId,
+      squarePaymentId: PAYMENT_ID,
+      fetchImpl: mockFetch(),
+    }));
+    assert.equal(later.result, 'pending');
+    assertUnsettled(later);
+    assert.equal((await state()).events, 0);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a missing signature header is rejected even when a signature argument is present', async () => {
+    const body = fixture();
+    const input = webhookInput(body, { headers: {} });
+    input.signature = sign(NOTIFICATION_URL, body);
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, input);
+    assert.equal(outcome.signatureAccepted, false);
+    assert.equal(outcome.error, 'square_webhook_signature_missing');
+    assertUnsettled(outcome);
+    assert.equal((await state()).events, 0);
+  });
+
+  test('an altered raw body fails signature validation', async () => {
+    const body = fixture();
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(body, {
+      rawBody: body.replace('COMPLETED', 'APPROVED'),
+      signature: sign(NOTIFICATION_URL, body),
+    }));
+    assert.equal(outcome.signatureAccepted, false);
+    assert.equal(outcome.error, 'square_webhook_signature_invalid');
+    assertUnsettled(outcome);
+    assert.equal((await state()).events, 0);
+  });
+
+  test('the wrong notification URL fails signature validation', async () => {
+    const body = fixture();
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(body, {
+      signedUrl: NOTIFICATION_URL,
+      notificationUrl: 'https://other.example.test/hooks/square',
+    }));
+    assert.equal(outcome.signatureAccepted, false);
+    assert.equal(outcome.error, 'square_webhook_signature_invalid');
+    assertUnsettled(outcome);
+    const insecure = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(body, {
+      notificationUrl: 'http://square-bridge-7e.example.test/hooks/square',
+    }));
+    assert.equal(insecure.error, 'square_webhook_notification_url_rejected');
+    assertUnsettled(insecure);
+    assert.equal((await state()).events, 0);
+  });
+
+  test('the wrong merchant is rejected and cannot select the stored operation', async () => {
+    const unknown = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ merchantId: 'MERCHANT_TEST_OTHER' })));
+    assert.equal(unknown.signatureAccepted, true);
+    assert.equal(unknown.error, 'square_webhook_merchant_unexpected');
+    assertUnsettled(unknown);
+    assert.equal((await state()).events, 0);
+
+    await storedOperation();
+    const mismatched = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-merchant',
+      merchantId: 'MERCHANT_TEST_OTHER',
+    }), {
+      input: {
+        trustedSandbox: {
+          merchantId: 'MERCHANT_TEST_OTHER',
+          locationId: LOCATION_ID,
+          locationMerchantId: 'MERCHANT_TEST_OTHER',
+        },
+        fetchImpl: mockFetch(),
+      },
+    }));
+    assert.equal(mismatched.result, 'quarantined');
+    assert.equal(mismatched.error, 'square_settlement_observations_conflict');
+    assertUnsettled(mismatched);
+    const unrelated = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: {
+        trustedSandbox: {
+          merchantId: MERCHANT_ID,
+          locationId: LOCATION_ID,
+          locationMerchantId: 'MERCHANT_TEST_OTHER',
+        },
+      },
+    }));
+    assert.equal(unrelated.error, 'square_bridge_merchant_untrusted');
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a webhook before association is stored and does not settle', async () => {
+    const capture = { calls: [] };
+    const early = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { fetchImpl: mockFetch({}, capture) },
+    }));
+    assert.equal(early.signatureAccepted, true);
+    assert.equal(early.result, 'stored');
+    assert.equal(early.processingStatus, 'awaiting_association');
+    assert.equal(capture.calls.length, 0);
+    assertUnsettled(early);
+    const rows = await state();
+    assert.equal(rows.events, 1);
+    assert.equal(rows.operations, 0);
+    assert.equal(rows.obligations, 0);
+    assert.equal(rows.settlements, 0);
+    assert.equal(rows.forged_bookings, 0);
+  });
+
+  test('a verified COMPLETED retrieval settles the stored payment once', async () => {
+    const { operation, obligation } = await storedOperation();
+    const capture = { calls: [] };
+    const settled = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      referenceId: 'TEST-NOT-A-BOOKING',
+    }), {
+      input: { fetchImpl: mockFetch({ includeMerchantId: true }, capture) },
+    }));
+    assert.equal(settled.signatureAccepted, true);
+    assert.equal(settled.result, 'settled');
+    assert.equal(settled.providerCompleted, true);
+    assert.equal(settled.financiallySettled, true);
+    assert.equal(settled.settlementCommitted, true);
+    assert.equal(settled.paid, false);
+    assert.equal(settled.operationId, operation.operationId);
+    assert.equal(settled.obligationId, obligation.obligationId);
+    assert.equal(settled.squarePaymentId, PAYMENT_ID);
+    assert.equal(capture.calls.length, 1);
+    assert.equal(capture.calls[0].method, 'GET');
+    assert.equal(capture.calls[0].hasBody, false);
+    assert.equal(new URL(capture.calls[0].url).pathname, `/v2/payments/${PAYMENT_ID}`);
+    assert.equal(new URL(capture.calls[0].url).origin, 'https://connect.squareupsandbox.com');
+    const rows = await state();
+    assert.equal(rows.settlements, 1);
+    assert.equal(rows.forged_bookings, 0);
+    assert.equal(JSON.stringify(settled).includes('receipt'), false);
+  });
+
+  test('an APPROVED provider payment does not settle', async () => {
+    await storedOperation();
+    const capture = { calls: [] };
+    const fromWebhook = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-approved-webhook',
+      status: 'APPROVED',
+    }), { input: { fetchImpl: mockFetch({ status: 'COMPLETED' }, capture) } }));
+    assert.equal(capture.calls.length, 0);
+    assert.equal(fromWebhook.result, 'pending');
+    assertUnsettled(fromWebhook);
+    await emptySettlementTables(SETTLEMENT_URL);
+    await applySettlementSchema(SETTLEMENT_URL);
+    await storedOperation();
+    const fromProvider = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-approved-provider',
+    }), { input: { fetchImpl: mockFetch({ status: 'APPROVED' }) } }));
+    assert.equal(fromProvider.result, 'pending');
+    assert.equal(fromProvider.providerCompleted, false);
+    assertUnsettled(fromProvider);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a PENDING provider payment does not settle', async () => {
+    await storedOperation();
+    const capture = { calls: [] };
+    const fromWebhook = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-pending-webhook',
+      status: 'PENDING',
+    }), { input: { fetchImpl: mockFetch({}, capture) } }));
+    assert.equal(capture.calls.length, 0);
+    assert.equal(fromWebhook.result, 'pending');
+    assertUnsettled(fromWebhook);
+    await emptySettlementTables(SETTLEMENT_URL);
+    await applySettlementSchema(SETTLEMENT_URL);
+    await storedOperation();
+    const fromProvider = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-pending-provider',
+    }), { input: { fetchImpl: mockFetch({ status: 'PENDING' }) } }));
+    assert.equal(fromProvider.result, 'pending');
+    assertUnsettled(fromProvider);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a FAILED provider payment does not settle', async () => {
+    await storedOperation();
+    const fromWebhook = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-failed-webhook',
+      status: 'FAILED',
+    }), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(fromWebhook.result, 'rejected');
+    assertUnsettled(fromWebhook);
+    await emptySettlementTables(SETTLEMENT_URL);
+    await applySettlementSchema(SETTLEMENT_URL);
+    await storedOperation();
+    const fromProvider = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-failed-provider',
+    }), { input: { fetchImpl: mockFetch({ status: 'FAILED' }) } }));
+    assert.equal(fromProvider.result, 'rejected');
+    assertUnsettled(fromProvider);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a CANCELED provider payment does not settle', async () => {
+    await storedOperation();
+    const fromWebhook = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-canceled-webhook',
+      status: 'CANCELED',
+    }), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(fromWebhook.result, 'rejected');
+    assertUnsettled(fromWebhook);
+    await emptySettlementTables(SETTLEMENT_URL);
+    await applySettlementSchema(SETTLEMENT_URL);
+    await storedOperation();
+    const fromProvider = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-canceled-provider',
+    }), { input: { fetchImpl: mockFetch({ status: 'CANCELED' }) } }));
+    assert.equal(fromProvider.result, 'rejected');
+    assertUnsettled(fromProvider);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('an unexpected provider payment id does not settle', async () => {
+    await storedOperation();
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { fetchImpl: mockFetch({ id: 'sandboxPayOther' }) },
+    }));
+    assert.equal(outcome.result, 'quarantined');
+    assert.equal(outcome.error, 'square_settlement_payment_id_mismatch');
+    assertUnsettled(outcome);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('an amount mismatch does not settle', async () => {
+    await storedOperation();
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { fetchImpl: mockFetch({ amount: 250 }) },
+    }));
+    assert.equal(outcome.result, 'quarantined');
+    assert.equal(outcome.error, 'square_settlement_amount_mismatch');
+    assertUnsettled(outcome);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a currency mismatch does not settle', async () => {
+    await storedOperation();
+    const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { fetchImpl: mockFetch({ currency: 'EUR' }) },
+    }));
+    assert.equal(outcome.result, 'quarantined');
+    assert.equal(outcome.error, 'square_settlement_currency_mismatch');
+    assertUnsettled(outcome);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a location mismatch does not settle', async () => {
+    await storedOperation();
+    const provider = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { fetchImpl: mockFetch({ locationId: 'LOC_TEST_OTHER' }) },
+    }));
+    assert.equal(provider.result, 'quarantined');
+    assert.equal(provider.error, 'square_settlement_location_mismatch');
+    assertUnsettled(provider);
+    const webhook = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-location',
+      locationId: 'LOC_TEST_OTHER',
+    }), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(webhook.error, 'square_bridge_location_untrusted');
+    assertUnsettled(webhook);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('a duplicate webhook event does not create a second settlement', async () => {
+    await storedOperation();
+    const body = fixture({ eventId: 'evt-7e-duplicate', type: 'payment.created' });
+    const first = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(body, {
+      input: { fetchImpl: mockFetch() },
+    }));
+    const duplicate = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(body, {
+      input: { fetchImpl: mockFetch({ status: 'PENDING' }) },
+    }));
+    assert.equal(first.result, 'settled');
+    assert.equal(first.settlementCommitted, true);
+    assert.equal(duplicate.result, 'already_settled');
+    assert.equal(duplicate.financiallySettled, true);
+    assert.equal(duplicate.settlementCommitted, false);
+    const client = await connectProven(SETTLEMENT_URL);
+    try {
+      const events = await client.query(
+        "SELECT count(*)::int AS count FROM sandbox_payment_event WHERE event_id = 'evt-7e-duplicate'"
+      );
+      assert.equal(events.rows[0].count, 1);
+    } finally {
+      await client.end();
+    }
+    assert.equal((await state()).settlements, 1);
+  });
+
+  test('two different events for one payment settle once', async () => {
+    await storedOperation();
+    const created = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-created',
+      type: 'payment.created',
+    }), { input: { fetchImpl: mockFetch() } }));
+    const updated = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-updated',
+      type: 'payment.updated',
+      createdAt: '2026-10-26T13:00:00.000Z',
+    }), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(created.result, 'settled');
+    assert.equal(updated.result, 'already_settled');
+    assert.equal(updated.financiallySettled, true);
+    assert.equal(updated.settlementCommitted, false);
+    assert.equal((await state()).settlements, 1);
+  });
+
+  test('concurrent verification commits one settlement', async () => {
+    await storedOperation();
+    const [left, right] = await Promise.all([
+      receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-7e-concurrent-a' }), {
+        input: { fetchImpl: mockFetch() },
+      })),
+      receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-7e-concurrent-b' }), {
+        input: { fetchImpl: mockFetch() },
+      })),
+    ]);
+    const results = [left.result, right.result].sort();
+    assert.deepEqual(results, ['already_settled', 'settled']);
+    assert.equal(left.financiallySettled, true);
+    assert.equal(right.financiallySettled, true);
+    assert.equal(left.settlementCommitted !== right.settlementCommitted, true);
+    assert.equal((await state()).settlements, 1);
+  });
+
+  test('verification and webhook ingestion cannot recreate the operation-row advisory-lock deadlock', async () => {
+    const { operation, obligation } = await storedOperation();
+    const blocker = await connectProven(SETTLEMENT_URL);
+    const observer = await connectProven(SETTLEMENT_URL);
+    let blockerReleased = false;
+    let verificationPromise;
+    let webhookPromise;
+    try {
+      // Discover the shared gate's actual lock tag instead of accepting any
+      // advisory lock (the service also retains its payment advisory lock).
+      await observer.query('BEGIN');
+      await observer.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [TRANSACTION_GATE_KEY]);
+      const gateLocks = await observer.query(
+        `SELECT database, classid, objid, objsubid FROM pg_locks
+         WHERE pid = pg_backend_pid() AND locktype = 'advisory' AND granted`
+      );
+      assert.equal(gateLocks.rows.length, 1);
+      const gate = gateLocks.rows[0];
+      const gateTag = [gate.database, gate.classid, gate.objid, gate.objsubid];
+      await observer.query('COMMIT');
+      const before = await observer.query(
+        'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
+      );
+      await blocker.query('BEGIN');
+      await blocker.query(
+        'SELECT operation_id FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE',
+        [operation.operationId]
+      );
+
+      verificationPromise = verifyAndSettle(SETTLEMENT_URL, context({
+        operationId: operation.operationId,
+        env: { SQUARE_SANDBOX_ACCESS_TOKEN: SYNTHETIC_RETRIEVAL_TOKEN },
+        fetchImpl: mockFetch(),
+      }));
+
+      const verificationWait = await waitForLockState(
+        observer,
+        `SELECT a.pid,
+                EXISTS (
+                  SELECT 1 FROM pg_locks held
+                  WHERE held.pid = a.pid
+                    AND held.locktype = 'advisory'
+                    AND held.granted
+                    AND held.database = $1::oid AND held.classid = $2::oid
+                    AND held.objid = $3::oid AND held.objsubid = $4::int
+                ) AS holds_shared_gate
+         FROM pg_stat_activity a
+         WHERE a.datname = current_database()
+           AND a.wait_event_type = 'Lock'
+           AND position('sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE' in a.query) > 0
+           AND EXISTS (
+             SELECT 1 FROM pg_locks held
+             WHERE held.pid = a.pid
+               AND held.locktype = 'advisory'
+               AND held.granted
+               AND held.database = $1::oid AND held.classid = $2::oid
+               AND held.objid = $3::oid AND held.objsubid = $4::int
+           )
+         LIMIT 1`,
+        'verification to hold the shared transaction gate while waiting for the operation row',
+        gateTag
+      );
+      assert.equal(verificationWait.holds_shared_gate, true);
+
+      webhookPromise = receiveVerifiedWebhook(
+        SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-7e-lock-order' }), {
+          input: { fetchImpl: mockFetch() },
+        })
+      );
+
+      const webhookWait = await waitForLockState(
+        observer,
+        `SELECT a.pid,
+                EXISTS (
+                  SELECT 1 FROM pg_locks waiting
+                  WHERE waiting.pid = a.pid
+                    AND waiting.locktype = 'advisory'
+                    AND NOT waiting.granted
+                    AND waiting.database = $1::oid AND waiting.classid = $2::oid
+                    AND waiting.objid = $3::oid AND waiting.objsubid = $4::int
+                ) AS waits_for_shared_gate
+         FROM pg_stat_activity a
+         WHERE a.datname = current_database()
+           AND a.wait_event_type = 'Lock'
+           AND position('pg_advisory_xact_lock' in a.query) > 0
+           AND $5::int = ANY (pg_blocking_pids(a.pid))
+           AND EXISTS (
+             SELECT 1 FROM pg_locks waiting
+             WHERE waiting.pid = a.pid
+               AND waiting.locktype = 'advisory'
+               AND NOT waiting.granted
+               AND waiting.database = $1::oid AND waiting.classid = $2::oid
+               AND waiting.objid = $3::oid AND waiting.objsubid = $4::int
+           )
+         LIMIT 1`,
+        'webhook ingestion to wait on the same shared gate held by verification',
+        [...gateTag, verificationWait.pid]
+      );
+      assert.notEqual(webhookWait.pid, verificationWait.pid);
+      assert.equal(webhookWait.waits_for_shared_gate, true);
+
+      await blocker.query('COMMIT');
+      blockerReleased = true;
+      const outcomes = await Promise.all([verificationPromise, webhookPromise]);
+      assert.deepEqual(outcomes.map((outcome) => outcome.result).sort(), ['already_settled', 'settled']);
+      assert.equal(outcomes.filter((outcome) => outcome.settlementCommitted).length, 1);
+      assert.equal(outcomes.every((outcome) => outcome.financiallySettled), true);
+      assert.equal(outcomes.some((outcome) => outcome.result === 'failed'), false);
+
+      const committed = await observer.query(
+        `SELECT s.obligation_id, s.operation_id, s.square_payment_id,
+                s.settled_amount_cents, s.currency,
+                o.status AS obligation_status,
+                p.status AS operation_status
+         FROM sandbox_settlement s
+         JOIN sandbox_payment_obligation o ON o.obligation_id = s.obligation_id
+         JOIN sandbox_payment_operation p ON p.operation_id = s.operation_id`
+      );
+      assert.deepEqual(committed.rows, [{
+        obligation_id: obligation.obligationId,
+        operation_id: operation.operationId,
+        square_payment_id: PAYMENT_ID,
+        settled_amount_cents: 100,
+        currency: 'USD',
+        obligation_status: 'settled',
+        operation_status: 'settled',
+      }]);
+
+      // Completion must release both the shared gate and every financial row
+      // lock. Acquire them without waiting so a leaked lock fails the test.
+      await observer.query('BEGIN');
+      const released = await observer.query(
+        'SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS acquired',
+        [TRANSACTION_GATE_KEY]
+      );
+      assert.equal(released.rows[0].acquired, true);
+      for (const [sql, params] of [
+        ['SELECT operation_id FROM sandbox_payment_operation WHERE operation_id = $1 FOR UPDATE NOWAIT', [operation.operationId]],
+        ['SELECT obligation_id FROM sandbox_payment_obligation WHERE obligation_id = $1 FOR UPDATE NOWAIT', [obligation.obligationId]],
+        ['SELECT settlement_id FROM sandbox_settlement WHERE operation_id = $1 FOR UPDATE NOWAIT', [operation.operationId]],
+        ['SELECT event_id FROM sandbox_payment_event WHERE square_payment_id = $1 ORDER BY event_id FOR UPDATE NOWAIT', [PAYMENT_ID]],
+      ]) {
+        assert.ok((await observer.query(sql, params)).rowCount > 0);
+      }
+      await observer.query('COMMIT');
+      const after = await observer.query(
+        'SELECT deadlocks::int AS deadlocks FROM pg_stat_database WHERE datname = current_database()'
+      );
+      assert.equal(after.rows[0].deadlocks, before.rows[0].deadlocks);
+    } finally {
+      await observer.query('ROLLBACK').catch(() => {});
+      if (!blockerReleased) {
+        await blocker.query('ROLLBACK').catch(() => {});
+      }
+      await Promise.allSettled([verificationPromise, webhookPromise].filter(Boolean));
+      await blocker.end();
+      await observer.end();
+    }
+  });
+
+  test('a transaction rollback reports no settlement and can be retried once', async () => {
+    await storedOperation();
+    const failed = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-7e-rollback' }), {
+      input: { fetchImpl: mockFetch(), fault: 'before_commit' },
+    }));
+    assert.equal(failed.result, 'failed');
+    assert.equal(failed.error, 'square_settlement_rolled_back');
+    assert.equal(failed.retrySafe, true);
+    assertUnsettled(failed);
+    assert.equal((await state()).settlements, 0);
+    const retried = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-rollback-retry',
+    }), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(retried.result, 'settled');
+    assert.equal(retried.settlementCommitted, true);
+    assert.equal((await state()).settlements, 1);
+  });
+
+  test('a provider timeout does not settle or create another charge', async () => {
+    await storedOperation();
+    const capture = { calls: [] };
+    const timeout = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: {
+        timeoutMs: 30,
+        fetchImpl: (url, init) => {
+          capture.calls.push({ url: String(url), method: init.method });
+          return new Promise((_resolve, reject) => {
+            init.signal.addEventListener('abort', () => {
+              const error = new Error('aborted');
+              error.name = 'AbortError';
+              reject(error);
+            });
+          });
+        },
+      },
+    }));
+    assert.equal(timeout.result, 'failed');
+    assert.equal(timeout.retrySafe, true);
+    assertUnsettled(timeout);
+    assert.equal(capture.calls.length, 1);
+    assert.equal(capture.calls[0].method, 'GET');
+    assert.equal((await state()).settlements, 0);
+  });
+
+  for (const [name, status, body] of [
+    ...[302, 400, 404, 409, 429, 500].map((status) => [String(status), status,
+      status === 404 ? { ...paymentBody(), errors: [{ code: 'NOT_FOUND' }] } : paymentBody()]),
+    ['decline', 200, { ...paymentBody(), errors: [{ code: 'CARD_DECLINED', category: 'PAYMENT_METHOD_ERROR' }] }],
+    ['API-error', 200, { ...paymentBody(), errors: [{ code: 'API_ERROR' }] }],
+  ]) {
+    test(`signed webhook cannot settle failed retrieval ${name} with matching COMPLETED data`, async () => {
+      const pair = await storedOperation();
+      const capture = { calls: [] };
+      const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+        input: { fetchImpl: mockFetch({ httpStatus: status, rawText: JSON.stringify(body) }, capture) },
+      }));
+      assert.equal(outcome.signatureAccepted, true);
+      assertUnsettled(outcome);
+      assert.notEqual(outcome.error, '');
+      assert.equal(capture.calls.length, 1);
+      assert.equal(capture.calls[0].method, 'GET');
+      assert.equal(capture.calls[0].hasBody, false);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
+  for (const failure of ['429', '500', 'malformed-json', 'timeout']) {
+    for (const delivery of ['same', 'new']) {
+      test(`signed bridge recovers ${failure} through ${delivery} event retry with durable history`, async () => {
+        const pair = await storedOperation();
+        const calls = [];
+        const unavailable = transientRetrieval(failure);
+        const fetchImpl = async (url, init) => {
+          calls.push({ method: init.method, hasBody: init.body != null });
+          return calls.length === 1 ? unavailable(url, init) : mockFetch()(url, init);
+        };
+        const firstBody = fixture({ eventId: `evt-bridge-recovery-${failure}-${delivery}` });
+        const input = { fetchImpl, timeoutMs: 20 };
+        const first = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(firstBody, { input }));
+        assert.equal(first.signatureAccepted, true);
+        assert.equal(first.result, 'failed');
+        assert.equal(first.retrySafe, true);
+        assertUnsettled(first);
+        await assertBridgeAssociation(pair, false);
+        const before = await inboxEvidence();
+        const attempt = before.find((row) => row.event_type === 'provider.retrieve');
+        assert.ok(attempt);
+        const nextBody = delivery === 'same' ? firstBody : fixture({ eventId: `evt-bridge-recovered-${failure}` });
+        const recovered = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(nextBody, { input }));
+        assert.equal(recovered.signatureAccepted, true);
+        assert.equal(recovered.result, 'settled');
+        assert.equal(recovered.financiallySettled, true);
+        assert.equal(recovered.settlementCommitted, true);
+        assert.equal(calls.length, 2);
+        await assertBridgeAssociation(pair, true);
+        const after = await inboxEvidence();
+        assert.deepEqual(after.find((row) => row.event_id === attempt.event_id), attempt);
+        assert.equal(after.length, delivery === 'same' ? 3 : 4);
+        const duplicate = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(nextBody, { input }));
+        assert.equal(duplicate.result, 'already_settled');
+        assert.equal(duplicate.settlementCommitted, false);
+        assert.equal(calls.length, 2);
+        assert.equal(calls.every((call) => call.method === 'GET' && !call.hasBody), true);
+        await assertBridgeAssociation(pair, true);
+      });
+    }
+  }
+
+  test('early signed event recovers after association retrieval failure through the bridge', async () => {
+    const pair = await openOperation();
+    const rawBody = fixture({ eventId: 'evt-early-retrieval-recovery' });
+    const capture = { calls: [] };
+    const early = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(rawBody, { input: { fetchImpl: mockFetch({}, capture) } }));
+    assert.equal(early.processingStatus, 'awaiting_association');
+    assert.equal(capture.calls.length, 0);
+    const failed = await associateTrustedPayment(SETTLEMENT_URL, context({ operationId: pair.operation.operationId,
+      squarePaymentId: PAYMENT_ID, fetchImpl: transientRetrieval('500') }));
+    assert.equal(failed.result, 'failed');
+    assert.equal(failed.retrySafe, true);
+    await assertBridgeAssociation(pair, false);
+    const recovered = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(rawBody, { input: { fetchImpl: mockFetch({}, capture) } }));
+    assert.equal(recovered.result, 'settled');
+    assert.equal(capture.calls.length, 1);
+    await assertBridgeAssociation(pair, true);
+  });
+
+  for (const [name, mismatch] of [
+    ['payment-id', { id: 'OtherPayment7eOnly' }], ['amount', { amount: 101 }],
+    ['currency', { currency: 'EUR' }], ['location', { locationId: 'LOC_TEST_OTHER' }],
+  ]) {
+    test(`signed bridge preserves genuine ${name} quarantine on a later valid event`, async () => {
+      const pair = await storedOperation();
+      let calls = 0;
+      const fetchImpl = async (url, init) => { calls++; return mockFetch(calls === 1 ? mismatch : {})(url, init); };
+      const first = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), { input: { fetchImpl } }));
+      assert.equal(first.result, 'quarantined');
+      assertUnsettled(first);
+      const retry = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: `evt-real-conflict-${name}` }), { input: { fetchImpl } }));
+      assert.equal(retry.result, 'quarantined');
+      assert.equal(retry.retrySafe, false);
+      assertUnsettled(retry);
+      assert.equal(calls, 1);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
+  test('provider retrieval failures are not payment completion', async () => {
+    const cases = [
+      [{ httpStatus: 400, rawText: JSON.stringify({ errors: [{ code: 'BAD_REQUEST' }] }) }, 'rejected'],
+      [{ httpStatus: 401, rawText: JSON.stringify({ errors: [{ code: 'UNAUTHORIZED' }] }) }, 'rejected'],
+      [{ httpStatus: 403, rawText: JSON.stringify({ errors: [{ code: 'FORBIDDEN' }] }) }, 'rejected'],
+      [{ httpStatus: 404, rawText: JSON.stringify({ errors: [{ code: 'NOT_FOUND' }] }) }, 'rejected'],
+      [{ httpStatus: 429, rawText: JSON.stringify({ errors: [{ code: 'RATE_LIMITED' }] }) }, 'failed'],
+      [{ httpStatus: 500, rawText: JSON.stringify({ errors: [{ code: 'SERVER_ERROR' }] }) }, 'failed'],
+      [{ httpStatus: 200, rawText: '{not-json' }, 'failed'],
+      [{ status: 'CAPTURED' }, 'rejected'],
+    ];
+    for (const [response, expected] of cases) {
+      await emptySettlementTables(SETTLEMENT_URL);
+      await applySettlementSchema(SETTLEMENT_URL);
+      await storedOperation();
+      const capture = { calls: [] };
+      const outcome = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+        eventId: `evt-7e-http-${response.httpStatus || response.status}`,
+      }), { input: { fetchImpl: mockFetch(response, capture) } }));
+      assert.equal(outcome.result, expected, JSON.stringify(response));
+      assert.equal(outcome.providerCompleted, false, JSON.stringify(response));
+      assertUnsettled(outcome);
+      assert.equal(capture.calls.every((call) => call.method === 'GET'), true);
+      assert.equal((await state()).settlements, 0, JSON.stringify(response));
+    }
+  });
+
+  test('an early event settles only after trusted association and provider verification', async () => {
+    const capture = { calls: [] };
+    const early = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-7e-early' }), {
+      input: { fetchImpl: mockFetch({}, capture) },
+    }));
+    assert.equal(early.processingStatus, 'awaiting_association');
+    assert.equal(capture.calls.length, 0);
+    const other = await openOperation('sandbox-op-7e-other', 'TEST-SQ-7E-B');
+    const wrong = await associateTrustedPayment(SETTLEMENT_URL, context({
+      operationId: other.operation.operationId,
+      squarePaymentId: 'sandboxPayOther',
+      fetchImpl: mockFetch({}, capture),
+    }));
+    assert.equal(wrong.financiallySettled, false);
+    assert.equal(capture.calls.length, 0);
+    assert.equal((await state()).settlements, 0);
+    const { operation } = await openOperation();
+    const recovered = await associateTrustedPayment(SETTLEMENT_URL, context({
+      operationId: operation.operationId,
+      squarePaymentId: PAYMENT_ID,
+      fetchImpl: mockFetch({}, capture),
+    }));
+    assert.equal(recovered.result, 'settled');
+    assert.equal(recovered.settlementCommitted, true);
+    assert.equal(recovered.squarePaymentId, PAYMENT_ID);
+    assert.equal(capture.calls.length, 1);
+    assert.equal(new URL(capture.calls[0].url).pathname, `/v2/payments/${PAYMENT_ID}`);
+    const rows = await state();
+    assert.equal(rows.settlements, 1);
+    assert.equal(rows.obligations, 2);
+    assert.equal(rows.forged_bookings, 0);
+    const client = await connectProven(SETTLEMENT_URL);
+    try {
+      const booking = await client.query(
+        `SELECT o.booking_ref
+         FROM sandbox_settlement s
+         JOIN sandbox_payment_obligation o ON o.obligation_id = s.obligation_id`
+      );
+      assert.deepEqual(booking.rows.map((row) => row.booking_ref), ['TEST-SQ-7E']);
+    } finally {
+      await client.end();
+    }
+  });
+
+  test('conflicting observations do not settle', async () => {
+    const first = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-7e-conflict-a' })));
+    const second = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-conflict-b',
+      amount: 250,
+      createdAt: '2099-01-01T00:00:00.000Z',
+    })));
+    assert.equal(first.processingStatus, 'awaiting_association');
+    assert.equal(second.processingStatus, 'awaiting_association');
+    const { operation } = await openOperation();
+    const capture = { calls: [] };
+    const associated = await associateTrustedPayment(SETTLEMENT_URL, context({
+      operationId: operation.operationId,
+      squarePaymentId: PAYMENT_ID,
+      fetchImpl: mockFetch({}, capture),
+    }));
+    assert.equal(associated.result, 'quarantined');
+    assert.equal(associated.error, 'square_settlement_observations_conflict');
+    assert.equal(capture.calls.length, 0);
+    assertUnsettled(associated);
+    assert.equal((await state()).settlements, 0);
+    assert.equal((await state()).events, 2);
+  });
+
+  test('event order, duplicate deliveries, and timestamps cannot regress a settlement', async () => {
+    await storedOperation();
+    const pending = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-order-pending',
+      type: 'payment.created',
+      status: 'PENDING',
+      createdAt: '2026-10-26T15:00:00.000Z',
+    })));
+    const completed = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-order-completed',
+      type: 'payment.updated',
+      createdAt: '2026-10-26T11:00:00.000Z',
+    }), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(pending.result, 'pending');
+    assertUnsettled(pending);
+    assert.equal(completed.result, 'settled');
+    const regressPending = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-order-pending-later',
+      status: 'PENDING',
+      createdAt: '2099-01-01T00:00:00.000Z',
+    })));
+    const regressApproved = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-order-approved-later',
+      type: 'payment.created',
+      status: 'APPROVED',
+      createdAt: '2099-02-01T00:00:00.000Z',
+    })));
+    const duplicateCreated = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-order-completed',
+      type: 'payment.created',
+      status: 'PENDING',
+    })));
+    assert.equal(regressPending.result, 'already_settled');
+    assert.equal(regressApproved.result, 'already_settled');
+    assert.equal(duplicateCreated.result, 'already_settled');
+    assert.equal(regressPending.financiallySettled, true);
+    assert.equal(regressPending.settlementCommitted, false);
+    assert.equal((await state()).settlements, 1);
+
+    await emptySettlementTables(SETTLEMENT_URL);
+    await applySettlementSchema(SETTLEMENT_URL);
+    await storedOperation();
+    const disagreed = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-disagree',
+      createdAt: '2099-01-01T00:00:00.000Z',
+    }), { input: { fetchImpl: mockFetch({ amount: 250 }) } }));
+    assert.equal(disagreed.result, 'quarantined');
+    assertUnsettled(disagreed);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  test('invalid payloads, unknown events, and caller authority flags do not settle', async () => {
+    const invalid = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput('{', {
+      rawBody: '{',
+      signature: sign(NOTIFICATION_URL, '{'),
+    }));
+    assert.equal(invalid.signatureAccepted, true);
+    assert.equal(invalid.error, 'square_webhook_payload_invalid');
+    assertUnsettled(invalid);
+    const unknown = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({
+      eventId: 'evt-7e-unknown',
+      type: 'refund.created',
+    })));
+    assert.equal(unknown.error, 'square_webhook_event_unsupported');
+    assertUnsettled(unknown);
+    const flagged = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { verified: true, financiallySettled: true, providerCompleted: true },
+    }));
+    assert.equal(flagged.error, 'square_bridge_authentication_marker_rejected');
+    assertUnsettled(flagged);
+    const { operation } = await openOperation();
+    const selected = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-7e-select' }), {
+      input: { operationId: operation.operationId, fetchImpl: mockFetch() },
+    }));
+    assert.equal(selected.error, 'square_bridge_webhook_cannot_select_operation');
+    assertUnsettled(selected);
+    const nonSynthetic = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      signatureKey: 'real-looking-square-signature-key',
+    }));
+    assert.equal(nonSynthetic.error, 'square_bridge_signature_key_not_synthetic');
+    assert.equal((await state()).events, 0);
+    assert.equal((await state()).settlements, 0);
+  });
+
+  for (const [name, mismatch] of [['amount', { amount: 101 }], ['identity', { id: 'DifferentBridgePayment9j' }]]) {
+    test(`P1-3 signed ${name} quarantine blocks a previously started valid retrieval`, async () => {
+      const pair = await storedOperation();
+      let enter;
+      const entered = new Promise((resolve) => { enter = resolve; });
+      let release;
+      const gate = new Promise((resolve) => { release = resolve; });
+      const earlier = receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-9j-signed-earlier' }), {
+        input: { timeoutMs: 10000, fetchImpl: async (url, init) => {
+          assert.equal(init.method, 'GET'); enter(); await gate; return mockFetch()(url, init);
+        } },
+      }));
+      try {
+        await entered;
+        const conflict = await receiveVerifiedWebhook(SETTLEMENT_URL,
+          webhookInput(fixture({ eventId: 'evt-9j-signed-conflict' }), { input: { fetchImpl: mockFetch(mismatch) } }));
+        assert.equal(conflict.signatureAccepted, true);
+        assert.equal(conflict.result, 'quarantined');
+        assert.equal((await inboxEvidence()).filter((e) => e.processing_status === 'quarantined').length, 1);
+        await assertBridgeAssociation(pair, false);
+        release();
+        const outcome = await earlier;
+        assert.equal(outcome.signatureAccepted, true);
+        assert.equal(outcome.result, 'quarantined');
+        assertUnsettled(outcome);
+        await assertBridgeAssociation(pair, false);
+      } finally { release(); await earlier; }
+    });
+  }
+
+  test('P1-3 signed late conflict preserves settlement and surfaces investigation on subsequent delivery', async () => {
+    const pair = await storedOperation();
+    const settled = await receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture(), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(settled.result, 'settled');
+    const late = await receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture({ eventId: 'evt-9j-signed-late', amount: 101 })));
+    assert.equal(late.signatureAccepted, true);
+    assert.equal(late.result, 'already_settled');
+    assert.equal(late.financiallySettled, true);
+    assert.equal(late.settlementCommitted, false);
+    assert.equal(late.investigationRequired, true);
+    assert.equal(late.error, 'square_settlement_observations_conflict');
+    let calls = 0;
+    const repeated = await receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture({ eventId: 'evt-9j-signed-after-late' }), {
+        input: { fetchImpl: async () => { calls++; return mockFetch()(); } },
+      }));
+    assert.equal(repeated.investigationRequired, true);
+    assert.equal(repeated.financiallySettled, true);
+    assert.equal(calls, 0);
+    assert.equal((await inboxEvidence()).find((e) => e.event_id === 'evt-9j-signed-late').processing_status, 'inconsistent');
+    await assertBridgeAssociation(pair, true);
+  });
+
+  for (const delivery of ['same', 'new']) {
+    test(`P1-4 signed ${delivery} event retry cannot erase failed conflict-history persistence`, async () => {
+      const pair = await storedOperation();
+      const client = await connectProven(SETTLEMENT_URL);
+      const rawBody = fixture({ eventId: 'evt-9j-signed-history' });
+      try {
+        await client.query(`CREATE OR REPLACE FUNCTION fail_bridge_history_9j() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN IF NEW.event_type = 'provider.retrieve' AND NEW.processing_status = 'quarantined'
+            THEN RAISE EXCEPTION USING ERRCODE = '58000', MESSAGE = 'synthetic signed history fault'; END IF;
+          RETURN NEW; END $$`);
+        await client.query(`CREATE TRIGGER fail_bridge_history_9j BEFORE UPDATE ON sandbox_payment_event
+          FOR EACH ROW EXECUTE FUNCTION fail_bridge_history_9j()`);
+        const failed = await receiveVerifiedWebhook(SETTLEMENT_URL,
+          webhookInput(rawBody, { input: { fetchImpl: mockFetch({ amount: 101 }) } }));
+        assert.equal(failed.signatureAccepted, true);
+        assert.equal(failed.result, 'failed');
+        assert.equal(failed.error, 'square_settlement_verification_history_unconfirmed');
+        assert.equal(failed.databaseCommitState, 'rolled_back');
+        assertUnsettled(failed);
+        assert.equal((await inboxEvidence()).filter((e) => e.processing_status === 'verification_pending').length, 1);
+      } finally {
+        await client.query('DROP TRIGGER IF EXISTS fail_bridge_history_9j ON sandbox_payment_event');
+        await client.query('DROP FUNCTION IF EXISTS fail_bridge_history_9j()');
+        await client.end();
+      }
+      const next = delivery === 'same' ? rawBody : fixture({ eventId: 'evt-9j-signed-new-retry' });
+      const good = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(next, { input: { fetchImpl: mockFetch() } }));
+      assert.equal(good.signatureAccepted, true);
+      assert.equal(good.error, 'square_settlement_verification_pending');
+      assertUnsettled(good);
+      await assertBridgeAssociation(pair, false);
+      const rechecked = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(next, { input: { fetchImpl: mockFetch({ amount: 101 }) } }));
+      assert.equal(rechecked.result, 'quarantined');
+      assert.equal(rechecked.signatureAccepted, true);
+      assertUnsettled(rechecked);
+      let calls = 0;
+      const blocked = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-9j-signed-after-recheck' }), {
+          input: { fetchImpl: async () => { calls++; return mockFetch()(); } },
+        }));
+      assert.equal(blocked.result, 'quarantined');
+      assert.equal(calls, 0);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
+  for (const mode of ['insert', 'before', 'after', 'cleanup']) {
+    test(`P1-4 signed ${mode} history fault propagates and recovers without false financial success`, async () => {
+      const pair = await storedOperation();
+      const capture = { calls: [] };
+      const fault = await withHistoryFault(mode, () => receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture(), { input: { fetchImpl: mockFetch({ amount: 101 }, capture) } })));
+      assert.equal(fault.injections, 1);
+      const failed = fault.outcome;
+      assert.equal(failed.signatureAccepted, true);
+      assert.equal(failed.result, 'failed');
+      assert.equal(failed.error, 'square_settlement_verification_history_unconfirmed');
+      assert.equal(failed.databaseCommitState, mode === 'insert' ? 'rolled_back' : mode === 'cleanup' ? 'committed' : 'unknown');
+      assertUnsettled(failed);
+      assert.equal(capture.calls.length, mode === 'insert' ? 0 : 1);
+      const retry = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-9j-signed-fault-retry' }), { input: { fetchImpl: mockFetch({ amount: 101 }) } }));
+      assert.equal(retry.signatureAccepted, true);
+      assert.equal(retry.result, 'quarantined');
+      assertUnsettled(retry);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
+  test('P1-3 signed registration rechecks settlement committed after the operation read', async () => {
+    const pair = await storedOperation();
+    const { Client } = require('pg');
+    const originalQuery = Client.prototype.query;
+    const readers = new WeakSet();
+    let held = false;
+    let enter;
+    const entered = new Promise((resolve) => { enter = resolve; });
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    Client.prototype.query = async function (sql, ...args) {
+      if (/SELECT square_payment_id FROM sandbox_payment_operation WHERE operation_id/.test(sql)) readers.add(this);
+      if (sql === 'COMMIT' && readers.has(this) && !held) {
+        held = true;
+        const answer = await originalQuery.call(this, sql, ...args);
+        enter(); await gate; return answer;
+      }
+      return originalQuery.call(this, sql, ...args);
+    };
+    let calls = 0;
+    const delayed = receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture({ eventId: 'evt-9j-signed-registration-delayed' }), {
+        input: { fetchImpl: async () => { calls++; return mockFetch({ amount: 101 })(); } },
+      }));
+    try {
+      await entered;
+      const settled = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-9j-signed-registration-first' }), { input: { fetchImpl: mockFetch() } }));
+      assert.equal(settled.result, 'settled');
+      release();
+      const outcome = await delayed;
+      assert.equal(outcome.signatureAccepted, true);
+      assert.equal(outcome.result, 'already_settled');
+      assert.equal(outcome.financiallySettled, true);
+      assert.equal(outcome.settlementCommitted, false);
+      assert.equal(calls, 0);
+      await assertBridgeAssociation(pair, true);
+    } finally { release(); await delayed; Client.prototype.query = originalQuery; }
+  });
+
+  test('financial writes stay inside the disposable settlement database', async () => {
+    const bridge = fs.readFileSync(path.join(ROOT, 'sandbox/square-reconciliation/square-verified-bridge.js'), 'utf8');
+    const receiver = fs.readFileSync(path.join(ROOT, 'sandbox/square-webhook/netlify/functions/square-sandbox-webhook.js'), 'utf8');
+    const verifier = fs.readFileSync(path.join(ROOT, 'netlify/lib/square-webhook-verifier.js'), 'utf8');
+    assert.equal(ACTIVE_PAYMENT_PROVIDER, 'none');
+    assert.match(
+      fs.readFileSync(path.join(ROOT, 'netlify/lib/deploy-runtime-env.generated.js'), 'utf8'),
+      /STRIPE_PRODUCTION_CUSTOMER_PAYMENTS_ENABLED:\s*false/
+    );
+    assert.equal(bridge.includes('process.env'), false);
+    assert.equal(bridge.includes('createHmac'), false);
+    assert.match(bridge, /verifySquareWebhookSignature/);
+    assert.match(bridge, /ingestObservation/);
+    assert.match(bridge, /associatePayment/);
+    assert.doesNotMatch(bridge, /createSimulatedPayment|createPayment|refundPayment|createPaymentLink|chargeSavedCard|saveCard/);
+    assert.doesNotMatch(bridge, /prisma|PaymentAttempt|LedgerEntry|@prisma/);
+    assert.doesNotMatch(bridge, /square-sandbox-webhook/);
+    assert.equal(receiver.includes('square-verified-bridge'), false);
+    assert.equal(verifier.includes('square-verified-bridge'), false);
+    assert.equal(fs.readdirSync(path.join(ROOT, 'netlify/functions')).some((name) => /square/i.test(name)), false);
+    for (const file of [
+      'netlify/functions/submit-booking.js',
+      'netlify/functions/stripe-webhook.js',
+      'netlify/lib/payment-provider-adapter.js',
+      'netlify/lib/payment-service.js',
+    ]) {
+      assert.equal(fs.readFileSync(path.join(ROOT, file), 'utf8').includes('square-verified-bridge'), false, file);
+    }
+    const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/integration.yml'), 'utf8');
+    const fullTest = workflow.slice(workflow.indexOf('  full_test:'), workflow.indexOf('  financial_invariants:'));
+    assert.match(fullTest, /square-verified-reconciliation\.test\.js/);
+    assert.doesNotMatch(workflow, /SQUARE_SANDBOX_ACCESS_TOKEN|connect\.squareupsandbox\.com/);
+    const migrations = fs.readdirSync(path.join(ROOT, 'prisma/migrations')).join('\n');
+    assert.equal(migrations.includes('sandbox_settlement'), false);
+
+    await storedOperation();
+    await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture(), {
+      input: { fetchImpl: mockFetch({ includeMerchantId: true }) },
+    }));
+    const rows = await state();
+    assert.equal(rows.database, 'cardetail1_square_settlement_7d');
+    assert.equal(rows.address === '127.0.0.1' || rows.address === '::1' || rows.address === '127.0.0.1/32', true);
+    assert.equal(rows.settlements, 1);
+    assert.equal(rows.commercial_attempt, null);
+    assert.equal(rows.commercial_ledger, null);
+    assert.equal(rows.forged_bookings, 0);
+    assert.equal(SETTLEMENT_URL.includes('neon'), false);
+    assert.equal(SETTLEMENT_URL.includes('summer-glade'), false);
+    assert.equal(SETTLEMENT_URL.includes('misty-sea'), false);
+  });
+});
