@@ -108,8 +108,140 @@ jobs:
         run: npx --no-install prisma migrate deploy
       - name: Prepare legacy performance-artifact path
         run: mkdir -p 'C:/Projects/Cardetail1/artifacts/temp'
-      - name: Run complete test suite
-        run: npm test
+      - name: Create isolated Square settlement database
+        run: |
+          node <<'NODE'
+          'use strict';
+          const { Client } = require('pg');
+          const HOST = '127.0.0.1';
+          const PORT = 5432;
+          const SETTLEMENT_DATABASE = 'cardetail1_square_settlement_7d';
+          const COMMERCIAL_DATABASE = 'cardetail1_ci';
+          const USER = 'cardetail1_ci';
+          function refuse(message) {
+            console.error(message);
+            process.exit(1);
+          }
+          const commercialUrl = process.env.DATABASE_URL || '';
+          let commercial;
+          try {
+            commercial = new URL(commercialUrl);
+          } catch {
+            refuse('commercial ci database target refused');
+          }
+          const password = decodeURIComponent(commercial.password || '');
+          if (!/^[A-Za-z0-9_]+$/.test(password)) refuse('settlement ci password refused');
+          const commercialName = decodeURIComponent(commercial.pathname.replace(/^\//, '').split('?')[0]);
+          const commercialUser = decodeURIComponent(commercial.username || '');
+          if (commercial.hostname !== HOST || String(commercial.port) !== String(PORT)
+            || commercialName !== COMMERCIAL_DATABASE || commercialUser !== USER) {
+            refuse('commercial ci database target refused');
+          }
+          if (/neon|amazonaws|supabase|squareup/i.test(commercialUrl)) refuse('remote database target refused');
+          async function connect(database) {
+            const client = new Client({
+              host: HOST,
+              port: PORT,
+              user: USER,
+              password,
+              database,
+              connectionTimeoutMillis: 5000,
+            });
+            await client.connect();
+            return client;
+          }
+          (async () => {
+            const admin = await connect('postgres');
+            try {
+              const proof = await admin.query('SELECT inet_server_port()::text AS port');
+              if (proof.rows[0].port !== String(PORT)) refuse('settlement ci port refused');
+              const existing = await admin.query(
+                'SELECT datname FROM pg_database WHERE datname = ANY($1::text[])',
+                [[COMMERCIAL_DATABASE, SETTLEMENT_DATABASE]]
+              );
+              const names = new Set(existing.rows.map((row) => row.datname));
+              if (!names.has(COMMERCIAL_DATABASE)) refuse('commercial ci database missing');
+              if (!names.has(SETTLEMENT_DATABASE)) {
+                await admin.query(`CREATE DATABASE "${SETTLEMENT_DATABASE}" OWNER "${USER}"`);
+              }
+            } finally {
+              await admin.end();
+            }
+            const settlement = await connect(SETTLEMENT_DATABASE);
+            try {
+              const identity = await settlement.query(
+                `SELECT current_database() AS database,
+                        inet_server_port()::text AS port,
+                        to_regclass('public."PaymentAttempt"') AS commercial_attempt,
+                        (SELECT count(*)::int FROM information_schema.tables WHERE table_schema = 'public') AS public_tables`
+              );
+              const row = identity.rows[0];
+              if (row.database !== SETTLEMENT_DATABASE || row.port !== String(PORT)) {
+                refuse('settlement ci database identity refused');
+              }
+              if (row.commercial_attempt || row.public_tables !== 0) {
+                refuse('settlement ci database is not an empty dedicated database');
+              }
+              console.log('prepared empty settlement database on 127.0.0.1 port 5432');
+            } finally {
+              await settlement.end();
+            }
+          })().catch((error) => {
+            const message = String(error && error.message || '');
+            console.error(message.includes(password) ? 'settlement ci database preparation failed' : (message || 'settlement ci database preparation failed'));
+            process.exit(1);
+          });
+          NODE
+      - name: Run repository tests
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find tests -maxdepth 1 -type f -name '*.test.js' ! -name 'square-sandbox-settlement.test.js' | sort)
+          test "${#files[@]}" -gt 0
+          node --test "${files[@]}"
+      - name: Run Square settlement tests on the service loopback
+        env:
+          SQUARE_SETTLEMENT_TEST_PORT: '5432'
+        run: |
+          set -euo pipefail
+          SQUARE_SETTLEMENT_TEST_PASSWORD="$(
+          node <<'NODE'
+          'use strict';
+          function refuse() {
+            console.error('settlement ci password derivation refused');
+            process.exit(1);
+          }
+          let configured;
+          try {
+            configured = new URL(process.env.DATABASE_URL || '');
+          } catch {
+            refuse();
+          }
+          const database = decodeURIComponent(configured.pathname.replace(/^\//, '').split('?')[0]);
+          const user = decodeURIComponent(configured.username || '');
+          const password = decodeURIComponent(configured.password || '');
+          if (configured.hostname !== '127.0.0.1' || configured.port !== '5432'
+            || database !== 'cardetail1_ci' || user !== 'cardetail1_ci'
+            || !/^[A-Za-z0-9_]+$/.test(password)
+            || /neon|amazonaws|supabase|squareup/i.test(String(process.env.DATABASE_URL || ''))) {
+            refuse();
+          }
+          process.stdout.write(password);
+          NODE
+          )"
+          test -n "$SQUARE_SETTLEMENT_TEST_PASSWORD"
+          echo "::add-mask::$SQUARE_SETTLEMENT_TEST_PASSWORD"
+          export SQUARE_SETTLEMENT_TEST_PASSWORD
+          mapfile -t ids < <(docker ps -q --filter ancestor=postgres:16-alpine)
+          if [ "${#ids[@]}" -ne 1 ]; then
+            echo "expected one ephemeral postgres service"
+            exit 1
+          fi
+          pid="$(docker inspect -f '{{.State.Pid}}' "${ids[0]}")"
+          test -n "$pid"
+          command -v nsenter >/dev/null
+          sudo --preserve-env=PATH,SQUARE_SETTLEMENT_TEST_PORT,SQUARE_SETTLEMENT_TEST_PASSWORD \
+            nsenter -t "$pid" -n -- \
+            bash -c 'cd "$1" && exec node --test tests/square-sandbox-settlement.test.js' bash "$PWD"
 
   financial_invariants:
     name: integration / financial-invariants
