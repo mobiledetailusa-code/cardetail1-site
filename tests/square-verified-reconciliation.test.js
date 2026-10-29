@@ -264,6 +264,32 @@ function transientRetrieval(name) {
   return mockFetch({ httpStatus: Number(name), rawText: JSON.stringify({ errors: [{ code: 'API_ERROR' }] }) });
 }
 
+async function withHistoryFault(mode, run) {
+  const { Client } = require('pg');
+  const originalQuery = Client.prototype.query;
+  const originalEnd = Client.prototype.end;
+  const outcomeClients = new WeakSet();
+  let injections = 0;
+  const fail = () => { injections++; const error = new Error('synthetic_bridge_history_fault'); error.code = '08006'; throw error; };
+  Client.prototype.query = async function (sql, ...args) {
+    if (mode === 'insert' && injections === 0 && /INSERT INTO sandbox_payment_event/.test(sql)
+      && sql.includes("'provider.retrieve'")) fail();
+    if (sql === 'COMMIT' && outcomeClients.has(this) && injections === 0 && mode !== 'cleanup') {
+      if (mode === 'after') await originalQuery.call(this, sql, ...args);
+      fail();
+    }
+    const answer = await originalQuery.call(this, sql, ...args);
+    if (/UPDATE sandbox_payment_event\s+SET payment_status/.test(sql)) outcomeClients.add(this);
+    return answer;
+  };
+  Client.prototype.end = async function (...args) {
+    await originalEnd.apply(this, args);
+    if (mode === 'cleanup' && outcomeClients.has(this) && injections === 0) fail();
+  };
+  try { return { outcome: await run(), injections }; }
+  finally { Client.prototype.query = originalQuery; Client.prototype.end = originalEnd; }
+}
+
 describe('verified Square reconciliation bridge', { concurrency: false }, () => {
   beforeEach(async () => {
     await emptySettlementTables(SETTLEMENT_URL);
@@ -1107,6 +1133,131 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
     assert.equal((await state()).events, 0);
     assert.equal((await state()).settlements, 0);
   });
+
+  for (const [name, mismatch] of [['amount', { amount: 101 }], ['identity', { id: 'DifferentBridgePayment9j' }]]) {
+    test(`P1-3 signed ${name} quarantine blocks a previously started valid retrieval`, async () => {
+      const pair = await storedOperation();
+      let enter;
+      const entered = new Promise((resolve) => { enter = resolve; });
+      let release;
+      const gate = new Promise((resolve) => { release = resolve; });
+      const earlier = receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(fixture({ eventId: 'evt-9j-signed-earlier' }), {
+        input: { timeoutMs: 10000, fetchImpl: async (url, init) => {
+          assert.equal(init.method, 'GET'); enter(); await gate; return mockFetch()(url, init);
+        } },
+      }));
+      try {
+        await entered;
+        const conflict = await receiveVerifiedWebhook(SETTLEMENT_URL,
+          webhookInput(fixture({ eventId: 'evt-9j-signed-conflict' }), { input: { fetchImpl: mockFetch(mismatch) } }));
+        assert.equal(conflict.signatureAccepted, true);
+        assert.equal(conflict.result, 'quarantined');
+        assert.equal((await inboxEvidence()).filter((e) => e.processing_status === 'quarantined').length, 1);
+        await assertBridgeAssociation(pair, false);
+        release();
+        const outcome = await earlier;
+        assert.equal(outcome.signatureAccepted, true);
+        assert.equal(outcome.result, 'quarantined');
+        assertUnsettled(outcome);
+        await assertBridgeAssociation(pair, false);
+      } finally { release(); await earlier; }
+    });
+  }
+
+  test('P1-3 signed late conflict preserves settlement and surfaces investigation on subsequent delivery', async () => {
+    const pair = await storedOperation();
+    const settled = await receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture(), { input: { fetchImpl: mockFetch() } }));
+    assert.equal(settled.result, 'settled');
+    const late = await receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture({ eventId: 'evt-9j-signed-late', amount: 101 })));
+    assert.equal(late.signatureAccepted, true);
+    assert.equal(late.result, 'already_settled');
+    assert.equal(late.financiallySettled, true);
+    assert.equal(late.settlementCommitted, false);
+    assert.equal(late.investigationRequired, true);
+    assert.equal(late.error, 'square_settlement_observations_conflict');
+    let calls = 0;
+    const repeated = await receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture({ eventId: 'evt-9j-signed-after-late' }), {
+        input: { fetchImpl: async () => { calls++; return mockFetch()(); } },
+      }));
+    assert.equal(repeated.investigationRequired, true);
+    assert.equal(repeated.financiallySettled, true);
+    assert.equal(calls, 0);
+    assert.equal((await inboxEvidence()).find((e) => e.event_id === 'evt-9j-signed-late').processing_status, 'inconsistent');
+    await assertBridgeAssociation(pair, true);
+  });
+
+  for (const delivery of ['same', 'new']) {
+    test(`P1-4 signed ${delivery} event retry cannot erase failed conflict-history persistence`, async () => {
+      const pair = await storedOperation();
+      const client = await connectProven(SETTLEMENT_URL);
+      const rawBody = fixture({ eventId: 'evt-9j-signed-history' });
+      try {
+        await client.query(`CREATE OR REPLACE FUNCTION fail_bridge_history_9j() RETURNS trigger LANGUAGE plpgsql AS $$
+          BEGIN IF NEW.event_type = 'provider.retrieve' AND NEW.processing_status = 'quarantined'
+            THEN RAISE EXCEPTION USING ERRCODE = '58000', MESSAGE = 'synthetic signed history fault'; END IF;
+          RETURN NEW; END $$`);
+        await client.query(`CREATE TRIGGER fail_bridge_history_9j BEFORE UPDATE ON sandbox_payment_event
+          FOR EACH ROW EXECUTE FUNCTION fail_bridge_history_9j()`);
+        const failed = await receiveVerifiedWebhook(SETTLEMENT_URL,
+          webhookInput(rawBody, { input: { fetchImpl: mockFetch({ amount: 101 }) } }));
+        assert.equal(failed.signatureAccepted, true);
+        assert.equal(failed.result, 'failed');
+        assert.equal(failed.error, 'square_settlement_verification_history_unconfirmed');
+        assert.equal(failed.databaseCommitState, 'rolled_back');
+        assertUnsettled(failed);
+        assert.equal((await inboxEvidence()).filter((e) => e.processing_status === 'verification_pending').length, 1);
+      } finally {
+        await client.query('DROP TRIGGER IF EXISTS fail_bridge_history_9j ON sandbox_payment_event');
+        await client.query('DROP FUNCTION IF EXISTS fail_bridge_history_9j()');
+        await client.end();
+      }
+      const next = delivery === 'same' ? rawBody : fixture({ eventId: 'evt-9j-signed-new-retry' });
+      const good = await receiveVerifiedWebhook(SETTLEMENT_URL, webhookInput(next, { input: { fetchImpl: mockFetch() } }));
+      assert.equal(good.signatureAccepted, true);
+      assert.equal(good.error, 'square_settlement_verification_pending');
+      assertUnsettled(good);
+      await assertBridgeAssociation(pair, false);
+      const rechecked = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(next, { input: { fetchImpl: mockFetch({ amount: 101 }) } }));
+      assert.equal(rechecked.result, 'quarantined');
+      assert.equal(rechecked.signatureAccepted, true);
+      assertUnsettled(rechecked);
+      let calls = 0;
+      const blocked = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-9j-signed-after-recheck' }), {
+          input: { fetchImpl: async () => { calls++; return mockFetch()(); } },
+        }));
+      assert.equal(blocked.result, 'quarantined');
+      assert.equal(calls, 0);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
+
+  for (const mode of ['insert', 'before', 'after', 'cleanup']) {
+    test(`P1-4 signed ${mode} history fault propagates and recovers without false financial success`, async () => {
+      const pair = await storedOperation();
+      const capture = { calls: [] };
+      const fault = await withHistoryFault(mode, () => receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture(), { input: { fetchImpl: mockFetch({ amount: 101 }, capture) } })));
+      assert.equal(fault.injections, 1);
+      const failed = fault.outcome;
+      assert.equal(failed.signatureAccepted, true);
+      assert.equal(failed.result, 'failed');
+      assert.equal(failed.error, 'square_settlement_verification_history_unconfirmed');
+      assert.equal(failed.databaseCommitState, mode === 'insert' ? 'rolled_back' : mode === 'cleanup' ? 'committed' : 'unknown');
+      assertUnsettled(failed);
+      assert.equal(capture.calls.length, mode === 'insert' ? 0 : 1);
+      const retry = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-9j-signed-fault-retry' }), { input: { fetchImpl: mockFetch({ amount: 101 }) } }));
+      assert.equal(retry.signatureAccepted, true);
+      assert.equal(retry.result, 'quarantined');
+      assertUnsettled(retry);
+      await assertBridgeAssociation(pair, false);
+    });
+  }
 
   test('financial writes stay inside the disposable settlement database', async () => {
     const bridge = fs.readFileSync(path.join(ROOT, 'sandbox/square-reconciliation/square-verified-bridge.js'), 'utf8');
