@@ -237,8 +237,13 @@ function serviceWithHistoryFault(mode) {
   const database = require('../sandbox/square-settlement/database');
   let injections = 0;
   let connections = 0;
+  let enter;
+  const entered = new Promise((resolve) => { enter = resolve; });
+  let release;
+  const barrier = new Promise((resolve) => { release = resolve; });
   const decorated = { ...database, connectProven: async (url) => {
     connections++;
+    const connectionNumber = connections;
     if (mode === 'outcome-connect' && connections === 3) {
       injections++;
       throw new Error('synthetic_history_connect_fault');
@@ -251,6 +256,10 @@ function serviceWithHistoryFault(mode) {
     let settlementWrite = false;
     const fail = () => { injections++; const error = new Error('synthetic_history_ack_fault'); error.code = '08006'; throw error; };
     client.query = async (sql, ...args) => {
+      if (mode === 'preflight-barrier' && connectionNumber === 1 && sql === 'COMMIT') {
+        const answer = await query(sql, ...args);
+        enter(); await barrier; return answer;
+      }
       if (mode === 'insert' && injections === 0 && /INSERT INTO sandbox_payment_event/.test(sql)) fail();
       if (mode === 'inspect' && injections === 0 && /SELECT \* FROM sandbox_payment_event/.test(sql)) fail();
       const target = mode.startsWith('registration-') ? registration : outcomeWrite;
@@ -284,7 +293,7 @@ function serviceWithHistoryFault(mode) {
     return original(name);
   };
   loaded._compile(fs.readFileSync(file, 'utf8'), file);
-  return { api: loaded.exports, injections: () => injections };
+  return { api: loaded.exports, injections: () => injections, entered, release };
 }
 
 async function deadlockCount(client) {
@@ -1680,6 +1689,27 @@ describe('isolated Square Sandbox settlement', { concurrency: false }, () => {
       assert.equal((await counts()).settlements, 0);
     });
   }
+
+  test('P1-3 settlement between operation read and verification registration prevents a late retrieval', async () => {
+    const pair = await authorizedPair();
+    const delayed = serviceWithHistoryFault('preflight-barrier');
+    let calls = 0;
+    const later = delayed.api.verifyAndSettle(URL, provider(pair.operation.operationId, {
+      fetchImpl: async () => { calls++; return mockFetch(paymentBody({ amount: 101 }))(); },
+    }));
+    try {
+      await delayed.entered;
+      const first = await verifyAndSettle(URL, provider(pair.operation.operationId));
+      assert.equal(first.result, 'settled');
+      delayed.release();
+      const outcome = await later;
+      assert.equal(outcome.result, 'already_settled');
+      assert.equal(outcome.financiallySettled, true);
+      assert.equal(outcome.settlementCommitted, false);
+      assert.equal(calls, 0);
+      await assertCommittedPair(pair);
+    } finally { delayed.release(); await later; }
+  });
 
   test('commercial financial code is not imported and the provider stays disabled', () => {
     assert.equal(ACTIVE_PAYMENT_PROVIDER, 'none');

@@ -56,6 +56,10 @@ flowchart TD
   may wait up to two seconds outside transactions for another outcome to resolve.
   Expiry returns `failed` / `square_settlement_verification_pending`; it never clears
   a pending event. Settlement uniqueness and idempotent confirmation remain intact.
+* Registration also rechecks settlement under G. If settlement committed between
+  the initial operation read and registration, confirm the matching row without
+  starting a late retrieval. Otherwise the new fence precedes any first settlement.
+  A controlled COMMIT barrier regression covers this additional reverse ordering.
 * Successful retrieval evidence survives a later financial rollback. Financial rows
   still roll back atomically, and a fresh verified retry can settle exactly once.
 
