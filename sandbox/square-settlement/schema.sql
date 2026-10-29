@@ -40,6 +40,7 @@ CREATE TABLE sandbox_payment_event (
   amount_cents INTEGER,
   currency TEXT,
   processing_status TEXT NOT NULL CHECK (processing_status IN (
+    'verification_pending',
     'stored',
     'awaiting_association',
     'pending',
