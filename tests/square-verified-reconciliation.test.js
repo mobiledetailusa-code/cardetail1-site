@@ -1259,6 +1259,46 @@ describe('verified Square reconciliation bridge', { concurrency: false }, () => 
     });
   }
 
+  test('P1-3 signed registration rechecks settlement committed after the operation read', async () => {
+    const pair = await storedOperation();
+    const { Client } = require('pg');
+    const originalQuery = Client.prototype.query;
+    const readers = new WeakSet();
+    let held = false;
+    let enter;
+    const entered = new Promise((resolve) => { enter = resolve; });
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    Client.prototype.query = async function (sql, ...args) {
+      if (/SELECT square_payment_id FROM sandbox_payment_operation WHERE operation_id/.test(sql)) readers.add(this);
+      if (sql === 'COMMIT' && readers.has(this) && !held) {
+        held = true;
+        const answer = await originalQuery.call(this, sql, ...args);
+        enter(); await gate; return answer;
+      }
+      return originalQuery.call(this, sql, ...args);
+    };
+    let calls = 0;
+    const delayed = receiveVerifiedWebhook(SETTLEMENT_URL,
+      webhookInput(fixture({ eventId: 'evt-9j-signed-registration-delayed' }), {
+        input: { fetchImpl: async () => { calls++; return mockFetch({ amount: 101 })(); } },
+      }));
+    try {
+      await entered;
+      const settled = await receiveVerifiedWebhook(SETTLEMENT_URL,
+        webhookInput(fixture({ eventId: 'evt-9j-signed-registration-first' }), { input: { fetchImpl: mockFetch() } }));
+      assert.equal(settled.result, 'settled');
+      release();
+      const outcome = await delayed;
+      assert.equal(outcome.signatureAccepted, true);
+      assert.equal(outcome.result, 'already_settled');
+      assert.equal(outcome.financiallySettled, true);
+      assert.equal(outcome.settlementCommitted, false);
+      assert.equal(calls, 0);
+      await assertBridgeAssociation(pair, true);
+    } finally { release(); await delayed; Client.prototype.query = originalQuery; }
+  });
+
   test('financial writes stay inside the disposable settlement database', async () => {
     const bridge = fs.readFileSync(path.join(ROOT, 'sandbox/square-reconciliation/square-verified-bridge.js'), 'utf8');
     const receiver = fs.readFileSync(path.join(ROOT, 'sandbox/square-webhook/netlify/functions/square-sandbox-webhook.js'), 'utf8');
