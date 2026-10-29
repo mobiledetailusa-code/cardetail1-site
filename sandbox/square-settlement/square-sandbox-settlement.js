@@ -735,6 +735,14 @@ async function sandboxFetch(fetchImpl, url, init) {
 
 async function beginVerification(connectionString, stored) {
   return transaction(connectionString, async (client) => {
+    // Settlement may have committed after readOperation released G. Recheck
+    // under G before registering: either a matching settlement already exists,
+    // or this fence becomes visible before any first settlement can commit.
+    const settlement = await loadSettlement(client, {
+      operation_id: stored.operationId, obligation_id: stored.obligationId,
+      square_payment_id: stored.squarePaymentId,
+    });
+    if (settlement && settlementAgrees(settlement, stored)) return confirmedSettlement(settlement);
     // Commit a durable fence BEFORE any provider I/O. If the outcome cannot
     // subsequently be written, no later successful retrieval may erase it.
     await client.query(
@@ -1170,6 +1178,7 @@ async function verifyAndSettle(connectionString, input = {}) {
   loaded.verificationEventId = `evt-v-${crypto.randomUUID()}`;
   const started = await beginVerification(connectionString, loaded)
     .catch(() => ({ result: 'failed', databaseCommitState: 'unknown' }));
+  if (started.result === 'already_settled') return started;
   if (started.result !== 'stored' || started.databaseCleanupFailed) return historyFailure(loaded, started);
   let retrieved;
   try {
