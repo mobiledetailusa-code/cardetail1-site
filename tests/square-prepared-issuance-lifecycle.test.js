@@ -418,12 +418,11 @@ test('an audit-feed failure does not roll back the booking preparation', async (
   }
 });
 
-test('the prisma mirror is not a version-checked authority and stays disconnected', async () => {
-  const mirror = fs.readFileSync(path.join(root, 'netlify/lib/booking-prisma-mirror.js'), 'utf8');
-  const upsert = mirror.slice(mirror.indexOf('prisma.bookingRecord.upsert'), mirror.indexOf('return { ok: true }'));
-  const whereBlock = upsert.slice(upsert.indexOf('where:'), upsert.indexOf('create:'));
-  assert.match(whereBlock, /where:\s*\{\s*id:\s*row\.id\s*\}/);
-  assert.doesNotMatch(whereBlock, /bookingVersion/);
+test('the prisma mirror write is version-conditional and stays disconnected', async () => {
+  const { MIRROR_UPSERT_SQL } = require('../netlify/lib/booking-prisma-mirror');
+  assert.match(MIRROR_UPSERT_SQL, /ON CONFLICT \("id"\) DO UPDATE/);
+  assert.match(MIRROR_UPSERT_SQL, /"bookingVersion" <= EXCLUDED\."bookingVersion"/);
+  assert.doesNotMatch(MIRROR_UPSERT_SQL, /bookingRecord\.upsert/);
   const skipped = await upsertBookingMirror({
     id: BOOKING_ID,
     bookingVersion: 2,
