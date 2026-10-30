@@ -34,6 +34,7 @@ const {
   supersedeOpenAttempts,
   expireSupersededAttempts,
 } = require('../lib/payment-service');
+const { prepareSquarePaymentLink } = require('../lib/square-prepared-issuance');
 const { dollarsToCents, centsToDollars } = require('../lib/historical-adapter');
 const { normalizeIdempotencyKey } = require('../lib/operation-idempotency');
 const {
@@ -2291,6 +2292,18 @@ async function handleAdminAction(body, testOpts = {}) {
       authoritative: false,
       note: 'Manual link stored as external reference only; Generate Stripe link remains the authoritative path.',
     });
+  }
+
+  if (action === 'prepare_square_payment_link') {
+    const prepared = await prepareSquarePaymentLink({
+      store,
+      bookingId,
+      body,
+      now,
+      createIssuanceId: testOpts.createIssuanceId,
+      maxAttempts: testOpts.maxAttempts,
+    });
+    return jsonCors(prepared.statusCode, prepared.payload);
   }
 
   if (action === 'generate_stripe_pay_link') {
