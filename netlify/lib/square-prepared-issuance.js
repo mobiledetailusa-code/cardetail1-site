@@ -34,7 +34,13 @@ const CLIENT_FINANCIAL_FIELDS = [
   'amountCents',
   'approvedCents',
   'remainingCents',
+  'settledCents',
+  'grossSettledCents',
+  'refundedCents',
+  'quoteVersion',
   'currency',
+  'paymentStatus',
+  'paymentReference',
   'locationId',
   'location_id',
 ];
@@ -88,6 +94,11 @@ function publicPreparation(record) {
     state: PREPARED,
     amountCents: record.amountCents,
     currency: record.currency,
+    quoteVersion: record.quoteVersion,
+    approvedCents: record.approvedCents,
+    grossSettledCents: record.grossSettledCents,
+    refundedCents: record.refundedCents,
+    settledCents: record.settledCents,
     correlationReference: record.correlationReference,
     preparedAt: record.preparedAt,
     operationId: record.operationId,
@@ -121,17 +132,25 @@ function payableSnapshot(booking) {
 }
 
 /**
- * Same switch as postgresPaymentEnabled. A caller-supplied env may carry
- * its own DATABASE_URL so tests can select the mode without opening a
- * connection. The process environment keeps the production predicate.
+ * Square preparation does not treat a missing or disabled PostgreSQL
+ * configuration as permission to trust the Blob. Historical settlements can
+ * exist from an earlier configuration. A caller-supplied env is only a
+ * non-secret presence check. The connection string is never returned.
  */
-function postgresSettlementModeEnabled(env = process.env) {
+function postgresAuthorityForSquarePreparation(env = process.env, { injectedReader = false } = {}) {
   const source = env && typeof env === 'object' ? env : process.env;
-  if (source.CD1_POSTGRES_PAYMENT === '0' || source.CD1_POSTGRES_PAYMENT === 'false') return false;
-  if (source !== process.env && Object.prototype.hasOwnProperty.call(source, 'DATABASE_URL')) {
-    return String(source.DATABASE_URL || '').trim().length > 0;
+  const flag = source.CD1_POSTGRES_PAYMENT;
+  if (flag === '0' || flag === 'false') {
+    return { ok: false, error: 'financial_authority_disabled' };
   }
-  return prismaConfigured();
+  const hasOwnUrl = Object.prototype.hasOwnProperty.call(source, 'DATABASE_URL');
+  const rawUrl = hasOwnUrl ? source.DATABASE_URL : process.env.DATABASE_URL;
+  const configured = rawUrl != null && String(rawUrl).trim() !== '';
+  if (!configured) return { ok: false, error: 'financial_authority_unconfigured' };
+  if (!injectedReader && source !== process.env && configured !== prismaConfigured()) {
+    return { ok: false, error: 'financial_authority_inconsistent' };
+  }
+  return { ok: true };
 }
 
 function integerCents(value) {
@@ -210,8 +229,67 @@ function assessFinancialConsistency(booking, financial) {
     return { ok: false, error: 'financial_balance_mismatch' };
   }
 
+  const grossSettledCents = integerCents(projection.grossSettledCents);
+  const refundedCents = integerCents(projection.refundedCents);
+  const settledCents = integerCents(projection.settledCents);
+  if (grossSettledCents == null || refundedCents == null || settledCents == null) {
+    return { ok: false, error: 'financial_amount_invalid' };
+  }
+
   const payable = pgRemaining > 0 && snap.eligible && snap.amountCents === pgRemaining;
-  return { ok: true, payable, remainingCents: pgRemaining };
+  return {
+    ok: true,
+    payable,
+    remainingCents: pgRemaining,
+    snapshot: {
+      bookingId,
+      quoteVersion: pgVersion,
+      approvedCents: pgApproved,
+      remainingCents: pgRemaining,
+      currency: 'USD',
+      grossSettledCents,
+      refundedCents,
+      settledCents,
+    },
+  };
+}
+
+function classifyStoredSnapshot(record) {
+  if (!record || typeof record !== 'object') {
+    return { ok: false, error: 'financial_snapshot_missing' };
+  }
+  const spec = [
+    ['quoteVersion', integerVersion],
+    ['approvedCents', integerCents],
+    ['grossSettledCents', integerCents],
+    ['refundedCents', integerCents],
+    ['settledCents', integerCents],
+  ];
+  const snapshot = {};
+  let missing = false;
+  let invalid = false;
+  spec.forEach(([key, parse]) => {
+    if (record[key] == null || record[key] === '') {
+      missing = true;
+      return;
+    }
+    const parsed = parse(record[key]);
+    if (parsed == null) invalid = true;
+    else snapshot[key] = parsed;
+  });
+  if (missing) return { ok: false, error: 'financial_snapshot_missing' };
+  if (invalid) return { ok: false, error: 'financial_snapshot_invalid' };
+  return { ok: true, snapshot };
+}
+
+function snapshotDivergence(stored, fresh) {
+  if (!fresh) return 'financial_snapshot_invalid';
+  if (stored.quoteVersion !== fresh.quoteVersion) return 'financial_quote_version_changed';
+  if (stored.approvedCents !== fresh.approvedCents) return 'financial_approved_amount_changed';
+  if (stored.grossSettledCents !== fresh.grossSettledCents) return 'financial_gross_settled_changed';
+  if (stored.refundedCents !== fresh.refundedCents) return 'financial_refunded_changed';
+  if (stored.settledCents !== fresh.settledCents) return 'financial_settled_changed';
+  return null;
 }
 
 async function readAuthoritativeProjection(booking, env) {
@@ -338,13 +416,19 @@ async function auditPreparation(bookingId, issuance, actorId) {
 
 /**
  * Reserve or replay one prepared issuance for the booking's current balance.
- * Financial amounts come from the stored booking, never from `body`.
- * When PostgreSQL settlement is enabled, the Blob balance must match a
- * successful PostgreSQL projection from the strict reader. That reader is
- * checked again after every CAS conflict. A prepared record is still not
- * a payment: any future CreatePaymentLink call has to repeat this strict
- * read immediately before the provider call and abort unless the issuance
- * amount still matches. This phase does not make that call.
+ * Financial amounts come from the stored booking and the strict PostgreSQL
+ * projection, never from `body`. Missing, blank, or explicitly disabled
+ * PostgreSQL configuration refuses preparation. It does not authorize the
+ * Blob. A repeated issuance is current only when its stored quote version,
+ * approved amount, gross settled amount, refunded amount, and net settled
+ * amount still match a fresh projection. A matching remaining amount is not
+ * enough.
+ *
+ * This does not make PostgreSQL and Blob atomic. Another settlement can land
+ * after this check and before the Blob write. The stored record stays
+ * non-authoritative. A future CreatePaymentLink call has to repeat the strict
+ * read. A Square URL that already exists is outside this phase: marking the
+ * local record superseded does not make that URL unpayable.
  *
  * @param {object} args
  * @param {object} args.store in-memory or Blob store used by commitBooking
@@ -384,14 +468,19 @@ async function prepareSquarePaymentLink({
   }
 
   const attempts = Math.max(1, Math.min(5, Math.round(Number(maxAttempts) || MAX_ATTEMPTS)));
-  const postgresMode = postgresSettlementModeEnabled(env);
+  const authority = postgresAuthorityForSquarePreparation(env, {
+    injectedReader: typeof readFinancialProjection === 'function',
+  });
+  if (!authority.ok) {
+    return inactive(409, {
+      ok: false,
+      error: authority.error,
+      writeAcknowledged: false,
+    });
+  }
   const readProjection = readFinancialProjection || readAuthoritativeProjection;
 
   async function loadDecision(booking) {
-    if (!postgresMode) {
-      const snap = payableSnapshot(booking);
-      return { ok: true, payable: snap.eligible, remainingCents: snap.amountCents };
-    }
     let financial = null;
     try {
       financial = await readProjection(booking, env);
@@ -417,7 +506,7 @@ async function prepareSquarePaymentLink({
         writeAcknowledged: false,
       });
     }
-    if (postgresMode && !decision.payable && snap.eligible) {
+    if (!decision.payable && snap.eligible) {
       return inactive(409, {
         ok: false,
         error: 'financial_balance_mismatch',
@@ -461,6 +550,7 @@ async function prepareSquarePaymentLink({
     }
 
     const amountCents = snap.amountCents;
+    let replacementReason = 'payable_balance_changed';
     if (current && typeof current === 'object' && current.state === PREPARED) {
       const identityOk = current.operationId === operationIdentity({
         issuanceId: current.issuanceId,
@@ -468,12 +558,18 @@ async function prepareSquarePaymentLink({
         amountCents: current.amountCents,
         currency: current.currency,
       });
+      const storedSnapshot = classifyStoredSnapshot(current);
+      const divergence = storedSnapshot.ok
+        ? snapshotDivergence(storedSnapshot.snapshot, decision.snapshot)
+        : storedSnapshot.error;
+      const sameAmount = current.amountCents === amountCents;
       if (
         identityOk
         && current.bookingId === id
-        && current.amountCents === amountCents
+        && sameAmount
         && current.currency === 'USD'
         && current.issuanceId
+        && !divergence
       ) {
         return inactive(200, {
           ok: true,
@@ -484,7 +580,7 @@ async function prepareSquarePaymentLink({
           preparation: publicPreparation(current),
         });
       }
-      if (current.amountCents === amountCents) {
+      if (sameAmount && !identityOk) {
         const cleared = await commitBooking({
           bookingId: id,
           expectedBookingVersion: booking.bookingVersion,
@@ -498,6 +594,7 @@ async function prepareSquarePaymentLink({
         if (!cleared.ok) return inactive(cleared.statusCode || 409, { ok: false, error: cleared.error || 'preparation_unusable' });
         return inactive(409, { ok: false, error: 'preparation_unusable' });
       }
+      if (divergence) replacementReason = divergence;
     } else if (current && typeof current === 'object' && current.state !== PREPARED) {
       return inactive(409, { ok: false, error: 'preparation_state_unsupported' });
     }
@@ -513,6 +610,11 @@ async function prepareSquarePaymentLink({
       state: PREPARED,
       amountCents,
       currency: 'USD',
+      quoteVersion: decision.snapshot.quoteVersion,
+      approvedCents: decision.snapshot.approvedCents,
+      grossSettledCents: decision.snapshot.grossSettledCents,
+      refundedCents: decision.snapshot.refundedCents,
+      settledCents: decision.snapshot.settledCents,
       correlationReference: issuanceId,
       preparedAt: now,
       operationId: operationIdentity({
@@ -533,7 +635,7 @@ async function prepareSquarePaymentLink({
         ...current,
         state: SUPERSEDED,
         supersededAt: now,
-        supersededReason: 'payable_balance_changed',
+        supersededReason: replacementReason,
       };
       history.push(supersededRecord);
       supersededPrevious = true;
@@ -565,10 +667,14 @@ async function prepareSquarePaymentLink({
         const fresh = again.booking
           ? await loadDecision(again.booking)
           : { ok: false, error: 'financial_authority_unavailable' };
-        if (!fresh.ok || !fresh.payable || fresh.remainingCents !== found.amountCents) {
+        const recoveredSnapshot = classifyStoredSnapshot(found);
+        const recoveredDivergence = recoveredSnapshot.ok
+          ? snapshotDivergence(recoveredSnapshot.snapshot, fresh.snapshot)
+          : recoveredSnapshot.error;
+        if (!fresh.ok || !fresh.payable || fresh.remainingCents !== found.amountCents || recoveredDivergence) {
           return inactive(409, {
             ok: false,
-            error: fresh.ok ? 'financial_balance_mismatch' : fresh.error,
+            error: fresh.ok ? (recoveredDivergence || 'financial_balance_mismatch') : fresh.error,
             writeAcknowledged: false,
           });
         }

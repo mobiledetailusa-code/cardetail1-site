@@ -2304,6 +2304,10 @@ async function handleAdminAction(body, testOpts = {}) {
       createIssuanceId: testOpts.createIssuanceId,
       maxAttempts: testOpts.maxAttempts,
       actorId: testOpts.actorId || '',
+      ...(testOpts.env ? { env: testOpts.env } : {}),
+      ...(typeof testOpts.readFinancialProjection === 'function'
+        ? { readFinancialProjection: testOpts.readFinancialProjection }
+        : {}),
     });
     return jsonCors(prepared.statusCode, prepared.payload);
   }

@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
+const { squareAuthorityEnv, projectionForBooking } = require('./helpers/square-preparation-authority');
 const { prepareSquarePaymentLink, reconcilePreparedIssuance } = require('../netlify/lib/square-prepared-issuance');
 const { setBookingStoreOverride, commitBooking } = require('../netlify/lib/booking-repository');
 const { setAuditStoreOverride } = require('../netlify/lib/operations-audit');
@@ -76,6 +77,8 @@ async function prepare(store, extra = {}) {
     body: {},
     now: NOW,
     actorId: 'ada.admin',
+    env: squareAuthorityEnv,
+    readFinancialProjection: (current) => projectionForBooking(current),
     ...extra,
   });
 }

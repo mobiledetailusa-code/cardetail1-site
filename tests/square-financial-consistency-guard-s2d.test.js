@@ -98,6 +98,9 @@ function projection(overrides = {}, wrapper = {}) {
       quoteVersion: 1,
       approvedCents: 25000,
       remainingCents: 25000,
+      grossSettledCents: 0,
+      refundedCents: 0,
+      settledCents: 0,
       currency: 'usd',
       ...overrides,
     },
@@ -302,20 +305,22 @@ test('a financial version mismatch fails closed', async () => {
   assert.equal(saved(store).squareLinkPreparation, undefined);
 });
 
-test('an existing preparation is replayed when the balances still match', async () => {
+test('a legacy preparation without a financial snapshot is not replayed', async () => {
   const store = createCasMemoryStore({
     [BOOKING_ID]: booking({ squareLinkPreparation: preparedRecord() }),
   });
   const { result } = await prepareGuarded(store, {
-    createIssuanceId: () => { throw new Error('issuance_not_allowed'); },
+    createIssuanceId: () => '33333333-3333-4333-8333-333333333333',
   });
   assert.equal(result.statusCode, 200);
-  assert.equal(result.payload.replayed, true);
-  assert.equal(result.payload.preparation.issuanceId, ISSUANCE_ID);
-  assert.equal(result.payload.preparation.amountCents, 25000);
+  assert.equal(result.payload.replayed, false);
+  assert.equal(result.payload.preparation.issuanceId, '33333333-3333-4333-8333-333333333333');
+  assert.notEqual(result.payload.preparation.issuanceId, ISSUANCE_ID);
   assertInactive(result.payload);
-  assert.equal(preparationAudits().length, 0);
-  assert.equal(saved(store).bookingVersion, 3);
+  const row = saved(store);
+  assert.equal(row.squareLinkPreparationHistory[0].issuanceId, ISSUANCE_ID);
+  assert.equal(row.squareLinkPreparationHistory[0].supersededReason, 'financial_snapshot_missing');
+  assert.equal(row.paymentStatus, 'unpaid');
 });
 
 test('an existing preparation is not usable after PostgreSQL full settlement', async () => {
@@ -486,7 +491,7 @@ test('an unknown Blob write is not financial success when the fresh projection d
   assert.equal(again.result.payload.error, 'financial_balance_mismatch');
 });
 
-test('disabled PostgreSQL settlement keeps the Blob path and does not read PostgreSQL', async () => {
+test('disabled PostgreSQL settlement does not authorize Blob preparation', async () => {
   const store = createCasMemoryStore({ [BOOKING_ID]: booking() });
   let reads = 0;
   const result = await prepareSquarePaymentLink({
@@ -495,17 +500,20 @@ test('disabled PostgreSQL settlement keeps the Blob path and does not read Postg
     body: {},
     now: NOW,
     env: { CD1_POSTGRES_PAYMENT: '0', DATABASE_URL: 'postgres://fixture-not-contacted' },
-    createIssuanceId: () => ISSUANCE_ID,
+    createIssuanceId: () => { throw new Error('issuance_not_allowed'); },
     readFinancialProjection: async () => {
       reads += 1;
       throw new Error('postgres_must_not_be_read');
     },
   });
   assert.equal(reads, 0);
-  assert.equal(result.statusCode, 200);
-  assert.equal(result.payload.preparation.amountCents, 25000);
+  assert.equal(result.statusCode, 409);
+  assert.equal(result.payload.ok, false);
+  assert.equal(result.payload.error, 'financial_authority_disabled');
+  assert.equal(result.payload.preparation, undefined);
   assertInactive(result.payload);
-  assert.equal(result.payload.authoritative, false);
+  assert.equal(saved(store).squareLinkPreparation, undefined);
+  assert.equal(saved(store).bookingVersion, 3);
 });
 
 test('the guard does not call Square, Stripe, a database, or Phase 7F.1', () => {

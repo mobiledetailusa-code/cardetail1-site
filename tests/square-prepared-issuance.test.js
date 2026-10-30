@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { createCasMemoryStore } = require('./helpers/cas-memory-store');
+const { squareAuthorityEnv, projectionForBooking } = require('./helpers/square-preparation-authority');
 const {
   prepareSquarePaymentLink,
   operationIdentity,
@@ -77,6 +78,8 @@ async function prepare(store, body = {}, extra = {}) {
     bookingId: BOOKING_ID,
     body,
     now: NOW,
+    env: squareAuthorityEnv,
+    readFinancialProjection: (current) => projectionForBooking(current),
     ...extra,
   });
 }
@@ -110,7 +113,12 @@ test('an authenticated action prepares the server-side balance', async () => {
       action: 'prepare_square_payment_link',
       bookingId: BOOKING_ID,
       paid: true,
-    }, { now: NOW, createIssuanceId: () => '11111111-1111-4111-8111-111111111111' });
+    }, {
+      now: NOW,
+      createIssuanceId: () => '11111111-1111-4111-8111-111111111111',
+      env: squareAuthorityEnv,
+      readFinancialProjection: (current) => projectionForBooking(current),
+    });
     const payload = JSON.parse(res.body);
     assert.equal(res.statusCode, 200);
     assert.equal(payload.ok, true);
@@ -197,12 +205,13 @@ test('a caller paid marker does not change the preparation or the booking', asyn
     financiallySettled: true,
     paymentStatus: 'COMPLETED',
   }, { createIssuanceId: () => '33333333-3333-4333-8333-333333333333' });
-  assert.equal(result.statusCode, 200);
+  assert.equal(result.statusCode, 400);
+  assert.equal(result.payload.error, 'client_financial_input_rejected');
   assertInactive(result.payload);
-  assert.equal(result.payload.paymentStatus, undefined);
   const row = saved(store);
   assert.equal(row.paymentStatus, 'unpaid');
-  assert.equal(row.squareLinkPreparation.state, 'prepared');
+  assert.equal(row.squareLinkPreparation, undefined);
+  assert.equal(row.bookingVersion, 3);
 });
 
 test('no outstanding balance and a cancelled booking are not prepared', async () => {
