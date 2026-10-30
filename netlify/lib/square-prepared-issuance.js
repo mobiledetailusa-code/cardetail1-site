@@ -22,6 +22,7 @@
 
 const crypto = require('crypto');
 const { moneyConflict } = require('./payment-service');
+const { prismaConfigured } = require('./prisma');
 const { getBookingRecord, commitBooking } = require('./booking-repository');
 
 const MAX_ATTEMPTS = 3;
@@ -117,6 +118,105 @@ function payableSnapshot(booking) {
     amountCents: money.remainingCents,
     currencyOk: currency === 'usd',
   };
+}
+
+/**
+ * Same switch as postgresPaymentEnabled. A caller-supplied env may carry
+ * its own DATABASE_URL so tests can select the mode without opening a
+ * connection. The process environment keeps the production predicate.
+ */
+function postgresSettlementModeEnabled(env = process.env) {
+  const source = env && typeof env === 'object' ? env : process.env;
+  if (source.CD1_POSTGRES_PAYMENT === '0' || source.CD1_POSTGRES_PAYMENT === 'false') return false;
+  if (source !== process.env && Object.prototype.hasOwnProperty.call(source, 'DATABASE_URL')) {
+    return String(source.DATABASE_URL || '').trim().length > 0;
+  }
+  return prismaConfigured();
+}
+
+function integerCents(value) {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
+  if (value < 0 || value > Number.MAX_SAFE_INTEGER) return null;
+  return value;
+}
+
+function integerVersion(value) {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
+  if (value < 0 || value > Number.MAX_SAFE_INTEGER) return null;
+  return value;
+}
+
+/**
+ * PostgreSQL evidence is accepted only from a successful strict read.
+ * A Blob fallback, a missing source, or a mismatched cent amount refuses
+ * preparation and does not authorize the stored issuance.
+ */
+function assessFinancialConsistency(booking, financial) {
+  const bookingId = String(booking && (booking.id || booking.bookingId) || '').trim();
+  if (!financial || financial.ok !== true) {
+    if (financial && financial.authority === 'blob') {
+      return { ok: false, error: 'financial_blob_fallback_rejected' };
+    }
+    return { ok: false, error: 'financial_authority_unavailable' };
+  }
+  const projection = financial.projection;
+  if (
+    financial.authority !== 'postgres'
+    || !projection
+    || typeof projection !== 'object'
+    || projection.authority !== 'postgres'
+  ) {
+    return { ok: false, error: 'financial_source_unverified' };
+  }
+  if (String(projection.bookingId || '') !== bookingId) {
+    return { ok: false, error: 'financial_booking_mismatch' };
+  }
+  if (financial.bookingId != null && String(financial.bookingId) !== bookingId) {
+    return { ok: false, error: 'financial_booking_mismatch' };
+  }
+
+  const pgCurrency = typeof projection.currency === 'string'
+    ? projection.currency.trim().toLowerCase()
+    : '';
+  const blobCurrency = String(booking.ledger && booking.ledger.currency || '').trim().toLowerCase();
+  if (!pgCurrency || !blobCurrency || pgCurrency !== blobCurrency || pgCurrency !== 'usd') {
+    return { ok: false, error: 'financial_currency_unsupported' };
+  }
+
+  const snap = payableSnapshot(booking);
+  if (snap.money.conflict || typeof snap.money.remainingCents !== 'number') {
+    return { ok: false, error: 'financial_blob_balance_invalid' };
+  }
+  const pgRemaining = integerCents(projection.remainingCents);
+  const blobRemaining = integerCents(snap.money.remainingCents);
+  const pgApproved = integerCents(projection.approvedCents);
+  const blobApproved = integerCents(booking.ledger && booking.ledger.approvedCents);
+  if (pgRemaining == null || blobRemaining == null || pgApproved == null || blobApproved == null) {
+    return { ok: false, error: 'financial_amount_invalid' };
+  }
+  if (pgApproved !== blobApproved) {
+    return { ok: false, error: 'financial_approved_amount_mismatch' };
+  }
+
+  const pgVersion = integerVersion(projection.quoteVersion);
+  const blobVersion = integerVersion(booking.quoteVersion);
+  if (pgVersion == null || blobVersion == null) {
+    return { ok: false, error: 'financial_version_invalid' };
+  }
+  if (pgVersion !== blobVersion) {
+    return { ok: false, error: 'financial_quote_version_mismatch' };
+  }
+  if (pgRemaining !== blobRemaining) {
+    return { ok: false, error: 'financial_balance_mismatch' };
+  }
+
+  const payable = pgRemaining > 0 && snap.eligible && snap.amountCents === pgRemaining;
+  return { ok: true, payable, remainingCents: pgRemaining };
+}
+
+async function readAuthoritativeProjection(booking, env) {
+  const { getSharedFinancialProjection } = require('./db/operational-payment');
+  return getSharedFinancialProjection(booking, { env, strictSource: 'postgres' });
 }
 
 /**
@@ -239,6 +339,12 @@ async function auditPreparation(bookingId, issuance, actorId) {
 /**
  * Reserve or replay one prepared issuance for the booking's current balance.
  * Financial amounts come from the stored booking, never from `body`.
+ * When PostgreSQL settlement is enabled, the Blob balance must match a
+ * successful PostgreSQL projection from the strict reader. That reader is
+ * checked again after every CAS conflict. A prepared record is still not
+ * a payment: any future CreatePaymentLink call has to repeat this strict
+ * read immediately before the provider call and abort unless the issuance
+ * amount still matches. This phase does not make that call.
  *
  * @param {object} args
  * @param {object} args.store in-memory or Blob store used by commitBooking
@@ -247,6 +353,8 @@ async function auditPreparation(bookingId, issuance, actorId) {
  * @param {string} [args.now]
  * @param {function} [args.createIssuanceId]
  * @param {number} [args.maxAttempts]
+ * @param {object} [args.env]
+ * @param {function} [args.readFinancialProjection]
  */
 async function prepareSquarePaymentLink({
   store,
@@ -256,6 +364,8 @@ async function prepareSquarePaymentLink({
   createIssuanceId: createId = createIssuanceId,
   maxAttempts = MAX_ATTEMPTS,
   actorId = '',
+  env = process.env,
+  readFinancialProjection = null,
 }) {
   const id = String(bookingId || '').trim();
   if (!id) return inactive(400, { ok: false, error: 'bookingId_required' });
@@ -274,6 +384,22 @@ async function prepareSquarePaymentLink({
   }
 
   const attempts = Math.max(1, Math.min(5, Math.round(Number(maxAttempts) || MAX_ATTEMPTS)));
+  const postgresMode = postgresSettlementModeEnabled(env);
+  const readProjection = readFinancialProjection || readAuthoritativeProjection;
+
+  async function loadDecision(booking) {
+    if (!postgresMode) {
+      const snap = payableSnapshot(booking);
+      return { ok: true, payable: snap.eligible, remainingCents: snap.amountCents };
+    }
+    let financial = null;
+    try {
+      financial = await readProjection(booking, env);
+    } catch {
+      financial = null;
+    }
+    return assessFinancialConsistency(booking, financial);
+  }
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const rec = await getBookingRecord(id, { storeOverride: store });
@@ -283,6 +409,21 @@ async function prepareSquarePaymentLink({
 
     const booking = rec.booking;
     const snap = payableSnapshot(booking);
+    const decision = await loadDecision(booking);
+    if (!decision.ok) {
+      return inactive(409, {
+        ok: false,
+        error: decision.error,
+        writeAcknowledged: false,
+      });
+    }
+    if (postgresMode && !decision.payable && snap.eligible) {
+      return inactive(409, {
+        ok: false,
+        error: 'financial_balance_mismatch',
+        writeAcknowledged: false,
+      });
+    }
     const current = booking.squareLinkPreparation;
     if (!snap.eligible) {
       if (current && current.state === PREPARED) {
@@ -421,6 +562,16 @@ async function prepareSquarePaymentLink({
       const again = await getBookingRecord(id, { storeOverride: store });
       const found = again.booking && again.booking.squareLinkPreparation;
       if (found && found.issuanceId === issuanceId && found.state === PREPARED && found.amountCents === amountCents) {
+        const fresh = again.booking
+          ? await loadDecision(again.booking)
+          : { ok: false, error: 'financial_authority_unavailable' };
+        if (!fresh.ok || !fresh.payable || fresh.remainingCents !== found.amountCents) {
+          return inactive(409, {
+            ok: false,
+            error: fresh.ok ? 'financial_balance_mismatch' : fresh.error,
+            writeAcknowledged: false,
+          });
+        }
         const audited = await auditPreparation(id, found, actorId);
         return inactive(200, {
           ok: true,

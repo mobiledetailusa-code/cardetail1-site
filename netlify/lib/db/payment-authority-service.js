@@ -49,7 +49,15 @@ async function getFinancialProjection(bookingId, prismaOverride = null) {
     prisma.refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
   ]);
   if (!booking || !quote) return null;
-  return computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries, refundRequests });
+  const projection = computeFinancialProjection({
+    booking,
+    quote,
+    paymentAttempts,
+    ledgerEntries,
+    refundRequests,
+  });
+  const rawCurrency = typeof quote.currency === 'string' ? quote.currency.trim().toLowerCase() : '';
+  return { ...projection, currency: rawCurrency || null };
 }
 
 /**
