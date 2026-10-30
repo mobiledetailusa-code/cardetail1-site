@@ -12,6 +12,14 @@
  * the Square-native scope: cash on-site, card on-site, and payment-link
  * requested (not online card-on-file). online_after_service is rejected here
  * until a later phase explicitly maps it.
+ *
+ * S2 integration note: do not call this module from the global booking submit
+ * path. online_after_service and payment_link_requested are different intents;
+ * payment-method-policy.js remains authoritative for existing booking behavior.
+ *
+ * Unusual objects: only own data properties with string values are read.
+ * Inherited keys, accessors (get/set), and non-string own values are ignored
+ * or rejected without invoking getters.
  */
 
 const CANONICAL_PREFERENCES = Object.freeze([
@@ -42,6 +50,12 @@ const PAYMENT_REFERENCE_MIN_LENGTH = 1;
 const PAYMENT_REFERENCE_MAX_LENGTH = 128;
 const PAYMENT_REFERENCE_PATTERN = /^[A-Za-z0-9._:-]+$/;
 
+const PREFERENCE_FIELD_ORDER = Object.freeze([
+  'paymentMethodPreference',
+  'preference',
+  'method',
+]);
+
 const FINANCIAL_AUTHORITY_KEYS = Object.freeze([
   'paid',
   'financiallySettled',
@@ -57,6 +71,18 @@ const FINANCIAL_AUTHORITY_KEYS = Object.freeze([
 
 const URL_LIKE_REFERENCE = /^(https?:\/\/|\/\/|javascript:)/i;
 
+function contractFailure(fields) {
+  return {
+    ok: false,
+    paid: false,
+    financiallySettled: false,
+    providerCalled: false,
+    createsPayment: false,
+    createsPaymentLink: false,
+    ...fields,
+  };
+}
+
 function normalizePreferenceToken(value) {
   return String(value == null ? '' : value).trim().toLowerCase();
 }
@@ -64,16 +90,15 @@ function normalizePreferenceToken(value) {
 function resolveCanonicalPreference(rawPreference) {
   const token = normalizePreferenceToken(rawPreference);
   if (!token) {
-    return { ok: false, error: 'payment_preference_required' };
+    return contractFailure({ error: 'payment_preference_required' });
   }
   const canonical = ALIAS_TO_CANONICAL[token];
   if (!canonical) {
-    return {
-      ok: false,
+    return contractFailure({
       error: 'invalid_payment_preference',
       supportedPreferences: [...CANONICAL_PREFERENCES],
       supportedAliases: { ...PREFERENCE_ALIASES },
-    };
+    });
   }
   return { ok: true, canonical, normalizedToken: token };
 }
@@ -83,60 +108,126 @@ function validatePaymentReference(rawReference) {
     return { ok: true, paymentReference: null };
   }
   if (typeof rawReference !== 'string') {
-    return { ok: false, error: 'invalid_payment_reference', reason: 'type' };
+    return contractFailure({ error: 'invalid_payment_reference', reason: 'type' });
   }
   const trimmed = rawReference.trim();
   if (trimmed.length < PAYMENT_REFERENCE_MIN_LENGTH) {
-    return { ok: false, error: 'invalid_payment_reference', reason: 'empty' };
+    return contractFailure({ error: 'invalid_payment_reference', reason: 'empty' });
   }
   if (trimmed.length > PAYMENT_REFERENCE_MAX_LENGTH) {
-    return { ok: false, error: 'invalid_payment_reference', reason: 'length' };
+    return contractFailure({ error: 'invalid_payment_reference', reason: 'length' });
   }
   if (URL_LIKE_REFERENCE.test(trimmed) || trimmed.includes('://')) {
-    return { ok: false, error: 'invalid_payment_reference', reason: 'url_like' };
+    return contractFailure({ error: 'invalid_payment_reference', reason: 'url_like' });
   }
   if (!PAYMENT_REFERENCE_PATTERN.test(trimmed)) {
-    return { ok: false, error: 'invalid_payment_reference', reason: 'charset' };
+    return contractFailure({ error: 'invalid_payment_reference', reason: 'charset' });
   }
   return { ok: true, paymentReference: trimmed };
 }
 
+function readOwnStringDataProperty(input, key) {
+  if (!Object.prototype.hasOwnProperty.call(input, key)) {
+    return { present: false };
+  }
+  const desc = Object.getOwnPropertyDescriptor(input, key);
+  if (!desc || desc.get || desc.set) {
+    return {
+      present: true,
+      invalid: true,
+      error: 'invalid_contract_input',
+      reason: 'unsupported_property_descriptor',
+      field: key,
+    };
+  }
+  if (typeof desc.value !== 'string') {
+    return {
+      present: true,
+      invalid: true,
+      error: 'invalid_contract_input',
+      reason: 'invalid_property_type',
+      field: key,
+    };
+  }
+  return { present: true, value: desc.value };
+}
+
 function readPreferenceInput(input) {
   if (input == null || typeof input !== 'object' || Array.isArray(input)) {
-    return '';
+    return contractFailure({ error: 'payment_preference_required' });
   }
-  if (typeof input.paymentMethodPreference === 'string') return input.paymentMethodPreference;
-  if (typeof input.preference === 'string') return input.preference;
-  if (typeof input.method === 'string') return input.method;
-  return '';
+  for (const key of PREFERENCE_FIELD_ORDER) {
+    const field = readOwnStringDataProperty(input, key);
+    if (field.invalid) {
+      return contractFailure({
+        error: field.error,
+        reason: field.reason,
+        field: field.field,
+      });
+    }
+    if (field.present) {
+      return { ok: true, rawPreference: field.value };
+    }
+  }
+  return contractFailure({ error: 'payment_preference_required' });
 }
 
 function readReferenceInput(input) {
   if (input == null || typeof input !== 'object' || Array.isArray(input)) {
-    return undefined;
+    return { ok: true, rawReference: undefined };
   }
-  if (!Object.prototype.hasOwnProperty.call(input, 'paymentReference')) return undefined;
-  return input.paymentReference;
+  if (!Object.prototype.hasOwnProperty.call(input, 'paymentReference')) {
+    return { ok: true, rawReference: undefined };
+  }
+  const field = readOwnStringDataProperty(input, 'paymentReference');
+  if (field.invalid) {
+    return contractFailure({
+      error: field.error,
+      reason: field.reason,
+      field: field.field,
+    });
+  }
+  return { ok: true, rawReference: field.value };
 }
 
 /**
  * Normalize a booking payment preference for the Square-native path.
- * Always returns paid: false. Never performs I/O.
+ * Always returns paid: false on success. Never performs I/O.
  *
  * @param {object|string} input — preference string or { paymentMethodPreference, paymentReference? }
  * @returns {object}
  */
 function resolveSquareNativePaymentContract(input) {
-  const rawPreference = typeof input === 'string' ? input : readPreferenceInput(input);
-  const preferenceResult = resolveCanonicalPreference(rawPreference);
-  if (!preferenceResult.ok) {
-    return { ok: false, ...preferenceResult };
+  let rawPreference;
+  if (typeof input === 'string') {
+    rawPreference = input;
+  } else {
+    const preferenceRead = readPreferenceInput(input);
+    if (preferenceRead.ok !== true) {
+      return preferenceRead;
+    }
+    rawPreference = preferenceRead.rawPreference;
   }
 
-  const rawReference = typeof input === 'string' ? undefined : readReferenceInput(input);
+  const preferenceResult = resolveCanonicalPreference(rawPreference);
+  if (preferenceResult.ok !== true) {
+    return preferenceResult;
+  }
+
+  let rawReference;
+  if (typeof input === 'string') {
+    rawReference = undefined;
+  } else {
+    const referenceRead = readReferenceInput(input);
+    if (referenceRead.ok !== true) {
+      return referenceRead;
+    }
+    rawReference = referenceRead.rawReference;
+  }
+
   const referenceResult = validatePaymentReference(rawReference);
-  if (!referenceResult.ok) {
-    return { ok: false, ...referenceResult };
+  if (referenceResult.ok !== true) {
+    return referenceResult;
   }
 
   return {
