@@ -37,7 +37,7 @@ function cloneStoredRecord(value) {
 async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
   const store = storeOverride || await getStore();
   const id = String(bookingId || '').trim();
-  if (!id) return { exists: false, booking: null, etag: null, raw: null };
+  if (!id) return { exists: false, booking: null, etag: null, etagTrusted: false, raw: null };
 
   let result = null;
   if (typeof store.getWithMetadata === 'function') {
@@ -52,6 +52,7 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
       exists: true,
       booking: norm.ok ? norm.aggregate : booking,
       etag: result.etag || null,
+      etagTrusted: Boolean(result.etag),
       raw: cloneStoredRecord(result.data),
       quarantined: adapted.quarantined,
     };
@@ -64,11 +65,13 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
   const adapted = adaptHistoricalBooking(raw);
   const booking = adapted.ok ? adapted.booking : raw;
   const norm = normalizeAggregate(booking, { allowDraft: true });
-  const etag = data.__etag || data._etag || `v${Number(data.bookingVersion) || 0}:${data.updatedAt || ''}`;
+  const explicitEtag = data.__etag || data._etag || '';
+  const etag = explicitEtag || `v${Number(data.bookingVersion) || 0}:${data.updatedAt || ''}`;
   return {
     exists: true,
     booking: norm.ok ? norm.aggregate : booking,
     etag,
+    etagTrusted: Boolean(explicitEtag),
     raw: cloneStoredRecord(data),
     quarantined: adapted.quarantined,
   };
@@ -85,6 +88,8 @@ async function commitBooking({
   createIfMissing = false,
   storeOverride = null,
   syncSlots = true,
+  strictCas = false,
+  auditActorId = '',
 }) {
   const store = storeOverride || await getStore();
   const id = String(bookingId || nextAggregate?.id || '').trim();
@@ -133,9 +138,21 @@ async function commitBooking({
     };
   }
 
-  const toWrite = { ...nextAggregate, id, bookingVersion: expected + 1 };
+  if (strictCas && !current.etagTrusted) {
+    return { ok: false, error: 'cas_precondition_missing', statusCode: 409 };
+  }
+
+  let toWrite = { ...nextAggregate, id, bookingVersion: expected + 1 };
   // Preserve unknown fields from current that were not in nextAggregate keys intentionally
   // nextAggregate should already be a full merged object from buildNextAggregate
+  delete toWrite.__etag;
+  delete toWrite._etag;
+  const { reconcilePreparedIssuance, recordSupersessionAudit } = require('./square-prepared-issuance');
+  const reconciled = reconcilePreparedIssuance(
+    toWrite,
+    toWrite.updatedAt || new Date().toISOString()
+  );
+  toWrite = { ...reconciled.booking, id, bookingVersion: expected + 1 };
   delete toWrite.__etag;
   delete toWrite._etag;
 
@@ -161,7 +178,20 @@ async function commitBooking({
     return { ok: false, error: 'store_unavailable' };
   }
 
-  if (!writeWasApplied(writeResult)) {
+  if (strictCas) {
+    if (!writeResult || typeof writeResult.modified !== 'boolean') {
+      return { ok: false, error: 'write_outcome_unknown', statusCode: 409 };
+    }
+    if (writeResult.modified !== true) {
+      return {
+        ok: false,
+        error: 'version_conflict',
+        statusCode: 409,
+        actualBookingVersion: actualVersion,
+        expectedBookingVersion: expected,
+      };
+    }
+  } else if (!writeWasApplied(writeResult)) {
     return {
       ok: false,
       error: 'version_conflict',
@@ -188,7 +218,23 @@ async function commitBooking({
     } catch { /* never block Blob authority */ }
   }
 
-  return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
+  let auditRecorded = null;
+  if (reconciled.superseded) {
+    try {
+      await recordSupersessionAudit(reconciled.superseded, id, auditActorId);
+      auditRecorded = true;
+    } catch {
+      auditRecorded = false;
+    }
+  }
+
+  return {
+    ok: true,
+    booking: toWrite,
+    bookingVersion: toWrite.bookingVersion,
+    auditRecorded,
+    supersededIssuance: reconciled.superseded,
+  };
 }
 
 async function listSubmittedBookings({ includeArchivedTest = false } = {}) {

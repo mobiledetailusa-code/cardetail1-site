@@ -13,8 +13,19 @@ const {
   operationIdentity,
   createIssuanceId,
 } = require('../netlify/lib/square-prepared-issuance');
+process.env.PRISMA_BOOKING_READ = '0';
+delete process.env.NETLIFY_SITE_ID;
+delete process.env.NETLIFY_AUTH_TOKEN;
+delete process.env.NETLIFY_BLOBS_CONTEXT;
+delete process.env.DATABASE_URL;
+
 const { setBookingStoreOverride } = require('../netlify/lib/booking-repository');
+const { setAuditStoreOverride } = require('../netlify/lib/operations-audit');
 const { ACTIVE_PAYMENT_PROVIDER } = require('../netlify/lib/payment-provider-adapter');
+
+setAuditStoreOverride({
+  async setJSON() { return { modified: true }; },
+});
 
 const root = path.resolve(__dirname, '..');
 const BOOKING_ID = 'CD1-S2BPREP01';

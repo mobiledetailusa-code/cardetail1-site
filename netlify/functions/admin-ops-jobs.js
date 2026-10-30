@@ -362,6 +362,7 @@ async function persistMutation(store, bookingId, booking, previous, action, reas
     bookingId,
     expectedBookingVersion: expected,
     nextAggregate: next,
+    auditActorId: 'admin',
   });
   if (!committed.ok) {
     return committed;
@@ -2302,6 +2303,7 @@ async function handleAdminAction(body, testOpts = {}) {
       now,
       createIssuanceId: testOpts.createIssuanceId,
       maxAttempts: testOpts.maxAttempts,
+      actorId: testOpts.actorId || '',
     });
     return jsonCors(prepared.statusCode, prepared.payload);
   }
@@ -3707,7 +3709,7 @@ exports.handler = async (event) => {
           return jsonCors(500, { ok: false, error: 'preview_failed' });
         }
       }
-      return handleAdminAction(body, { event });
+      return handleAdminAction(body, { event, actorId: auth.username || '' });
     }
     try {
       const jobs = await listJobs(body, timing);
