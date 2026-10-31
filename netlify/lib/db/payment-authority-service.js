@@ -2879,7 +2879,7 @@ function evaluateSquareDashboardReceipt(input = {}) {
 async function recordAdministratorSquareReceipt(input = {}) {
   const id = String(input.bookingId || '').trim();
   if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400, providerVerified: false };
-  const prisma = getPrisma();
+  const prisma = input.prisma || getPrisma();
   if (!prisma) return { ok: false, error: 'database_not_configured', statusCode: 503, providerVerified: false };
   const unmarked = {
     providerVerified: false,
