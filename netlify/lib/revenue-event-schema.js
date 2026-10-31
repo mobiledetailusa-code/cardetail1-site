@@ -28,7 +28,10 @@ const APPROVED_PROPERTIES = Object.freeze([
   'page_type', 'category', 'package_id', 'estimated_value', 'currency',
   'vehicle_count_band', 'asset_category_count', 'zip_zone', 'booking_step',
   'vehicle_type', 'device_type', 'utm_source', 'utm_medium', 'utm_campaign',
-  'utm_content', 'referrer_domain', 'lead_temperature', 'household_segment',
+  'utm_content', 'utm_term', 'referrer_domain', 'traffic_type', 'first_seen_at',
+  'first_utm_source', 'first_utm_medium', 'first_utm_campaign', 'first_utm_content',
+  'first_utm_term', 'last_landing_page', 'last_referrer_domain',
+  'booking_reference', 'lead_temperature', 'household_segment',
   'error_code', 'offer_id', 'multi_vehicle_band',
   'flexibility_mode', 'weekend_selected', 'funnel_step', 'failure_code',
   'service_category',
@@ -39,7 +42,7 @@ const PII_PROPERTY_KEYS = Object.freeze([
   'customer_notes', 'notes', 'chat_transcript', 'vin', 'license_plate',
   'card_data', 'stripe_token', 'access_token', 'resume_token', 'token',
   'photo', 'photos', 'message', 'first_name', 'last_name', 'street',
-  'gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid', 'utm_term',
+  'gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
 ]);
 
 const GA4_EVENT_MAP = Object.freeze({
@@ -47,16 +50,21 @@ const GA4_EVENT_MAP = Object.freeze({
   lead_qualified: 'qualify_lead',
   lead_lost: 'close_unconvert_lead',
   lead_contacted: 'working_lead',
-  booking_confirmed: 'close_convert_lead',
-  service_completed: 'close_convert_lead',
+  booking_confirmed: 'booking_confirmed',
+  service_completed: 'service_completed',
   package_view: 'view_item',
   package_selected: 'select_item',
   offer_viewed: 'view_promotion',
   promotion_selected: 'select_promotion',
   booking_started: 'begin_checkout',
   payment_method_saved: 'add_payment_info',
-  booking_submitted: 'purchase',
+  // A persisted booking request is not a purchase and is not a captured payment.
+  booking_submitted: 'booking_submitted',
 });
+
+const GA4_OMIT_PROPERTIES = Object.freeze([
+  'booking_reference', 'gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
+]);
 
 const PRIMARY_CONVERSION_EVENTS = Object.freeze([
   'lead_created', 'booking_submitted', 'booking_confirmed', 'service_completed',
@@ -120,8 +128,15 @@ function validateEventPayload(body) {
 
 function mapToGa4(eventName, properties) {
   const ga4Event = GA4_EVENT_MAP[eventName];
-  if (!ga4Event) return null;
-  return { name: ga4Event, params: { ...properties, cardetail1_event: eventName } };
+  if (!ga4Event || ga4Event === 'purchase') return null;
+  const params = { cardetail1_event: eventName };
+  if (properties && typeof properties === 'object') {
+    for (const [key, value] of Object.entries(properties)) {
+      if (GA4_OMIT_PROPERTIES.includes(key) || PII_PROPERTY_KEYS.includes(key)) continue;
+      params[key] = value;
+    }
+  }
+  return { name: ga4Event, params };
 }
 
 module.exports = {
