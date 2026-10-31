@@ -17,9 +17,11 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'admin-ops.html'), 'utf8
 const jobs = fs.readFileSync(path.join(__dirname, '..', 'netlify', 'functions', 'admin-ops-jobs.js'), 'utf8');
 const reportAt = html.indexOf("const dReportMc = $('#dReportManualPayment')");
 const receiptAt = html.indexOf("const dReceiptMc = $('#dRecordSquareReceipt')");
+const reconcileAt = html.indexOf("const dReconcileReceipt = $('#dReconcileSquareReceipt')");
 const closeAt = html.indexOf("const dCloseMc = $('#dCloseManualCollection')");
 const reportSlice = html.slice(reportAt, receiptAt);
-const receiptSlice = html.slice(receiptAt, html.indexOf("const dgpl = $('#dGenPayLink')"));
+const receiptSlice = html.slice(receiptAt, reconcileAt);
+const reconcileSlice = html.slice(reconcileAt, html.indexOf("const dgpl = $('#dGenPayLink')"));
 const closeSlice = html.slice(closeAt, reportAt);
 
 function recordedBooking() {
@@ -279,5 +281,60 @@ test('the drawer and helper do not call Square or Stripe', () => {
   assert.equal(helper.includes('fetch('), false);
   assert.equal(receiptSlice.includes('api.squareup.com'), false);
   assert.equal(receiptSlice.includes('api.stripe.com'), false);
+  assert.equal(reconcileSlice.includes('api.squareup.com'), false);
+  assert.equal(reconcileSlice.includes('api.stripe.com'), false);
   assert.equal(reportSlice.includes('api.squareup.com'), false);
+});
+
+test('reconciliation is offered only from server eligibility and uses the existing closure', () => {
+  const eligible = ui.receiptReconciliationEligibility({
+    collection: {
+      state: 'payment_reported',
+      squareDashboardReceipt: {
+        providerEventId: 'square_dashboard_receipt:sq_txn_1001',
+        squareTransactionRef: 'sq_txn_1001',
+      },
+      externalFinancialConflicts: [],
+    },
+    remainingCents: 0,
+  });
+  assert.equal(eligible.eligible, true);
+  assert.equal(eligible.squareTransactionRef, 'sq_txn_1001');
+  assert.equal(ui.receiptReconciliationEligibility({
+    collection: { state: 'payment_reported', squareDashboardReceipt: { providerEventId: 'square_dashboard_receipt:sq_txn_1001' }, externalFinancialConflicts: [{ reviewRequired: true }] },
+    remainingCents: 0,
+  }).eligible, false);
+  assert.equal(ui.receiptReconciliationEligibility({
+    collection: { state: 'recorded', externalFinancialConflicts: [] },
+    remainingCents: 0,
+  }).eligible, false);
+  const built = ui.buildReceiptReconciledRequest({
+    bookingId: 'bk-ui',
+    operationId: 'op-1',
+    reason: 'link deactivated in the Dashboard by the administrator',
+    confirmation: {
+      ledgerRecorded: true,
+      dashboardReceiptMatches: true,
+      linkDeactivated: true,
+      responsibilityAccepted: true,
+    },
+  });
+  assert.equal(built.body.action, 'close_manual_collection');
+  assert.equal(built.body.outcome, 'receipt_reconciled');
+  assert.equal(built.body.confirmation.linkDeactivated, true);
+  assert.equal(Object.hasOwn(built.body, 'squareVerified'), false);
+  assert.equal(Object.hasOwn(built.body, 'providerVerified'), false);
+  assert.equal(ui.buildReceiptReconciledRequest({
+    bookingId: 'bk-ui',
+    operationId: 'op-1',
+    reason: 'missing deactivation',
+    confirmation: { ledgerRecorded: true, dashboardReceiptMatches: true, responsibilityAccepted: true },
+  }).ok, false);
+  const message = ui.closureResultMessage({ ok: true, paid: false, squareVerified: false, providerVerified: false });
+  assert.match(message, /did not deactivate the Square link/);
+  assert.doesNotMatch(message, /Payment completed|Booking paid/);
+  assert.match(reconcileSlice, /buildReceiptReconciledRequest/);
+  assert.equal((reconcileSlice.match(/await api\(/g) || []).length, 1);
+  assert.match(html, /dReconcileSquareReceipt/);
+  assert.match(html, /receiptReconciliationEligibility/);
 });

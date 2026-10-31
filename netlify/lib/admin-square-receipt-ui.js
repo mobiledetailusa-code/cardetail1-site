@@ -95,7 +95,9 @@
       manual_collection_reservation_required: 'There is no manual collection reservation. The booking was not marked paid.',
       payment_attempt_in_progress: 'A payment attempt is still open. Nothing was credited. The booking was not marked paid.',
       square_dashboard_observation_required: 'Dashboard observation was not confirmed. Nothing was credited. The booking was not marked paid.',
-      square_receipt_outcome_unknown: 'The receipt outcome is unknown. Refresh the booking and read it before trying again. Do not assume the receipt was stored. The booking was not marked paid.',
+      square_receipt_missing: 'There is no durable Dashboard receipt to reconcile. Nothing was changed. The booking was not marked paid.',
+    square_receipt_outcome_unknown: 'The receipt outcome is unknown. Refresh the booking and read it before trying again. Do not assume the receipt was stored. The booking was not marked paid.',
+    manual_collection_outcome_unknown: 'The outcome is unknown. Refresh the booking and read it before trying again. Do not assume the collection changed. The booking was not marked paid.',
       square_receipt_failed: 'The receipt could not be stored. The booking was not marked paid.',
       database_not_configured: 'PostgreSQL is unavailable. The booking was not marked paid.',
       timeout: 'The receipt outcome is unknown. Refresh the booking and read it before trying again. Do not assume the receipt was stored. The booking was not marked paid.',
@@ -111,10 +113,67 @@
     const code = clean((data && data.error) || (error && error.message) || '');
     const status = Number(error && (error.status || error.statusCode));
     if (code === 'unauthorized' || status === 401) return false;
-    if (code === 'square_receipt_outcome_unknown' || code === 'timeout' || code === 'aborted') return true;
+    if (code === 'square_receipt_outcome_unknown' || code === 'manual_collection_outcome_unknown' || code === 'timeout' || code === 'aborted') return true;
     if (code === 'square_receipt_failed' || code === 'database_not_configured') return false;
     if (!Number.isFinite(status) || status === 0 || status >= 500) return true;
     return false;
+  }
+
+  function receiptReconciliationEligibility(input) {
+    const collection = input && input.collection && typeof input.collection === 'object' ? input.collection : {};
+    const receipt = collection.squareDashboardReceipt && typeof collection.squareDashboardReceipt === 'object'
+      ? collection.squareDashboardReceipt
+      : null;
+    const conflicts = Array.isArray(collection.externalFinancialConflicts) ? collection.externalFinancialConflicts : [];
+    const remaining = Number(input && input.remainingCents);
+    const eligible = collection.state === 'payment_reported'
+      && !!(receipt && receipt.providerEventId)
+      && conflicts.length === 0
+      && Number.isFinite(remaining)
+      && remaining === 0;
+    return {
+      eligible,
+      state: collection.state || null,
+      squareTransactionRef: receipt && receipt.squareTransactionRef ? String(receipt.squareTransactionRef) : null,
+      conflictCount: conflicts.length,
+      remainingCents: Number.isFinite(remaining) ? remaining : null,
+    };
+  }
+
+  function buildReceiptReconciledRequest(input) {
+    const bookingId = clean(input && input.bookingId);
+    const operationId = clean(input && input.operationId);
+    const reason = clean(input && input.reason).slice(0, 500);
+    const confirmation = input && input.confirmation && typeof input.confirmation === 'object' ? input.confirmation : {};
+    const required = ['ledgerRecorded', 'dashboardReceiptMatches', 'linkDeactivated', 'responsibilityAccepted'];
+    if (!bookingId) return { ok: false, message: 'A booking is required. The booking was not marked paid.' };
+    if (!operationId) return { ok: false, message: 'There is no manual collection reservation. The booking was not marked paid.' };
+    if (!reason) return { ok: false, message: 'A reconciliation reason is required. The booking was not marked paid.' };
+    if (required.some((key) => confirmation[key] !== true)) {
+      return { ok: false, message: 'Reconciliation needs the ledger receipt, a matching Dashboard receipt, your statement that you deactivated the Square link, and acceptance of that statement. Cardetail1 will not call Square. The booking was not marked paid.' };
+    }
+    return {
+      ok: true,
+      body: {
+        action: 'close_manual_collection',
+        bookingId,
+        operationId,
+        outcome: 'receipt_reconciled',
+        reason,
+        confirmation: {
+          ledgerRecorded: true,
+          dashboardReceiptMatches: true,
+          linkDeactivated: true,
+          responsibilityAccepted: true,
+        },
+      },
+    };
+  }
+
+  function closureResultMessage(result) {
+    if (!result || result.ok !== true) return receiptFailureMessage({ data: result || {} });
+    if (result.paid === true) return 'The server reports this booking paid.';
+    return 'Receipt reconciliation recorded as an administrator attestation. Cardetail1 did not call Square, did not deactivate the Square link, and has not marked the booking paid.';
   }
 
   function collectionStatusText(collection) {
@@ -137,7 +196,10 @@
     amountTextToCents,
     buildPaymentReportedRequest,
     buildDashboardReceiptRequest,
+    buildReceiptReconciledRequest,
+    receiptReconciliationEligibility,
     receiptResultMessage,
+    closureResultMessage,
     receiptFailureMessage,
     isUncertainReceiptOutcome,
     collectionStatusText,
