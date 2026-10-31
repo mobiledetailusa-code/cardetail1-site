@@ -178,6 +178,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/financial-reconciliation-audit.js',
   // Production customer Stripe payments fail closed unless explicitly enabled.
   'netlify/functions/stripe-config.js',
+  // Public GA4 measurement-id lookup. Returns null unless a valid id is configured.
+  'netlify/functions/analytics-public-config.mjs',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {

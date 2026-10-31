@@ -18,10 +18,12 @@ Browser HubSpot tracking: **not installed** — audit found no existing snippet;
 
 | Variable | Purpose |
 |----------|---------|
-| `GTM_CONTAINER_ID` | Set as `CD1_GTM_CONTAINER_ID` in page config |
-| `GA4_MEASUREMENT_ID` | Set as `CD1_GA4_MEASUREMENT_ID` fallback |
+| `GTM_CONTAINER_ID` | Optional. Set as `CD1_GTM_CONTAINER_ID` only when a real container exists. Direct GA4 does not need GTM. |
+| `GA4_MEASUREMENT_ID` | Netlify env read by `/.netlify/functions/analytics-public-config`. Also accepts `CD1_GA4_MEASUREMENT_ID`. Empty or malformed values leave GA4 off. |
 
-Loaded only after Analytics consent. CSP updated in `netlify.toml` for GTM/GA4/Clarity domains.
+No Measurement ID is committed in the repository. The browser applies an id only when it matches `G-` plus 4–32 letters or digits, and only after Analytics consent. CSP in `netlify.toml` allows the GA4 collect hosts.
+
+Advertising click IDs are kept in `localStorage` only after Marketing consent. An admin with an existing Revenue Operations session can read one booking's stored attribution at `GET /.netlify/functions/revenue-admin?view=booking-attribution&bookingId=CD1-...`. The response has channel, campaign, landing page, referrer, first visit, and request time. It does not include click IDs or customer details. The scan uses the existing event blobs and the same 90-day window as the dashboard. Events recorded before `booking_reference` existed cannot be joined.
 
 ## Google Ads (gtag.js)
 
@@ -65,7 +67,7 @@ New: recovery communications (`recovery-communications.js`) — dry-run by defau
 | `GOOGLE_ADS_EXPORT_ENABLED` | `false` default |
 | `GOOGLE_ADS_CUSTOMER_ID` | Account ID when ready |
 
-Preserves `gclid`, `gbraid`, `wbraid` first-party. Server-side hashed email/phone for future offline conversion upload. No deprecated legacy-only upload path.
+Offline upload stays disabled. Browser click IDs are stored only after Marketing consent and are not copied onto the event payload. No deprecated legacy-only upload path.
 
 ## Environment summary
 

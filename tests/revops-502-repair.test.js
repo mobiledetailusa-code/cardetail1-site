@@ -149,6 +149,19 @@ test('revenue-admin unauthenticated GET returns 401 not 502', async () => {
   assert.equal(body.error, 'unauthorized');
 });
 
+test('booking attribution lookup is read-only and still requires admin auth', async () => {
+  const res = await handler({
+    httpMethod: 'GET',
+    headers: {},
+    queryStringParameters: { view: 'booking-attribution', bookingId: 'CD1-MVJLFEUS-2M6Q' },
+  });
+  assert.equal(res.statusCode, 401);
+  const src = read('netlify/functions/revenue-admin.js');
+  const view = src.slice(src.indexOf("view === 'booking-attribution'"), src.indexOf("view === 'booking-attribution'") + 500);
+  assert.match(view, /findBookingAttribution/);
+  assert.doesNotMatch(view, /blobSetJson|prisma|stripe|square/i);
+});
+
 test('revenue-admin handler returns controlled error contract on failure', () => {
   const src = read('netlify/functions/revenue-admin.js');
   assert.match(src, /revops_temporarily_unavailable/);
