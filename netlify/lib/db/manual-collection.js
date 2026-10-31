@@ -51,6 +51,11 @@ function fail(error, statusCode, extra = {}) {
   };
 }
 
+function manualSquareCollectionEnabled(env = process.env) {
+  const source = env || process.env;
+  return String(source.MANUAL_SQUARE_COLLECTION_ENABLED || '') === 'true';
+}
+
 function authorityEnabled(env, deps) {
   if (typeof deps.authorityEnabled === 'function') return !!deps.authorityEnabled(env);
   const source = env || process.env;
@@ -511,13 +516,19 @@ async function reserveManualCollection(input = {}, deps = {}) {
   if (!ensured || ensured.ok === false) return fail(ensured?.error || 'database_not_configured', 503);
   const now = input.now || new Date().toISOString();
   const createOperationId = deps.createOperationId || (() => crypto.randomUUID());
-  return runLocked(bookingId, deps, ({ row, projection }) => decideReserve({
-    row,
-    projection,
-    actorId,
-    now,
-    createOperationId,
-  }));
+  return runLocked(bookingId, deps, ({ row, projection }) => {
+    const decision = decideReserve({
+      row,
+      projection,
+      actorId,
+      now,
+      createOperationId,
+    });
+    if (decision && decision.write && !manualSquareCollectionEnabled(env)) {
+      return fail('manual_square_collection_disabled', 403);
+    }
+    return decision;
+  });
 }
 
 async function recordManualCollectionUrl(input = {}, deps = {}) {
@@ -528,13 +539,19 @@ async function recordManualCollectionUrl(input = {}, deps = {}) {
   const bookingId = String(input.bookingId || '').trim();
   if (!bookingId) return fail('bookingId_required', 400);
   const now = input.now || new Date().toISOString();
-  return runLocked(bookingId, deps, ({ row, projection }) => decideRecordUrl({
-    row,
-    projection,
-    operationId: String(input.operationId || '').trim(),
-    url: input.url,
-    now,
-  }));
+  return runLocked(bookingId, deps, ({ row, projection }) => {
+    const decision = decideRecordUrl({
+      row,
+      projection,
+      operationId: String(input.operationId || '').trim(),
+      url: input.url,
+      now,
+    });
+    if (decision && decision.write && !manualSquareCollectionEnabled(env)) {
+      return fail('manual_square_collection_disabled', 403);
+    }
+    return decision;
+  });
 }
 
 function decideReceiptClosure({ row, projection, operationId, actorId, now, reason, confirmation }) {
@@ -679,6 +696,7 @@ module.exports = {
   classifyCollectionTransactionError,
   executeCollectionTransaction,
   onSiteSettlementManualCollectionConflict,
+  manualSquareCollectionEnabled,
   reserveManualCollection,
   recordManualCollectionUrl,
   closeManualCollection,

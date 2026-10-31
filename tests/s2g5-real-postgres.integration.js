@@ -51,6 +51,7 @@ async function main() {
   delete process.env.STRIPE_SECRET_KEY;
   delete process.env.STRIPE_WEBHOOK_SECRET;
   process.env.CD1_POSTGRES_PAYMENT = '1';
+  process.env.MANUAL_SQUARE_COLLECTION_ENABLED = 'true';
 
   const admin = new Client({ connectionString: url });
   await admin.connect();

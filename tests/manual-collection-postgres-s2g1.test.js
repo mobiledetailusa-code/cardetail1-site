@@ -34,6 +34,7 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const ENV = {
   CD1_POSTGRES_PAYMENT: '1',
   DATABASE_URL: 'postgres://manual-collection-test.invalid/cardetail1',
+  MANUAL_SQUARE_COLLECTION_ENABLED: 'true',
 };
 const UNPAID = {
   inspected: true,
@@ -640,4 +641,26 @@ test('schema, migration, settlement guard, and provider isolation stay narrow', 
   assert.match(admin, /action === 'close_manual_collection'/);
   assert.match(read('admin-ops.html'), /Attest Square link deactivated/);
   assert.match(read('admin-ops.html'), /Administrative attestation only/);
+});
+
+test('a missing flag refuses a new reservation and a new URL, and an existing reservation still blocks cash', async () => {
+  const harness = createHarness();
+  const disabledEnv = {
+    CD1_POSTGRES_PAYMENT: '1',
+    DATABASE_URL: ENV.DATABASE_URL,
+  };
+  const refused = await harness.reserve({ env: disabledEnv });
+  assert.equal(refused.error, 'manual_square_collection_disabled');
+  assert.equal(harness.world.booking.manualCollectionState, null);
+  assert.equal(harness.world.blob.manualPayLink, 'https://legacy.example/not-necessarily-square');
+
+  const reserved = await harness.reserve();
+  assert.equal(reserved.ok, true);
+  const urlRefused = await harness.record('https://square.example/new', reserved.operationId, { env: disabledEnv });
+  assert.equal(urlRefused.error, 'manual_square_collection_disabled');
+  const replay = await harness.reserve({ env: disabledEnv });
+  assert.equal(replay.idempotent, true);
+  assert.equal(replay.operationId, reserved.operationId);
+  assert.equal((await harness.settle('cash')).error, 'manual_collection_active');
+  assert.equal((await harness.settle('card_on_site')).error, 'manual_collection_active');
 });
