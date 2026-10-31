@@ -237,6 +237,8 @@ async function getSharedFinancialProjection(booking, options = {}) {
       authority: 'postgres',
       projection: mapProjectionForPortals(projection),
       bookingId: ensured.bookingId,
+      synchronizationBlocked: ensured.synchronizationBlocked === true,
+      importBlocked: ensured.importBlocked || null,
     };
   } catch (e) {
     // DATABASE_URL may be set while the DB/adapter is unreachable (common on
@@ -296,6 +298,14 @@ async function prepareEmbeddedPaymentInner({
   }
   const ensured = await ensureBookingFinancial(booking);
   if (!ensured.ok) return { ok: false, error: ensured.error, statusCode: 503 };
+  if (ensured.synchronizationBlocked) {
+    return {
+      ok: false,
+      error: 'manual_collection_active',
+      statusCode: 409,
+      synchronizationBlocked: true,
+    };
+  }
 
   let projection = await authority.getFinancialProjection(ensured.bookingId);
   if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };

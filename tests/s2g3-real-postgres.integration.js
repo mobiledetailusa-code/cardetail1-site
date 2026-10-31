@@ -442,18 +442,18 @@ async function main() {
     const importAfter = await snapshot(importId);
     record({
       test: 'I9 blob financial import during an active reservation',
-      pass: imported.seededSettlement === true
+      pass: imported.seededSettlement === false
+        && imported.importBlocked === 'manual_collection_active'
         && importAfter.booking.state === 'reserved'
-        && importAfter.ledger.length === 1
-        && importAfter.ledger[0].amountCents === CENTS,
+        && importAfter.ledger.length === 0,
       actual: {
         database: idRow.db,
         seededSettlement: imported.seededSettlement,
+        importBlocked: imported.importBlocked,
         booking: importAfter.booking,
         quote: importAfter.quote,
         ledger: importAfter.ledger,
-        bypassesBookingLock: true,
-        activationBlocker: true,
+        bypassesBookingLock: false,
       },
     });
 
