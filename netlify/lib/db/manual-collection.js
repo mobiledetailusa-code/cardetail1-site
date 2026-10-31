@@ -111,6 +111,17 @@ function publicView(row) {
     limitations: LIMITATIONS,
     reservedAt: detail.reservedAt || null,
     reservedBy: detail.reservedBy || null,
+    externalFinancialConflicts: (Array.isArray(detail.externalFinancialConflicts)
+      ? detail.externalFinancialConflicts
+      : []
+    ).map((item) => ({
+      providerEventId: item && item.providerEventId ? String(item.providerEventId) : null,
+      kind: item && item.kind ? String(item.kind) : null,
+      amountCents: Math.round(Number(item && item.amountCents) || 0),
+      stripeEventId: item && item.stripeEventId ? String(item.stripeEventId) : null,
+      reviewRequired: true,
+      squareVerified: false,
+    })),
   };
   if (state === 'closed' || state === 'payment_reported') {
     view.attestation = {
@@ -214,6 +225,9 @@ function decideReserve({ row, projection, actorId, now, createOperationId }) {
       reservedAt: now,
       reservedBy: actorId,
       history,
+      ...(Array.isArray(detail.externalFinancialConflicts)
+        ? { externalFinancialConflicts: detail.externalFinancialConflicts }
+        : {}),
     },
   };
   const view = publicView(mergedRow(row, patch));

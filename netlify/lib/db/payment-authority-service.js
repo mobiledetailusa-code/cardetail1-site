@@ -1142,6 +1142,82 @@ async function runSerializableWithRetry(operation, maxAttempts = 7) {
   throw new PaymentEventInvariantError('transaction_retry_exhausted');
 }
 
+function externalEventDetail(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function externalEventCollectionActive(state) {
+  if (state == null || state === '' || state === 'closed') return false;
+  return true;
+}
+
+/**
+ * Lock Booking after the provider event row is already locked.
+ * Settlement, collection, and quote adjustment lock Booking first and do not
+ * then lock StripeEvent, so this order does not invert those transactions.
+ * The lock is held until the event transaction commits. A clear or closed
+ * collection is left untouched. An active or unknown collection keeps its
+ * state, operation id, and URL, and gains one conflict record per provider event.
+ */
+async function preserveExternalEventCollectionConflict(tx, {
+  bookingId,
+  providerEventId,
+  kind,
+  amountCents,
+  stripeEventId,
+  providerObjectId,
+}) {
+  const rows = await tx.$queryRaw`
+    SELECT "id", "manualCollectionState", "manualCollectionOperationId",
+           "manualCollectionQuoteVersion", "manualCollectionUrl", "manualCollectionDetail"
+    FROM "Booking" WHERE "id" = ${bookingId} FOR UPDATE
+  `;
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row) return { active: false, recorded: false, reason: 'booking_missing' };
+  const state = row.manualCollectionState == null ? null : String(row.manualCollectionState);
+  if (!externalEventCollectionActive(state)) {
+    return { active: false, recorded: false, state };
+  }
+  const detail = externalEventDetail(row.manualCollectionDetail);
+  const existing = Array.isArray(detail.externalFinancialConflicts)
+    ? detail.externalFinancialConflicts
+    : [];
+  const operationId = row.manualCollectionOperationId || null;
+  const url = row.manualCollectionUrl || null;
+  if (existing.some((item) => item && item.providerEventId === providerEventId)) {
+    return { active: true, recorded: false, duplicate: true, state, operationId, url };
+  }
+  const conflict = {
+    providerEventId,
+    kind,
+    amountCents,
+    stripeEventId,
+    providerObjectId,
+    reviewRequired: true,
+    squareVerified: false,
+    recordedAt: new Date().toISOString(),
+  };
+  await tx.booking.update({
+    where: { id: bookingId },
+    data: {
+      manualCollectionDetail: {
+        ...detail,
+        externalFinancialConflicts: [...existing, conflict],
+      },
+    },
+  });
+  return { active: true, recorded: true, duplicate: false, state, operationId, url };
+}
+
 /**
  * Process one PaymentIntent event as a single PostgreSQL transaction.
  * The inbox row, attempt transition, append-only ledger credit and quote
@@ -1282,6 +1358,14 @@ async function reconcilePaymentIntentEvent({
         }
 
         const providerEventId = `settlement_${paymentIntent.id}`;
+        const manualCollectionConflict = await preserveExternalEventCollectionConflict(tx, {
+          bookingId: attempt.bookingId,
+          providerEventId,
+          kind: 'settlement',
+          amountCents,
+          stripeEventId: eventId,
+          providerObjectId: paymentIntent.id,
+        });
         let ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
         let ledgerCreated = false;
         if (!ledger) {
@@ -1326,6 +1410,7 @@ async function reconcilePaymentIntentEvent({
           duplicate: !ledgerCreated,
           ledger: { created: ledgerCreated, entry: ledger },
           projection,
+          manualCollectionConflict,
         };
       }
 
@@ -1815,8 +1900,17 @@ async function reconcileRefundEvent({ stripeEventId, type, refund, eventCreatedA
 
       let ledger = null;
       let ledgerCreated = false;
+      let manualCollectionConflict = null;
       if (nextStatus === 'succeeded') {
         const providerEventId = `refund_${refund.id}`;
+        manualCollectionConflict = await preserveExternalEventCollectionConflict(tx, {
+          bookingId: request.bookingId,
+          providerEventId,
+          kind: 'refund',
+          amountCents: request.amountCents,
+          stripeEventId: eventId,
+          providerObjectId: refund.id,
+        });
         ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
         if (!ledger) {
           const quote = await tx.quote.findUnique({
@@ -1857,6 +1951,7 @@ async function reconcileRefundEvent({ stripeEventId, type, refund, eventCreatedA
       await finishEvent();
       const projection = await projectionInTransaction(tx, request.bookingId);
       return {
+        manualCollectionConflict,
         ok: true,
         duplicate: nextStatus === 'succeeded' ? !ledgerCreated : false,
         status: nextStatus,
