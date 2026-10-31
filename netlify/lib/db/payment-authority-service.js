@@ -1952,10 +1952,12 @@ async function createAdjustment({
         };
       }
 
-      const locked = await tx.$queryRaw`
-        SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id", "manualCollectionState", "manualCollectionOperationId"
+        FROM "Booking" WHERE "id" = ${id} FOR UPDATE
       `;
-      if (!locked.length) return { ok: false, error: 'not_found', statusCode: 404 };
+      const locked = Array.isArray(lockedRows) ? lockedRows[0] : null;
+      if (!locked) return { ok: false, error: 'not_found', statusCode: 404 };
       const replayAfterLock = await tx.quote.findUnique({ where: { adjustmentId: adjustmentKey } });
       if (replayAfterLock) {
         if (replayAfterLock.bookingId !== id
@@ -1971,6 +1973,11 @@ async function createAdjustment({
           after: await projectionInTransaction(tx, id),
         };
       }
+      const manualConflict = onSiteSettlementManualCollectionConflict({
+        manualCollectionState: locked.manualCollectionState,
+        manualCollectionOperationId: locked.manualCollectionOperationId,
+      });
+      if (manualConflict) return manualConflict;
       const previousQuote = await tx.quote.findFirst({
         where: { bookingId: id },
         orderBy: { quoteVersion: 'desc' },

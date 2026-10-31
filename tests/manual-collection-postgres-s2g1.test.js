@@ -609,7 +609,11 @@ test('schema, migration, settlement guard, and provider isolation stay narrow', 
 
   const adjustmentStart = settlement.indexOf('async function createAdjustment');
   const adjustmentEnd = settlement.indexOf('function isOnSiteSettlementEntry');
-  assert.doesNotMatch(settlement.slice(adjustmentStart, adjustmentEnd), /manualCollection/);
+  const adjustmentBody = settlement.slice(adjustmentStart, adjustmentEnd);
+  const adjustmentLock = adjustmentBody.indexOf('manualCollectionState');
+  const adjustmentGuard = adjustmentBody.indexOf('onSiteSettlementManualCollectionConflict');
+  const adjustmentQuote = adjustmentBody.indexOf('tx.quote.create');
+  assert.ok(adjustmentLock >= 0 && adjustmentGuard > adjustmentLock && adjustmentQuote > adjustmentGuard);
   assert.doesNotMatch(cancel, /manualCollection/);
   assert.doesNotMatch(issuance, /manualCollection/);
 

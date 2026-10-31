@@ -415,11 +415,12 @@ async function main() {
     record({
       test: 'I8 quote adjustment during an active reservation',
       pass: quoteReserved.ok === true
-        && adjustment.ok === true
+        && adjustment.ok === false
+        && adjustment.error === 'manual_collection_active'
         && quoteAfter.booking.state === 'reserved'
         && quoteAfter.booking.operation_id === quoteReserved.operationId
-        && quoteAfter.quote.quoteVersion === 2
-        && quoteAfter.quote.approvedCents === 18000
+        && quoteAfter.quote.quoteVersion === 1
+        && quoteAfter.quote.approvedCents === CENTS
         && quoteAfter.ledger.length === 0,
       actual: {
         database: idRow.db,
@@ -428,7 +429,6 @@ async function main() {
         booking: quoteAfter.booking,
         quote: quoteAfter.quote,
         ledger: quoteAfter.ledger,
-        activationBlocker: true,
       },
     });
 
