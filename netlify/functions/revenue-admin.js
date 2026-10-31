@@ -12,6 +12,7 @@ const {
   loadOpportunities,
   buildPriorityQueue,
   sanitizeOpportunityForAdmin,
+  findBookingAttribution,
   GARAGE_PLAN_STATUSES,
   newRequestId,
 } = require('../lib/revops-dashboard');
@@ -100,6 +101,12 @@ exports.handler = async (event) => {
         const lead = await getLeadWithIdentity(String(q.leadId));
         if (!lead) return revopsJson(404, { ok: false, error: 'not_found' });
         return revopsJson(200, { ok: true, lead });
+      }
+
+      if (view === 'booking-attribution') {
+        const result = await findBookingAttribution(q.bookingId || q.booking_reference || '', q);
+        if (!result.ok) return revopsJson(400, result);
+        return revopsJson(200, result);
       }
 
       return revopsJson(400, { ok: false, error: 'unknown_view' });

@@ -52,6 +52,8 @@
     vehicle_count_band: 1, asset_category_count: 1, zip_zone: 1, booking_step: 1,
     vehicle_type: 1, device_type: 1, utm_source: 1, utm_medium: 1, utm_campaign: 1,
     utm_content: 1, utm_term: 1, referrer_domain: 1, traffic_type: 1, first_seen_at: 1,
+    first_utm_source: 1, first_utm_medium: 1, first_utm_campaign: 1, first_utm_content: 1,
+    first_utm_term: 1, last_landing_page: 1, last_referrer_domain: 1,
     booking_reference: 1, lead_temperature: 1, household_segment: 1,
     error_code: 1, offer_id: 1, multi_vehicle_band: 1, flexibility_mode: 1,
     weekend_selected: 1, funnel_step: 1, failure_code: 1, service_category: 1,
@@ -126,14 +128,34 @@
     return cleanAttr(incoming) || cleanAttr(existing && existing[key]) || null;
   }
 
+  var CLICK_ID_KEYS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid'];
+
+  function marketingAllowed() {
+    try {
+      var consent = global.Cardetail1Consent && global.Cardetail1Consent.getConsent
+        ? global.Cardetail1Consent.getConsent()
+        : null;
+      return !!(consent && consent.marketing);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function scrubClickIds(target) {
+    if (!target || typeof target !== 'object') return;
+    CLICK_ID_KEYS.forEach(function (key) { target[key] = null; });
+  }
+
   function trafficType(attr) {
     attr = attr || {};
     var medium = String(attr.utm_medium || '').toLowerCase();
-    var hasClick = !!(cleanAttr(attr.gclid) || cleanAttr(attr.gbraid) || cleanAttr(attr.wbraid));
-    if (hasClick || medium === 'cpc' || medium === 'ppc' || medium === 'paid' || medium === 'paid_social') {
+    var hasStoredClick = !!(cleanAttr(attr.gclid) || cleanAttr(attr.gbraid) || cleanAttr(attr.wbraid));
+    var hasUrlClick = !!attr.paid_click_in_url;
+    if (hasStoredClick || hasUrlClick || medium === 'cpc' || medium === 'ppc' || medium === 'paid' || medium === 'paid_social') {
       return 'paid';
     }
     if (medium === 'organic') return 'organic';
+    if (medium) return 'referral';
     var ref = String(attr.referrer_domain || '').toLowerCase();
     if (/google\.|bing\.|yahoo\.|duckduckgo\./.test(ref)) return 'organic';
     if (ref || attr.utm_source || attr.utm_medium || attr.utm_campaign) return 'referral';
@@ -154,7 +176,7 @@
 
       // Internal navigations have no campaign query. Keep the stored touch
       // instead of writing null over utm_*, landing page, or the external referrer.
-      // Click IDs stay in this object only and are omitted from GA4/Clarity.
+      // Advertising click IDs are stored only while Marketing consent is granted.
       var merged = Object.assign({}, existing);
       merged.utm_source = keepAttr(existing, 'utm_source', q.utm_source);
       merged.utm_medium = keepAttr(existing, 'utm_medium', q.utm_medium);
@@ -165,11 +187,15 @@
       merged.landing_page = cleanAttr(existing.landing_page) || path;
       merged.first_seen_at = cleanAttr(existing.first_seen_at) || now;
       merged.last_seen_at = now;
-      merged.gclid = keepAttr(existing, 'gclid', q.gclid);
-      merged.gbraid = keepAttr(existing, 'gbraid', q.gbraid);
-      merged.wbraid = keepAttr(existing, 'wbraid', q.wbraid);
-      merged.msclkid = keepAttr(existing, 'msclkid', q.msclkid);
-      merged.fbclid = keepAttr(existing, 'fbclid', q.fbclid);
+      if (marketingAllowed()) {
+        merged.gclid = keepAttr(existing, 'gclid', q.gclid);
+        merged.gbraid = keepAttr(existing, 'gbraid', q.gbraid);
+        merged.wbraid = keepAttr(existing, 'wbraid', q.wbraid);
+        merged.msclkid = keepAttr(existing, 'msclkid', q.msclkid);
+        merged.fbclid = keepAttr(existing, 'fbclid', q.fbclid);
+      } else {
+        scrubClickIds(merged);
+      }
 
       if (!existing.first_touch) {
         merged.first_touch = {
@@ -186,8 +212,10 @@
           first_seen_at: merged.first_seen_at,
         };
       }
+      var urlPaidClick = !!(cleanAttr(q.gclid) || cleanAttr(q.gbraid) || cleanAttr(q.wbraid));
       var hasNewCampaign = !!(cleanAttr(q.utm_source) || cleanAttr(q.utm_medium) || cleanAttr(q.utm_campaign)
-        || cleanAttr(q.utm_content) || cleanAttr(q.utm_term) || cleanAttr(q.gclid) || cleanAttr(q.gbraid) || cleanAttr(q.wbraid));
+        || cleanAttr(q.utm_content) || cleanAttr(q.utm_term)
+        || (marketingAllowed() && urlPaidClick));
       if (hasNewCampaign || !existing.last_touch) {
         merged.last_touch = {
           utm_source: cleanAttr(q.utm_source),
@@ -197,14 +225,21 @@
           utm_term: cleanAttr(q.utm_term),
           referrer_domain: externalRef,
           landing_page: path,
-          gclid: cleanAttr(q.gclid),
-          gbraid: cleanAttr(q.gbraid),
-          wbraid: cleanAttr(q.wbraid),
+          gclid: marketingAllowed() ? cleanAttr(q.gclid) : null,
+          gbraid: marketingAllowed() ? cleanAttr(q.gbraid) : null,
+          wbraid: marketingAllowed() ? cleanAttr(q.wbraid) : null,
           seen_at: now,
         };
       }
+      if (!marketingAllowed()) {
+        scrubClickIds(merged);
+        scrubClickIds(merged.first_touch);
+        scrubClickIds(merged.last_touch);
+      }
       localStorage.setItem(ATTR_KEY, JSON.stringify(merged));
-      return merged;
+      var result = Object.assign({}, merged);
+      result.paid_click_in_url = urlPaidClick;
+      return result;
     } catch (e) {
       return {};
     }
@@ -832,6 +867,7 @@
     document.addEventListener('cd1:consent-changed', function (ev) {
       try {
         syncGtagConsentMode(ev && ev.detail ? ev.detail : (global.Cardetail1Consent && global.Cardetail1Consent.getConsent()));
+        captureAttribution();
       } catch (e) { /* never block */ }
     });
   }
@@ -862,17 +898,26 @@
       }
 
       var attr = captureAttribution();
+      var first = attr.first_touch || {};
+      var last = attr.last_touch || {};
       var props = sanitizeProps(Object.assign({}, properties || {}, {
         event_id: eventId,
         anonymous_session_id: getSessionId(),
         timestamp: new Date().toISOString(),
         source_page: global.location.pathname,
-        landing_page: (attr.first_touch && attr.first_touch.landing_page) || attr.landing_page || global.location.pathname,
+        landing_page: first.landing_page || attr.landing_page || global.location.pathname,
+        last_landing_page: last.landing_page || undefined,
+        last_referrer_domain: last.referrer_domain || undefined,
         utm_source: attr.utm_source || undefined,
         utm_medium: attr.utm_medium || undefined,
         utm_campaign: attr.utm_campaign || undefined,
         utm_content: attr.utm_content || undefined,
         utm_term: attr.utm_term || undefined,
+        first_utm_source: first.utm_source || undefined,
+        first_utm_medium: first.utm_medium || undefined,
+        first_utm_campaign: first.utm_campaign || undefined,
+        first_utm_content: first.utm_content || undefined,
+        first_utm_term: first.utm_term || undefined,
         referrer_domain: attr.referrer_domain || undefined,
         traffic_type: trafficType(attr),
         first_seen_at: attr.first_seen_at || undefined,

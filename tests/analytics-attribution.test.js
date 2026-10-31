@@ -168,10 +168,61 @@ describe('acquisition survives internal navigation', () => {
       assert.equal(props.notes, undefined);
     }
     assert.equal(second.source_page, '/boats-detailing.html');
+    assert.equal(second.first_utm_source, 'google');
+    assert.equal(second.first_utm_campaign, 'brand');
     const stored = JSON.parse(h.window.localStorage.getItem('cd1_rev_attr'));
-    assert.equal(stored.gclid, 'CLICK1');
-    assert.equal(stored.gbraid, 'GB1');
-    assert.equal(stored.wbraid, 'WB1');
+    assert.equal(stored.gclid, null);
+    assert.equal(stored.gbraid, null);
+    assert.equal(stored.wbraid, null);
+    assert.equal(stored.first_touch.gclid, null);
+  });
+
+  it('stores advertising click IDs only while marketing consent is granted', () => {
+    const h = loadClient({
+      marketing: true,
+      search: '?gclid=CLICK1&gbraid=GB1&wbraid=WB1&utm_source=google&utm_medium=cpc',
+    });
+    h.window.Cardetail1Revenue.captureAttribution();
+    const granted = JSON.parse(h.window.localStorage.getItem('cd1_rev_attr'));
+    assert.equal(granted.gclid, 'CLICK1');
+    assert.equal(granted.gbraid, 'GB1');
+    assert.equal(granted.wbraid, 'WB1');
+
+    h.consent.marketing = false;
+    h.location.search = '';
+    h.window.Cardetail1Revenue.captureAttribution();
+    const withdrawn = JSON.parse(h.window.localStorage.getItem('cd1_rev_attr'));
+    assert.equal(withdrawn.gclid, null);
+    assert.equal(withdrawn.gbraid, null);
+    assert.equal(withdrawn.wbraid, null);
+    assert.equal(withdrawn.first_touch.gclid, null);
+    assert.equal(withdrawn.utm_source, 'google');
+  });
+
+  it('keeps the first campaign when a later visit brings a new one', () => {
+    const h = loadClient({
+      search: '?utm_source=google&utm_medium=cpc&utm_campaign=brand',
+      pathname: '/ceramic',
+      referrer: 'https://www.google.com/search',
+    });
+    h.window.Cardetail1Revenue.track('page_view', { event_id: 'evt-first' });
+    h.location.search = '?utm_source=newsletter&utm_medium=email&utm_campaign=oct';
+    h.location.pathname = '/offer';
+    h.document.referrer = 'https://mail.example/message';
+    h.window.Cardetail1Revenue.track('page_view', { event_id: 'evt-later' });
+    const props = eventBodies(h.fetchCalls)[1].properties;
+    assert.equal(props.utm_source, 'newsletter');
+    assert.equal(props.utm_medium, 'email');
+    assert.equal(props.utm_campaign, 'oct');
+    assert.equal(props.first_utm_source, 'google');
+    assert.equal(props.first_utm_medium, 'cpc');
+    assert.equal(props.first_utm_campaign, 'brand');
+    assert.equal(props.landing_page, '/ceramic');
+    assert.equal(props.last_landing_page, '/offer');
+    assert.equal(props.referrer_domain, 'www.google.com');
+    assert.equal(props.last_referrer_domain, 'mail.example');
+    assert.equal(props.traffic_type, 'referral');
+    assert.equal(props.gclid, undefined);
   });
 
   it('classifies organic, referral, and direct without a campaign', () => {
@@ -193,7 +244,7 @@ describe('acquisition survives internal navigation', () => {
     const paid = eventBodies(autoTag.fetchCalls)[0].properties;
     assert.equal(paid.traffic_type, 'paid');
     assert.equal(paid.gclid, undefined);
-    assert.equal(JSON.parse(autoTag.window.localStorage.getItem('cd1_rev_attr')).gclid, 'CLICK-ONLY');
+    assert.equal(JSON.parse(autoTag.window.localStorage.getItem('cd1_rev_attr')).gclid, null);
   });
 });
 
@@ -348,5 +399,77 @@ describe('package selection is part of the funnel', () => {
     assert.equal(selected[0].properties.estimated_value, 440);
     assert.equal(selected[0].properties.category, 'cars');
     assert.equal(selected[0].properties.email, undefined);
+  });
+});
+
+describe('admin booking attribution lookup', () => {
+  const { findBookingAttribution } = require('../netlify/lib/revops-dashboard');
+
+  it('rejects a malformed booking id before reading events', async () => {
+    let reads = 0;
+    const result = await findBookingAttribution('not-a-booking', {}, {
+      listKeys: async () => { reads += 1; return []; },
+      getJson: async () => { reads += 1; return null; },
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'invalid_booking_reference');
+    assert.equal(reads, 0);
+  });
+
+  it('returns the stored origin for one booking and omits personal data', async () => {
+    const record = {
+      event: 'booking_submitted',
+      receivedAt: '2026-10-22T18:00:00.000Z',
+      properties: {
+        booking_reference: 'CD1-MVJLFEUS-2M6Q',
+        traffic_type: 'paid',
+        utm_source: 'google',
+        utm_medium: 'cpc',
+        utm_campaign: 'brand',
+        utm_content: 'ad-a',
+        utm_term: 'interior detail',
+        landing_page: '/ceramic',
+        last_landing_page: '/ceramic',
+        referrer_domain: 'www.google.com',
+        last_referrer_domain: 'www.google.com',
+        first_seen_at: '2026-10-22T17:40:00.000Z',
+        timestamp: '2026-10-22T17:55:00.000Z',
+        first_utm_source: 'google',
+        first_utm_medium: 'cpc',
+        first_utm_campaign: 'brand',
+        email: 'hidden@example.com',
+        phone: '2015550100',
+        gclid: 'CLICK-SECRET',
+        address: 'Upper Saddle River',
+      },
+    };
+    const result = await findBookingAttribution('cd1-mvjlfeus-2m6q', { from: '2026-10-01', to: '2026-10-31' }, {
+      listKeys: async (day) => (day === '2026-10-22' ? ['2026-10-22/evt-1'] : []),
+      getJson: async (key) => (key === '2026-10-22/evt-1' ? record : null),
+    });
+    assert.equal(result.found, true);
+    assert.equal(result.bookingId, 'CD1-MVJLFEUS-2M6Q');
+    assert.equal(result.attribution.channel, 'paid');
+    assert.equal(result.attribution.campaign, 'brand');
+    assert.equal(result.attribution.landingPage, '/ceramic');
+    assert.equal(result.attribution.referrer, 'www.google.com');
+    assert.equal(result.attribution.firstSeenAt, '2026-10-22T17:40:00.000Z');
+    assert.equal(result.attribution.requestedAt, '2026-10-22T17:55:00.000Z');
+    assert.equal(result.attribution.firstTouch.campaign, 'brand');
+    const json = JSON.stringify(result);
+    assert.equal(json.includes('hidden@example.com'), false);
+    assert.equal(json.includes('2015550100'), false);
+    assert.equal(json.includes('CLICK-SECRET'), false);
+    assert.equal(json.includes('Upper Saddle River'), false);
+  });
+
+  it('reports a bounded miss when the booking event is absent', async () => {
+    const result = await findBookingAttribution('CD1-MISSING', { from: '2026-10-22', to: '2026-10-22' }, {
+      listKeys: async () => ['2026-10-22/other'],
+      getJson: async () => ({ event: 'page_view', properties: { utm_source: 'google', email: 'nope@example.com' } }),
+    });
+    assert.equal(result.found, false);
+    assert.equal(result.reason, 'no_matching_event');
+    assert.equal(JSON.stringify(result).includes('nope@example.com'), false);
   });
 });

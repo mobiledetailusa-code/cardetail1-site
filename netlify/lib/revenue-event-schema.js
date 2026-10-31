@@ -29,6 +29,8 @@ const APPROVED_PROPERTIES = Object.freeze([
   'vehicle_count_band', 'asset_category_count', 'zip_zone', 'booking_step',
   'vehicle_type', 'device_type', 'utm_source', 'utm_medium', 'utm_campaign',
   'utm_content', 'utm_term', 'referrer_domain', 'traffic_type', 'first_seen_at',
+  'first_utm_source', 'first_utm_medium', 'first_utm_campaign', 'first_utm_content',
+  'first_utm_term', 'last_landing_page', 'last_referrer_domain',
   'booking_reference', 'lead_temperature', 'household_segment',
   'error_code', 'offer_id', 'multi_vehicle_band',
   'flexibility_mode', 'weekend_selected', 'funnel_step', 'failure_code',

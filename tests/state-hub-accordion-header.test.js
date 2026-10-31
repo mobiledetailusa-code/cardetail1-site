@@ -292,6 +292,7 @@ test('no Netlify Function files changed in this UX scope', () => {
     'netlify/functions/revenue-event.js',
     'netlify/functions/garage-plan-submit.js',
     'netlify/functions/revenue-admin.js',
+    'netlify/functions/analytics-public-config.mjs',
     'netlify/functions/revenue-resume-link.js',
     'netlify/functions/booking-card-status.js',
     'netlify/functions/lookup-booking.js',

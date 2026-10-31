@@ -397,6 +397,120 @@ async function buildRevopsDashboard(query = {}) {
   });
 }
 
+const BOOKING_REF_RE = /^CD1-[A-Za-z0-9-]{4,64}$/;
+const ATTRIBUTION_SCAN_LIMIT = 2000;
+
+function normalizeBookingReference(value) {
+  const ref = String(value || '').trim().toUpperCase();
+  if (!BOOKING_REF_RE.test(ref)) return '';
+  return ref;
+}
+
+function projectBookingAttribution(record) {
+  const p = record && record.properties && typeof record.properties === 'object' ? record.properties : {};
+  const pick = (key) => {
+    const value = p[key];
+    if (value == null || value === '') return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'boolean') return value;
+    return String(value).slice(0, 256);
+  };
+  return {
+    bookingId: pick('booking_reference'),
+    channel: pick('traffic_type'),
+    source: pick('utm_source'),
+    medium: pick('utm_medium'),
+    campaign: pick('utm_campaign'),
+    content: pick('utm_content'),
+    term: pick('utm_term'),
+    landingPage: pick('landing_page'),
+    lastLandingPage: pick('last_landing_page'),
+    referrer: pick('referrer_domain'),
+    lastReferrer: pick('last_referrer_domain'),
+    firstSeenAt: pick('first_seen_at'),
+    requestedAt: pick('timestamp') || (record && (record.receivedAt || record.at)) || null,
+    firstTouch: {
+      source: pick('first_utm_source'),
+      medium: pick('first_utm_medium'),
+      campaign: pick('first_utm_campaign'),
+      content: pick('first_utm_content'),
+      term: pick('first_utm_term'),
+      landingPage: pick('landing_page'),
+    },
+  };
+}
+
+async function findBookingAttribution(bookingReference, query = {}, deps = {}) {
+  const bookingId = normalizeBookingReference(bookingReference);
+  if (!bookingId) return { ok: false, error: 'invalid_booking_reference' };
+
+  const range = parseDateRange(query);
+  const days = dayKeysBetween(range.fromDay, range.toDay);
+  let store = null;
+  if (typeof deps.listKeys !== 'function' || typeof deps.getJson !== 'function') {
+    store = await revenueStore.getRevenueStore('events');
+  }
+  const listKeys = deps.listKeys || ((day) => revenueStore.blobListKeys(store, {
+    prefix: `${day}/`,
+    limit: 500,
+  }));
+  const getJson = deps.getJson || ((key) => revenueStore.blobGetJson(store, key));
+
+  let scanned = 0;
+  const warnings = [];
+  for (const day of days) {
+    if (scanned >= ATTRIBUTION_SCAN_LIMIT) {
+      warnings.push('scan_limit');
+      break;
+    }
+    let keys = [];
+    try {
+      keys = await listKeys(day);
+    } catch {
+      warnings.push(`events_list_failed:${day}`);
+      continue;
+    }
+    for (const key of keys || []) {
+      if (scanned >= ATTRIBUTION_SCAN_LIMIT) {
+        warnings.push('scan_limit');
+        break;
+      }
+      scanned += 1;
+      let raw = null;
+      try {
+        raw = await getJson(key);
+      } catch {
+        warnings.push('events_read_failed');
+        continue;
+      }
+      const norm = normalizeEvent(raw, key);
+      if (!norm || norm.event !== 'booking_submitted') continue;
+      const ref = normalizeBookingReference(norm.properties && norm.properties.booking_reference);
+      if (!ref || ref !== bookingId) continue;
+      const attribution = projectBookingAttribution(norm);
+      attribution.bookingId = bookingId;
+      return {
+        ok: true,
+        found: true,
+        bookingId,
+        scanned,
+        window: { from: range.from, to: range.to },
+        attribution,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    found: false,
+    bookingId,
+    reason: warnings.includes('scan_limit') ? 'scan_limit' : 'no_matching_event',
+    scanned,
+    window: { from: range.from, to: range.to },
+    warnings,
+  };
+}
+
 function newRequestId() {
   return `revops_${crypto.randomBytes(6).toString('hex')}`;
 }
@@ -408,6 +522,8 @@ module.exports = {
   parseDateRange,
   blobListKeys,
   loadEventsInRange,
+  findBookingAttribution,
+  projectBookingAttribution,
   loadOpportunities,
   buildRevopsDashboard,
   sanitizeOpportunityForAdmin,

@@ -14,7 +14,7 @@ Banner: `assets/consent-manager.js` — optional categories **not preselected**.
 
 Only approved properties reach GA4/GTM/Clarity/first-party endpoint. Rejected by default: name, email, phone, address, full ZIP, VIN, tokens, chat transcript, card data, advertising click IDs in third-party payloads.
 
-Click IDs (`gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`) and the booking reference stored for admin attribution stay first-party — **not** sent to GA4 or Clarity. `utm_term` is a campaign term, not a customer identifier, and may be stored with the other UTM fields. Name, phone, email, address, and notes are never analytics properties.
+Click IDs (`gclid`, `gbraid`, `wbraid`, `msclkid`, `fbclid`) are written to first-party `localStorage` only after Marketing consent, and are removed if that consent is withdrawn. They are not sent to GA4, Clarity, or the first-party event payload. The booking reference used for admin attribution stays on the first-party event only. `utm_term` is a campaign term, not a customer identifier, and may be stored with the other UTM fields. Name, phone, email, address, and notes are never analytics properties.
 
 ## PII handling
 
