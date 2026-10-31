@@ -176,7 +176,48 @@ async function syncBlobCompatibilityFromProjection(bookingId, projection) {
   return committed;
 }
 
-async function getSharedFinancialProjection(booking, { env = process.env } = {}) {
+/**
+ * Read the PostgreSQL projection without seeding a booking, a quote, or a
+ * ledger row from the Blob. Failure stays a failure. It does not hand the
+ * caller a Blob balance and does not change the default shared reader.
+ */
+async function readStrictPostgresFinancialProjection(booking, { env = process.env } = {}) {
+  if (!postgresPaymentEnabled(env)) {
+    return { ok: false, error: 'postgres_payment_disabled', authority: 'none' };
+  }
+  const bookingId = String(booking?.id || booking?.bookingId || '').trim();
+  if (!bookingId) return { ok: false, error: 'missing_booking_id', authority: 'none' };
+  try {
+    const projection = await authority.getFinancialProjection(bookingId);
+    if (!projection || typeof projection !== 'object') {
+      return { ok: false, error: 'projection_unavailable', authority: 'none' };
+    }
+    if (String(projection.bookingId || '') !== bookingId) {
+      return { ok: false, error: 'projection_booking_mismatch', authority: 'none' };
+    }
+    const mapped = mapProjectionForPortals(projection);
+    const currency = typeof projection.currency === 'string'
+      ? projection.currency.trim().toLowerCase()
+      : '';
+    return {
+      ok: true,
+      authority: 'postgres',
+      bookingId,
+      projection: {
+        ...mapped,
+        currency: currency || null,
+      },
+    };
+  } catch {
+    return { ok: false, error: 'projection_unavailable', authority: 'none' };
+  }
+}
+
+async function getSharedFinancialProjection(booking, options = {}) {
+  const env = options.env || process.env;
+  if (options.strictSource === 'postgres') {
+    return readStrictPostgresFinancialProjection(booking, { env });
+  }
   if (!postgresPaymentEnabled(env)) {
     return { ok: false, error: 'postgres_payment_disabled', authority: 'blob' };
   }
@@ -196,6 +237,8 @@ async function getSharedFinancialProjection(booking, { env = process.env } = {})
       authority: 'postgres',
       projection: mapProjectionForPortals(projection),
       bookingId: ensured.bookingId,
+      synchronizationBlocked: ensured.synchronizationBlocked === true,
+      importBlocked: ensured.importBlocked || null,
     };
   } catch (e) {
     // DATABASE_URL may be set while the DB/adapter is unreachable (common on
@@ -255,6 +298,14 @@ async function prepareEmbeddedPaymentInner({
   }
   const ensured = await ensureBookingFinancial(booking);
   if (!ensured.ok) return { ok: false, error: ensured.error, statusCode: 503 };
+  if (ensured.synchronizationBlocked) {
+    return {
+      ok: false,
+      error: 'manual_collection_active',
+      statusCode: 409,
+      synchronizationBlocked: true,
+    };
+  }
 
   let projection = await authority.getFinancialProjection(ensured.bookingId);
   if (!projection) return { ok: false, error: 'not_found', statusCode: 404 };
@@ -718,6 +769,7 @@ async function settleAdminCashFullBalance(args) {
 
 module.exports = {
   postgresPaymentEnabled,
+  readStrictPostgresFinancialProjection,
   mapProjectionForPortals,
   buildPaymentCompatibilityPatch,
   syncBlobCompatibilityFromProjection,

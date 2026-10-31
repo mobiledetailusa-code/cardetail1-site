@@ -23,6 +23,7 @@ const {
 const { getPrisma, tryGetPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
 const { computeFinancialProjection } = require('./financial-projection');
+const { onSiteSettlementManualCollectionConflict } = require('./manual-collection');
 const repo = require('./repositories');
 const foundation = require('./foundation-services');
 const {
@@ -49,7 +50,15 @@ async function getFinancialProjection(bookingId, prismaOverride = null) {
     prisma.refundRequest.findMany({ where: { bookingId }, orderBy: { createdAt: 'asc' } }),
   ]);
   if (!booking || !quote) return null;
-  return computeFinancialProjection({ booking, quote, paymentAttempts, ledgerEntries, refundRequests });
+  const projection = computeFinancialProjection({
+    booking,
+    quote,
+    paymentAttempts,
+    ledgerEntries,
+    refundRequests,
+  });
+  const rawCurrency = typeof quote.currency === 'string' ? quote.currency.trim().toLowerCase() : '';
+  return { ...projection, currency: rawCurrency || null };
 }
 
 /**
@@ -469,30 +478,71 @@ async function recordSucceededAttemptLedger(prisma, attempt, paymentIntent, acto
   );
   if (!providerObjectId.startsWith('pi_')) return { ok: false, reason: 'missing_payment_intent' };
   const providerEventId = `settlement_${providerObjectId}`;
+  if (typeof prisma.$transaction !== 'function') {
+    return { ok: false, reason: 'ledger_write_failed' };
+  }
+  // The Stripe retrieve already finished. This transaction locks Booking only.
+  // It does not lock PaymentAttempt, StripeEvent, or RefundRequest, so it does
+  // not invert the webhook order (those rows, then Booking) and it does not
+  // cycle with settlement, which also locks Booking first.
+  // The attempt status is updated after commit, without holding Booking.
   try {
-    let ledger = await prisma.ledgerEntry.findUnique({ where: { providerEventId } });
-    if (!ledger) {
-      ledger = await prisma.ledgerEntry.create({
-        data: {
-          bookingId: attempt.bookingId,
-          quoteId: attempt.quoteId || null,
-          paymentAttemptId: attempt.id,
-          kind: 'settlement',
-          amountCents,
-          currency: attempt.currency || 'usd',
-          quoteVersion: Math.round(Number(attempt.quoteVersion) || 0),
-          providerObjectId,
-          providerEventId,
-          occurredAt: new Date(),
-          actor: actor || 'stripe_reconcile',
-        },
-      });
+    let written = null;
+    for (let attemptNumber = 1; attemptNumber <= 3; attemptNumber += 1) {
+      try {
+        written = await prisma.$transaction(async (tx) => {
+          const manualCollectionConflict = await preserveExternalEventCollectionConflict(tx, {
+            bookingId: attempt.bookingId,
+            providerEventId,
+            kind: 'settlement',
+            amountCents,
+            stripeEventId: null,
+            providerObjectId,
+          });
+          let ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
+          if (!ledger) {
+            try {
+              ledger = await tx.ledgerEntry.create({
+                data: {
+                  bookingId: attempt.bookingId,
+                  quoteId: attempt.quoteId || null,
+                  paymentAttemptId: attempt.id,
+                  kind: 'settlement',
+                  amountCents,
+                  currency: attempt.currency || 'usd',
+                  quoteVersion: Math.round(Number(attempt.quoteVersion) || 0),
+                  providerObjectId,
+                  providerEventId,
+                  occurredAt: new Date(),
+                  actor: actor || 'stripe_reconcile',
+                },
+              });
+            } catch (error) {
+              if (!isUniqueLedgerConflict(error)) throw error;
+              ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
+            }
+          }
+          return { ledger, manualCollectionConflict };
+        }, {
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        });
+        break;
+      } catch (error) {
+        if (attemptNumber < 3 && (isRetryableTransactionConflict(error) || isDroppedConnection(error))) {
+          continue;
+        }
+        throw error;
+      }
     }
     await prisma.paymentAttempt.update({
       where: { id: attempt.id },
       data: { status: 'succeeded' },
     });
-    return { ok: true, ledger };
+    return {
+      ok: true,
+      ledger: written.ledger,
+      manualCollectionConflict: written.manualCollectionConflict,
+    };
   } catch (err) {
     console.warn('[payment-authority] settlement ledger failed', err && err.message ? err.message : err);
     return { ok: false, reason: 'ledger_write_failed' };
@@ -1100,6 +1150,17 @@ async function persistFailedStripeEvent({
   }
 }
 
+function isUniqueLedgerConflict(error) {
+  const codes = [error?.code, error?.cause?.code, error?.meta?.code].filter(Boolean).map(String);
+  if (codes.includes('P2002')) return true;
+  return /unique constraint/i.test(String(error?.message || error?.cause?.message || ''));
+}
+
+function isDroppedConnection(error) {
+  return /ECONNRESET|EPIPE|connection terminated|server closed the connection|closed the connection|Can't reach database server/i
+    .test(String(error?.message || error?.cause?.message || ''));
+}
+
 function isRetryableTransactionConflict(error) {
   const codes = [
     error?.code,
@@ -1131,6 +1192,82 @@ async function runSerializableWithRetry(operation, maxAttempts = 7) {
     }
   }
   throw new PaymentEventInvariantError('transaction_retry_exhausted');
+}
+
+function externalEventDetail(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function externalEventCollectionActive(state) {
+  if (state == null || state === '' || state === 'closed') return false;
+  return true;
+}
+
+/**
+ * Lock Booking after the provider event row is already locked.
+ * Settlement, collection, and quote adjustment lock Booking first and do not
+ * then lock StripeEvent, so this order does not invert those transactions.
+ * The lock is held until the event transaction commits. A clear or closed
+ * collection is left untouched. An active or unknown collection keeps its
+ * state, operation id, and URL, and gains one conflict record per provider event.
+ */
+async function preserveExternalEventCollectionConflict(tx, {
+  bookingId,
+  providerEventId,
+  kind,
+  amountCents,
+  stripeEventId,
+  providerObjectId,
+}) {
+  const rows = await tx.$queryRaw`
+    SELECT "id", "manualCollectionState", "manualCollectionOperationId",
+           "manualCollectionQuoteVersion", "manualCollectionUrl", "manualCollectionDetail"
+    FROM "Booking" WHERE "id" = ${bookingId} FOR UPDATE
+  `;
+  const row = Array.isArray(rows) ? rows[0] : null;
+  if (!row) return { active: false, recorded: false, reason: 'booking_missing' };
+  const state = row.manualCollectionState == null ? null : String(row.manualCollectionState);
+  if (!externalEventCollectionActive(state)) {
+    return { active: false, recorded: false, state };
+  }
+  const detail = externalEventDetail(row.manualCollectionDetail);
+  const existing = Array.isArray(detail.externalFinancialConflicts)
+    ? detail.externalFinancialConflicts
+    : [];
+  const operationId = row.manualCollectionOperationId || null;
+  const url = row.manualCollectionUrl || null;
+  if (existing.some((item) => item && item.providerEventId === providerEventId)) {
+    return { active: true, recorded: false, duplicate: true, state, operationId, url };
+  }
+  const conflict = {
+    providerEventId,
+    kind,
+    amountCents,
+    stripeEventId,
+    providerObjectId,
+    reviewRequired: true,
+    squareVerified: false,
+    recordedAt: new Date().toISOString(),
+  };
+  await tx.booking.update({
+    where: { id: bookingId },
+    data: {
+      manualCollectionDetail: {
+        ...detail,
+        externalFinancialConflicts: [...existing, conflict],
+      },
+    },
+  });
+  return { active: true, recorded: true, duplicate: false, state, operationId, url };
 }
 
 /**
@@ -1273,6 +1410,14 @@ async function reconcilePaymentIntentEvent({
         }
 
         const providerEventId = `settlement_${paymentIntent.id}`;
+        const manualCollectionConflict = await preserveExternalEventCollectionConflict(tx, {
+          bookingId: attempt.bookingId,
+          providerEventId,
+          kind: 'settlement',
+          amountCents,
+          stripeEventId: eventId,
+          providerObjectId: paymentIntent.id,
+        });
         let ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
         let ledgerCreated = false;
         if (!ledger) {
@@ -1317,6 +1462,7 @@ async function reconcilePaymentIntentEvent({
           duplicate: !ledgerCreated,
           ledger: { created: ledgerCreated, entry: ledger },
           projection,
+          manualCollectionConflict,
         };
       }
 
@@ -1806,8 +1952,17 @@ async function reconcileRefundEvent({ stripeEventId, type, refund, eventCreatedA
 
       let ledger = null;
       let ledgerCreated = false;
+      let manualCollectionConflict = null;
       if (nextStatus === 'succeeded') {
         const providerEventId = `refund_${refund.id}`;
+        manualCollectionConflict = await preserveExternalEventCollectionConflict(tx, {
+          bookingId: request.bookingId,
+          providerEventId,
+          kind: 'refund',
+          amountCents: request.amountCents,
+          stripeEventId: eventId,
+          providerObjectId: refund.id,
+        });
         ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
         if (!ledger) {
           const quote = await tx.quote.findUnique({
@@ -1848,6 +2003,7 @@ async function reconcileRefundEvent({ stripeEventId, type, refund, eventCreatedA
       await finishEvent();
       const projection = await projectionInTransaction(tx, request.bookingId);
       return {
+        manualCollectionConflict,
         ok: true,
         duplicate: nextStatus === 'succeeded' ? !ledgerCreated : false,
         status: nextStatus,
@@ -1943,10 +2099,12 @@ async function createAdjustment({
         };
       }
 
-      const locked = await tx.$queryRaw`
-        SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id", "manualCollectionState", "manualCollectionOperationId"
+        FROM "Booking" WHERE "id" = ${id} FOR UPDATE
       `;
-      if (!locked.length) return { ok: false, error: 'not_found', statusCode: 404 };
+      const locked = Array.isArray(lockedRows) ? lockedRows[0] : null;
+      if (!locked) return { ok: false, error: 'not_found', statusCode: 404 };
       const replayAfterLock = await tx.quote.findUnique({ where: { adjustmentId: adjustmentKey } });
       if (replayAfterLock) {
         if (replayAfterLock.bookingId !== id
@@ -1962,6 +2120,11 @@ async function createAdjustment({
           after: await projectionInTransaction(tx, id),
         };
       }
+      const manualConflict = onSiteSettlementManualCollectionConflict({
+        manualCollectionState: locked.manualCollectionState,
+        manualCollectionOperationId: locked.manualCollectionOperationId,
+      });
+      if (manualConflict) return manualConflict;
       const previousQuote = await tx.quote.findFirst({
         where: { bookingId: id },
         orderBy: { quoteVersion: 'desc' },
@@ -2133,9 +2296,11 @@ async function recordFullBalanceOnSiteSettlement({ bookingId, method = 'cash', b
 
   try {
     return await runSerializableWithRetry(async (tx) => {
-      await tx.$queryRaw`
-        SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id", "manualCollectionState", "manualCollectionOperationId"
+        FROM "Booking" WHERE "id" = ${id} FOR UPDATE
       `;
+      const locked = Array.isArray(lockedRows) ? lockedRows[0] : null;
       const booking = await tx.booking.findUnique({ where: { id } });
       const quote = await tx.quote.findFirst({
         where: { bookingId: id },
@@ -2144,6 +2309,12 @@ async function recordFullBalanceOnSiteSettlement({ bookingId, method = 'cash', b
       if (!booking || !quote) {
         return { ok: false, error: 'not_found', statusCode: 404 };
       }
+      const manualConflict = onSiteSettlementManualCollectionConflict({
+        ...booking,
+        manualCollectionState: locked?.manualCollectionState ?? booking.manualCollectionState,
+        manualCollectionOperationId: locked?.manualCollectionOperationId ?? booking.manualCollectionOperationId,
+      });
+      if (manualConflict) return manualConflict;
 
       const ledgerEntries = await tx.ledgerEntry.findMany({
         where: { bookingId: id },
@@ -2558,6 +2729,250 @@ async function observeProviderPaymentIntent({
   return result;
 }
 
+function squareDashboardProviderEventId(reference) {
+  return `square_dashboard_receipt:${reference}`;
+}
+
+function normalizeSquareReference(value) {
+  const reference = String(value || '').trim();
+  if (!/^[A-Za-z0-9_-]{4,80}$/.test(reference)) return null;
+  return reference;
+}
+
+function detailObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+/**
+ * Administrator attestation of a Square Dashboard receipt.
+ * This is not a Square API verification and it is not cash or card-on-site.
+ * The caller must already hold the Booking row lock.
+ */
+function evaluateSquareDashboardReceipt(input = {}) {
+  const actorId = String(input.actorId || '').trim();
+  if (!actorId) return { ok: false, error: 'admin_required', statusCode: 401, providerVerified: false };
+  if (input.dashboardObserved !== true) {
+    return { ok: false, error: 'square_dashboard_observation_required', statusCode: 409, providerVerified: false };
+  }
+  const booking = input.booking;
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404, providerVerified: false };
+  const state = booking.manualCollectionState ? String(booking.manualCollectionState) : null;
+  if (state !== 'recorded' && state !== 'payment_reported') {
+    return {
+      ok: false,
+      error: 'manual_collection_url_required',
+      statusCode: 409,
+      providerVerified: false,
+      manualCollectionState: state,
+    };
+  }
+  if (String(booking.manualCollectionOperationId || '') !== String(input.operationId || '')) {
+    return { ok: false, error: 'manual_collection_operation_mismatch', statusCode: 409, providerVerified: false };
+  }
+  if (!String(booking.manualCollectionUrl || '').trim()) {
+    return { ok: false, error: 'manual_collection_url_required', statusCode: 409, providerVerified: false };
+  }
+  const reference = normalizeSquareReference(input.squareTransactionRef);
+  if (!reference) {
+    return { ok: false, error: 'square_transaction_reference_required', statusCode: 400, providerVerified: false };
+  }
+  if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) {
+    return { ok: false, error: 'square_receipt_amount_mismatch', statusCode: 409, providerVerified: false };
+  }
+  const currency = String(input.currency || '').trim().toLowerCase();
+  const quoteCurrency = String(input.quote && input.quote.currency ? input.quote.currency : 'usd').trim().toLowerCase();
+  if (!currency || currency !== quoteCurrency) {
+    return { ok: false, error: 'square_receipt_currency_mismatch', statusCode: 409, providerVerified: false };
+  }
+  const providerEventId = squareDashboardProviderEventId(reference);
+  const unmarked = {
+    providerVerified: false,
+    squareVerified: false,
+    apiVerified: false,
+    verificationMethod: 'administrator_square_dashboard',
+    source: 'square_dashboard',
+    paid: false,
+    paymentEvidence: false,
+  };
+  const existing = input.existingReceipt || null;
+  if (existing) {
+    if (existing.bookingId !== booking.id
+      || existing.amountCents !== input.amountCents
+      || String(existing.currency || '').toLowerCase() !== currency
+      || existing.kind !== 'settlement') {
+      return { ok: false, error: 'square_reference_conflict', statusCode: 409, ...unmarked };
+    }
+    return {
+      ok: true,
+      idempotent: true,
+      write: false,
+      providerEventId,
+      ledgerEntryCreated: false,
+      restrictionHeld: true,
+      ...unmarked,
+    };
+  }
+  const detail = detailObject(booking.manualCollectionDetail);
+  const conflicts = Array.isArray(detail.externalFinancialConflicts) ? detail.externalFinancialConflicts : [];
+  const settlements = (input.ledgerEntries || []).filter((entry) => entry.kind === 'settlement');
+  const refunds = (input.ledgerEntries || []).filter((entry) => entry.kind === 'refund');
+  const pendingRefundCents = Math.round(Number(input.projection && input.projection.pendingRefundCents) || 0);
+  const activeAttempt = (input.paymentAttempts || []).some((attempt) => (
+    ['creating', 'open', 'requires_action'].includes(attempt.status)
+  ));
+  if (conflicts.length > 0 || settlements.length > 0 || refunds.length > 0 || pendingRefundCents > 0) {
+    return { ok: false, error: 'square_receipt_review_required', statusCode: 409, ...unmarked };
+  }
+  if (activeAttempt) {
+    return { ok: false, error: 'payment_attempt_in_progress', statusCode: 409, ...unmarked };
+  }
+  const remaining = Math.round(Number(input.projection && input.projection.remainingCents));
+  if (!Number.isFinite(remaining) || remaining <= 0) {
+    return { ok: false, error: 'square_receipt_review_required', statusCode: 409, ...unmarked };
+  }
+  if (input.amountCents !== remaining) {
+    return { ok: false, error: 'square_receipt_amount_mismatch', statusCode: 409, ...unmarked };
+  }
+  const verifiedAt = input.now || new Date().toISOString();
+  const receipt = {
+    providerEventId,
+    squareTransactionRef: reference,
+    amountCents: remaining,
+    currency,
+    actorId,
+    verifiedAt,
+    source: 'square_dashboard',
+    verificationMethod: 'administrator_square_dashboard',
+    squareVerified: false,
+    apiVerified: false,
+    providerVerified: false,
+  };
+  return {
+    ok: true,
+    idempotent: false,
+    write: true,
+    providerEventId,
+    ledgerEntryCreated: true,
+    restrictionHeld: true,
+    ...unmarked,
+    ledger: {
+      bookingId: booking.id,
+      quoteId: input.quote && input.quote.id ? input.quote.id : null,
+      kind: 'settlement',
+      amountCents: remaining,
+      currency,
+      quoteVersion: input.quote.quoteVersion,
+      providerObjectId: reference,
+      providerEventId,
+      actor: actorId,
+    },
+    patch: {
+      manualCollectionState: 'payment_reported',
+      manualCollectionDetail: {
+        ...detail,
+        squareDashboardReceipt: receipt,
+      },
+    },
+  };
+}
+
+async function recordAdministratorSquareReceipt(input = {}) {
+  const id = String(input.bookingId || '').trim();
+  if (!id) return { ok: false, error: 'bookingId_required', statusCode: 400, providerVerified: false };
+  const prisma = input.prisma || getPrisma();
+  if (!prisma) return { ok: false, error: 'database_not_configured', statusCode: 503, providerVerified: false };
+  const unmarked = {
+    providerVerified: false,
+    squareVerified: false,
+    apiVerified: false,
+    paid: false,
+    paymentEvidence: false,
+    verificationMethod: 'administrator_square_dashboard',
+    source: 'square_dashboard',
+  };
+  for (let attemptNumber = 1; attemptNumber <= 3; attemptNumber += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw`
+          SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+        `;
+        if (!Array.isArray(locked) || locked.length === 0) {
+          return { ok: false, error: 'not_found', statusCode: 404, ...unmarked };
+        }
+        const booking = await tx.booking.findUnique({ where: { id } });
+        const quote = await tx.quote.findFirst({
+          where: { bookingId: id },
+          orderBy: { quoteVersion: 'desc' },
+        });
+        if (!booking || !quote) return { ok: false, error: 'not_found', statusCode: 404, ...unmarked };
+        const ledgerEntries = await tx.ledgerEntry.findMany({ where: { bookingId: id } });
+        const paymentAttempts = await tx.paymentAttempt.findMany({ where: { bookingId: id } });
+        const refundRequests = await tx.refundRequest.findMany({ where: { bookingId: id } });
+        const projection = computeFinancialProjection({
+          booking, quote, paymentAttempts, ledgerEntries, refundRequests,
+        });
+        const reference = normalizeSquareReference(input.squareTransactionRef);
+        const existingReceipt = reference
+          ? await tx.ledgerEntry.findUnique({
+            where: { providerEventId: squareDashboardProviderEventId(reference) },
+          })
+          : null;
+        const decision = evaluateSquareDashboardReceipt({
+          booking,
+          quote,
+          projection,
+          ledgerEntries,
+          paymentAttempts,
+          existingReceipt,
+          amountCents: input.amountCents,
+          currency: input.currency,
+          squareTransactionRef: input.squareTransactionRef,
+          operationId: input.operationId,
+          actorId: input.actorId,
+          dashboardObserved: input.dashboardObserved === true,
+          now: input.now,
+        });
+        if (!decision.ok || !decision.write) return { ...unmarked, ...decision };
+        try {
+          await tx.ledgerEntry.create({ data: decision.ledger });
+        } catch (error) {
+          if (!isUniqueLedgerConflict(error)) throw error;
+          const raced = await tx.ledgerEntry.findUnique({ where: { providerEventId: decision.providerEventId } });
+          if (!raced || raced.bookingId !== id) {
+            return { ok: false, error: 'square_reference_conflict', statusCode: 409, ...unmarked };
+          }
+          return {
+            ok: true,
+            idempotent: true,
+            write: false,
+            ledgerEntryCreated: false,
+            providerEventId: decision.providerEventId,
+            restrictionHeld: true,
+            ...unmarked,
+          };
+        }
+        await tx.booking.update({ where: { id }, data: decision.patch });
+        return {
+          ...decision,
+          ledger: undefined,
+          patch: undefined,
+          manualCollectionState: 'payment_reported',
+          operationId: booking.manualCollectionOperationId,
+        };
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      });
+    } catch (error) {
+      if (attemptNumber < 3 && isRetryableTransactionConflict(error)) continue;
+      if (isDroppedConnection(error)) {
+        return { ok: false, error: 'square_receipt_outcome_unknown', statusCode: 503, ...unmarked };
+      }
+      return { ok: false, error: 'square_receipt_failed', statusCode: 503, ...unmarked };
+    }
+  }
+  return { ok: false, error: 'square_receipt_outcome_unknown', statusCode: 503, ...unmarked };
+}
+
 module.exports = {
   ACTIVE_ATTEMPT_STATUSES,
   ATTEMPT_STALE_AFTER_MS,
@@ -2585,4 +3000,7 @@ module.exports = {
   buildCashFullBalanceProviderEventId,
   isOnSiteSettlementEntry,
   isCashSettlementEntry,
+  evaluateSquareDashboardReceipt,
+  recordAdministratorSquareReceipt,
+  squareDashboardProviderEventId,
 };

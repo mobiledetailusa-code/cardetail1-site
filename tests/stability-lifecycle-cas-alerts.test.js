@@ -56,8 +56,9 @@ function memoryStore(seed = {}) {
         return { modified: false };
       }
       data.set(key, structuredClone(value));
-      etags.set(key, `v${Number(value.bookingVersion) || 0}:${value.updatedAt || Date.now()}`);
-      return { modified: true };
+      const etag = `v${Number(value.bookingVersion) || 0}:${value.updatedAt || Date.now()}`;
+      etags.set(key, etag);
+      return { modified: true, etag };
     },
     async list() {
       return { blobs: [...data.keys()].map((key) => ({ key })) };

@@ -61,36 +61,75 @@ function toMirrorRow(booking) {
 }
 
 /**
- * Upsert submitted booking into Prisma. Never throws.
- * @returns {Promise<{ ok: boolean, skipped?: boolean, error?: string }>}
+ * One statement. A newer bookingVersion already stored is left untouched.
+ * Same-version retries match the WHERE and replace the payload. There is no
+ * read-then-upsert. updatedAt has no SQL default, so the statement sets it.
  */
-async function upsertBookingMirror(booking) {
+const MIRROR_UPSERT_SQL = `
+INSERT INTO "BookingRecord" (
+  "id", "bookingVersion", "quoteVersion", "schemaVersion", "kind",
+  "jobStatus", "paymentWorkflowStatus", "paymentStatus", "phone", "email",
+  "preferredDate", "payload", "createdAt", "updatedAt"
+) VALUES (
+  $1, $2, $3, $4, $5,
+  $6, $7, $8, $9, $10,
+  $11, $12::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+)
+ON CONFLICT ("id") DO UPDATE SET
+  "bookingVersion" = EXCLUDED."bookingVersion",
+  "quoteVersion" = EXCLUDED."quoteVersion",
+  "schemaVersion" = EXCLUDED."schemaVersion",
+  "kind" = EXCLUDED."kind",
+  "jobStatus" = EXCLUDED."jobStatus",
+  "paymentWorkflowStatus" = EXCLUDED."paymentWorkflowStatus",
+  "paymentStatus" = EXCLUDED."paymentStatus",
+  "phone" = EXCLUDED."phone",
+  "email" = EXCLUDED."email",
+  "preferredDate" = EXCLUDED."preferredDate",
+  "payload" = EXCLUDED."payload",
+  "updatedAt" = CURRENT_TIMESTAMP
+WHERE "BookingRecord"."bookingVersion" <= EXCLUDED."bookingVersion"
+RETURNING "id"
+`;
+
+/**
+ * Upsert submitted booking into Prisma. Never throws.
+ * options.queryRaw is an offline test seam. Production uses one raw statement.
+ * @returns {Promise<{ ok: boolean, skipped?: boolean, ignored?: boolean, error?: string, reason?: string }>}
+ */
+async function upsertBookingMirror(booking, options = {}) {
   try {
-    if (!mirrorEnabled()) return { ok: false, skipped: true, reason: 'mirror_disabled' };
+    const queryRaw = options && typeof options.queryRaw === 'function' ? options.queryRaw : null;
+    if (!queryRaw && !mirrorEnabled()) return { ok: false, skipped: true, reason: 'mirror_disabled' };
     if (isDraftBooking(booking)) return { ok: false, skipped: true, reason: 'draft' };
     const row = toMirrorRow(booking);
     if (!row) return { ok: false, skipped: true, reason: 'missing_id' };
-    const prisma = tryGetPrisma();
-    if (!prisma) return { ok: false, skipped: true, reason: 'no_client' };
+    if (!queryRaw && !tryGetPrisma()) return { ok: false, skipped: true, reason: 'no_client' };
 
-    await prisma.bookingRecord.upsert({
-      where: { id: row.id },
-      create: row,
-      update: {
-        bookingVersion: row.bookingVersion,
-        quoteVersion: row.quoteVersion,
-        schemaVersion: row.schemaVersion,
-        kind: row.kind,
-        jobStatus: row.jobStatus,
-        paymentWorkflowStatus: row.paymentWorkflowStatus,
-        paymentStatus: row.paymentStatus,
-        phone: row.phone,
-        email: row.email,
-        preferredDate: row.preferredDate,
-        payload: row.payload,
-      },
-    });
-    return { ok: true };
+    const params = [
+      row.id,
+      row.bookingVersion,
+      row.quoteVersion,
+      row.schemaVersion,
+      row.kind,
+      row.jobStatus,
+      row.paymentWorkflowStatus,
+      row.paymentStatus,
+      row.phone,
+      row.email,
+      row.preferredDate,
+      JSON.stringify(row.payload),
+    ];
+    const returned = queryRaw
+      ? await queryRaw(MIRROR_UPSERT_SQL, params)
+      : await tryGetPrisma().$queryRawUnsafe(MIRROR_UPSERT_SQL, ...params);
+    if (!Array.isArray(returned)) {
+      return { ok: false, error: 'mirror_acknowledgement_unknown' };
+    }
+    if (returned.length === 0) {
+      return { ok: true, ignored: true, reason: 'stale_mirror_version' };
+    }
+    return { ok: true, ignored: false };
   } catch (err) {
     const message = err && err.message ? err.message : String(err);
     console.warn('[booking-prisma-mirror] upsert_failed', message);
@@ -190,6 +229,7 @@ module.exports = {
   readFallbackEnabled,
   isDraftBooking,
   toMirrorRow,
+  MIRROR_UPSERT_SQL,
   upsertBookingMirror,
   scheduleBookingMirror,
   readBookingMirror,

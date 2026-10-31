@@ -28,6 +28,23 @@ function writeWasApplied(result) {
   return result.modified !== false;
 }
 
+/**
+ * Booking documents do not use writeWasApplied.
+ * @netlify/blobs 10.7.9 reports every conditional response other than HTTP 412
+ * as modified:true, and it substitutes an empty string when the etag header
+ * is missing. A confirmed booking write therefore needs modified:true and a
+ * non-empty etag. Anything else stays unknown and is not success.
+ */
+function classifyConditionalWrite(result) {
+  if (!result || typeof result !== 'object' || typeof result.modified !== 'boolean') {
+    return 'unknown';
+  }
+  if (result.modified === false) return 'conflict';
+  const etag = typeof result.etag === 'string' ? result.etag.trim() : '';
+  if (!etag) return 'unknown';
+  return 'success';
+}
+
 /** Stored JSON, detached from the read projection that adapts it. */
 function cloneStoredRecord(value) {
   if (!value || typeof value !== 'object') return value;
@@ -37,7 +54,7 @@ function cloneStoredRecord(value) {
 async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
   const store = storeOverride || await getStore();
   const id = String(bookingId || '').trim();
-  if (!id) return { exists: false, booking: null, etag: null, raw: null };
+  if (!id) return { exists: false, booking: null, etag: null, etagTrusted: false, raw: null };
 
   let result = null;
   if (typeof store.getWithMetadata === 'function') {
@@ -52,6 +69,7 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
       exists: true,
       booking: norm.ok ? norm.aggregate : booking,
       etag: result.etag || null,
+      etagTrusted: Boolean(result.etag),
       raw: cloneStoredRecord(result.data),
       quarantined: adapted.quarantined,
     };
@@ -64,11 +82,13 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
   const adapted = adaptHistoricalBooking(raw);
   const booking = adapted.ok ? adapted.booking : raw;
   const norm = normalizeAggregate(booking, { allowDraft: true });
-  const etag = data.__etag || data._etag || `v${Number(data.bookingVersion) || 0}:${data.updatedAt || ''}`;
+  const explicitEtag = data.__etag || data._etag || '';
+  const etag = explicitEtag || `v${Number(data.bookingVersion) || 0}:${data.updatedAt || ''}`;
   return {
     exists: true,
     booking: norm.ok ? norm.aggregate : booking,
     etag,
+    etagTrusted: Boolean(explicitEtag),
     raw: cloneStoredRecord(data),
     quarantined: adapted.quarantined,
   };
@@ -76,7 +96,11 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
 
 /**
  * Conditionally persist next aggregate when expectedBookingVersion matches.
- * Uses Blob onlyIfMatch when etag available; also enforces bookingVersion.
+ * An existing booking is written only with a trusted etag and onlyIfMatch.
+ * strictCas is accepted for older callers and cannot turn that into an
+ * unconditional overwrite. A new booking uses onlyIfNew and does not need
+ * a prior etag. The read requests strong consistency; the client default
+ * in @netlify/blobs 10.7.9 remains eventual for callers that omit it.
  */
 async function commitBooking({
   bookingId,
@@ -85,7 +109,10 @@ async function commitBooking({
   createIfMissing = false,
   storeOverride = null,
   syncSlots = true,
+  strictCas = false,
+  auditActorId = '',
 }) {
+  void strictCas;
   const store = storeOverride || await getStore();
   const id = String(bookingId || nextAggregate?.id || '').trim();
   if (!id) return { ok: false, error: 'missing_booking_id' };
@@ -102,11 +129,21 @@ async function commitBooking({
     };
     delete toWrite.__etag;
     delete toWrite._etag;
-    const writeResult = typeof store.setJSON === 'function'
-      ? await store.setJSON(id, toWrite, { onlyIfNew: true })
-      : await store.setJSON(id, toWrite);
-    if (!writeWasApplied(writeResult)) {
+    if (typeof store.setJSON !== 'function') {
+      return { ok: false, error: 'store_unavailable' };
+    }
+    let writeResult;
+    try {
+      writeResult = await store.setJSON(id, toWrite, { onlyIfNew: true });
+    } catch {
+      return { ok: false, error: 'write_outcome_unknown', statusCode: 409 };
+    }
+    const created = classifyConditionalWrite(writeResult);
+    if (created === 'conflict') {
       return { ok: false, error: 'version_conflict', statusCode: 409 };
+    }
+    if (created !== 'success') {
+      return { ok: false, error: 'write_outcome_unknown', statusCode: 409 };
     }
     // Dual-write Prisma (fail-open) — Blobs already committed
     try {
@@ -133,35 +170,38 @@ async function commitBooking({
     };
   }
 
-  const toWrite = { ...nextAggregate, id, bookingVersion: expected + 1 };
+  const trustedEtag = current.etagTrusted && typeof current.etag === 'string'
+    ? current.etag.trim()
+    : '';
+  if (!trustedEtag) {
+    return { ok: false, error: 'cas_precondition_missing', statusCode: 409 };
+  }
+
+  let toWrite = { ...nextAggregate, id, bookingVersion: expected + 1 };
   // Preserve unknown fields from current that were not in nextAggregate keys intentionally
   // nextAggregate should already be a full merged object from buildNextAggregate
   delete toWrite.__etag;
   delete toWrite._etag;
+  const { reconcilePreparedIssuance, recordSupersessionAudit } = require('./square-prepared-issuance');
+  const reconciled = reconcilePreparedIssuance(
+    toWrite,
+    toWrite.updatedAt || new Date().toISOString()
+  );
+  toWrite = { ...reconciled.booking, id, bookingVersion: expected + 1 };
+  delete toWrite.__etag;
+  delete toWrite._etag;
 
-  let writeResult;
-  if (current.etag && typeof store.setJSON === 'function') {
-    writeResult = await store.setJSON(id, toWrite, { onlyIfMatch: current.etag });
-  } else if (typeof store.setJSON === 'function') {
-    // Test memory stores: simulate CAS via __etag / bookingVersion re-read
-    const fresh = await getBookingRecord(id, { storeOverride: store });
-    const freshVersion = Math.max(0, Math.round(Number(fresh.booking?.bookingVersion) || 0));
-    if (freshVersion !== expected) {
-      return {
-        ok: false,
-        error: 'version_conflict',
-        statusCode: 409,
-        actualBookingVersion: freshVersion,
-        expectedBookingVersion: expected,
-      };
-    }
-    toWrite.__etag = `v${toWrite.bookingVersion}:${toWrite.updatedAt || Date.now()}`;
-    writeResult = await store.setJSON(id, toWrite);
-  } else {
+  if (typeof store.setJSON !== 'function') {
     return { ok: false, error: 'store_unavailable' };
   }
-
-  if (!writeWasApplied(writeResult)) {
+  let writeResult;
+  try {
+    writeResult = await store.setJSON(id, toWrite, { onlyIfMatch: trustedEtag });
+  } catch {
+    return { ok: false, error: 'write_outcome_unknown', statusCode: 409 };
+  }
+  const written = classifyConditionalWrite(writeResult);
+  if (written === 'conflict') {
     return {
       ok: false,
       error: 'version_conflict',
@@ -169,6 +209,9 @@ async function commitBooking({
       actualBookingVersion: actualVersion,
       expectedBookingVersion: expected,
     };
+  }
+  if (written !== 'success') {
+    return { ok: false, error: 'write_outcome_unknown', statusCode: 409 };
   }
 
   // Dual-write Prisma (fail-open) — Blobs already committed; never affect checkout/CAS.
@@ -188,7 +231,23 @@ async function commitBooking({
     } catch { /* never block Blob authority */ }
   }
 
-  return { ok: true, booking: toWrite, bookingVersion: toWrite.bookingVersion };
+  let auditRecorded = null;
+  if (reconciled.superseded) {
+    try {
+      await recordSupersessionAudit(reconciled.superseded, id, auditActorId);
+      auditRecorded = true;
+    } catch {
+      auditRecorded = false;
+    }
+  }
+
+  return {
+    ok: true,
+    booking: toWrite,
+    bookingVersion: toWrite.bookingVersion,
+    auditRecorded,
+    supersededIssuance: reconciled.superseded,
+  };
 }
 
 async function listSubmittedBookings({ includeArchivedTest = false } = {}) {
@@ -236,4 +295,5 @@ module.exports = {
   commitBooking,
   listSubmittedBookings,
   writeWasApplied,
+  classifyConditionalWrite,
 };

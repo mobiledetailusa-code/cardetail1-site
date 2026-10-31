@@ -59,12 +59,14 @@ function attempt(overrides = {}) {
  * behaviour under test — a double that returns everything regardless cannot
  * tell "retire the current version" from "leave it alone".
  */
-function prismaWith(attempts) {
+function prismaWith(attempts, bookingRow = null) {
   const updates = [];
   const ledgers = [];
-  return {
+  const bookingUpdates = [];
+  const api = {
     updates,
     ledgers,
+    bookingUpdates,
     paymentAttempt: {
       findMany: (args) => {
         const not = args?.where?.quoteVersion?.not;
@@ -76,13 +78,26 @@ function prismaWith(attempts) {
       update: (args) => { updates.push(args); return Promise.resolve({}); },
     },
     ledgerEntry: {
-      findUnique: () => Promise.resolve(null),
+      findUnique: () => Promise.resolve(ledgers[0] ? { id: 'le_1', ...ledgers[0].data } : null),
       create: (args) => {
         ledgers.push(args);
         return Promise.resolve({ id: 'le_1', ...args.data });
       },
     },
+    booking: {
+      update: (args) => { bookingUpdates.push(args); return Promise.resolve({}); },
+    },
+    $queryRaw: () => Promise.resolve(bookingRow ? [bookingRow] : [{
+      id: attempts[0]?.bookingId || 'CD1-STUCK',
+      manualCollectionState: null,
+      manualCollectionOperationId: null,
+      manualCollectionQuoteVersion: null,
+      manualCollectionUrl: null,
+      manualCollectionDetail: null,
+    }]),
+    $transaction: (fn) => fn(api),
   };
+  return api;
 }
 
 /** Stripe double: one JSON response for the payment_intents retrieve. */
@@ -118,6 +133,34 @@ describe('reconcileStalePaymentAttempts', () => {
     assert.equal(prisma.ledgers[0].data.kind, 'settlement');
     assert.equal(prisma.ledgers[0].data.amountCents, 15000);
     assert.equal(prisma.updates[0].data.status, 'succeeded');
+  });
+
+  it('records the settlement and a durable conflict while a manual reservation stays reserved', async () => {
+    const prisma = prismaWith([attempt()], {
+      id: 'CD1-STUCK',
+      manualCollectionState: 'reserved',
+      manualCollectionOperationId: 'op-locked',
+      manualCollectionQuoteVersion: 1,
+      manualCollectionUrl: 'https://square.example/synthetic',
+      manualCollectionDetail: { reservedBy: 'ada' },
+    });
+    fakePrisma = prisma;
+
+    const out = await reconcileStalePaymentAttempts({
+      bookingId: 'CD1-STUCK', env: ENV, fetchImpl: stripeReturning('succeeded'),
+    });
+
+    assert.equal(out.closed, 1);
+    assert.equal(prisma.ledgers.length, 1);
+    assert.equal(prisma.ledgers[0].data.providerEventId, 'settlement_pi_123');
+    assert.equal(prisma.ledgers[0].data.actor, 'stripe_reconcile');
+    assert.equal(prisma.bookingUpdates.length, 1);
+    assert.equal(prisma.bookingUpdates[0].data.manualCollectionState, undefined);
+    const conflicts = prisma.bookingUpdates[0].data.manualCollectionDetail.externalFinancialConflicts;
+    assert.equal(conflicts.length, 1);
+    assert.equal(conflicts[0].providerEventId, 'settlement_pi_123');
+    assert.equal(conflicts[0].squareVerified, false);
+    assert.equal(conflicts[0].reviewRequired, true);
   });
 
   it('does not mark succeeded when Stripe amount does not match the attempt', async () => {

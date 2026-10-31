@@ -1,6 +1,7 @@
 // Draft save token — HMAC ownership tokens for create-setup-intent.
 const { test, afterEach, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 
 const TOKEN_PATH = require.resolve('../netlify/lib/draft-save-token');
 const SETUP_PATH = require.resolve('../netlify/functions/create-setup-intent');
@@ -31,21 +32,7 @@ function loadTokenLib() {
 }
 
 function createMemoryStore(seed = {}) {
-  const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]));
-  return {
-    data,
-    async get(key, { type } = {}) {
-      if (!data.has(key)) return null;
-      const raw = data.get(key);
-      return type === 'json' ? JSON.parse(raw) : raw;
-    },
-    async setJSON(key, value) {
-      data.set(key, JSON.stringify(value));
-    },
-    async list() {
-      return { blobs: [...data.keys()].map((key) => ({ key })) };
-    },
-  };
+  return createCasMemoryStore(seed);
 }
 
 let envSnap;

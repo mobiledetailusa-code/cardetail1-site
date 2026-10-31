@@ -37,6 +37,12 @@ function redactState(booking) {
   };
 }
 
+let auditStoreOverride = null;
+
+function setAuditStoreOverride(store) {
+  auditStoreOverride = store || null;
+}
+
 async function blobsStore(name) {
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
@@ -73,7 +79,7 @@ function auditEntry({
 }
 
 async function appendAudit(entry) {
-  const store = await blobsStore(AUDIT_STORE);
+  const store = auditStoreOverride || await blobsStore(AUDIT_STORE);
   const key = `${entry.booking_id}/${entry.timestamp}_${entry.audit_id}`;
   await store.setJSON(key, entry);
   return entry;
@@ -95,4 +101,5 @@ module.exports = {
   appendAudit,
   listAuditForBooking,
   redactState,
+  setAuditStoreOverride,
 };

@@ -306,6 +306,15 @@ model Booking {
   status            BookingLifecycleStatus @default(draft)
   isDraft           Boolean                @default(true)
   archived          Boolean                @default(false)
+  /// Manual Square Dashboard collection on this booking row.
+  /// Null means Cardetail1 has no reservation. This is not a payment,
+  /// not a ledger entry, and not a Stripe PaymentAttempt.
+  /// manualCollectionDetail keeps reservation, URL, and closure attestation.
+  manualCollectionState        String?
+  manualCollectionOperationId  String?
+  manualCollectionQuoteVersion Int?
+  manualCollectionUrl          String?
+  manualCollectionDetail       Json?
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 

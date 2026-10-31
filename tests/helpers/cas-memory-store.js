@@ -7,6 +7,7 @@
 function createCasMemoryStore(seed = {}) {
   const data = new Map();
   let etagCounter = 0;
+  let nextOutcome = null;
 
   for (const [k, v] of Object.entries(seed)) {
     const etag = `etag-${++etagCounter}`;
@@ -15,6 +16,21 @@ function createCasMemoryStore(seed = {}) {
 
   return {
     _data: data,
+    /**
+     * One-shot test control. 'throw' fails before the write.
+     * 'unacknowledged' commits the value, then returns the SDK shape used
+     * when the etag header is missing. That is not a successful acknowledgement.
+     */
+    armNextWrite(outcome) {
+      if (outcome !== 'throw' && outcome !== 'unacknowledged') {
+        throw new Error('unsupported_test_write_outcome');
+      }
+      nextOutcome = outcome;
+    },
+    snapshot(key) {
+      if (!data.has(key)) return null;
+      return JSON.parse(data.get(key).value);
+    },
     async get(key, opts) {
       if (!data.has(key)) return null;
       const entry = data.get(key);
@@ -39,9 +55,22 @@ function createCasMemoryStore(seed = {}) {
           return { modified: false };
         }
       }
+      const outcome = nextOutcome;
+      nextOutcome = null;
+      if (outcome === 'throw') {
+        throw new Error('injected_unacknowledged_write');
+      }
       const etag = `etag-${++etagCounter}`;
       data.set(key, { value: JSON.stringify(value), etag });
+      if (outcome === 'unacknowledged') {
+        return { modified: true, etag: '' };
+      }
       return { modified: true, etag };
+    },
+    async list() {
+      return {
+        blobs: [...data.keys()].map((key) => ({ key, etag: data.get(key).etag })),
+      };
     },
     async delete(key) {
       data.delete(key);

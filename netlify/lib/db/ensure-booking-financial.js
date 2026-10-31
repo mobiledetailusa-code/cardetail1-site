@@ -6,10 +6,12 @@
  * shows settled money and Postgres has none (idempotent import of history).
  */
 
-const { prismaConfigured } = require('../prisma');
+const { prismaConfigured, getPrisma } = require('../prisma');
 const repo = require('./repositories');
 const foundation = require('./foundation-services');
 const { isUniqueConstraintError } = foundation;
+
+const IMPORT_TRANSACTION_ATTEMPTS = 3;
 
 function approvedCentsFromBlob(booking) {
   try {
@@ -99,9 +101,242 @@ function quoteItemsFromBooking(booking, approvedCents) {
     : [];
 }
 
+function blocksFinancialImport(state) {
+  if (state == null || state === '' || state === 'closed') return false;
+  return true;
+}
+
+function importFailureKind(error) {
+  const adapter = error?.meta?.driverAdapterError?.cause;
+  const text = [
+    error?.code,
+    error?.message,
+    error?.cause?.code,
+    error?.cause?.message,
+    error?.meta?.code,
+    adapter?.originalCode,
+    adapter?.message,
+  ].filter(Boolean).join(' ');
+  if (/\b(?:P2034|P2002|40001|40P01)\b|serialization failure|deadlock detected|unique constraint/i.test(text)) {
+    return 'retry';
+  }
+  if (/ECONNRESET|EPIPE|connection terminated|server closed the connection|closed the connection/i.test(text)) {
+    return 'reread';
+  }
+  return 'failed';
+}
+
+async function ensureBookingRow(booking, bookingId) {
+  let row = await repo.getBooking(bookingId);
+  if (row) return row;
+  const status = booking.isDraft ? 'draft' : 'confirmed';
+  try {
+    await repo.createBooking({
+      id: bookingId,
+      status,
+      isDraft: !!booking.isDraft,
+    });
+  } catch (err) {
+    if (!isUniqueConstraintError(err)) throw err;
+  }
+  row = await repo.getBooking(bookingId);
+  if (!row) {
+    const error = new Error('booking_not_ensured');
+    error.code = 'booking_not_ensured';
+    throw error;
+  }
+  return row;
+}
+
+async function backfillQuoteItems(tx, quoteId, items) {
+  if (!quoteId || !items.length) return;
+  const count = await tx.quoteItem.count({ where: { quoteId } });
+  if (count > 0) return;
+  await tx.quoteItem.createMany({
+    data: items.map((item) => ({ ...item, quoteId })),
+  });
+}
+
+async function resolveQuote(tx, { bookingId, quoteVersion, approvedCents, settledBlob, quoteItems, blocks }) {
+  let quote = await tx.quote.findFirst({
+    where: { bookingId },
+    orderBy: { quoteVersion: 'desc' },
+  });
+  const settleStatus = !blocks && settledBlob > 0 && settledBlob >= approvedCents && approvedCents > 0
+    ? 'settled'
+    : 'approved';
+  if (!quote) {
+    quote = await tx.quote.create({
+      data: {
+        bookingId,
+        quoteVersion,
+        approvedCents,
+        status: settleStatus,
+        ...(quoteItems.length ? { items: { create: quoteItems } } : {}),
+      },
+    });
+    return { quote, amountChangeBlocked: false };
+  }
+
+  const sameVersionDifferentAmount = quote.quoteVersion === quoteVersion
+    && quote.approvedCents !== approvedCents
+    && quote.status !== 'settled'
+    && approvedCents > 0;
+  if (sameVersionDifferentAmount) {
+    if (blocks) return { quote, amountChangeBlocked: true };
+    const nextVersion = quote.quoteVersion + 1;
+    const created = await tx.quote.create({
+      data: {
+        bookingId,
+        quoteVersion: nextVersion,
+        approvedCents,
+        status: 'approved',
+        ...(quoteItems.length ? { items: { create: quoteItems } } : {}),
+      },
+    });
+    return { quote: created, amountChangeBlocked: false };
+  }
+
+  if (quote.quoteVersion < quoteVersion && approvedCents > 0) {
+    const existing = await tx.quote.findUnique({
+      where: { bookingId_quoteVersion: { bookingId, quoteVersion } },
+    });
+    if (existing) return { quote: existing, amountChangeBlocked: false };
+    if (blocks) return { quote, amountChangeBlocked: true };
+    quote = await tx.quote.create({
+      data: {
+        bookingId,
+        quoteVersion,
+        approvedCents,
+        status: 'approved',
+        ...(quoteItems.length ? { items: { create: quoteItems } } : {}),
+      },
+    });
+  }
+  return { quote, amountChangeBlocked: false };
+}
+
+async function importFinancialUnderLock({
+  booking,
+  bookingId,
+  approvedCents,
+  quoteVersion,
+  settledBlob,
+  quoteItems,
+}) {
+  const prisma = getPrisma();
+  const { Prisma } = require('@prisma/client');
+  let decision = null;
+  for (let attempt = 1; attempt <= IMPORT_TRANSACTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const lockedRows = await tx.$queryRaw`
+          SELECT "id", "manualCollectionState"
+          FROM "Booking" WHERE "id" = ${bookingId} FOR UPDATE
+        `;
+        const locked = Array.isArray(lockedRows) ? lockedRows[0] : null;
+        if (!locked) return { ok: false, error: 'booking_not_ensured', statusCode: 503 };
+        const manualState = locked.manualCollectionState == null
+          ? null
+          : String(locked.manualCollectionState);
+        const blocks = blocksFinancialImport(manualState);
+        const resolved = await resolveQuote(tx, {
+          bookingId,
+          quoteVersion,
+          approvedCents,
+          settledBlob,
+          quoteItems,
+          blocks,
+        });
+        const quote = resolved.quote;
+        if (!quote) return { ok: false, error: 'quote_not_ensured', statusCode: 503 };
+        await backfillQuoteItems(tx, quote.id, quoteItems);
+
+        const ledger = await tx.ledgerEntry.findMany({ where: { bookingId } });
+        const hasSettlement = ledger.some((entry) => entry.kind === 'settlement');
+        const wantsSeed = settledBlob > 0 && !hasSettlement;
+        if (blocks && (wantsSeed || resolved.amountChangeBlocked)) {
+          return {
+            ok: true,
+            bookingId,
+            ensured: true,
+            seededSettlement: false,
+            duplicate: false,
+            importBlocked: 'manual_collection_active',
+            synchronizationBlocked: true,
+            manualCollectionState: manualState,
+            quoteVersion: quote.quoteVersion,
+          };
+        }
+
+        let seededSettlement = false;
+        let duplicate = false;
+        if (wantsSeed) {
+          const seedId = `blob_seed_${bookingId}_${settledBlob}`;
+          const existingSeed = await tx.ledgerEntry.findUnique({ where: { providerEventId: seedId } });
+          if (existingSeed) {
+            duplicate = true;
+          } else {
+            await tx.ledgerEntry.create({
+              data: {
+                bookingId,
+                quoteId: quote.id,
+                kind: 'settlement',
+                amountCents: settledBlob,
+                quoteVersion: quote.quoteVersion,
+                providerEventId: seedId,
+                providerObjectId: booking.paymentIntentId || booking.stripeCheckoutSessionId || null,
+                actor: 'blob_import_seed',
+              },
+            });
+            seededSettlement = true;
+            if (settledBlob >= approvedCents && approvedCents > 0 && quote.status !== 'settled') {
+              await tx.quote.update({
+                where: { id: quote.id },
+                data: { status: 'settled' },
+              });
+            }
+          }
+        }
+
+        return {
+          ok: true,
+          bookingId,
+          ensured: true,
+          seededSettlement,
+          duplicate,
+          importBlocked: null,
+          synchronizationBlocked: false,
+          manualCollectionState: manualState,
+          quoteVersion: quote.quoteVersion,
+        };
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      });
+    } catch (error) {
+      decision = importFailureKind(error);
+      if (error?.code === 'booking_not_ensured') {
+        return { ok: false, error: 'booking_not_ensured', statusCode: 503 };
+      }
+      if ((decision === 'retry' || decision === 'reread') && attempt < IMPORT_TRANSACTION_ATTEMPTS) {
+        continue;
+      }
+      if (decision === 'reread') {
+        return { ok: false, error: 'financial_import_outcome_unknown', statusCode: 503 };
+      }
+      return { ok: false, error: 'financial_import_failed', statusCode: 503 };
+    }
+  }
+  return {
+    ok: false,
+    error: decision === 'reread' ? 'financial_import_outcome_unknown' : 'financial_import_failed',
+    statusCode: 503,
+  };
+}
+
 /**
  * @param {object} booking Blob aggregate
- * @returns {Promise<{ ok: boolean, bookingId?: string, ensured?: boolean, seededSettlement?: boolean, error?: string }>}
+ * @returns {Promise<{ ok: boolean, bookingId?: string, ensured?: boolean, seededSettlement?: boolean, importBlocked?: string|null, error?: string }>}
  */
 async function ensureBookingFinancial(booking) {
   if (!prismaConfigured()) {
@@ -115,96 +350,23 @@ async function ensureBookingFinancial(booking) {
   const settledBlob = settledCentsFromBlob(booking);
   const quoteItems = quoteItemsFromBooking(booking, approvedCents);
 
-  let row = await repo.getBooking(bookingId);
-  if (!row) {
-    const status = booking.isDraft ? 'draft' : 'confirmed';
-    try {
-      await repo.createBooking({
-        id: bookingId,
-        status,
-        isDraft: !!booking.isDraft,
-      });
-    } catch (err) {
-      if (!isUniqueConstraintError(err)) throw err;
+  try {
+    await ensureBookingRow(booking, bookingId);
+  } catch (err) {
+    if (err?.code === 'booking_not_ensured') {
+      return { ok: false, error: 'booking_not_ensured', statusCode: 503 };
     }
-    row = await repo.getBooking(bookingId);
-    if (!row) return { ok: false, error: 'booking_not_ensured' };
+    throw err;
   }
 
-  let quote = await repo.getLatestQuote(bookingId);
-  if (!quote) {
-    try {
-      quote = await repo.createQuote({
-        bookingId,
-        quoteVersion,
-        approvedCents,
-        status: settledBlob > 0 && settledBlob >= approvedCents && approvedCents > 0 ? 'settled' : 'approved',
-        items: quoteItems,
-      });
-    } catch (err) {
-      if (!isUniqueConstraintError(err)) throw err;
-      quote = await repo.getQuote({ bookingId, quoteVersion }) || await repo.getLatestQuote(bookingId);
-      if (!quote) return { ok: false, error: 'quote_not_ensured' };
-    }
-  } else if (
-    quote.quoteVersion === quoteVersion
-    && quote.approvedCents !== approvedCents
-    && quote.status !== 'settled'
-  ) {
-    // Unpaid quote may track Blob-approved total via a new version when Blob advanced.
-    if (approvedCents !== quote.approvedCents && approvedCents > 0) {
-      const { quote: next } = await repo.createAdjustmentQuote({
-        bookingId,
-        approvedCents,
-        status: 'approved',
-        items: quoteItems,
-      });
-      quote = next;
-    }
-  } else if (quote.quoteVersion < quoteVersion && approvedCents > 0) {
-    const existing = await repo.getQuote({ bookingId, quoteVersion });
-    if (!existing) {
-      quote = await repo.createQuote({
-        bookingId,
-        quoteVersion,
-        approvedCents,
-        status: 'approved',
-        items: quoteItems,
-      });
-    } else {
-      quote = existing;
-    }
-  }
-
-  // PR1 databases may already have Quote rows created before item snapshots
-  // became mandatory. Backfill only when the quote has no children.
-  await repo.ensureQuoteItems({ quoteId: quote.id, items: quoteItems });
-
-  let seededSettlement = false;
-  const ledger = await repo.listLedgerEntries(bookingId);
-  const hasSettlement = ledger.some((e) => e.kind === 'settlement');
-  if (settledBlob > 0 && !hasSettlement) {
-    const seedId = `blob_seed_${bookingId}_${settledBlob}`;
-    await foundation.appendLedgerEntry({
-      bookingId,
-      kind: 'settlement',
-      amountCents: settledBlob,
-      quoteVersion: quote.quoteVersion,
-      providerEventId: seedId,
-      providerObjectId: booking.paymentIntentId || booking.stripeCheckoutSessionId || null,
-      actor: 'blob_import_seed',
-    });
-    seededSettlement = true;
-    if (settledBlob >= approvedCents && approvedCents > 0) {
-      await repo.markQuoteStatus({
-        bookingId,
-        quoteVersion: quote.quoteVersion,
-        status: 'settled',
-      }).catch(() => {});
-    }
-  }
-
-  return { ok: true, bookingId, ensured: true, seededSettlement, quoteVersion: quote.quoteVersion };
+  return importFinancialUnderLock({
+    booking,
+    bookingId,
+    approvedCents,
+    quoteVersion,
+    settledBlob,
+    quoteItems,
+  });
 }
 
 /**
@@ -224,6 +386,9 @@ async function hasAuthoritativePostgresFinancial(bookingId) {
 }
 
 module.exports = {
+  IMPORT_TRANSACTION_ATTEMPTS,
+  blocksFinancialImport,
+  importFailureKind,
   ensureBookingFinancial,
   hasAuthoritativePostgresFinancial,
   approvedCentsFromBlob,

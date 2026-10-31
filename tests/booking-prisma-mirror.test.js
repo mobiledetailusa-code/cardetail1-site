@@ -115,7 +115,7 @@ describe('booking Prisma mirror (safe dual-write)', () => {
         }
         const next = { ...value, __etag: `v${value.bookingVersion}` };
         mem.set(id, next);
-        return { modified: true };
+        return { modified: true, etag: next.__etag };
       },
     };
     setBookingStoreOverride(store);
