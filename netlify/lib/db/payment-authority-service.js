@@ -478,30 +478,71 @@ async function recordSucceededAttemptLedger(prisma, attempt, paymentIntent, acto
   );
   if (!providerObjectId.startsWith('pi_')) return { ok: false, reason: 'missing_payment_intent' };
   const providerEventId = `settlement_${providerObjectId}`;
+  if (typeof prisma.$transaction !== 'function') {
+    return { ok: false, reason: 'ledger_write_failed' };
+  }
+  // The Stripe retrieve already finished. This transaction locks Booking only.
+  // It does not lock PaymentAttempt, StripeEvent, or RefundRequest, so it does
+  // not invert the webhook order (those rows, then Booking) and it does not
+  // cycle with settlement, which also locks Booking first.
+  // The attempt status is updated after commit, without holding Booking.
   try {
-    let ledger = await prisma.ledgerEntry.findUnique({ where: { providerEventId } });
-    if (!ledger) {
-      ledger = await prisma.ledgerEntry.create({
-        data: {
-          bookingId: attempt.bookingId,
-          quoteId: attempt.quoteId || null,
-          paymentAttemptId: attempt.id,
-          kind: 'settlement',
-          amountCents,
-          currency: attempt.currency || 'usd',
-          quoteVersion: Math.round(Number(attempt.quoteVersion) || 0),
-          providerObjectId,
-          providerEventId,
-          occurredAt: new Date(),
-          actor: actor || 'stripe_reconcile',
-        },
-      });
+    let written = null;
+    for (let attemptNumber = 1; attemptNumber <= 3; attemptNumber += 1) {
+      try {
+        written = await prisma.$transaction(async (tx) => {
+          const manualCollectionConflict = await preserveExternalEventCollectionConflict(tx, {
+            bookingId: attempt.bookingId,
+            providerEventId,
+            kind: 'settlement',
+            amountCents,
+            stripeEventId: null,
+            providerObjectId,
+          });
+          let ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
+          if (!ledger) {
+            try {
+              ledger = await tx.ledgerEntry.create({
+                data: {
+                  bookingId: attempt.bookingId,
+                  quoteId: attempt.quoteId || null,
+                  paymentAttemptId: attempt.id,
+                  kind: 'settlement',
+                  amountCents,
+                  currency: attempt.currency || 'usd',
+                  quoteVersion: Math.round(Number(attempt.quoteVersion) || 0),
+                  providerObjectId,
+                  providerEventId,
+                  occurredAt: new Date(),
+                  actor: actor || 'stripe_reconcile',
+                },
+              });
+            } catch (error) {
+              if (!isUniqueLedgerConflict(error)) throw error;
+              ledger = await tx.ledgerEntry.findUnique({ where: { providerEventId } });
+            }
+          }
+          return { ledger, manualCollectionConflict };
+        }, {
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        });
+        break;
+      } catch (error) {
+        if (attemptNumber < 3 && (isRetryableTransactionConflict(error) || isDroppedConnection(error))) {
+          continue;
+        }
+        throw error;
+      }
     }
     await prisma.paymentAttempt.update({
       where: { id: attempt.id },
       data: { status: 'succeeded' },
     });
-    return { ok: true, ledger };
+    return {
+      ok: true,
+      ledger: written.ledger,
+      manualCollectionConflict: written.manualCollectionConflict,
+    };
   } catch (err) {
     console.warn('[payment-authority] settlement ledger failed', err && err.message ? err.message : err);
     return { ok: false, reason: 'ledger_write_failed' };
@@ -1107,6 +1148,17 @@ async function persistFailedStripeEvent({
   } catch {
     return false;
   }
+}
+
+function isUniqueLedgerConflict(error) {
+  const codes = [error?.code, error?.cause?.code, error?.meta?.code].filter(Boolean).map(String);
+  if (codes.includes('P2002')) return true;
+  return /unique constraint/i.test(String(error?.message || error?.cause?.message || ''));
+}
+
+function isDroppedConnection(error) {
+  return /ECONNRESET|EPIPE|connection terminated|server closed the connection|closed the connection|Can't reach database server/i
+    .test(String(error?.message || error?.cause?.message || ''));
 }
 
 function isRetryableTransactionConflict(error) {

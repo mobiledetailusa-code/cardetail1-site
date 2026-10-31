@@ -600,11 +600,21 @@ test('schema, migration, settlement guard, and provider isolation stay narrow', 
   const ledgerAt = settlementBody.indexOf('tx.ledgerEntry.create');
   assert.ok(lockAt >= 0 && guardAt > lockAt && ledgerAt > guardAt);
 
+  const recorderStart = settlement.indexOf('async function recordSucceededAttemptLedger');
+  const recorderEnd = settlement.indexOf('async function reconcileStalePaymentAttempts');
+  const recorder = settlement.slice(recorderStart, recorderEnd);
+  const conflictAt = recorder.indexOf('preserveExternalEventCollectionConflict');
+  const ledgerWriteAt = recorder.indexOf('ledgerEntry.create');
+  const attemptWriteAt = recorder.indexOf('paymentAttempt.update');
+  assert.ok(conflictAt >= 0 && ledgerWriteAt > conflictAt);
+  assert.ok(attemptWriteAt > ledgerWriteAt);
+  assert.match(recorder, /settlement_\$\{providerObjectId\}/);
+  assert.doesNotMatch(recorder, /retrievePaymentIntentClientSecret/);
   const reconcileStart = settlement.indexOf('async function reconcileStalePaymentAttempts');
   const supersedeStart = settlement.indexOf('async function supersedeOutdatedAttempts');
-  assert.doesNotMatch(settlement.slice(reconcileStart, supersedeStart), /manualCollection/);
+  assert.match(settlement.slice(reconcileStart, supersedeStart), /recordSucceededAttemptLedger/);
   const supersedeEnd = settlement.indexOf('function paymentAttemptInProgressResponse');
-  assert.doesNotMatch(settlement.slice(supersedeStart, supersedeEnd), /manualCollection/);
+  assert.match(settlement.slice(supersedeStart, supersedeEnd), /recordSucceededAttemptLedger/);
   assert.doesNotMatch(projection, /manualCollection/);
 
   const adjustmentStart = settlement.indexOf('async function createAdjustment');
