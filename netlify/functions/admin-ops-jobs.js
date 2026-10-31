@@ -1375,7 +1375,7 @@ function jobsSyncResponse(jobs, cursor, timing = {}) {
   return finalizeJobsResponse(response, timing);
 }
 
-function adminOperationalControls(booking, projection = null) {
+function adminOperationalControls(booking, projection = null, manualCollection = null) {
   const { financialProjection } = require('../lib/payment-service');
   const { paymentMethodCapability } = require('../lib/payment-method-policy');
   const { adjustmentStatement } = require('../lib/price-adjustments');
@@ -1391,6 +1391,12 @@ function adminOperationalControls(booking, projection = null) {
   const pendingRefundCents = Math.max(0, Math.round(Number(fin.pendingRefundCents) || 0));
   const reopenable = canReopenService(booking);
   const post = postServiceState(booking);
+  const collectionBlocked = !!(manualCollection && manualCollection.blocksOnSiteSettlement);
+  const cashExplanation = collectionBlocked
+    ? 'Cash settlement is unavailable while manual online collection is active. Inspect the Square link. If it was not paid, deactivate it in Square and record that attestation here. The attestation does not check Square. If Square was paid, report that instead. The balance stays blocked until a separate reconciliation.'
+    : (remainingCents > 0
+      ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
+      : 'There is no remaining balance to collect.');
 
   return {
     jobStatus: booking.jobStatus || '',
@@ -1408,7 +1414,7 @@ function adminOperationalControls(booking, projection = null) {
     },
     paymentMethod: paymentMethodCapability(booking, { authoritativeProjection: fin }),
     recordCash: {
-      enabled: remainingCents > 0,
+      enabled: remainingCents > 0 && !collectionBlocked,
       requiresAmount: true,
       requiresConfirmation: true,
       expectedAmountCents: remainingCents,
@@ -1416,9 +1422,20 @@ function adminOperationalControls(booking, projection = null) {
       // partial amount would run the operational close that full settlement
       // owns. See docs/audit/admin-payment-operations-audit.md.
       partialSupported: false,
-      explanation: remainingCents > 0
-        ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
-        : 'There is no remaining balance to collect.',
+      explanation: cashExplanation,
+    },
+    recordCardOnSite: {
+      enabled: !collectionBlocked,
+      explanation: collectionBlocked
+        ? 'Card-on-site settlement is unavailable while manual online collection is active. Inspect the Square link before releasing it. An administrative attestation is not a Square verification.'
+        : 'Records a card payment taken on site for the full remaining balance. The amount rules are unchanged.',
+    },
+    manualCollection: manualCollection || {
+      state: null,
+      blocksOnSiteSettlement: false,
+      paid: false,
+      paymentEvidence: false,
+      explanation: 'No manual online collection is reserved. Reserving does not create a Square link and does not mark the booking paid.',
     },
     reconcileStripe: reconcileRecoveryCapability(fin),
     refund: {
@@ -1552,6 +1569,22 @@ async function handleAdminAction(body, testOpts = {}) {
     if (authority === 'postgres' && projection) {
       job = overlayAdminJobMoneyFromProjection(job, projection);
     }
+    let manualCollection = null;
+    if (postgresPaymentEnabled()) {
+      try {
+        const { readManualCollectionView } = require('../lib/db/manual-collection');
+        manualCollection = await readManualCollectionView(bookingId);
+      } catch {
+        manualCollection = {
+          state: 'unknown',
+          blocksOnSiteSettlement: true,
+          paid: false,
+          paymentEvidence: false,
+          providerVerified: false,
+          explanation: 'Manual collection state could not be read. On-site settlement stays blocked until the read succeeds.',
+        };
+      }
+    }
     return jsonCors(200, {
       ok: true,
       job,
@@ -1561,9 +1594,10 @@ async function handleAdminAction(body, testOpts = {}) {
       reconciled: !reconciled.skipped && !!reconciled.ok,
       reconcileSkipped: !!reconciled.skipped,
       reconcileReason: reconciled.reason || reconciled.error || null,
+      manualCollection,
       // Capability state travels with the job so every Admin button reflects what
       // the server would actually allow, instead of guessing from a status string.
-      operationalControls: adminOperationalControls(booking, projection),
+      operationalControls: adminOperationalControls(booking, projection, manualCollection),
       ...adminAddonCatalogForBooking(booking),
       ...adminPackageCatalogForBooking(booking),
       vehicleCatalog: adminVehicleMutationCatalog(),
@@ -2256,9 +2290,106 @@ async function handleAdminAction(body, testOpts = {}) {
     });
   }
 
+  if (action === 'reserve_manual_collection') {
+    const {
+      reserveManualCollection,
+      manualCollectionHttpResult,
+    } = require('../lib/db/manual-collection');
+    const actorId = String(testOpts.actorId || 'admin').trim() || 'admin';
+    const result = await reserveManualCollection({
+      booking,
+      bookingId,
+      actorId,
+      env: process.env,
+      now,
+    }, {
+      syncBlob: async (view) => {
+        const patched = {
+          ...booking,
+          updatedAt: now,
+          eventLog: appendEventLog(booking, {
+            action: 'manual_collection_reserved',
+            by: actorId,
+            operationId: view.operationId,
+            note: 'administrative_reservation_not_payment',
+          }),
+        };
+        const persisted = await persistMutation(
+          store, bookingId, patched, booking, 'reserve_manual_collection', 'manual_collection'
+        );
+        if (!persisted.ok) throw new Error(persisted.error || 'blob_sync_failed');
+      },
+      audit: async (view) => {
+        await appendAudit(auditEntry({
+          bookingId,
+          actorType: 'admin',
+          actorId,
+          action: 'reserve_manual_collection',
+          reason: `manual_collection:${view.state}:${view.operationId || ''}`,
+          sourcePortal: 'admin_ops',
+        }));
+      },
+    });
+    const http = manualCollectionHttpResult(result);
+    return jsonCors(http.statusCode, { ...http.body, bookingId, authoritative: false });
+  }
+
   if (action === 'set_payment_link') {
     const payLink = sanitizeText(body.payLink, 500);
-    if (!payLink.startsWith('http')) return jsonCors(400, { ok: false, error: 'invalid_pay_link' });
+    if (!payLink.startsWith('http')) return jsonCors(400, { ok: false, error: 'invalid_pay_link', paid: false });
+    const { postgresPaymentEnabled } = require('../lib/db/operational-payment');
+    if (postgresPaymentEnabled(process.env)) {
+      const {
+        recordManualCollectionUrl,
+        manualCollectionHttpResult,
+      } = require('../lib/db/manual-collection');
+      const actorId = String(testOpts.actorId || 'admin').trim() || 'admin';
+      const result = await recordManualCollectionUrl({
+        bookingId,
+        actorId,
+        env: process.env,
+        now,
+        operationId: sanitizeText(body.operationId, 80),
+        url: payLink,
+      }, {
+        syncBlob: async (view) => {
+          const patched = {
+            ...booking,
+            manualPayLink: view.url || payLink,
+            manualPayLinkAt: now,
+            updatedAt: now,
+            eventLog: appendEventLog(booking, {
+              action: 'manual_payment_link_set',
+              by: actorId,
+              operationId: view.operationId,
+              note: 'external_manual_reference_not_authoritative',
+            }),
+          };
+          const persisted = await persistMutation(store, bookingId, patched, booking, 'set_payment_link', 'manual_link');
+          if (!persisted.ok) throw new Error(persisted.error || 'blob_sync_failed');
+        },
+        audit: async (view) => {
+          await appendAudit(auditEntry({
+            bookingId,
+            actorType: 'admin',
+            actorId,
+            action: 'set_payment_link',
+            reason: `manual_collection_url:${view.operationId || ''}`,
+            sourcePortal: 'admin_ops',
+          }));
+        },
+      });
+      const http = manualCollectionHttpResult(result);
+      return jsonCors(http.statusCode, {
+        ...http.body,
+        bookingId,
+        authoritative: false,
+        note: 'Manual URL recorded against the PostgreSQL reservation. The URL is not payment evidence and the booking is not paid.',
+      });
+    }
+    // PostgreSQL settlement is off, so there is no on-site settlement to exclude.
+    // Historical callers may still store a non-Square reference on the Blob.
+    // That copy is not a Square reservation and is not migrated into one.
     const { moneyConflict } = require('../lib/payment-service');
     const money = moneyConflict(booking);
     if (money.conflict || !money.payable || !(money.remainingCents > 0)) {
@@ -2267,6 +2398,7 @@ async function handleAdminAction(body, testOpts = {}) {
         error: 'not_payable',
         reason: money.reason || 'zero_balance',
         message: 'Booking is already paid or has no remaining balance. Manual pay links are blocked.',
+        paid: false,
       });
     }
     // Manual external reference only — not an authoritative Stripe payment attempt.
@@ -2284,14 +2416,70 @@ async function handleAdminAction(body, testOpts = {}) {
     };
     const persisted = await persistMutation(store, bookingId, patched, booking, 'set_payment_link', 'manual_link');
     if (!persisted.ok) {
-      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict', paid: false });
     }
     return jsonCors(200, {
       ok: true,
       bookingId,
       bookingVersion: persisted.bookingVersion,
       authoritative: false,
-      note: 'Manual link stored as external reference only; Generate Stripe link remains the authoritative path.',
+      paid: false,
+      note: 'Manual link stored as an external reference only. PostgreSQL settlement is off, so this did not create a Square collection reservation.',
+    });
+  }
+
+  if (action === 'close_manual_collection') {
+    const {
+      closeManualCollection,
+      manualCollectionHttpResult,
+    } = require('../lib/db/manual-collection');
+    const actorId = String(testOpts.actorId || 'admin').trim() || 'admin';
+    const result = await closeManualCollection({
+      bookingId,
+      actorId,
+      env: process.env,
+      now,
+      operationId: sanitizeText(body.operationId, 80),
+      outcome: sanitizeText(body.outcome, 40),
+      reason: sanitizeText(body.reason, 500),
+      confirmation: body.confirmation,
+      evidence: sanitizeText(body.evidence, 500),
+    }, {
+      syncBlob: async (view) => {
+        const patched = {
+          ...booking,
+          updatedAt: now,
+          eventLog: appendEventLog(booking, {
+            action: view.state === 'payment_reported'
+              ? 'manual_collection_payment_reported'
+              : 'manual_collection_closed',
+            by: actorId,
+            operationId: view.operationId,
+            note: 'administrative_attestation_not_square_verification',
+          }),
+        };
+        const persisted = await persistMutation(
+          store, bookingId, patched, booking, 'close_manual_collection', 'manual_collection'
+        );
+        if (!persisted.ok) throw new Error(persisted.error || 'blob_sync_failed');
+      },
+      audit: async (view) => {
+        await appendAudit(auditEntry({
+          bookingId,
+          actorType: 'admin',
+          actorId,
+          action: 'close_manual_collection',
+          reason: `manual_collection:${view.state}:${view.operationId || ''}`,
+          sourcePortal: 'admin_ops',
+        }));
+      },
+    });
+    const http = manualCollectionHttpResult(result);
+    return jsonCors(http.statusCode, {
+      ...http.body,
+      bookingId,
+      authoritative: false,
+      note: 'Administrative attestation only. Cardetail1 did not ask Square and did not mark the booking paid.',
     });
   }
 

@@ -3931,7 +3931,14 @@ async function loadTechs(fetchOpts, loadOpts) {
         : '')+
       '</div>'+
       '<div class="full"><label>Legacy hosted Checkout (disabled)</label><input type="url" id="dPayLink" value="'+esc(j.payLink||'')+'" disabled></div>'+
-      '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… external note only" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
+      '<div class="full"><label>Manual external reference (optional, not Checkout)</label><input type="url" id="dManualPayRef" placeholder="https://… Square URL after you reserve collection" value="'+esc(j.manualPayLink||'')+'"'+(invPaid?' disabled':'')+'></div>'+
+      '<div class="full"><p class="hint" id="dManualCollectionNote">'+esc((drawerControls&&drawerControls.manualCollection&&drawerControls.manualCollection.explanation)||'No manual online collection is reserved. Reserve before creating a Square link. Reserving does not mark this booking paid.')+'</p></div>'+
+      '<div class="full actions">'+
+      '<button type="button" class="btn ghost sm" id="dReserveManualCollection" style="min-height:44px">Reserve online collection</button>'+
+      '<button type="button" class="btn ghost sm" id="dRecordManualCollection" style="min-height:44px">Record Square URL</button>'+
+      '<button type="button" class="btn ghost sm" id="dCloseManualCollection" style="min-height:44px">Attest Square link deactivated</button>'+
+      '<button type="button" class="btn warn sm" id="dReportManualPayment" style="min-height:44px">Report Square payment</button>'+
+      '</div>'+
       '<div class="full actions">'+
       '<button type="button" class="btn ghost sm" id="dReconcileStripe" style="min-height:44px">Reconcile with Stripe</button>'+
       '<button type="button" class="btn ghost sm" id="dSetPayLink" style="min-height:44px"'+(canGenLink?'':' disabled')+'>Save manual reference</button>'+
@@ -4200,7 +4207,12 @@ async function loadTechs(fetchOpts, loadOpts) {
         expectedBookingVersion: j.bookingVersion,
       });
     };
-    const dmcs = $('#dMarkCardSite'); if(dmcs) dmcs.onclick = () => {
+    const dmcs = $('#dMarkCardSite'); if(dmcs) {
+      const cardCap = drawerControls && drawerControls.recordCardOnSite;
+      if (cardCap && cardCap.enabled === false) {
+        dmcs.disabled = true;
+        dmcs.title = cardCap.explanation || 'Card-on-site settlement is unavailable.';
+      } else dmcs.onclick = () => {
       const ref=prompt('Card-on-site terminal reference (no card number):');
       if(!ref||!ref.trim()) return;
       const reason=prompt('Reason / evidence for this financial entry:','Card payment received on site');
@@ -4210,7 +4222,7 @@ async function loadTechs(fetchOpts, loadOpts) {
         reason:reason.trim(),
         expectedBookingVersion:j.bookingVersion,
       });
-    };
+    }; }
     document.querySelectorAll('.adj-decide').forEach((btn) => {
       btn.onclick = () => {
         const decision = btn.dataset.decision;
@@ -4268,6 +4280,64 @@ async function loadTechs(fetchOpts, loadOpts) {
         if(!url){ toast('Paste an external reference URL first'); return; }
         const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'set_payment_link',bookingId:j.id,payLink:url});
         toast(d.note || 'Manual reference saved (not authoritative)');
+        await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message); }
+    };
+    const dReserveMc = $('#dReserveManualCollection'); if(dReserveMc) dReserveMc.onclick = async () => {
+      try {
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'reserve_manual_collection',bookingId:j.id});
+        toast(d.idempotent ? 'Online collection is already reserved' : 'Online collection reserved. Create the link in Square, then record the URL. This is not a payment.');
+        await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message); }
+    };
+    const dRecordMc = $('#dRecordManualCollection'); if(dRecordMc) dRecordMc.onclick = async () => {
+      try {
+        const url = ($('#dManualPayRef') && $('#dManualPayRef').value.trim()) || '';
+        const operationId = drawerControls && drawerControls.manualCollection && drawerControls.manualCollection.operationId;
+        if(!url){ toast('Paste the Square URL first'); return; }
+        if(!operationId){ toast('Reserve online collection first'); return; }
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{action:'set_payment_link',bookingId:j.id,payLink:url,operationId:operationId});
+        toast(d.note || 'URL recorded. This does not mark the booking paid.');
+        await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message); }
+    };
+    const dCloseMc = $('#dCloseManualCollection'); if(dCloseMc) dCloseMc.onclick = async () => {
+      try {
+        const operationId = drawerControls && drawerControls.manualCollection && drawerControls.manualCollection.operationId;
+        if(!operationId){ toast('There is no manual collection reservation to close'); return; }
+        if(!confirm('Administrative attestation only. Cardetail1 will not ask Square. Confirm you inspected the link, found no completed payment, deactivated or deleted it in the Square Dashboard, and accept responsibility for that statement?')) return;
+        const reason = prompt('Closure reason:');
+        if(!reason||!reason.trim()){ toast('A closure reason is required'); return; }
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{
+          action:'close_manual_collection',
+          bookingId:j.id,
+          operationId:operationId,
+          outcome:'unpaid_withdrawn',
+          reason:reason.trim(),
+          confirmation:{inspected:true,noCompletedPayment:true,deactivated:true,responsibilityAccepted:true},
+        });
+        toast(d.note || 'Attestation recorded. This is not a Square verification.');
+        await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
+      } catch(e){ toast(e.message); }
+    };
+    const dReportMc = $('#dReportManualPayment'); if(dReportMc) dReportMc.onclick = async () => {
+      try {
+        const operationId = drawerControls && drawerControls.manualCollection && drawerControls.manualCollection.operationId;
+        if(!operationId){ toast('There is no manual collection reservation'); return; }
+        if(!confirm('Report that Square received a payment? Cardetail1 will not mark this booking paid and will not release the balance for cash or card.')) return;
+        const reason = prompt('What did you see in Square?');
+        if(!reason||!reason.trim()){ toast('A reason is required'); return; }
+        const evidence = prompt('Optional Square reference (leave blank if none):') || '';
+        const d = await api('/.netlify/functions/admin-ops-jobs','POST',{
+          action:'close_manual_collection',
+          bookingId:j.id,
+          operationId:operationId,
+          outcome:'payment_reported',
+          reason:reason.trim(),
+          evidence:evidence.trim(),
+          confirmation:{inspected:true,paymentReported:true},
+        });
+        toast(d.note || 'Payment report recorded. The booking is not marked paid.');
         await refreshAll(); if(activeJob&&activeJob.id===j.id) openDrawer(j.id);
       } catch(e){ toast(e.message); }
     };

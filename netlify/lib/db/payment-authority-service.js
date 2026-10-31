@@ -23,6 +23,7 @@ const {
 const { getPrisma, tryGetPrisma } = require('../prisma');
 const { Prisma } = require('@prisma/client');
 const { computeFinancialProjection } = require('./financial-projection');
+const { onSiteSettlementManualCollectionConflict } = require('./manual-collection');
 const repo = require('./repositories');
 const foundation = require('./foundation-services');
 const {
@@ -2141,9 +2142,11 @@ async function recordFullBalanceOnSiteSettlement({ bookingId, method = 'cash', b
 
   try {
     return await runSerializableWithRetry(async (tx) => {
-      await tx.$queryRaw`
-        SELECT "id" FROM "Booking" WHERE "id" = ${id} FOR UPDATE
+      const lockedRows = await tx.$queryRaw`
+        SELECT "id", "manualCollectionState", "manualCollectionOperationId"
+        FROM "Booking" WHERE "id" = ${id} FOR UPDATE
       `;
+      const locked = Array.isArray(lockedRows) ? lockedRows[0] : null;
       const booking = await tx.booking.findUnique({ where: { id } });
       const quote = await tx.quote.findFirst({
         where: { bookingId: id },
@@ -2152,6 +2155,12 @@ async function recordFullBalanceOnSiteSettlement({ bookingId, method = 'cash', b
       if (!booking || !quote) {
         return { ok: false, error: 'not_found', statusCode: 404 };
       }
+      const manualConflict = onSiteSettlementManualCollectionConflict({
+        ...booking,
+        manualCollectionState: locked?.manualCollectionState ?? booking.manualCollectionState,
+        manualCollectionOperationId: locked?.manualCollectionOperationId ?? booking.manualCollectionOperationId,
+      });
+      if (manualConflict) return manualConflict;
 
       const ledgerEntries = await tx.ledgerEntry.findMany({
         where: { bookingId: id },
