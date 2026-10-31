@@ -12,6 +12,14 @@
     payment_completed: 'purchase',
   };
 
+  // Only allowlisted revenue events are forwarded. checkout_opened is already
+  // booking_started from revops-booking-hooks, so it is not sent again.
+  var APPROVED_FORWARD = {
+    booking_submitted: 'booking_submitted',
+    payment_info_saved: 'payment_method_saved',
+  };
+  var SUBMITTED_KEY = 'cd1_chk_submitted_refs';
+
   function sessionId() {
     try {
       var s = sessionStorage.getItem(SESSION_KEY);
@@ -67,24 +75,35 @@
     }
   }
 
+  function bookingAlreadyCounted(txId) {
+    try {
+      var raw = sessionStorage.getItem(SUBMITTED_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) && arr.indexOf(String(txId)) !== -1;
+    } catch (e) { return false; }
+  }
+
+  function rememberBooking(txId) {
+    try {
+      var raw = sessionStorage.getItem(SUBMITTED_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) arr = [];
+      if (arr.indexOf(String(txId)) === -1) arr.push(String(txId));
+      if (arr.length > 40) arr = arr.slice(-40);
+      sessionStorage.setItem(SUBMITTED_KEY, JSON.stringify(arr));
+    } catch (e) { /* ignore */ }
+  }
+
   function emit(name, props) {
     try {
       if (sharedPreviewHost()) return;
       if (global.Cardetail1Checkout && global.Cardetail1Checkout._silent) return;
-      var payload = baseProps(props || {});
-      payload.checkout_event = name;
-      if (global.Cardetail1Revenue) {
-        global.Cardetail1Revenue.track(name, payload);
-        var ga4 = GA4_MAP[name];
-        if (ga4 && global.Cardetail1Revenue.trackGa4) {
-          global.Cardetail1Revenue.trackGa4(ga4, payload);
-        } else if (ga4 && global.gtag) {
-          global.gtag('event', ga4, payload);
-        }
-      }
-      if (global.dataLayer) {
-        global.dataLayer.push(Object.assign({ event: name }, payload));
-      }
+      var forward = APPROVED_FORWARD[name];
+      if (!forward || !global.Cardetail1Revenue) return;
+      // GA4_MAP is the name crosswalk only. This file does not call gtag:
+      // that path ignored analytics consent and could emit begin_checkout
+      // beside the canonical booking_started event.
+      global.Cardetail1Revenue.track(forward, baseProps(props || {}));
     } catch (e) { /* analytics must never block checkout */ }
   }
 
@@ -179,17 +198,37 @@
     });
   }
 
+  function authoritativeAmount(evidence) {
+    if (!evidence || evidence.approvedFinalAmount == null || evidence.approvedFinalAmount === '') return null;
+    var n = Number(evidence.approvedFinalAmount);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n;
+  }
+
   /**
    * Canonical booking-success signal. Google Ads "Booking submitted" conversion
    * fires only when evidence proves durable persist + backend approvedFinalAmount.
    * evidence: { ok, bookingCreated, id|transaction_id, approvedFinalAmount }
-   * First-party emit stays anonymous (no durable booking identifiers).
+   * The first-party event carries booking_reference for admin attribution.
+   * That reference is omitted from GA4 and Clarity.
    */
   function onBookingSubmitted(evidence) {
     evidence = evidence || {};
     var txId = evidence.transaction_id || evidence.id || null;
-    var approved = evidence.approvedFinalAmount;
-    emit('booking_submitted', { estimated_value: estimatedValue() });
+    var approved = authoritativeAmount(evidence);
+    var persisted = evidence.ok === true
+      && evidence.bookingCreated === true
+      && evidence.isDraft !== true
+      && !!txId;
+    if (persisted && !bookingAlreadyCounted(txId)) {
+      var extra = {
+        booking_reference: String(txId),
+        currency: evidence.currency || 'USD',
+      };
+      if (approved != null) extra.estimated_value = approved;
+      emit('booking_submitted', extra);
+      if (global.Cardetail1Revenue) rememberBooking(txId);
+    }
     // Google Ads AW-…/yrOD… — only after finalize persist evidence (not Page view).
     try {
       if (global.Cardetail1Revenue && typeof global.Cardetail1Revenue.trackGoogleAdsBookingConversion === 'function') {
@@ -210,7 +249,7 @@
   }
 
   function onPaymentInfoSaved() {
-    emit('payment_info_saved', { estimated_value: estimatedValue() });
+    emit('payment_info_saved', { currency: 'USD' });
   }
 
   function onPaymentCompleted(value) {

@@ -234,8 +234,17 @@ function buildFunnel(eventCounts) {
   });
 }
 
+function channelFromLegacy(p) {
+  const medium = String(p.utm_medium || '').toLowerCase();
+  if (medium === 'cpc' || medium === 'ppc' || medium === 'paid' || medium === 'paid_social') return 'paid';
+  if (medium === 'organic') return 'organic';
+  if (p.referrer_domain || p.utm_source || p.utm_campaign) return 'referral';
+  return 'direct';
+}
+
 function buildBreakdowns(events) {
   const sources = {};
+  const channels = {};
   const categories = {};
   const pages = {};
 
@@ -243,6 +252,8 @@ function buildBreakdowns(events) {
     const p = ev.properties || {};
     const src = p.source || p.utm_source || 'direct';
     sources[src] = (sources[src] || 0) + 1;
+    const channel = p.traffic_type || channelFromLegacy(p);
+    channels[channel] = (channels[channel] || 0) + 1;
     const cat = p.category || p.vehicle_category || 'unknown';
     categories[cat] = (categories[cat] || 0) + 1;
     const page = p.page_type || p.page || 'unknown';
@@ -256,6 +267,7 @@ function buildBreakdowns(events) {
 
   return {
     sources: toSorted(sources),
+    channels: toSorted(channels),
     categories: toSorted(categories),
     pages: toSorted(pages),
   };
@@ -368,6 +380,7 @@ async function buildRevopsDashboard(query = {}) {
     summary,
     funnel,
     sources: breakdowns.sources,
+    channels: breakdowns.channels,
     categories: breakdowns.categories,
     pages: breakdowns.pages,
     priorityQueue,

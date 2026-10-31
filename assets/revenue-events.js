@@ -51,17 +51,28 @@
     page_type: 1, category: 1, package_id: 1, estimated_value: 1, currency: 1,
     vehicle_count_band: 1, asset_category_count: 1, zip_zone: 1, booking_step: 1,
     vehicle_type: 1, device_type: 1, utm_source: 1, utm_medium: 1, utm_campaign: 1,
-    utm_content: 1, referrer_domain: 1, lead_temperature: 1, household_segment: 1,
+    utm_content: 1, utm_term: 1, referrer_domain: 1, traffic_type: 1, first_seen_at: 1,
+    booking_reference: 1, lead_temperature: 1, household_segment: 1,
     error_code: 1, offer_id: 1, multi_vehicle_band: 1, flexibility_mode: 1,
     weekend_selected: 1, funnel_step: 1, failure_code: 1, service_category: 1,
   };
 
+  // Booking request, approval, and completed service stay distinct custom events.
+  // A persisted request is not a GA4 purchase and is not a captured payment.
   var GA4_MAP = {
     lead_created: 'generate_lead', lead_qualified: 'qualify_lead', lead_lost: 'close_unconvert_lead',
-    lead_contacted: 'working_lead', booking_confirmed: 'close_convert_lead', service_completed: 'close_convert_lead',
+    lead_contacted: 'working_lead',
+    booking_confirmed: 'booking_confirmed', service_completed: 'service_completed',
+    booking_submitted: 'booking_submitted',
     package_view: 'view_item', package_selected: 'select_item', offer_viewed: 'view_promotion',
     promotion_selected: 'select_promotion', booking_started: 'begin_checkout',
     payment_method_saved: 'add_payment_info',
+  };
+
+  var THIRD_PARTY_OMIT = {
+    booking_reference: 1, gclid: 1, gbraid: 1, wbraid: 1, msclkid: 1, fbclid: 1,
+    email: 1, phone: 1, name: 1, first_name: 1, last_name: 1, address: 1, notes: 1,
+    customer_notes: 1, zip: 1, zip_code: 1,
   };
 
   function uuid() {
@@ -81,51 +92,117 @@
     }
   }
 
+  function decodeQueryPart(value) {
+    try { return decodeURIComponent(String(value || '').replace(/\+/g, ' ')); }
+    catch (e) { return ''; }
+  }
+
+  function cleanAttr(value) {
+    if (value == null) return null;
+    var s = String(value).trim();
+    return s ? s.slice(0, 256) : null;
+  }
+
   function parseQuery() {
     var q = {};
     try {
       global.location.search.slice(1).split('&').forEach(function (pair) {
+        if (!pair) return;
         var p = pair.split('=');
-        if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || '');
+        if (p[0]) q[decodeQueryPart(p[0])] = decodeQueryPart(p.slice(1).join('='));
       });
     } catch (e) { /* ignore */ }
     return q;
   }
 
+  function isOwnHost(host) {
+    var h = String(host || '').toLowerCase();
+    if (!h) return true;
+    return h === 'cardetail1.com' || h === 'www.cardetail1.com'
+      || h === 'localhost' || h === '127.0.0.1' || h.endsWith('.netlify.app');
+  }
+
+  function keepAttr(existing, key, incoming) {
+    return cleanAttr(incoming) || cleanAttr(existing && existing[key]) || null;
+  }
+
+  function trafficType(attr) {
+    attr = attr || {};
+    var medium = String(attr.utm_medium || '').toLowerCase();
+    var hasClick = !!(cleanAttr(attr.gclid) || cleanAttr(attr.gbraid) || cleanAttr(attr.wbraid));
+    if (hasClick || medium === 'cpc' || medium === 'ppc' || medium === 'paid' || medium === 'paid_social') {
+      return 'paid';
+    }
+    if (medium === 'organic') return 'organic';
+    var ref = String(attr.referrer_domain || '').toLowerCase();
+    if (/google\.|bing\.|yahoo\.|duckduckgo\./.test(ref)) return 'organic';
+    if (ref || attr.utm_source || attr.utm_medium || attr.utm_campaign) return 'referral';
+    return 'direct';
+  }
+
   function captureAttribution() {
     try {
-      var existing = JSON.parse(localStorage.getItem(ATTR_KEY) || 'null');
+      var existing = null;
+      try { existing = JSON.parse(localStorage.getItem(ATTR_KEY) || 'null'); } catch (eRead) { existing = null; }
+      if (!existing || typeof existing !== 'object') existing = {};
       var q = parseQuery();
       var now = new Date().toISOString();
-      var ref = document.referrer || '';
       var refDomain = '';
-      try { refDomain = ref ? new URL(ref).hostname : ''; } catch (e) { refDomain = ''; }
+      try { refDomain = document.referrer ? new URL(document.referrer).hostname : ''; } catch (eRef) { refDomain = ''; }
+      var externalRef = refDomain && !isOwnHost(refDomain) ? refDomain : null;
+      var path = cleanAttr(global.location && global.location.pathname) || '/';
 
-      var touch = {
-        utm_source: q.utm_source || null,
-        utm_medium: q.utm_medium || null,
-        utm_campaign: q.utm_campaign || null,
-        utm_content: q.utm_content || null,
-        referrer_domain: refDomain || null,
-        landing_page: global.location.pathname,
-        first_seen_at: existing && existing.first_seen_at ? existing.first_seen_at : now,
-        last_seen_at: now,
-      };
+      // Internal navigations have no campaign query. Keep the stored touch
+      // instead of writing null over utm_*, landing page, or the external referrer.
+      // Click IDs stay in this object only and are omitted from GA4/Clarity.
+      var merged = Object.assign({}, existing);
+      merged.utm_source = keepAttr(existing, 'utm_source', q.utm_source);
+      merged.utm_medium = keepAttr(existing, 'utm_medium', q.utm_medium);
+      merged.utm_campaign = keepAttr(existing, 'utm_campaign', q.utm_campaign);
+      merged.utm_content = keepAttr(existing, 'utm_content', q.utm_content);
+      merged.utm_term = keepAttr(existing, 'utm_term', q.utm_term);
+      merged.referrer_domain = cleanAttr(existing.referrer_domain) || externalRef || null;
+      merged.landing_page = cleanAttr(existing.landing_page) || path;
+      merged.first_seen_at = cleanAttr(existing.first_seen_at) || now;
+      merged.last_seen_at = now;
+      merged.gclid = keepAttr(existing, 'gclid', q.gclid);
+      merged.gbraid = keepAttr(existing, 'gbraid', q.gbraid);
+      merged.wbraid = keepAttr(existing, 'wbraid', q.wbraid);
+      merged.msclkid = keepAttr(existing, 'msclkid', q.msclkid);
+      merged.fbclid = keepAttr(existing, 'fbclid', q.fbclid);
 
-      // Advertising click IDs stored first-party only — never sent to GA4/Clarity
-      var clickIds = {
-        gclid: q.gclid || (existing && existing.gclid) || null,
-        gbraid: q.gbraid || (existing && existing.gbraid) || null,
-        wbraid: q.wbraid || (existing && existing.wbraid) || null,
-        msclkid: q.msclkid || (existing && existing.msclkid) || null,
-        fbclid: q.fbclid || (existing && existing.fbclid) || null,
-      };
-
-      var merged = Object.assign({}, existing || {}, touch, clickIds);
-      if (!existing || !existing.first_touch) {
-        merged.first_touch = Object.assign({}, touch, clickIds);
+      if (!existing.first_touch) {
+        merged.first_touch = {
+          utm_source: merged.utm_source,
+          utm_medium: merged.utm_medium,
+          utm_campaign: merged.utm_campaign,
+          utm_content: merged.utm_content,
+          utm_term: merged.utm_term,
+          referrer_domain: merged.referrer_domain,
+          landing_page: merged.landing_page,
+          gclid: merged.gclid,
+          gbraid: merged.gbraid,
+          wbraid: merged.wbraid,
+          first_seen_at: merged.first_seen_at,
+        };
       }
-      merged.last_touch = Object.assign({}, touch, clickIds);
+      var hasNewCampaign = !!(cleanAttr(q.utm_source) || cleanAttr(q.utm_medium) || cleanAttr(q.utm_campaign)
+        || cleanAttr(q.utm_content) || cleanAttr(q.utm_term) || cleanAttr(q.gclid) || cleanAttr(q.gbraid) || cleanAttr(q.wbraid));
+      if (hasNewCampaign || !existing.last_touch) {
+        merged.last_touch = {
+          utm_source: cleanAttr(q.utm_source),
+          utm_medium: cleanAttr(q.utm_medium),
+          utm_campaign: cleanAttr(q.utm_campaign),
+          utm_content: cleanAttr(q.utm_content),
+          utm_term: cleanAttr(q.utm_term),
+          referrer_domain: externalRef,
+          landing_page: path,
+          gclid: cleanAttr(q.gclid),
+          gbraid: cleanAttr(q.gbraid),
+          wbraid: cleanAttr(q.wbraid),
+          seen_at: now,
+        };
+      }
       localStorage.setItem(ATTR_KEY, JSON.stringify(merged));
       return merged;
     } catch (e) {
@@ -230,23 +307,77 @@
     } catch (e) { /* no customer-facing failure */ }
   }
 
+  function thirdPartyProps(props) {
+    var out = {};
+    Object.keys(props || {}).forEach(function (k) {
+      if (THIRD_PARTY_OMIT[k]) return;
+      out[k] = props[k];
+    });
+    return out;
+  }
+
   function pushDataLayer(eventName, props) {
     if (!global.dataLayer) global.dataLayer = [];
+    var safe = thirdPartyProps(props);
     var ga4 = GA4_MAP[eventName];
-    if (ga4) {
-      global.dataLayer.push({ event: ga4, cardetail1_event: eventName, params: props });
+    if (ga4 && ga4 !== eventName && ga4 !== 'purchase') {
+      global.dataLayer.push({ event: ga4, cardetail1_event: eventName, params: safe });
     }
-    global.dataLayer.push({ event: 'cardetail1_' + eventName, cardetail1_event: eventName, params: props });
+    global.dataLayer.push({ event: 'cardetail1_' + eventName, cardetail1_event: eventName, params: safe });
+  }
+
+  function pushGa4(eventName, props) {
+    // gtag config already records the automatic page view. A second page_view
+    // would double-count the visit. Direct GA4 is skipped when GTM is present.
+    if (eventName === 'page_view') return;
+    var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false };
+    if (!consent || !consent.analytics) return;
+    if (global.CD1_GTM_CONTAINER_ID) return;
+    if (!global.CD1_GA4_MEASUREMENT_ID || !global.__cd1Ga4Configured) return;
+    var ga4Name = GA4_MAP[eventName] || eventName;
+    if (!ga4Name || ga4Name === 'purchase') return;
+    ensureGtag();
+    global.gtag('event', ga4Name, thirdPartyProps(props));
   }
 
   function pushClarity(eventName, props) {
     if (typeof global.clarity !== 'function') return;
+    var safe = thirdPartyProps(props);
     try { global.clarity('event', eventName); } catch (e) { /* ignore */ }
-    ['page_type', 'category', 'package_id', 'booking_step', 'household_segment', 'lead_temperature', 'vehicle_count_band'].forEach(function (k) {
-      if (props[k] != null) {
-        try { global.clarity('set', k, String(props[k])); } catch (e2) { /* ignore */ }
+    ['page_type', 'category', 'package_id', 'booking_step', 'household_segment', 'lead_temperature', 'vehicle_count_band', 'traffic_type'].forEach(function (k) {
+      if (safe[k] != null) {
+        try { global.clarity('set', k, String(safe[k])); } catch (e2) { /* ignore */ }
       }
     });
+  }
+
+  function isGa4MeasurementId(value) {
+    return /^G-[A-Z0-9]{4,32}$/.test(String(value || '').trim());
+  }
+
+  function requestAnalyticsConfig() {
+    if (isGa4MeasurementId(global.CD1_GA4_MEASUREMENT_ID)) return Promise.resolve();
+    if (global.__cd1AnalyticsConfigPromise) return global.__cd1AnalyticsConfigPromise;
+    if (typeof global.fetch !== 'function') {
+      global.__cd1AnalyticsConfigPromise = Promise.resolve();
+      return global.__cd1AnalyticsConfigPromise;
+    }
+    global.__cd1AnalyticsConfigPromise = Promise.resolve().then(function () {
+      return global.fetch('/.netlify/functions/analytics-public-config', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+    }).then(function (res) {
+      if (!res || !res.ok || typeof res.json !== 'function') return null;
+      return res.json();
+    }).then(function (body) {
+      var id = body && body.ga4MeasurementId;
+      if (!global.CD1_GA4_MEASUREMENT_ID && isGa4MeasurementId(id)) {
+        global.CD1_GA4_MEASUREMENT_ID = String(id).trim();
+      }
+    }).catch(function () { /* GA4 stays off when the id is absent or the request fails */ });
+    return global.__cd1AnalyticsConfigPromise;
   }
 
   function parseRetryAfter(value) {
@@ -645,8 +776,7 @@
     }
   }
 
-  function initAdapters() {
-    var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
+  function initTagAdapters(consent) {
     var gtmId = global.CD1_GTM_CONTAINER_ID || '';
     var gaId = global.CD1_GA4_MEASUREMENT_ID || '';
     var clarityId = global.CD1_CLARITY_PROJECT_ID || '';
@@ -658,7 +788,7 @@
       s.async = true;
       s.src = 'https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(gtmId);
       document.head.appendChild(s);
-    } else if (consent.analytics && gaId && !gtmId && !global.__cd1Ga4Configured) {
+    } else if (consent.analytics && isGa4MeasurementId(gaId) && !gtmId && !global.__cd1Ga4Configured) {
       ensureGtag();
       syncGtagConsentMode(consent);
       loadGtagJs(gaId, 'cd1-gtag-ga4');
@@ -666,12 +796,13 @@
         global.gtag('js', new Date());
         global.__cd1GtagBootstrapped = true;
       }
-      global.gtag('config', gaId, { anonymize_ip: true });
+      global.gtag('config', gaId, { anonymize_ip: true, send_page_view: true });
       global.__cd1Ga4Configured = true;
     }
 
-    initGoogleAds(consent);
-
+    // Clarity stays off unless a project id is already configured AND analytics
+    // consent is granted. Booking fields are not masked, so this does not
+    // invent or fetch a Clarity id.
     if (consent.analytics && clarityId && !document.getElementById('cd1-clarity')) {
       var c = document.createElement('script');
       c.id = 'cd1-clarity';
@@ -679,6 +810,16 @@
       c.src = 'https://www.clarity.ms/tag/' + encodeURIComponent(clarityId);
       document.head.appendChild(c);
     }
+  }
+
+  function initAdapters() {
+    var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
+    initGoogleAds(consent);
+    initTagAdapters(consent);
+    requestAnalyticsConfig().then(function () {
+      var latest = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : consent;
+      initTagAdapters(latest || consent);
+    });
   }
 
   if (
@@ -731,7 +872,10 @@
         utm_medium: attr.utm_medium || undefined,
         utm_campaign: attr.utm_campaign || undefined,
         utm_content: attr.utm_content || undefined,
+        utm_term: attr.utm_term || undefined,
         referrer_domain: attr.referrer_domain || undefined,
+        traffic_type: trafficType(attr),
+        first_seen_at: attr.first_seen_at || undefined,
         device_type: global.innerWidth <= 768 ? 'mobile' : 'desktop',
       }));
 
@@ -740,6 +884,7 @@
       var consent = global.Cardetail1Consent ? global.Cardetail1Consent.getConsent() : { analytics: false, marketing: false };
       if (consent.analytics) {
         pushDataLayer(eventName, props);
+        pushGa4(eventName, props);
         pushClarity(eventName, props);
       }
       return eventId;

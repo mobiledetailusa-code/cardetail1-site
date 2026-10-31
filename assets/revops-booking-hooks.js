@@ -48,10 +48,45 @@
     global.openBooking._revopsHooked = true;
   }
 
+  function quotedAmount() {
+    try {
+      var st = global.ST || {};
+      if (st.basePrice == null || st.basePrice === '') return undefined;
+      var n = Number(st.basePrice);
+      if (!isFinite(n) || n < 0) return undefined;
+      return Math.round(n * 100) / 100;
+    } catch (e) {
+      return undefined;
+    }
+  }
+
+  function hookSelectPkg() {
+    if (global.__cd1PackageSelectedHook) return;
+    if (typeof global.selectPkg !== 'function') return;
+    var orig = global.selectPkg;
+    global.selectPkg = function (id) {
+      var result = orig.apply(this, arguments);
+      try {
+        if (global.ST && global.ST._restoring) return result;
+        var amount = quotedAmount();
+        var props = {
+          package_id: id || (global.ST && global.ST.pkgId) || undefined,
+          category: (global.ST && global.ST.cat) || undefined,
+          currency: 'USD',
+        };
+        if (amount != null) props.estimated_value = amount;
+        track('package_selected', props);
+      } catch (e) { /* analytics must not block package selection */ }
+      return result;
+    };
+    global.__cd1PackageSelectedHook = true;
+  }
+
   function init() {
     hookBkGoTo();
     hookOpenBooking();
-    if (!global.bkGoTo || !global.openBooking) {
+    hookSelectPkg();
+    if (!global.bkGoTo || !global.openBooking || typeof global.selectPkg !== 'function') {
       setTimeout(init, 500);
     }
   }

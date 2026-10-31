@@ -76,9 +76,23 @@ test('GA4 mapping preserves internal event names', () => {
   assert.equal(ga.params.cardetail1_event, 'booking_started');
 });
 
-test('purchase GA4 mapping exists but booking_submitted maps to purchase', () => {
-  const ga = mapToGa4('booking_submitted', {});
-  assert.equal(ga.name, 'purchase');
+test('booking_submitted stays a distinct GA4 event and is not a purchase', () => {
+  const ga = mapToGa4('booking_submitted', {
+    booking_reference: 'CD1-TEST',
+    gclid: 'click',
+    email: 'a@b.com',
+    utm_source: 'google',
+    utm_term: 'interior detail',
+  });
+  assert.ok(ga);
+  assert.equal(ga.name, 'booking_submitted');
+  assert.notEqual(ga.name, 'purchase');
+  assert.equal(ga.params.cardetail1_event, 'booking_submitted');
+  assert.equal(ga.params.utm_source, 'google');
+  assert.equal(ga.params.utm_term, 'interior detail');
+  assert.equal(ga.params.booking_reference, undefined);
+  assert.equal(ga.params.gclid, undefined);
+  assert.equal(ga.params.email, undefined);
 });
 
 // ── HOUSEHOLDS ──────────────────────────────────────────────────────────────

@@ -18,10 +18,10 @@ Browser HubSpot tracking: **not installed** — audit found no existing snippet;
 
 | Variable | Purpose |
 |----------|---------|
-| `GTM_CONTAINER_ID` | Set as `CD1_GTM_CONTAINER_ID` in page config |
-| `GA4_MEASUREMENT_ID` | Set as `CD1_GA4_MEASUREMENT_ID` fallback |
+| `GTM_CONTAINER_ID` | Optional. Set as `CD1_GTM_CONTAINER_ID` only when a real container exists. Direct GA4 does not need GTM. |
+| `GA4_MEASUREMENT_ID` | Netlify env read by `/.netlify/functions/analytics-public-config`. Also accepts `CD1_GA4_MEASUREMENT_ID`. Empty or malformed values leave GA4 off. |
 
-Loaded only after Analytics consent. CSP updated in `netlify.toml` for GTM/GA4/Clarity domains.
+No Measurement ID is committed in the repository. The browser applies an id only when it matches `G-` plus 4–32 letters or digits, and only after Analytics consent. CSP in `netlify.toml` allows the GA4 collect hosts.
 
 ## Google Ads (gtag.js)
 
