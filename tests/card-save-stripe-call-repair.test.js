@@ -9,6 +9,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 
 const SETUP_PATH = require.resolve('../netlify/functions/create-setup-intent');
 const SUBMIT_PATH = require.resolve('../netlify/functions/submit-booking');
@@ -16,21 +17,7 @@ const TOKEN_PATH = require.resolve('../netlify/lib/draft-save-token');
 const TEST_SECRET = 'card-save-repair-secret-value-0123456789';
 
 function createMemoryStore(seed = {}) {
-  const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]));
-  return {
-    data,
-    async get(key, { type } = {}) {
-      if (!data.has(key)) return null;
-      const raw = data.get(key);
-      return type === 'json' ? JSON.parse(raw) : raw;
-    },
-    async setJSON(key, value) {
-      data.set(key, JSON.stringify(value));
-    },
-    async list() {
-      return { blobs: [...data.keys()].map((key) => ({ key })) };
-    },
-  };
+  return createCasMemoryStore(seed);
 }
 
 function stubStripe(calls, setupIntentId = 'seti_repair') {

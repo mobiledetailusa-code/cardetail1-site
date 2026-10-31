@@ -3,6 +3,7 @@ const { test, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createCasMemoryStore } = require('./helpers/cas-memory-store');
 
 const root = path.resolve(__dirname, '..');
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
@@ -79,21 +80,7 @@ function restoreEnv(snap) {
 }
 
 function createMemoryStore(seed = {}) {
-  const data = new Map(Object.entries(seed).map(([k, v]) => [k, JSON.stringify(v)]));
-  return {
-    data,
-    async get(key, { type } = {}) {
-      if (!data.has(key)) return null;
-      const raw = data.get(key);
-      return type === 'json' ? JSON.parse(raw) : raw;
-    },
-    async setJSON(key, value) {
-      data.set(key, JSON.stringify(value));
-    },
-    async list() {
-      return { blobs: [...data.keys()].map((key) => ({ key })) };
-    },
-  };
+  return createCasMemoryStore(seed);
 }
 
 function validDraftBody(overrides = {}) {

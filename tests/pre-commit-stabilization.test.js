@@ -460,6 +460,13 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Square webhook signature check. No public endpoint and no ledger write.
     'netlify/lib/square-webhook-verifier.js',
     'netlify/lib/square-webhook-event.js',
+    // Manual Square collection. No Square API call and no second ledger.
+    'netlify/lib/admin-square-receipt-ui.js',
+    'netlify/lib/db/manual-collection.js',
+    'netlify/lib/square-admin-payment-link-contract.js',
+    'netlify/lib/square-native-payment-contract.js',
+    'netlify/lib/square-payment-link-preflight.js',
+    'netlify/lib/square-prepared-issuance.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

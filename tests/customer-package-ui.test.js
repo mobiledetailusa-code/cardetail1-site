@@ -61,8 +61,9 @@ function createMemoryStore(seed = {}) {
         if (current == null || current !== opts.onlyIfMatch) return { modified: false };
       }
       data.set(key, JSON.parse(JSON.stringify(value)));
-      etags.set(key, `etag-${key}-${Date.now()}-${Math.random()}`);
-      return { modified: true };
+      const etag = `etag-${key}-${Date.now()}-${Math.random()}`;
+      etags.set(key, etag);
+      return { modified: true, etag };
     },
     async list() {
       return { blobs: [...data.keys()].map((key) => ({ key })) };

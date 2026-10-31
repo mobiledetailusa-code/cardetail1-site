@@ -430,8 +430,8 @@ describe('admin reschedule capacity authority', () => {
       confirmedDate: LATER,
       confirmedTime: '10:00 AM',
     });
-    assert.equal(blew.statusCode, 503, blew.body);
-    assert.equal(parseBody(blew).error, 'occupancy_incomplete');
+    assert.equal(blew.statusCode, 409, blew.body);
+    assert.equal(parseBody(blew).error, 'write_outcome_unknown');
     stored = await getBookingRecord(thrown.id);
     assert.equal(stored.booking.preferredDate, OLD);
     assert.equal(thrownIndex.raw(thrownOld), 'KEEP');
