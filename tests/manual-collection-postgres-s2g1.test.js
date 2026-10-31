@@ -474,13 +474,13 @@ test('missing PostgreSQL authority does not lock or create collection state', as
   assert.equal(harness.world.booking.manualCollectionState, null);
 });
 
-test('an unavailable lock returns an unknown outcome instead of success', async () => {
+test('a definite lock failure is not reported as an unknown commit', async () => {
   const harness = createHarness();
   const result = await harness.reserve({}, {
     withBookingLock: async () => { throw new Error('database unavailable'); },
   });
   assert.equal(result.ok, false);
-  assert.equal(result.error, 'manual_collection_outcome_unknown');
+  assert.equal(result.error, 'manual_collection_persist_failed');
   assert.equal(result.paid, false);
   assert.equal(harness.world.booking.manualCollectionState, null);
 });

@@ -2,6 +2,11 @@
  * Manual Square Dashboard collection coordinated on the PostgreSQL Booking row.
  *
  * The Booking row is the same row on-site settlement locks with FOR UPDATE.
+ * This path uses READ COMMITTED. The row lock is acquired first, and the quote,
+ * ledger, and payment-attempt reads happen afterward in that same transaction.
+ * A serializable snapshot would stay at the waiting statement and could miss a
+ * ledger insert that did not update the Booking row. Settlement transactions
+ * keep their own isolation level.
  * A reservation is not a payment, not a ledger entry, and not a PaymentAttempt.
  * Recording a URL does not mark the booking paid.
  * Closing a reservation is an administrative attestation, not a Square check.
@@ -24,6 +29,8 @@ const UNPAID_CONFIRMATIONS = [
   'deactivated',
   'responsibilityAccepted',
 ];
+
+const COLLECTION_TRANSACTION_ATTEMPTS = 3;
 
 const LIMITATIONS = [
   'Administrative attestation does not prove Square has no completed or in-flight payment.',
@@ -364,6 +371,54 @@ function txContext(tx, bookingId) {
   };
 }
 
+function collectionErrorText(error) {
+  const adapter = error?.meta?.driverAdapterError?.cause;
+  return [
+    error?.code,
+    error?.message,
+    error?.cause?.code,
+    error?.cause?.originalCode,
+    error?.cause?.message,
+    error?.meta?.code,
+    adapter?.originalCode,
+    adapter?.code,
+    adapter?.message,
+  ].filter(Boolean).join(' ');
+}
+
+/**
+ * Business conflicts return from inside the transaction and are not errors.
+ * 40001 and 40P01 retry the whole transaction. A dropped connection may mean
+ * the commit landed, so that retry is also a new transaction that reads the
+ * durable row before it writes. A definite statement failure is not retried
+ * and is not reported as an unknown commit.
+ */
+function classifyCollectionTransactionError(error) {
+  const text = collectionErrorText(error);
+  if (/\b(?:P2034|40001|40P01)\b|serialization failure|deadlock detected/i.test(text)) {
+    return { retry: true, error: 'manual_collection_retry_exhausted', statusCode: 503 };
+  }
+  if (/ECONNRESET|EPIPE|connection terminated|server closed the connection|closed the connection|Can't reach database server/i.test(text)) {
+    return { retry: true, error: 'manual_collection_outcome_unknown', statusCode: 503 };
+  }
+  return { retry: false, error: 'manual_collection_persist_failed', statusCode: 503 };
+}
+
+async function executeCollectionTransaction(runTransaction, maxAttempts = COLLECTION_TRANSACTION_ATTEMPTS) {
+  const attempts = Math.max(1, Math.round(Number(maxAttempts) || COLLECTION_TRANSACTION_ATTEMPTS));
+  let decision = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await runTransaction();
+    } catch (error) {
+      decision = classifyCollectionTransactionError(error);
+      if (decision.retry && attempt < attempts) continue;
+      return fail(decision.error, decision.statusCode);
+    }
+  }
+  return fail(decision?.error || 'manual_collection_outcome_unknown', 503);
+}
+
 async function defaultWithBookingLock(bookingId, operation) {
   const prisma = tryGetPrisma();
   if (!prisma) return fail('database_not_configured', 503);
@@ -373,19 +428,15 @@ async function defaultWithBookingLock(bookingId, operation) {
   } catch {
     return fail('database_not_configured', 503);
   }
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw`
-        SELECT "id" FROM "Booking" WHERE "id" = ${bookingId} FOR UPDATE
-      `;
-      if (!Array.isArray(locked) || locked.length === 0) return fail('not_found', 404);
-      return operation(txContext(tx, bookingId));
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
-  } catch {
-    return fail('manual_collection_outcome_unknown', 503);
-  }
+  return executeCollectionTransaction(() => prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw`
+      SELECT "id" FROM "Booking" WHERE "id" = ${bookingId} FOR UPDATE
+    `;
+    if (!Array.isArray(locked) || locked.length === 0) return fail('not_found', 404);
+    return operation(txContext(tx, bookingId));
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+  }));
 }
 
 async function runLocked(bookingId, deps, mutator) {
@@ -401,8 +452,9 @@ async function runLocked(bookingId, deps, mutator) {
     if (!decision || typeof decision.ok !== 'boolean') return fail('manual_collection_outcome_unknown', 503);
     if (!decision.ok) return { ...decision, paid: false, paymentEvidence: false, ledgerEntryCreated: false };
     return finishSideEffects(decision, deps);
-  } catch {
-    return fail('manual_collection_outcome_unknown', 503);
+  } catch (error) {
+    const decision = classifyCollectionTransactionError(error);
+    return fail(decision.error, decision.statusCode);
   }
 }
 
@@ -525,7 +577,10 @@ function manualCollectionHttpResult(result) {
 }
 
 module.exports = {
+  COLLECTION_TRANSACTION_ATTEMPTS,
   LIMITATIONS,
+  classifyCollectionTransactionError,
+  executeCollectionTransaction,
   onSiteSettlementManualCollectionConflict,
   reserveManualCollection,
   recordManualCollectionUrl,
