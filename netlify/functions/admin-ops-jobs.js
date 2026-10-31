@@ -2483,6 +2483,32 @@ async function handleAdminAction(body, testOpts = {}) {
     });
   }
 
+  if (action === 'record_square_dashboard_receipt') {
+    const { recordAdministratorSquareReceipt } = require('../lib/db/payment-authority-service');
+    const actorId = String(testOpts.actorId || 'admin').trim() || 'admin';
+    const result = await recordAdministratorSquareReceipt({
+      bookingId,
+      actorId,
+      operationId: sanitizeText(body.operationId, 80),
+      squareTransactionRef: sanitizeText(body.squareTransactionRef, 80),
+      amountCents: body.amountCents,
+      currency: sanitizeText(body.currency, 8),
+      dashboardObserved: body.dashboardObserved === true,
+      now,
+    });
+    return jsonCors(result.statusCode || (result.ok ? 200 : 409), {
+      ...result,
+      bookingId,
+      authoritative: false,
+      providerVerified: false,
+      squareVerified: false,
+      apiVerified: false,
+      paid: false,
+      paymentEvidence: false,
+      note: 'Administrator-verified Square Dashboard receipt. Cardetail1 did not call Square.',
+    });
+  }
+
   if (action === 'prepare_square_payment_link') {
     const prepared = await prepareSquarePaymentLink({
       store,

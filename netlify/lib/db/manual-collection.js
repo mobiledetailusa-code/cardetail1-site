@@ -68,6 +68,24 @@ function isCancelledBookingSnapshot(booking) {
     || status === 'cancelled' || status === 'canceled';
 }
 
+function squareReceiptView(receipt) {
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) return null;
+  if (!String(receipt.providerEventId || '').startsWith('square_dashboard_receipt:')) return null;
+  return {
+    providerEventId: String(receipt.providerEventId),
+    squareTransactionRef: receipt.squareTransactionRef ? String(receipt.squareTransactionRef) : null,
+    amountCents: Math.round(Number(receipt.amountCents) || 0),
+    currency: receipt.currency ? String(receipt.currency) : null,
+    actorId: receipt.actorId ? String(receipt.actorId) : null,
+    verifiedAt: receipt.verifiedAt || null,
+    source: 'square_dashboard',
+    verificationMethod: 'administrator_square_dashboard',
+    squareVerified: false,
+    apiVerified: false,
+    providerVerified: false,
+  };
+}
+
 function detailOf(row) {
   const detail = row && row.manualCollectionDetail;
   return detail && typeof detail === 'object' && !Array.isArray(detail) ? detail : {};
@@ -81,7 +99,7 @@ function explanationFor(state) {
     return 'A manual URL is recorded for this booking. The URL is not payment evidence and the booking is not paid. Cash and card-on-site settlement stay unavailable until an administrator attests that the Square link was inspected, no completed payment was found, and the link was deactivated. That attestation is not a Square verification.';
   }
   if (state === 'payment_reported') {
-    return 'An administrator reported that Square received a payment. Cardetail1 has not marked this booking paid and has not released the balance for cash or card. A separate authorized reconciliation is required.';
+    return 'An administrator reported a Square Dashboard observation. A ledger receipt is a separate attested record. Cardetail1 has not verified the payment with Square, and the collection stays restricted until a reconciled closure.';
   }
   if (state === 'closed') {
     return 'An administrator attested that the manual link was inspected and deactivated. This is not proof that Square has no completed or in-flight payment. Cardetail1 will allow on-site settlement again.';
@@ -122,6 +140,7 @@ function publicView(row) {
       reviewRequired: true,
       squareVerified: false,
     })),
+    squareDashboardReceipt: squareReceiptView(detail.squareDashboardReceipt),
   };
   if (state === 'closed' || state === 'payment_reported') {
     view.attestation = {
@@ -213,6 +232,7 @@ function decideReserve({ row, projection, actorId, now, createOperationId }) {
       confirmation: detail.confirmation || null,
       outcome: detail.outcome || null,
       evidence: detail.evidence || null,
+      squareDashboardReceipt: detail.squareDashboardReceipt || null,
     });
   }
   const operationId = createOperationId();
@@ -517,6 +537,55 @@ async function recordManualCollectionUrl(input = {}, deps = {}) {
   }));
 }
 
+function decideReceiptClosure({ row, projection, operationId, actorId, now, reason, confirmation }) {
+  if (!row) return fail('not_found', 404);
+  if (!operationId || String(row.manualCollectionOperationId || '') !== operationId) {
+    return fail('manual_collection_operation_mismatch', 409);
+  }
+  const state = row.manualCollectionState ? String(row.manualCollectionState) : null;
+  const detail = detailOf(row);
+  const receipt = squareReceiptView(detail.squareDashboardReceipt);
+  if (state !== 'payment_reported' || !receipt) {
+    return fail('square_receipt_missing', 409, { manualCollectionState: state, providerVerified: false });
+  }
+  const conflicts = Array.isArray(detail.externalFinancialConflicts) ? detail.externalFinancialConflicts : [];
+  const remaining = projection ? Math.round(Number(projection.remainingCents)) : NaN;
+  const refunded = projection ? Math.round(Number(projection.refundedCents) || 0) : 0;
+  if (conflicts.length > 0 || !Number.isFinite(remaining) || remaining !== 0 || refunded > 0) {
+    return fail('square_receipt_review_required', 409, { providerVerified: false, squareVerified: false });
+  }
+  const note = String(reason || '').trim().slice(0, 500);
+  if (!note) return fail('reason_required', 400);
+  const missing = ['ledgerRecorded', 'dashboardReceiptMatches', 'linkDeactivated', 'responsibilityAccepted']
+    .find((key) => !confirmation || confirmation[key] !== true);
+  if (missing) return fail('manual_collection_confirmation_required', 409, { field: missing });
+  const patch = {
+    manualCollectionState: 'closed',
+    manualCollectionDetail: {
+      ...detail,
+      closedAt: now,
+      closedBy: actorId,
+      closureReason: note,
+      confirmation,
+      outcome: 'receipt_reconciled',
+      squareVerified: false,
+      apiVerified: false,
+    },
+  };
+  const view = publicView(mergedRow(row, patch));
+  return {
+    ok: true,
+    created: true,
+    idempotent: false,
+    write: true,
+    patch,
+    view,
+    operationId,
+    providerVerified: false,
+    squareVerified: false,
+  };
+}
+
 async function closeManualCollection(input = {}, deps = {}) {
   const env = input.env || process.env;
   const actorId = String(input.actorId || '').trim();
@@ -525,16 +594,30 @@ async function closeManualCollection(input = {}, deps = {}) {
   const bookingId = String(input.bookingId || '').trim();
   if (!bookingId) return fail('bookingId_required', 400);
   const now = input.now || new Date().toISOString();
-  return runLocked(bookingId, deps, ({ row }) => decideClose({
-    row,
-    operationId: String(input.operationId || '').trim(),
-    actorId,
-    now,
-    outcome: input.outcome,
-    reason: input.reason,
-    confirmation: input.confirmation,
-    evidence: input.evidence,
-  }));
+  const outcome = String(input.outcome || '').trim();
+  return runLocked(bookingId, deps, ({ row, projection }) => {
+    if (outcome === 'receipt_reconciled') {
+      return decideReceiptClosure({
+        row,
+        projection,
+        operationId: String(input.operationId || '').trim(),
+        actorId,
+        now,
+        reason: input.reason,
+        confirmation: input.confirmation,
+      });
+    }
+    return decideClose({
+      row,
+      operationId: String(input.operationId || '').trim(),
+      actorId,
+      now,
+      outcome: input.outcome,
+      reason: input.reason,
+      confirmation: input.confirmation,
+      evidence: input.evidence,
+    });
+  });
 }
 
 async function readManualCollectionView(bookingId) {
