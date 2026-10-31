@@ -1393,7 +1393,7 @@ function adminOperationalControls(booking, projection = null, manualCollection =
   const post = postServiceState(booking);
   const collectionBlocked = !!(manualCollection && manualCollection.blocksOnSiteSettlement);
   const cashExplanation = collectionBlocked
-    ? 'Cash settlement is unavailable while manual online collection is active. Inspect the Square link. If it was not paid, deactivate it in Square and record that attestation here. The attestation does not check Square. If Square was paid, report that instead. The balance stays blocked until a separate reconciliation.'
+    ? 'Cash settlement is unavailable while manual online collection is active. Inspect the Square link. If it was not paid, deactivate it in Square and record that attestation here. The attestation does not check Square. Reporting an observation does not write a ledger receipt. A completed Dashboard payment is recorded separately and is still not a Square API verification.'
     : (remainingCents > 0
       ? `Records cash against the ledger and emails the customer a confirmation. No Stripe object is created or changed. The amount must settle the full remaining balance of ${(remainingCents / 100).toFixed(2)}.`
       : 'There is no remaining balance to collect.');
@@ -2496,6 +2496,20 @@ async function handleAdminAction(body, testOpts = {}) {
       dashboardObserved: body.dashboardObserved === true,
       now,
     });
+    if (result && result.ok) {
+      try {
+        await appendAudit(auditEntry({
+          bookingId,
+          actorType: 'admin',
+          actorId,
+          action: 'record_square_dashboard_receipt',
+          reason: `square_dashboard_receipt:${result.providerEventId || ''}`,
+          sourcePortal: 'admin_ops',
+        }));
+      } catch {
+        // The ledger transaction already finished. An audit failure must not look like a second receipt.
+      }
+    }
     return jsonCors(result.statusCode || (result.ok ? 200 : 409), {
       ...result,
       bookingId,
