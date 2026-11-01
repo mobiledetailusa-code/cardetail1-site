@@ -93,7 +93,7 @@ const HOME_GRAPH = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': ['LocalBusiness', 'AutomotiveBusiness', 'AutoDetailing'],
+      '@type': ['LocalBusiness', 'AutomotiveBusiness'],
       '@id': `${ORIGIN}/#business`,
       name: 'Cardetail1',
       legalName: 'Detailing Zone L.L.C.',
