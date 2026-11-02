@@ -55,6 +55,19 @@ test('homepage JSON-LD is valid and includes LocalBusiness, offers, and FAQ', ()
   assert.doesNotMatch(read('index.html'), /"@type": "AggregateRating"/);
 });
 
+test('JSON-LD and its generators use supported Schema.org business types', () => {
+  const sources = fs.readdirSync(root)
+    .filter((file) => file.endsWith('.html'))
+    .concat([
+      'scripts/apply-onpage-seo.mjs',
+      'scripts/generate-bergen-city-pages.mjs',
+    ]);
+
+  for (const source of sources) {
+    assert.doesNotMatch(read(source), /['"]AutoDetailing['"]/, `${source} uses a nonexistent Schema.org type`);
+  }
+});
+
 test('county hubs have unique titles', () => {
   const titles = [
     'bergen-county-hub.html',
