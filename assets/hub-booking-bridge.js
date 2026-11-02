@@ -33,9 +33,9 @@
   if (global.document.body && global.document.body.classList.contains('cd1-booking-embed')) return;
   if (/^\/$/.test(path) || /index\.html$/i.test(path)) return;
 
-  var isDelegatedHub = /-hub\.html$/i.test(path)
-    || /-mobile-detailing\.html$/i.test(path)
-    || /template-city\.html$/i.test(path);
+  var isDelegatedHub = /-hub(?:\.html)?\/?$/i.test(path)
+    || /-mobile-detailing(?:\.html)?\/?$/i.test(path)
+    || /template-city(?:\.html)?\/?$/i.test(path);
   if (!isDelegatedHub) return;
 
   var BOOKING_FAIL_MSG = 'We could not load booking. Please try again or call/text (551) 389-3986.';
