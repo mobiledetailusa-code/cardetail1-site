@@ -222,10 +222,34 @@
 
 /* FAQ + long-form sections: keep room for first-visit 10% FAB on mobile */
 @media (max-width: 640px) {
+  /* Reserve the real sticky-bar footprint and keep chat above it. The bar can
+     wrap at 320px, so that breakpoint receives the larger measured offset. */
+  body:has(.mobile-sticky-cta) {
+    padding-bottom: calc(81px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .mobile-sticky-cta {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body:has(.mobile-sticky-cta) #cd-chat {
+    bottom: calc(81px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
   body:has(#cd1-wlb.cd1-wlb-on) .home-faq,
   body:has(#cd1-wlb.cd1-wlb-on) .hub-faq-list,
   body:has(#cd1-wlb.cd1-wlb-on) .hub-faq-section .section,
   body:has(#cd1-wlb.cd1-wlb-on) .service-area-section .section {
     padding-right: 76px;
+  }
+}
+
+@media (max-width: 360px) {
+  body:has(.mobile-sticky-cta) {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body:has(.mobile-sticky-cta) #cd-chat {
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }

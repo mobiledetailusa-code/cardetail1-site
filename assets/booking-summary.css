@@ -214,6 +214,27 @@
   border-color: #1d4ed8;
 }
 
+/* Specialty vehicles use a three-column make/model/year row on desktop. On
+   narrow screens the inline grid declaration is too cramped, so stack the
+   existing fields without changing their order, validation, or pricing. Keep
+   an open suggestion list in document flow so it cannot cover exact length. */
+@media (max-width: 480px) {
+  #generic-search-wrap > .sel-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #generic-search-wrap .sel-g,
+  #generic-search-wrap .srch-wrap {
+    min-width: 0;
+  }
+
+  #generic-search-wrap .srch-dd.open {
+    position: static;
+    margin-top: 4px;
+    max-height: 160px;
+  }
+}
+
 /* Card-on-file policy must read as a deliberate notice, not a transparent
    extension of the checkout surface. Literal colors keep contrast stable
    across the dark page, light modal, and embedded specialty-service flow. */

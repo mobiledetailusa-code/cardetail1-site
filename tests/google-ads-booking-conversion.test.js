@@ -13,7 +13,7 @@ const vm = require('node:vm');
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-const BOOKING_SEND_TO = 'AW-11321647982/yrODCJGL998YEO7GypYq';
+const BOOKING_SEND_TO = 'AW-11321647982/AAOmCJW9roAdEO7GypYq';
 const PAGE_VIEW_SEND_TO = 'AW-11321647982/r6SRCJeL998YEO7GypYq';
 
 function loadAnalyticsHarness() {
