@@ -758,7 +758,7 @@
       if (!isProductionAdsHost()) return false;
       var sendTo = global.CD1_GOOGLE_ADS_BOOKING_SEND_TO
         || global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO
-        || 'AW-11321647982/yrODCJGL998YEO7GypYq';
+        || 'AW-11321647982/AAOmCJW9roAdEO7GypYq';
       if (!sendTo || sendTo === global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO) return false;
 
       var txId = opts.transaction_id || opts.bookingId || opts.id || null;

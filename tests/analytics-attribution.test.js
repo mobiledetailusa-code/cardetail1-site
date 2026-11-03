@@ -355,7 +355,7 @@ describe('booking request is not a sale', () => {
     assert.equal(submitted[0].properties.phone, undefined);
     assert.equal(submitted[0].properties.address, undefined);
     assert.equal(submitted[0].properties.totalPrice, undefined);
-    const conversions = gtagEvents(h.gtagCalls).filter((event) => event.name === 'conversion' && event.params.send_to && event.params.send_to.indexOf('yrODCJGL998YEO7GypYq') !== -1);
+    const conversions = gtagEvents(h.gtagCalls).filter((event) => event.name === 'conversion' && event.params.send_to && event.params.send_to.indexOf('AAOmCJW9roAdEO7GypYq') !== -1);
     assert.equal(conversions.length, 1);
     assert.equal(conversions[0].params.value, 440);
     assert.equal(conversions[0].params.transaction_id, 'CD1-YES');

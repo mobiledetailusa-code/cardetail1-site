@@ -635,8 +635,8 @@ describe('18 preview cannot submit or send a production conversion', () => {
     assert.match(index, /osDisableBookingButtons\(/);
     assert.match(index, /Preview mode — bookings and payments are disabled/);
     assert.match(read('netlify/functions/submit-booking.js'), /refuseSharedPreviewBooking/);
-    assert.doesNotMatch(extractFunction(index, 'openHomeCeramic'), /yrODCJGL998YEO7GypYq/);
-    assert.doesNotMatch(extractFunction(index, 'applyBookingQueryIntent'), /yrODCJGL998YEO7GypYq/);
+    assert.doesNotMatch(extractFunction(index, 'openHomeCeramic'), /AAOmCJW9roAdEO7GypYq/);
+    assert.doesNotMatch(extractFunction(index, 'applyBookingQueryIntent'), /AAOmCJW9roAdEO7GypYq/);
   });
 });
 

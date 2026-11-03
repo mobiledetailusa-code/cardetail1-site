@@ -1232,6 +1232,49 @@
     }
   }
 
+  /**
+   * Specialty make/model inputs are replaced when the category changes, so
+   * delegated listeners are the durable place to close their suggestion
+   * panels. Existing mouse selection remains untouched; this only guarantees
+   * closure after selection, focus loss, Enter, Tab, or Escape.
+   */
+  function wireSpecialtySuggestionDismissal() {
+    if (document.documentElement.dataset.bkSpecialtyDismissBound === '1') return;
+    document.documentElement.dataset.bkSpecialtyDismissBound = '1';
+
+    function dropdownFor(input) {
+      if (!input) return null;
+      if (input.id === 'g-make') return document.getElementById('g-make-dd');
+      if (input.id === 'g-model') return document.getElementById('g-model-dd');
+      return null;
+    }
+
+    function close(input) {
+      const dropdown = dropdownFor(input);
+      if (dropdown) dropdown.classList.remove('open');
+    }
+
+    document.addEventListener('change', (event) => close(event.target), true);
+    document.addEventListener('keydown', (event) => {
+      if (!['Enter', 'Escape', 'Tab'].includes(event.key)) return;
+      close(event.target);
+    }, true);
+    document.addEventListener('focusout', (event) => {
+      const input = event.target;
+      if (!dropdownFor(input)) return;
+      setTimeout(() => {
+        const wrap = input.closest('.srch-wrap');
+        if (!wrap || !wrap.contains(document.activeElement)) close(input);
+      }, 0);
+    }, true);
+    document.addEventListener('pointerup', (event) => {
+      const item = event.target.closest && event.target.closest('#g-make-dd .srch-item, #g-model-dd .srch-item');
+      if (!item) return;
+      const dropdown = item.closest('.srch-dd');
+      if (dropdown) dropdown.classList.remove('open');
+    }, true);
+  }
+
   /** Apply compact form markup when a mirrored page still has the legacy Step-4 block. */
   function ensureCompactFormMarkers() {
     return !!(document.getElementById('f-arrival-window') && document.getElementById('f-has-alternate'));
@@ -1239,6 +1282,7 @@
 
   async function init() {
     ensureStyles();
+    wireSpecialtySuggestionDismissal();
     if (!ensureCompactFormMarkers()) {
       console.warn('[BkConversion] Compact details form markers missing; sync booking pages.');
     }
@@ -1288,6 +1332,7 @@
     eligibleSlotsForWindow,
     setPrimaryArrivalWindow,
     customerArrivalSummary,
+    wireSpecialtySuggestionDismissal,
     ARRIVAL_WINDOWS,
     SPECIFIC_WINDOWS,
     ARRIVAL_LABELS,

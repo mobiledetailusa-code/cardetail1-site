@@ -31,7 +31,7 @@ Advertising click IDs are kept in `localStorage` only after Marketing consent. A
 |----------|---------|
 | `CD1_GOOGLE_ADS_ID` | Optional override; default `AW-11321647982` |
 | `CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO` | Optional override; default `AW-11321647982/r6SRCJeL998YEO7GypYq` (Page view — observation only) |
-| `CD1_GOOGLE_ADS_BOOKING_SEND_TO` / `CD1_GOOGLE_ADS_PURCHASE_SEND_TO` | Optional override; **Booking submitted** conversion on durable finalize; default `AW-11321647982/yrODCJGL998YEO7GypYq` |
+| `CD1_GOOGLE_ADS_BOOKING_SEND_TO` / `CD1_GOOGLE_ADS_PURCHASE_SEND_TO` | Optional override; **Book appointment** conversion on durable finalize; default `AW-11321647982/AAOmCJW9roAdEO7GypYq` (`CD1_GOOGLE_ADS_PURCHASE_SEND_TO` is a legacy variable name only) |
 
 Base tag + **Page view** conversion load on every public page via `assets/revenue-events.js` (`initAdapters`), using **Consent Mode v2**:
 

@@ -747,7 +747,10 @@
       '.cd1-ceramic-sticky button{min-height:48px;min-width:48px;padding:0 14px}',
       '.cd1-sticky-meta{font-size:14px;font-weight:700;min-width:0}',
       '}',
-      '@media(max-width:430px){.cd1-ceramic-checkout,.cd1-touch-card,.cd1-ceramic-sticky{max-width:100%;overflow-x:hidden}}'
+      '#ceramic-checkout-lines>div:not(.fl){display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0;padding:4px 0}',
+      '#ceramic-checkout-lines>div:not(.fl)>span{min-width:0;overflow-wrap:anywhere}',
+      '#ceramic-checkout-lines>div:not(.fl)>strong{flex:0 0 auto;margin-left:auto;white-space:nowrap;word-break:keep-all}',
+      '@media(max-width:430px){.cd1-ceramic-checkout,.cd1-touch-card,.cd1-ceramic-sticky{max-width:100%;overflow-x:hidden}#ceramic-checkout-lines>div:not(.fl){gap:10px}}'
     ].join('');
     document.head.appendChild(style);
   }

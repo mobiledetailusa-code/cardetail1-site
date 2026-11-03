@@ -383,7 +383,7 @@ test('Google Ads Page view conversion send_to is wired', () => {
 test('Google Ads booking success conversion send_to is wired', () => {
   const rev = fs.readFileSync(path.join(root, 'assets/revenue-events.js'), 'utf8');
   const chk = fs.readFileSync(path.join(root, 'assets/checkout-analytics.js'), 'utf8');
-  assert.match(rev, /AW-11321647982\/yrODCJGL998YEO7GypYq/);
+  assert.match(rev, /AW-11321647982\/AAOmCJW9roAdEO7GypYq/);
   assert.match(rev, /CD1_GOOGLE_ADS_PURCHASE_SEND_TO/);
   assert.match(rev, /CD1_GOOGLE_ADS_BOOKING_SEND_TO/);
   assert.match(rev, /trackGoogleAdsBookingConversion/);
@@ -396,7 +396,7 @@ test('Google Ads booking success conversion send_to is wired', () => {
   // Page view label must remain separate from booking conversion.
   assert.match(rev, /AW-11321647982\/r6SRCJeL998YEO7GypYq/);
   assert.notEqual(
-    'AW-11321647982/yrODCJGL998YEO7GypYq',
+    'AW-11321647982/AAOmCJW9roAdEO7GypYq',
     'AW-11321647982/r6SRCJeL998YEO7GypYq'
   );
 });
