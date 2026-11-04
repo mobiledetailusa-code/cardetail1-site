@@ -145,9 +145,15 @@ test('ticker copy no longer references stale bare "Paint Correction"', () => {
   }
 });
 
-test('ticker copy uses the current "Signature Detail" label', () => {
-  const s = read('index.html');
-  assert.ok(s.includes('Signature Detail · BMW X5'));
+// The demo ticker this label check guarded was simulated activity (fabricated
+// customers and "12 min ago" jobs) and has been removed from every page; see
+// tests/no-simulated-activity.test.js. Its stale labels cannot come back with it.
+test('simulated ticker jobs (and their stale labels) are gone', () => {
+  for (const f of BOOKING_PAGES) {
+    const s = read(f);
+    assert.doesNotMatch(s, /\bRADAR_JOBS\b/, `${f} still ships simulated ticker jobs`);
+    assert.doesNotMatch(s, /service:'[^']*· BMW X5'/, `${f} still ships demo ticker copy`);
+  }
 });
 
 // 9 + 10: this hotfix does not introduce its markers into payment/admin/tech files.
