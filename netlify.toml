@@ -4,8 +4,10 @@
 
 [build]
   # Bake deploy CONTEXT/BRANCH/DEPLOY_URL for Functions (not injected at runtime here).
-  command = "node scripts/generate-deploy-runtime-env.js"
-  publish = "."
+  # Then copy only the public allowlist into dist/ (scripts/build-public-dist.js).
+  # Publishing "." served Function sources, prisma/, docs/ and tests/ verbatim.
+  command = "node scripts/generate-deploy-runtime-env.js && node scripts/build-public-dist.js"
+  publish = "dist"
   functions = "netlify/functions"
 
 # Public Twilio webhook URLs are not credentials, but Netlify treats any env var

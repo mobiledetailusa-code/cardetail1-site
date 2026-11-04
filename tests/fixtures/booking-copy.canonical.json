@@ -74,7 +74,7 @@
     "$stepTabs": "The step tabs are read from this container in physical DOM order. Looking each tabId up individually would impose the manifest's own order on the result, so a physical swap of two tabs would compare equal and pass.",
 
     "publishRoot": ".",
-    "$publishRoot": "netlify.toml sets publish = \".\", so every .html under the repo root is served, at any depth. Discovery therefore walks recursively; a root-only readdir let a nested page such as cities/boston-hub.html ship outside the guard.",
+    "$publishRoot": "Authored pages live under the repo root at any depth; scripts/build-public-dist.js copies root pages, assets/ and prototype/ into dist/, which netlify.toml publishes. Discovery walks the authored tree recursively; a root-only readdir let a nested page such as cities/boston-hub.html slip outside the guard.",
 
     "scanExcludedDirs": [
       "node_modules",
@@ -86,7 +86,8 @@
       "docs",
       "artifacts",
       "reports",
-      "archive"
+      "archive",
+      "dist"
     ],
     "$scanExcludedDirs": [
       "Structural exclusions only — each is a directory that by ROLE cannot hold an",
@@ -98,6 +99,7 @@
       "  shared        shared modules, not a document root",
       "  tests         the test tree, including this suite's own scratch fixtures",
       "  docs artifacts reports archive   documentation and audit output",
+      "  dist          build output: byte-identical copies of authored pages (gitignored)",
       "Entries are matched against the path RELATIVE TO THE PUBLISH ROOT, so only the",
       "top-level directory of that role is skipped — a nested 'cities/tests/' is still",
       "scanned. Dot-directories (.git, .netlify, .claude) are skipped structurally.",
