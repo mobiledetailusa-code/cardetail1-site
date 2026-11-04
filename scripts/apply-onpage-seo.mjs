@@ -153,14 +153,8 @@ const HOME_GRAPH = {
           { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Exterior Detail & Paint Enhancement' }, price: '320', priceCurrency: 'USD' },
         ],
       },
-      openingHoursSpecification: [
-        {
-          '@type': 'OpeningHoursSpecification',
-          dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-          opens: '08:00',
-          closes: '17:00',
-        },
-      ],
+      // Intentionally no opening-hours schema: service is Monday–Saturday by appointment only,
+      // with no fixed opening interval to publish.
       sameAs: ['https://www.instagram.com/cardetail1com', 'https://g.page/r/CTJwfJerrQeCEAI/review'],
     },
     {
@@ -604,7 +598,7 @@ function writeLlms() {
 ## Facts
 - Address locality: Palisades Park, NJ 07650
 - Phone: +15513893986
-- Hours: Monday–Friday 8:00–17:00, by appointment
+- Hours: Monday–Saturday · By Appointment Only
 - Experience: 5+ years, owner-operated mobile detailing
 - Google reviews: https://g.page/r/CTJwfJerrQeCEAI/review
 - Booking: request online, no charge at submission
