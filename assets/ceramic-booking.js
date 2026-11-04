@@ -310,6 +310,13 @@
     return on && on.id ? on.id : '';
   }
 
+  function activeStepHasActionRow() {
+    var on = document.querySelector('.bsec.on');
+    var row = on && on.querySelector('.btn-row');
+    if (!row || row.hidden) return false;
+    return !!row.querySelector('.btn-n, .btn-sub');
+  }
+
   function syncCeramicPaymentChoices() {
     var online = document.getElementById('pc-online');
     var allowed = global.Cardetail1BookingReview
@@ -1008,7 +1015,10 @@
     var shell = document.querySelector('.booking-modal');
     var step = activeBookingStepId();
     var open = !!(modal && modal.classList.contains('open') && global.ST && global.ST.pkgId);
-    var show = open && step !== 'bs5' && step !== 'bs6';
+    // The fixed bar only stands in for a step that has no navigation of its own.
+    // Steps with a .btn-row (Back + primary action, sticky on mobile) already
+    // carry the same Continue; showing both stacked two competing bars.
+    var show = open && step !== 'bs5' && step !== 'bs6' && !activeStepHasActionRow();
     bar.classList.toggle('is-on', show);
     bar.hidden = !show;
     if (shell) shell.classList.toggle('cd1-sticky-pad', show);

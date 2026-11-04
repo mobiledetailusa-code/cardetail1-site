@@ -610,3 +610,45 @@ describe('MDX ceramic checkout rerenders from the production catalog', () => {
     assert.equal(submitClicks, 1);
   });
 });
+
+// Regression: on mobile the fixed "$total / Continue" bar stacked under each
+// step's own sticky "Back / Continue" row (Cars/SUVs info step showed
+// "← Back / Review details →" and "$285.00 / Continue" at once).
+describe('fixed booking bar never duplicates a step action row', () => {
+  function activateStepWithActionRow(ctx) {
+    const doc = ctx.document;
+    const step = doc.createElement('div');
+    step.id = 'bs4';
+    step.className = 'bsec on';
+    const row = doc.createElement('div');
+    row.className = 'btn-row';
+    const back = doc.createElement('button');
+    back.className = 'btn-b';
+    const review = doc.createElement('button');
+    review.className = 'btn-n';
+    let reviewClicks = 0;
+    review.click = () => { reviewClicks += 1; };
+    row.appendChild(back);
+    row.appendChild(review);
+    step.appendChild(row);
+    doc.body.appendChild(step);
+    doc.getElementById('bs3').classList.remove('on');
+    return { reviews: () => reviewClicks };
+  }
+
+  for (const pkgId of ['full', 'ceramic_1yr']) {
+    it(`hides the fixed bar when the active step has Back + primary (${pkgId})`, () => {
+      const ctx = createPage();
+      ctx.ST.pkgId = pkgId;
+      ctx.CD1CeramicBooking.renderCeramicCheckout();
+      const bar = ctx.document.getElementById('ceramic-sticky');
+      assert.equal(bar.classList.contains('is-on'), true, 'step without its own row keeps the fixed bar');
+      const step = activateStepWithActionRow(ctx);
+      ctx.CD1CeramicBooking.renderCeramicCheckout();
+      assert.equal(bar.classList.contains('is-on'), false);
+      assert.equal(bar.hidden, true);
+      assert.equal(ctx.document.querySelector('.booking-modal').classList.contains('cd1-sticky-pad'), false);
+      assert.equal(step.reviews(), 0, 'hiding the bar must not trigger navigation');
+    });
+  }
+});

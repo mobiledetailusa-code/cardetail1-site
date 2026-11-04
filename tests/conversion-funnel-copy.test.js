@@ -101,6 +101,14 @@ test('water and power questions are optional and contradict nothing', () => {
       /<strong>We bring our own water and power<\/strong>/,
       `${page} lost the bring-our-own reassurance`,
     );
+    // The same form sells Mobile Water Supply for undercarriage cleaning without a
+    // usable water connection, so the reassurance must not be absolute.
+    assert.doesNotMatch(html, /you don't need either/, `${page} promises water is never needed`);
+    assert.match(
+      html,
+      /Exception: Accessible Undercarriage Cleaning without a usable outdoor water connection requires the Mobile Water Supply add-on\./,
+      `${page} hides the undercarriage water exception`,
+    );
     // Operations still consume these — the fields themselves must not disappear.
     assert.match(html, /id="f-water"/, `${page} lost the water field`);
     assert.match(html, /id="f-electric"/, `${page} lost the electricity field`);

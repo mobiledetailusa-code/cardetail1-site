@@ -119,9 +119,11 @@ test('local templates keep the business identity fields without review markup', 
     assert.equal(business.telephone, '+15513893986');
     assert.equal(business.address['@type'], 'PostalAddress');
     assert.equal(business.address.addressLocality, 'Palisades Park');
-    assert.ok(Array.isArray(business.openingHoursSpecification));
-    assert.equal(business.openingHoursSpecification[0].opens, '08:00');
-    assert.equal(business.openingHoursSpecification[0].closes, '17:00');
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(business, 'openingHoursSpecification'),
+      false,
+      `${file} must not publish fixed hours for an appointment-only business`,
+    );
     assert.equal(facts.types.includes('BreadcrumbList'), false, `${file} unexpectedly gained breadcrumbs`);
   }
 });
