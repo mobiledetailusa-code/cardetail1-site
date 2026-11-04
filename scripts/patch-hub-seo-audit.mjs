@@ -46,8 +46,8 @@ const HUBS = {
         'Serving NYC &amp; NY Metro by appointment',
       '📍 Bergen County &amp; North Jersey · Local Detail Service':
         '📍 NYC &amp; NY Metro · Mobile detail by appointment',
-      'Mon–Fri 8AM–5PM · Bergen County, NJ and nearby areas':
-        'Mon–Fri 8AM–5PM · NYC &amp; NY Metro by appointment from our NJ base',
+      'Monday–Saturday · By Appointment Only · Bergen County, NJ and nearby areas':
+        'Monday–Saturday · By Appointment Only · NYC &amp; NY Metro by appointment from our NJ base',
       "We are a local, hard-working team proud to serve our Bergen County neighbors.":
         'We are a mobile detailing team serving New York Metro customers by appointment from our Palisades Park, NJ base.',
       'Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas':
