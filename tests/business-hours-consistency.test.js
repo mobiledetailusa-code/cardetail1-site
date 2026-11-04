@@ -115,3 +115,30 @@ test('LocalBusiness structured data does not invent fixed opening intervals', ()
     assert.ok(localBusinessCount > 0, `${file} missing LocalBusiness structured data`);
   }
 });
+
+// Maintenance generators rewrite the pages above. If they still carried the old
+// Monday–Friday 8AM–5PM text or an openingHoursSpecification, the next run would
+// silently undo this fix (apply-onpage-seo.mjs re-injects its LocalBusiness graph
+// whenever index.html loses its schema markers).
+const SEO_GENERATORS = [
+  'scripts/apply-onpage-seo.mjs',
+  'scripts/generate-bergen-city-pages.mjs',
+  'scripts/patch-hub-seo-audit.mjs',
+];
+const LEGACY_HOURS_ANY = /Mon(?:day)?[–-]Fri(?:day)?|8\s?AM[–-]5\s?PM|8:00[–-]17:00|opens:\s*'08:00'|closes:\s*'17:00'/i;
+
+test('SEO maintenance generators cannot reintroduce legacy fixed hours', () => {
+  for (const file of SEO_GENERATORS) {
+    const src = read(file);
+    assert.doesNotMatch(src, LEGACY_HOURS_ANY, `${file} still emits legacy fixed hours`);
+    assert.doesNotMatch(src, /openingHoursSpecification\s*:|openingHours\s*:/, `${file} still emits opening hours schema`);
+  }
+  assert.match(read('scripts/apply-onpage-seo.mjs'), new RegExp(`- Hours: ${OFFICIAL_HOURS}`));
+  assert.match(read('scripts/generate-bergen-city-pages.mjs'), new RegExp(OFFICIAL_HOURS));
+});
+
+test('llms.txt publishes the official appointment-only hours', () => {
+  const llms = read('llms.txt');
+  assert.match(llms, new RegExp(`- Hours: ${OFFICIAL_HOURS}`));
+  assert.doesNotMatch(llms, LEGACY_HOURS_ANY);
+});
