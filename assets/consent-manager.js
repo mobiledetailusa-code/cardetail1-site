@@ -61,7 +61,17 @@
       'html.cd1-consent-open .mobile-sticky-cta,html.cd1-consent-open .cd1-ceramic-sticky.is-on{bottom:var(--cd1-consent-offset,0px)}',
       'html.cd1-consent-open #cd-chat{bottom:calc(20px + var(--cd1-consent-offset,0px))}',
       '@media(max-width:640px){html.cd1-consent-open body{padding-bottom:calc(68px + var(--cd1-consent-offset,0px))}}',
-      '@media(max-height:500px) and (max-width:900px){html.cd1-consent-open .booking-modal{max-height:calc(100svh - var(--cd1-consent-offset,0px))}}'
+      '@media(max-height:500px) and (max-width:900px){html.cd1-consent-open .booking-modal{max-height:calc(100svh - var(--cd1-consent-offset,0px))}}',
+      // Phones: the three choices wrapped to two rows and, with the sticky CTA,
+      // covered the hero ZIP button on 320-375px screens. One row of equal
+      // columns keeps every choice equally visible at roughly 2/3 the height.
+      '@media(max-width:640px){#cd1-consent-banner{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));font-size:12.5px;line-height:1.4}#cd1-consent-banner p{margin:0}#cd1-consent-banner .cd1-consent-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}#cd1-consent-banner button{padding:6px 4px;font-size:13px;line-height:1.2;white-space:normal}}',
+      // public-surface-contrast.css pins chat 81px up with !important, so while the
+      // banner is open the launcher used to sit fully behind the taller banner. The
+      // compact banner would expose it over the sticky Call button (or, raised, over
+      // the hero ZIP button). Keep the old effective state: no launcher until a
+      // consent choice is made; it returns in place as soon as the banner closes.
+      '@media(max-width:640px){html.cd1-consent-open body:has(.mobile-sticky-cta) #cd-chat{visibility:hidden}}'
     ].join('');
     document.head.appendChild(style);
   }

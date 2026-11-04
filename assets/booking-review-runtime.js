@@ -60,7 +60,9 @@
   var CUSTOMER_BOOKING_COPY = 'Nothing is charged when you book. Pay by card or cash at your appointment. A secure invoice can be sent if needed.';
   var customerPaymentsOpen = false;
   var PREVIEW_BOOKING_MSG = 'This is a preview. Nothing will be booked, charged, or sent.';
-  var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout/i;
+  // Safari reports a request timeout as "The request timed out."; it must be
+  // treated as ambiguous (may have reached the server), never "not submitted".
+  var NETWORK_RE = /failed to fetch|networkerror|load failed|network request failed|abort|timeout|timed out/i;
   var RETRYABLE_FINALIZE_CODES = {
     booking_verification_unavailable: true,
     offer_application_unavailable: true,
@@ -87,7 +89,21 @@
     offer_redemption_lookup_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',
     offer_redemption_claim_unavailable: 'We could not verify your welcome offer. Please try again in a moment. Your booking was not submitted.',
     offer_already_redeemed: 'This welcome offer was already used. Refresh the review total and submit again. Your booking was not submitted.',
+    // Server recalculated the total and it differs from this page's total
+    // (stale prices/travel fee). Resubmitting the same page would fail again.
+    price_mismatch: 'The price has changed since this page loaded. Please refresh the page and review your updated total before submitting. Your booking was not submitted. No payment was collected.',
+    invalid_pricing: 'We could not verify the price for this service. Please go back, reselect your vehicle and package, and review your total. Your booking was not submitted. No payment was collected.',
+    out_of_service_area: 'This ZIP code is outside our online booking area. Please call or text (551) 389-3986 for help. Your booking was not submitted.',
+    zip_required: 'Please enter a valid 5-digit ZIP code, then submit again. Your booking was not submitted.',
+    invalid_phone: 'Please enter a valid phone number, then submit again. Your booking was not submitted.',
+    'Missing customer name or phone': 'Please enter your first name and phone number, then submit again. Your booking was not submitted.',
+    // submit-booking returns bookingCreated:false with this code, so a retry is safe.
+    booking_store_failed: "We couldn't save your request right now, so it was not submitted. Please try again in a moment, or call or text (551) 389-3986. No payment was collected.",
   };
+
+  // A 5xx with no recognised error code: we do not know what happened server-side,
+  // so do not claim "not submitted". Retrying reuses the same draft ID (idempotent).
+  var SERVER_ERROR_MESSAGE = "We couldn't complete your request right now. Please try again in a moment, or call or text (551) 389-3986. No payment was collected.";
 
   function money(n) {
     return '$' + (Number(n) || 0).toFixed(2);
@@ -716,7 +732,9 @@
   function notSubmittedMessage(code, userMessage) {
     var custom = String(userMessage || '').trim();
     if (custom) return custom;
-    return SUBMIT_FAILURE_CODES[code] || ('Your booking request was not submitted. No payment was collected. Please try again.');
+    if (SUBMIT_FAILURE_CODES[code]) return SUBMIT_FAILURE_CODES[code];
+    if (/^booking_submit_failed_5\d\d$/.test(String(code || ''))) return SERVER_ERROR_MESSAGE;
+    return 'Your booking request was not submitted. No payment was collected. Please try again.';
   }
 
   function isRetryableFinalizeCode(code) {
