@@ -948,6 +948,50 @@
     track(ev, { page_type: pageType || 'home' });
   }
 
+  /**
+   * Informational "phone link clicked" signal (approved event click_call).
+   * It records intent to call from a tel: link only — not a completed call, a
+   * booking, or revenue — and never sends a Google Ads conversion. The phone
+   * number is never sent: the only property is where on the page the link was.
+   * Third-party delivery stays behind analytics consent inside track().
+   */
+  var PHONE_CLICK_DEDUP_MS = 1500;
+  var lastPhoneClickAt = 0;
+
+  function phoneLinkPlacement(link) {
+    if (!link || typeof link.closest !== 'function') return 'page';
+    if (link.closest('.mobile-sticky-cta')) return 'sticky_cta';
+    if (link.closest('.booking-modal, .booking-modal-ov')) return 'booking';
+    if (link.closest('#cd-chat')) return 'chat';
+    if (link.closest('header, nav')) return 'header';
+    if (link.closest('footer')) return 'footer';
+    return 'page';
+  }
+
+  function onDocumentClick(ev) {
+    try {
+      var target = ev && ev.target;
+      var link = target && typeof target.closest === 'function' ? target.closest('a[href]') : null;
+      if (!link) return;
+      var href = String(link.getAttribute('href') || '').trim().toLowerCase();
+      if (href.indexOf('tel:') !== 0) return;
+      // One tap can fire touch + click; collapse repeats so one intent counts once.
+      var now = Date.now();
+      if (now - lastPhoneClickAt < PHONE_CLICK_DEDUP_MS) return;
+      lastPhoneClickAt = now;
+      track('click_call', { funnel_step: phoneLinkPlacement(link) });
+    } catch (e) { /* never block the dialer */ }
+  }
+
+  function bindPhoneLinkClicks() {
+    var doc = global.document;
+    if (!doc || typeof doc.addEventListener !== 'function') return;
+    if (global.__cd1PhoneClickBound) return;
+    global.__cd1PhoneClickBound = true;
+    // Capture phase: runs even if a page handler stops propagation; never preventDefault.
+    doc.addEventListener('click', onDocumentClick, true);
+  }
+
   global.Cardetail1Revenue = {
     track: track,
     initAdapters: initAdapters,
@@ -972,4 +1016,5 @@
     },
   };
   resumePendingDeliveries();
+  bindPhoneLinkClicks();
 })(typeof window !== 'undefined' ? window : globalThis);
