@@ -172,6 +172,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/garage-plan-submit.js',
     'netlify/functions/revenue-admin.js',
     'netlify/functions/analytics-public-config.mjs',
+    'netlify/functions/analytics-public-config.js',
     'netlify/lib/analytics-public-config.js',
     'netlify/functions/revenue-resume-link.js',
     'netlify/functions/submit-booking.js',
