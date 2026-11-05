@@ -109,7 +109,7 @@ function jsonLdBlocks(html) {
 function stripAllowedDetailingZone(html) {
   return html
     .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, '')
-    .replace(/<div class="foot-legal">[\s\S]*?<\/div>/g, '')
+    .replace(/<div class="foot-legal"[^>]*>[\s\S]*?<\/div>/g, '')
     .replace(/<span>I agree to receive text messages from Detailing Zone[\s\S]*?<\/span>/g, '');
 }
 

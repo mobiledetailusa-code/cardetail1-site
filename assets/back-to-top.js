@@ -64,6 +64,8 @@
     btn.type = 'button';
     btn.setAttribute('aria-label', 'Back to top');
     btn.setAttribute('aria-hidden', 'true');
+    // Keep the arrow glyph out of Google snippets/sitelinks.
+    btn.setAttribute('data-nosnippet', '');
     btn.textContent = '\u2191';
     btn.addEventListener('click', onActivate);
     btn.addEventListener('keydown', onActivate);
