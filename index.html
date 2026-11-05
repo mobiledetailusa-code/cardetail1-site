@@ -2010,6 +2010,99 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
 .home-faq details{border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;margin-bottom:10px;background:var(--bg0)}
 .home-faq summary{cursor:pointer;font-weight:600;color:var(--ink);font-size:15px}
 .home-faq p{margin-top:10px;color:var(--ink-soft);font-size:14px;line-height:1.6}
+
+/* ================================================================
+   DRAFT (local only, not shipped): premium interlocking vehicle band
+   - tighter rhythm between sections
+   - slanted panels whose diagonals lock into each other (desktop)
+   - chamfered bento tiles (tablet / phone)
+   ================================================================ */
+:root{--section-pad-desktop:clamp(48px,5vw,72px);--section-pad-mobile:44px}
+.luxury-surface .loc-header{margin-bottom:26px}
+.luxury-surface #loc-section .cd1-head{margin-bottom:0}
+.loc-v2-hint{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+.loc-v2-hint::before{content:"";width:36px;height:1px;background:linear-gradient(90deg,transparent,rgba(196,165,116,.7))}
+
+#loc-scroll.vband{--sl:38px;--gap:8px;--edge:rgba(196,165,116,.22);
+  display:grid;grid-template-columns:1.55fr repeat(4,1fr);height:380px;overflow:visible;padding:0;margin:0;gap:0}
+.vband .loc-card{position:relative;isolation:isolate;width:auto;height:100%;min-width:0;margin:0 0 0 calc(var(--gap) - var(--sl));padding:0;
+  border:0;border-radius:0;box-shadow:none;text-align:left;color:inherit;text-decoration:none;cursor:pointer;
+  background:linear-gradient(160deg,var(--edge),rgba(196,165,116,.05) 45%,var(--edge));
+  clip-path:polygon(var(--sl) 0,100% 0,calc(100% - var(--sl)) 100%,0 100%);
+  display:flex!important;flex-direction:column;justify-content:flex-end;transition:background .4s,filter .4s}
+.vband .loc-card::before{content:"";position:absolute;inset:0;z-index:-1;
+  clip-path:polygon(calc(var(--sl) + 1px) 1px,calc(100% - 1px) 1px,calc(100% - var(--sl) - 1px) calc(100% - 1px),1px calc(100% - 1px));
+  background:
+    radial-gradient(120% 70% at 55% 28%,rgba(77,143,217,.16),transparent 60%),
+    linear-gradient(180deg,#1b2430 0%,#141b24 62%,#10151c 100%);transition:background .4s}
+.vband .loc-card::after{content:"";position:absolute;left:0;right:0;top:0;height:2px;z-index:1;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);opacity:0;transition:opacity .4s}
+.vband .loc-card:first-child{margin-left:0;clip-path:polygon(0 0,100% 0,calc(100% - var(--sl)) 100%,0 100%)}
+.vband .loc-card:first-child::before{clip-path:polygon(1px 1px,calc(100% - 1px) 1px,calc(100% - var(--sl) - 1px) calc(100% - 1px),1px calc(100% - 1px))}
+.vband .loc-card:last-child{clip-path:polygon(var(--sl) 0,100% 0,100% 100%,0 100%)}
+.vband .loc-card:last-child::before{clip-path:polygon(calc(var(--sl) + 1px) 1px,calc(100% - 1px) 1px,calc(100% - 1px) calc(100% - 1px),1px calc(100% - 1px))}
+.vband .loc-card:hover,.vband .loc-card:focus-visible{transform:none;border:0;box-shadow:none;outline:none;
+  background:linear-gradient(160deg,rgba(77,143,217,.75),rgba(77,143,217,.12) 50%,rgba(77,143,217,.55))}
+.vband .loc-card:hover::before,.vband .loc-card:focus-visible::before{
+  background:radial-gradient(120% 70% at 55% 28%,rgba(77,143,217,.30),transparent 62%),linear-gradient(180deg,#1d2835 0%,#151d27 62%,#10151c 100%)}
+.vband .loc-card:hover::after,.vband .loc-card:focus-visible::after{opacity:1}
+
+.vband .vb-idx{position:absolute;top:20px;left:calc(var(--sl) + 14px);font-family:var(--fd);font-size:15px;letter-spacing:.18em;color:rgba(196,165,116,.75)}
+.vband .loc-card:first-child .vb-idx{left:26px}
+.vband .vb-tag{position:absolute;top:18px;right:22px;font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:#12181f;background:linear-gradient(135deg,#e2c98f,#b8955a);padding:5px 10px;border-radius:999px}
+.vband .loc-visual{position:absolute;inset:44px 8px auto 8px;height:52%;margin:0;background:none;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.vband .loc-visual::after{content:"";position:absolute;left:18%;right:18%;bottom:2%;height:16px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(0,0,0,.65),transparent)}
+.vband .loc-visual img{position:relative;z-index:1;width:auto;max-width:86%;height:100%;object-fit:contain;
+  filter:drop-shadow(0 14px 18px rgba(0,0,0,.45));transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+.vband .loc-card:hover .loc-visual img{transform:translateY(-6px) scale(1.06)}
+.vband .vb-body{position:relative;padding:0 calc(var(--sl) + 16px) 26px 22px}
+.vband .loc-card:last-child .vb-body{padding-right:22px}
+.vband .loc-name{font-family:var(--fd);font-size:clamp(22px,2.1vw,28px);line-height:1;letter-spacing:.03em;margin:0 0 6px;color:var(--ink);white-space:nowrap}
+.vband .loc-req{font-size:12.5px;line-height:1.45;color:var(--ink-soft);margin:0 0 14px;min-height:36px}
+.vband .vb-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:12px;border-top:1px solid rgba(196,165,116,.14)}
+.vband .loc-from{font-size:13px;font-weight:600;line-height:1.3;color:var(--ink)}
+.vband .vb-go{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--blue);
+  border:1px solid var(--bbr);font-size:14px;transition:.3s}
+.vband .loc-card:hover .vb-go{background:var(--blue);border-color:var(--blue);color:#fff;transform:translateX(3px)}
+/* featured tile */
+.vband .loc-card:first-child .loc-visual{inset:40px 30px auto 10px;height:58%}
+.vband .loc-card:first-child .loc-name{font-size:40px}
+.vband .loc-card:first-child .loc-from{font-size:15px}
+.vband .loc-card:first-child .loc-from b{color:var(--blue);font-weight:700}
+
+/* tablet + phone: chamfered bento */
+@media(max-width:980px){
+  #loc-scroll.vband{--ch:20px;grid-template-columns:1fr 1fr;height:auto;gap:10px}
+  .vband .loc-card,.vband .loc-card:first-child,.vband .loc-card:last-child{margin:0;height:250px;
+    clip-path:polygon(0 0,calc(100% - var(--ch)) 0,100% var(--ch),100% 100%,var(--ch) 100%,0 calc(100% - var(--ch)))}
+  .vband .loc-card::before,.vband .loc-card:first-child::before,.vband .loc-card:last-child::before{
+    clip-path:polygon(1px 1px,calc(100% - var(--ch) - .5px) 1px,calc(100% - 1px) calc(var(--ch) + .5px),calc(100% - 1px) calc(100% - 1px),calc(var(--ch) + .5px) calc(100% - 1px),1px calc(100% - var(--ch) - .5px))}
+  .vband .loc-card:first-child{grid-column:1/-1;height:230px}
+  .vband .loc-card:first-child .loc-visual{inset:16px 12px 16px auto;width:52%;height:auto}
+  .vband .loc-card:first-child .vb-body{max-width:52%}
+  .vband .vb-idx,.vband .loc-card:first-child .vb-idx{left:18px;top:16px}
+  .vband .vb-tag{top:auto;bottom:auto;left:18px;right:auto;top:40px}
+  .vband .loc-visual{inset:36px 8px auto 8px;height:44%}
+  .vband .vb-body,.vband .loc-card:last-child .vb-body{padding:0 16px 18px 18px}
+  .vband .loc-name{font-size:24px}
+  .vband .loc-card:first-child .loc-name{font-size:34px}
+  .vband .loc-req{font-size:12px;min-height:0;margin-bottom:10px}
+}
+@media(max-width:560px){
+  #loc-scroll.vband{--ch:16px;gap:8px}
+  .vband .loc-card,.vband .loc-card:last-child{height:214px}
+  .vband .loc-card:first-child{height:200px}
+  .vband .loc-req{display:none}
+  .vband .loc-card:first-child .loc-req{display:block}
+  .vband .loc-name{font-size:21px}
+  .vband .loc-card:first-child .loc-name{font-size:28px}
+  .vband .loc-from{font-size:12px;white-space:normal}
+  .vband .vb-go{width:26px;height:26px;font-size:12px}
+  .loc-v2-hint{display:none}
+}
+@media(prefers-reduced-motion:reduce){.vband .loc-card,.vband .loc-card *{transition:none!important}}
 </style>
 </head>
 <body class="luxury-surface">
@@ -2135,6 +2228,7 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
         <p class="loc-area-desc">Based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. <span class="loc-area-ext">Extended service areas available by quote.</span></p>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <span class="loc-v2-hint">Choose your vehicle</span>
         <div id="loc-zone-pill" class="loc-zone-pill" style="display:none">📍 <span id="loc-pill-text">Detected</span></div>
         <div id="loc-surcharge-msg" class="loc-surcharge" style="display:none"></div>
       </div>
@@ -8540,14 +8634,20 @@ function renderLocationCarousel(zoneKey){
   cats = ['cars', ...cats.filter(c=>c!=='cars'&&c!=='trucks'), 'trucks'];
   const scroll = document.getElementById('loc-scroll');
   if(!scroll) return;
-  scroll.innerHTML = cats.map(cat=>{
+  scroll.classList.add('vband');
+  scroll.innerHTML = cats.map((cat, i)=>{
     const d = LOC_DISPLAY[cat];
     const visual = (typeof icon3dPack==='function' && icon3dPack(null, cat)) || CATEGORY_VISUALS[cat]||CATEGORY_VISUALS.cars;
+    const fromTxt = String(formatLocFrom(cat)).replace(/(\$[\d,]+)/, '<b>$1</b>');
     const inner = `
+      <span class="vb-idx">0${i+1}</span>
+      ${i===0 ? '<span class="vb-tag">Most booked</span>' : ''}
       <div class="loc-visual loc-visual--3d"><img src="${visual.img}" alt="${visual.alt}" width="512" height="512" loading="lazy" decoding="async"></div>
-      <div class="loc-name">${d.name}</div>
-      <div class="loc-req">${d.desc}</div>
-      <div class="loc-from">${formatLocFrom(cat)}</div>`;
+      <div class="vb-body">
+        <div class="loc-name">${d.name}</div>
+        <div class="loc-req">${d.desc}</div>
+        <div class="vb-foot"><div class="loc-from">${fromTxt}</div><span class="vb-go" aria-hidden="true">&#8594;</span></div>
+      </div>`;
     const seoHref = cat === 'rvs' ? '/rv-detailing'
       : cat === 'trucks' ? '/trucks-detailing'
       : cat === 'boats' ? '/boats-detailing'
