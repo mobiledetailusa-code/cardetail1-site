@@ -1,0 +1,264 @@
+/* =====================================================================
+   DRAFT (local only, not shipped): Cardetail1 premium layer
+   One visual language for the whole homepage:
+     - the diagonal (slanted / chamfered edges) as the signature shape
+     - champagne gold for prestige details, blue reserved for actions
+     - Bebas Neue display headings
+   Loaded last in <head>, so it sits on top of luxury-theme.css.
+   ===================================================================== */
+:root{
+  --pm-gold:#d4b57a;
+  --pm-gold-soft:rgba(212,181,122,.55);
+  --pm-gold-line:rgba(212,181,122,.22);
+  --pm-gold-faint:rgba(212,181,122,.08);
+  --pm-ch:22px;            /* chamfer size for cards */
+  --pm-card:linear-gradient(180deg,#1a222d 0%,#141b24 100%);
+}
+
+/* ---------- chamfer utility (top-right + bottom-left cut) ---------- */
+body.luxury-surface .car-pkg-card,
+body.luxury-surface .rv-card,
+body.luxury-surface .ba-card,
+body.luxury-surface .sameday-banner,
+body.luxury-surface .hero-quote-call,
+body.luxury-surface .hero-zip-wrap,
+body.luxury-surface .home-faq details{
+  clip-path:polygon(0 0,calc(100% - var(--pm-ch)) 0,100% var(--pm-ch),100% 100%,var(--pm-ch) 100%,0 calc(100% - var(--pm-ch)));
+  border-radius:0!important;
+}
+/* hairline on the cut corners so the chamfer reads as intentional */
+body.luxury-surface .car-pkg-card,
+body.luxury-surface .rv-card,
+body.luxury-surface .sameday-banner{position:relative}
+body.luxury-surface .car-pkg-card::after,
+body.luxury-surface .rv-card::after,
+body.luxury-surface .sameday-banner::after{
+  content:"";position:absolute;top:0;right:0;width:var(--pm-ch);height:var(--pm-ch);pointer-events:none;
+  background:linear-gradient(45deg,transparent calc(50% - .75px),var(--pm-gold-soft) 50%,transparent calc(50% + .75px));
+}
+
+/* ---------- section rhythm + gold/blue divider between sections ---------- */
+body.luxury-surface #services,
+body.luxury-surface .cd1-tone-raised,
+body.luxury-surface .cd1-tone-media,
+body.luxury-surface .home-service-areas,
+body.luxury-surface .section-full{position:relative}
+body.luxury-surface #services::before,
+body.luxury-surface .cd1-tone-media::before,
+body.luxury-surface #faq::before,
+body.luxury-surface .home-service-areas::before,
+body.luxury-surface .section-full::before{
+  content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:min(1100px,calc(100% - 48px));height:10px;pointer-events:none;
+  background:
+    linear-gradient(90deg,var(--blue),var(--blue)) left top/72px 2px no-repeat,
+    linear-gradient(90deg,var(--pm-gold-soft),var(--pm-gold-line) 40%,transparent) left 0 top 0/100% 1px no-repeat;
+  clip-path:polygon(0 0,100% 0,100% 100%,0 100%);
+}
+
+/* ---------- typography: eyebrow + display titles ---------- */
+body.luxury-surface .sec-eye{
+  display:flex!important;align-items:center;gap:12px;
+  color:var(--pm-gold)!important;letter-spacing:.24em!important;font-size:11px!important;
+}
+body.luxury-surface .sec-eye::before{
+  content:"";flex:none;width:28px;height:2px;background:linear-gradient(90deg,var(--blue) 0 40%,var(--pm-gold) 40%);
+  clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%);
+}
+body.luxury-surface .sec-title,
+body.luxury-surface .loc-header .sec-title{
+  font-family:var(--fd)!important;font-weight:400!important;text-transform:uppercase;
+  font-size:clamp(36px,4.8vw,58px)!important;line-height:.96!important;letter-spacing:.012em!important;
+}
+body.luxury-surface .sec-desc{max-width:44rem}
+
+/* ---------- hero: diagonal bottom edge, gold badge, chamfered panels ---------- */
+body.luxury-surface .hero{
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 64px),0 100%);
+  padding-bottom:104px;border-bottom:0;
+}
+body.luxury-surface .hero-badge{
+  color:var(--pm-gold)!important;background:rgba(18,24,31,.55)!important;border:1px solid var(--pm-gold-line)!important;
+  border-radius:0!important;letter-spacing:.18em!important;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);padding:6px 18px!important;
+  backdrop-filter:blur(6px);
+}
+body.luxury-surface .hero-zip-wrap,
+body.luxury-surface .hero-quote-call{--pm-ch:16px}
+
+/* ---------- package cards ---------- */
+body.luxury-surface .car-pkg-grid{gap:14px}
+body.luxury-surface .car-pkg-card{
+  border:1px solid transparent!important;
+  background:var(--pm-card) padding-box,linear-gradient(150deg,var(--pm-gold-line),rgba(212,181,122,.04) 45%,var(--pm-gold-line)) border-box!important;
+  transition:transform .35s cubic-bezier(.2,.7,.2,1),filter .35s;
+}
+body.luxury-surface .car-pkg-card:hover{
+  transform:translateY(-4px);
+  background:var(--pm-card) padding-box,linear-gradient(150deg,rgba(77,143,217,.7),rgba(77,143,217,.08) 50%,rgba(77,143,217,.5)) border-box!important;
+}
+body.luxury-surface .car-pkg-foot{background:rgba(0,0,0,.18)!important;border-top:1px solid var(--pm-gold-line)}
+body.luxury-surface .car-pkg-scope{color:var(--pm-gold)!important;letter-spacing:.18em;text-transform:uppercase;font-size:10.5px;font-weight:600}
+body.luxury-surface .car-pkg-name{letter-spacing:-.01em}
+body.luxury-surface .car-pkg-price-amt{font-family:var(--fd)!important;font-weight:400!important;font-size:46px!important;letter-spacing:.01em!important;min-height:0!important}
+body.luxury-surface .car-pkg-price-label{color:var(--pm-gold);letter-spacing:.16em}
+body.luxury-surface .car-pkg-chip{border-radius:0!important;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);padding-left:12px!important;padding-right:12px!important}
+
+/* most booked = blue edge, gold badge, glow */
+body.luxury-surface .car-pkg-card--popular{
+  background:
+    radial-gradient(120% 60% at 50% 0,rgba(77,143,217,.22),transparent 60%) padding-box,
+    var(--pm-card) padding-box,
+    linear-gradient(150deg,var(--blue),rgba(77,143,217,.15) 50%,var(--blue)) border-box!important;
+  filter:drop-shadow(0 18px 40px rgba(77,143,217,.18));
+}
+body.luxury-surface .car-pkg-card--popular::after{background:linear-gradient(45deg,transparent calc(50% - 1px),var(--blue) 50%,transparent calc(50% + 1px))}
+body.luxury-surface .car-pkg-popular{
+  color:#12181f!important;background:linear-gradient(135deg,#e6cf98,#b8955a)!important;
+  border-radius:0!important;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);padding:4px 14px!important;letter-spacing:.16em!important;
+}
+
+/* ceramic: the longest-protection tier gets the gold treatment */
+body.luxury-surface .car-pkg-grid--ceramic .car-pkg-card:last-child{
+  background:
+    radial-gradient(120% 60% at 50% 0,rgba(212,181,122,.16),transparent 60%) padding-box,
+    var(--pm-card) padding-box,
+    linear-gradient(150deg,var(--pm-gold),rgba(212,181,122,.12) 50%,var(--pm-gold)) border-box!important;
+}
+body.luxury-surface .car-pkg-grid--ceramic .car-pkg-card:last-child .car-pkg-price-amt{color:var(--pm-gold)!important}
+
+/* ---------- buttons: light sweep on primary, squarer outline ---------- */
+body.luxury-surface .btn-primary,
+body.luxury-surface .car-pkg-cta{position:relative;overflow:hidden}
+body.luxury-surface .btn-primary::after,
+body.luxury-surface .car-pkg-card--popular .car-pkg-cta::after{
+  content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-20deg);transition:left .6s ease;
+}
+body.luxury-surface .btn-primary:hover::after,
+body.luxury-surface .car-pkg-card--popular .car-pkg-cta:hover::after{left:120%}
+
+/* ---------- before & after ---------- */
+body.luxury-surface .ba-card{--pm-ch:18px;border-color:var(--pm-gold-line)!important}
+
+/* ---------- same-day banner ---------- */
+body.luxury-surface .sameday-banner{
+  border:1px solid transparent!important;
+  background:linear-gradient(100deg,rgba(77,143,217,.14),transparent 45%) padding-box,var(--pm-card) padding-box,
+             linear-gradient(150deg,var(--pm-gold-line),transparent 50%,var(--pm-gold-line)) border-box!important;
+  padding:28px 32px 28px 40px!important;
+}
+body.luxury-surface .sameday-banner::before{
+  content:"";position:absolute;left:18px;top:24px;bottom:24px;width:4px;background:var(--blue);transform:skewX(-14deg);
+}
+body.luxury-surface .sameday-banner h3{font-family:var(--fd)!important;font-weight:400;font-size:30px!important;letter-spacing:.02em;text-transform:uppercase}
+body.luxury-surface .sdb{
+  border-radius:0!important;background:transparent!important;border:1px solid var(--pm-gold-line)!important;color:var(--ink)!important;
+  clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);padding:6px 16px!important;
+}
+body.luxury-surface .sdb::before{content:"◆";color:var(--pm-gold);font-size:8px;margin-right:7px;vertical-align:2px}
+
+/* ---------- reviews ---------- */
+body.luxury-surface .rv-card{
+  --pm-ch:18px;overflow:hidden;
+  border:1px solid transparent!important;
+  background:var(--pm-card) padding-box,linear-gradient(150deg,var(--pm-gold-line),transparent 50%,var(--pm-gold-line)) border-box!important;
+}
+body.luxury-surface .rv-card::before{
+  content:"\201C";position:absolute;right:26px;top:-6px;font-family:Georgia,serif;font-size:92px;line-height:1;color:var(--pm-gold);opacity:.16;pointer-events:none;
+}
+body.luxury-surface .rv-stars{color:var(--pm-gold)!important;letter-spacing:3px}
+body.luxury-surface .rv-btn{border-color:var(--pm-gold-line)!important}
+
+/* ---------- FAQ ---------- */
+body.luxury-surface .home-faq details{
+  --pm-ch:14px;position:relative;border:1px solid var(--pm-gold-line)!important;background:var(--pm-card)!important;padding:18px 54px 18px 24px!important;
+  transition:background .3s;
+}
+body.luxury-surface .home-faq details::before{
+  content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;background:var(--blue);opacity:0;transition:opacity .3s;
+}
+body.luxury-surface .home-faq details[open]::before{opacity:1}
+body.luxury-surface .home-faq summary{list-style:none;position:relative}
+body.luxury-surface .home-faq summary::-webkit-details-marker{display:none}
+body.luxury-surface .home-faq summary::after{
+  content:"+";position:absolute;right:-34px;top:50%;transform:translateY(-50%);font-family:var(--fd);font-size:26px;line-height:1;color:var(--pm-gold);transition:transform .3s;
+}
+body.luxury-surface .home-faq details[open] summary::after{transform:translateY(-50%) rotate(45deg);color:var(--blue)}
+
+/* ---------- service areas: slanted city tiles ---------- */
+body.luxury-surface .service-area-city-grid{gap:8px}
+body.luxury-surface .service-area-city-link,
+body.luxury-surface .service-area-hub-link{
+  position:relative;border-radius:0;border:1px solid transparent;
+  clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%);
+  padding:12px 34px 12px 26px;
+}
+body.luxury-surface .service-area-city-link{
+  background:var(--pm-card) padding-box,linear-gradient(150deg,var(--pm-gold-line),transparent 50%,var(--pm-gold-line)) border-box;
+}
+body.luxury-surface .service-area-city-link::after{
+  content:"\2192";position:absolute;right:24px;top:50%;transform:translate(-6px,-50%);opacity:0;color:var(--blue);transition:.3s;
+}
+body.luxury-surface .service-area-city-link:hover,
+body.luxury-surface .service-area-city-link:focus-visible{
+  background:linear-gradient(100deg,rgba(77,143,217,.18),transparent) padding-box,var(--pm-card) padding-box,linear-gradient(150deg,var(--blue),transparent 50%,var(--blue)) border-box;
+}
+body.luxury-surface .service-area-city-link:hover::after,
+body.luxury-surface .service-area-city-link:focus-visible::after{opacity:1;transform:translate(0,-50%)}
+body.luxury-surface .service-area-hub-link{background:var(--pm-gold-faint) padding-box,linear-gradient(150deg,var(--pm-gold-soft),transparent 50%,var(--pm-gold-soft)) border-box;letter-spacing:.04em}
+
+/* ---------- closing CTA: two interlocking panels ---------- */
+body.luxury-surface .phone-cta-grid{gap:0!important;--pm-sl:48px}
+body.luxury-surface .phone-cta{
+  position:relative;border-radius:0!important;padding:52px 64px!important;
+  background:linear-gradient(160deg,#1b2430,#121820)!important;
+}
+body.luxury-surface .phone-cta:first-child{clip-path:polygon(0 0,100% 0,calc(100% - var(--pm-sl)) 100%,0 100%);box-shadow:inset 0 1px 0 var(--pm-gold-line)}
+body.luxury-surface .phone-cta:last-child{
+  margin-left:calc(8px - var(--pm-sl));clip-path:polygon(var(--pm-sl) 0,100% 0,100% 100%,0 100%);
+  background:radial-gradient(90% 90% at 70% 20%,rgba(77,143,217,.32),transparent 65%),linear-gradient(160deg,#1a2b42,#121a26)!important;
+}
+body.luxury-surface .pc-title{font-size:36px!important;line-height:1!important;letter-spacing:.02em;text-transform:uppercase;margin-bottom:12px!important}
+body.luxury-surface .pc-number{font-family:var(--fd);font-weight:400!important;font-size:52px!important;letter-spacing:.03em;color:var(--pm-gold)!important;line-height:1.05}
+body.luxury-surface .pc-ico{filter:grayscale(.2)}
+
+/* ---------- footer ---------- */
+body.luxury-surface .specialty-public-footer{position:relative;border-top:1px solid var(--pm-gold-line)!important}
+body.luxury-surface .specialty-public-footer::before{
+  content:"";position:absolute;top:-1px;left:max(24px,calc(50% - 550px));width:96px;height:2px;background:var(--blue);
+  clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:768px){
+  :root{--pm-ch:16px}
+  body.luxury-surface .hero{clip-path:polygon(0 0,100% 0,100% calc(100% - 32px),0 100%);padding-bottom:64px}
+  body.luxury-surface .sec-title,
+  body.luxury-surface .loc-header .sec-title{font-size:clamp(32px,9vw,42px)!important}
+  body.luxury-surface .car-pkg-price-amt{font-size:38px!important}
+  body.luxury-surface .sameday-banner{padding:22px 20px 22px 34px!important}
+  body.luxury-surface .sameday-banner::before{left:14px}
+  body.luxury-surface .phone-cta-grid{gap:8px!important}
+  body.luxury-surface .phone-cta{padding:30px 24px!important}
+  body.luxury-surface .phone-cta:first-child,
+  body.luxury-surface .phone-cta:last-child{
+    margin-left:0;clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px));
+  }
+  body.luxury-surface .pc-number{font-size:42px!important}
+  body.luxury-surface .home-faq details{padding:16px 46px 16px 18px!important}
+  body.luxury-surface .home-faq summary::after{right:-28px}
+}
+@media (prefers-reduced-motion:reduce){
+  body.luxury-surface .car-pkg-card,
+  body.luxury-surface .btn-primary::after{transition:none!important}
+  body.luxury-surface .car-pkg-card:hover{transform:none}
+}
+
+/* hero headline in the display face */
+body.luxury-surface .hero h1{
+  font-family:var(--fd)!important;font-weight:400!important;text-transform:uppercase;
+  font-size:clamp(44px,4.6vw,66px)!important;line-height:.94!important;letter-spacing:.01em!important;width:max-content;max-width:min(680px,100%);
+  text-shadow:0 4px 30px rgba(0,0,0,.45);
+}
+@media (max-width:768px){body.luxury-surface .hero h1{font-size:clamp(40px,11vw,52px)!important}}
