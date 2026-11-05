@@ -636,6 +636,12 @@
         wait_for_update: 500,
       });
       global.__cd1GtagConsentDefaulted = true;
+      // While ad_storage is denied, gtag cannot store the ad click (gclid) in a
+      // cookie. url_passthrough carries the click ids (gclid, gbraid, wbraid) in
+      // internal link URLs instead, so a booking submitted later in the same
+      // visit can still be attributed to the ad click. Must be set before the
+      // first 'config'. No cookies are written and no customer data is sent.
+      global.gtag('set', 'url_passthrough', true);
     }
     var marketing = !!(consent && consent.marketing);
     var analytics = !!(consent && consent.analytics);
