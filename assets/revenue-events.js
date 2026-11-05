@@ -661,11 +661,21 @@
     }
   }
 
+  function isAdsSendTo(value) {
+    return /^AW-\d+\/[A-Za-z0-9_-]+$/.test(String(value || '').trim());
+  }
+
   function initGoogleAds(consent) {
     if (!isProductionAdsHost()) return;
     var adsId = global.CD1_GOOGLE_ADS_ID || 'AW-11321647982';
     if (!adsId) return;
-    var adsPageViewSendTo = global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq';
+    // No default Page view conversion. The former Page view action
+    // (AW-11321647982/r6SRCJeL998YEO7GypYq, ctId 6643631511) was removed in
+    // Google Ads; pings to a removed action are discarded. A page view
+    // conversion fires only when an active label is configured explicitly.
+    var adsPageViewSendTo = isAdsSendTo(global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO)
+      ? String(global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO).trim()
+      : '';
 
     syncGtagConsentMode(consent);
     loadGtagJs(adsId, 'cd1-gtag-ads');
@@ -677,9 +687,9 @@
       global.gtag('config', adsId);
       global.__cd1GoogleAdsConfigured = true;
     }
-    // Official Page view conversion snippet — fires once per page load.
+    // Optional Page view conversion — fires once per page load when configured.
     // With Consent Mode denied, Google still gets cookieless pings for diagnostics/modeling.
-    if (!global.__cd1GoogleAdsPageViewFired) {
+    if (adsPageViewSendTo && !global.__cd1GoogleAdsPageViewFired) {
       global.gtag('event', 'conversion', { send_to: adsPageViewSendTo });
       global.__cd1GoogleAdsPageViewFired = true;
     }
