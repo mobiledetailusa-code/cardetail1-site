@@ -208,6 +208,26 @@
   status = 301
   force = true
 [[redirects]]
+  from = "/union-county-hub.html"
+  to = "/union-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/morris-county-hub.html"
+  to = "/morris-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/rockland-county-hub.html"
+  to = "/rockland-county-hub"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/fairfield-county-hub.html"
+  to = "/fairfield-county-hub"
+  status = 301
+  force = true
+[[redirects]]
   from = "/palisades-park-mobile-detailing.html"
   to = "/palisades-park-mobile-detailing"
   status = 301

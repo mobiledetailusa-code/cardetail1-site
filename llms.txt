@@ -5,6 +5,14 @@
 ## Primary pages
 - [Home](https://cardetail1.com/): Mobile car detailing in Bergen County — packages, ZIP check, booking
 - [Bergen County](https://cardetail1.com/bergen-county-hub)
+- [Hudson County](https://cardetail1.com/hudson-county-hub)
+- [Essex County](https://cardetail1.com/essex-county-hub)
+- [Passaic County](https://cardetail1.com/passaic-county-hub)
+- [Union County](https://cardetail1.com/union-county-hub)
+- [Morris County](https://cardetail1.com/morris-county-hub)
+- [Rockland County](https://cardetail1.com/rockland-county-hub)
+- [Westchester County](https://cardetail1.com/westchester-mobile-detailing)
+- [Fairfield County](https://cardetail1.com/fairfield-county-hub)
 - [Palisades Park](https://cardetail1.com/palisades-park-mobile-detailing)
 - [Fort Lee](https://cardetail1.com/fort-lee-mobile-detailing)
 - [Paramus](https://cardetail1.com/paramus-mobile-detailing)
@@ -21,7 +29,7 @@
 ## Car packages (from prices, sedan unless noted)
 - Interior Detail from $200
 - Premium Full Detail from $250 (SUVs from $270, 3-row from $280)
-- Exterior Detail & Paint Enhancement from $370
+- Exterior Detail & Paint Enhancement from $335
 
 ## Facts
 - Address locality: Palisades Park, NJ 07650
@@ -30,7 +38,7 @@
 - Experience: 5+ years, owner-operated mobile detailing
 - Google reviews: https://g.page/r/CTJwfJerrQeCEAI/review
 - Booking: request online, no charge at submission
-- Coverage: Bergen County core (no travel fee on standard NJ core ZIPs); Hudson, Essex, Passaic; NY Metro, CT, PA by quote
+- Coverage: one page per nearby county. Bergen, Hudson, Essex, Passaic, Union, and Morris in New Jersey. Rockland and Westchester in New York. Fairfield County in Connecticut. No mileage fee inside 50 road miles of Palisades Park. Farther Connecticut and Pennsylvania stays by quote.
 
 ## Optional
 - [llms.txt](https://cardetail1.com/llms.txt)

@@ -141,13 +141,28 @@ test('fleet-branch city URLs preserved on NJ/NY/CT state hubs', (t) => {
       'Hackensack': '/hackensack-mobile-detailing',
       'Paramus': '/paramus-mobile-detailing',
       'Ridgewood': '/ridgewood-mobile-detailing',
+      Newark: '/newark-mobile-detailing',
+    };
+    const countyHubByFragment = {
+      'bergen-county': '/bergen-county-hub',
+      'hudson-county': '/hudson-county-hub',
+      'essex-county': '/essex-county-hub',
+      'passaic-county': '/passaic-county-hub',
+      'union-county': '/union-county-hub',
+      'morris-county': '/morris-county-hub',
+      'rockland-county': '/rockland-county-hub',
+      'westchester-county': '/westchester-mobile-detailing',
+      'fairfield-county': '/fairfield-county-hub',
     };
     const currentLinks = extractAccordionCityLinks(read(page));
     assert.equal(currentLinks.length, fleetLinks.length, `${page} link count`);
     for (let i = 0; i < fleetLinks.length; i++) {
-      const historical = dedicatedCityPages[fleetLinks[i].text] || fleetLinks[i].href;
-      const expectedHref = historical.replace(/\.html(?=#|$)/, '');
-      assert.equal(currentLinks[i].href, expectedHref, `${page} href[${i}]`);
+      const namedPage = dedicatedCityPages[fleetLinks[i].text];
+      const historical = namedPage || fleetLinks[i].href;
+      const cleaned = historical.replace(/\.html(?=#|$)/, '');
+      const fragment = cleaned.includes('#') ? cleaned.split('#').pop() : '';
+      const expectedHref = namedPage || countyHubByFragment[fragment] || cleaned;
+      assert.equal(currentLinks[i].href, expectedHref, `${page} href[${i}] ${fleetLinks[i].text}`);
       assert.equal(currentLinks[i].text, fleetLinks[i].text, `${page} text[${i}]`);
     }
   }
