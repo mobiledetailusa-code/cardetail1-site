@@ -118,6 +118,31 @@ test('state hub links for NJ, NY and CT exist', () => {
   assert.equal(hubLinks.length, 3);
 });
 
+test('nearby counties each link to their own hub', () => {
+  const links = [];
+  const re = /<a class="service-area-county-link"\s+href="([^"]+)">([^<]+)<\/a>/g;
+  let m;
+  while ((m = re.exec(section)) !== null) {
+    links.push({ href: m[1], text: m[2].trim() });
+  }
+  assert.deepEqual(links.map((l) => l.href), [
+    '/bergen-county-hub',
+    '/hudson-county-hub',
+    '/essex-county-hub',
+    '/passaic-county-hub',
+    '/union-county-hub',
+    '/morris-county-hub',
+    '/rockland-county-hub',
+    '/westchester-mobile-detailing',
+    '/fairfield-county-hub',
+  ]);
+  for (const link of links) {
+    assert.match(link.text, /County/);
+    hrefExists(link.href);
+  }
+  assert.match(section, /Each nearby county has its own page/);
+});
+
 test('Pennsylvania is not promoted in the homepage service areas section', () => {
   assert.doesNotMatch(section, /Pennsylvania/i);
   assert.doesNotMatch(section, /pennsylvania-hub\.html/);

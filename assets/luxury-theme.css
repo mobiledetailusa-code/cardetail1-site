@@ -263,6 +263,22 @@ body.luxury-surface .nav-menu-btn {
   margin-top: 24px;
 }
 
+.home-county-heading {
+  margin: 28px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.service-area-county-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
 .service-area-hub-links {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -286,6 +302,23 @@ body.luxury-surface .nav-menu-btn {
   transition: border-color 0.2s, background 0.2s;
 }
 
+.service-area-county-link {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(77, 163, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(77, 163, 255, 0.06);
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.service-area-county-link:hover,
+.service-area-county-link:focus-visible,
 .service-area-city-link:hover,
 .service-area-city-link:focus-visible {
   border-color: rgba(77, 163, 255, 0.55);
@@ -329,12 +362,14 @@ body.luxury-surface .nav-menu-btn {
     gap: 8px;
   }
 
+  .service-area-county-grid,
   .service-area-hub-links {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
   .service-area-city-link,
+  .service-area-county-link,
   .service-area-hub-link {
     font-size: 13px;
     overflow-wrap: anywhere;
