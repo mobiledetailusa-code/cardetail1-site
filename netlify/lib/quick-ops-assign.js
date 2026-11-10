@@ -10,7 +10,32 @@ const { TEMPLATE_KEYS, smsDateLabel, smsServiceLabel } = require('./sms-template
 const {
   createTechQuickOpsToken,
   revokeTechQuickOpsToken,
+  TOKEN_TTL_MS: TECH_TOKEN_TTL_MS,
 } = require('./tech-quick-ops-token');
+const { linkTtlMsForBooking } = require('./quick-ops-link-ttl');
+
+/**
+ * Confirm a pending booking through the shared confirm path before it is
+ * assigned. If another request confirmed it first, keep the caller's booking
+ * so the assignment commit still detects the concurrent change.
+ */
+async function confirmBeforeAssign(booking, opts = {}) {
+  if (bookingStatus(booking) !== 'pending_review') return { ok: true, booking };
+  const { confirmQuickOps } = require('./admin-quick-ops-actions');
+  const result = await confirmQuickOps(booking.id || booking.bookingId, {
+    prisma: opts.prisma,
+    env: opts.env,
+  });
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error || 'confirm_failed',
+      statusCode: result.statusCode || 409,
+      message: 'Could not confirm the appointment before assigning',
+    };
+  }
+  return { ok: true, booking: result.transitioned && result.booking ? result.booking : booking };
+}
 
 let rosterOverride = null;
 
@@ -243,13 +268,24 @@ async function assignQuickOpsTech(booking, opts = {}) {
     });
   }
 
+  // Assigning a job that is still pending review confirms it. Run the real
+  // confirm transition (confirmedAt, portal release, customer confirmation
+  // text) instead of flipping the status silently inside the assignment patch.
+  const confirmed = await confirmBeforeAssign(booking, opts);
+  if (!confirmed.ok) return confirmed;
+  booking = confirmed.booking;
+
   const now = new Date().toISOString();
   const bookingId = booking.id || booking.bookingId;
   await revokeTechQuickOpsToken(booking.techQuickOpsTokenHash);
 
   let minted = null;
   if (assigneePhone) {
-    minted = await createTechQuickOpsToken({ bookingId, phoneE164: assigneePhone });
+    minted = await createTechQuickOpsToken({
+      bookingId,
+      phoneE164: assigneePhone,
+      ttlMs: linkTtlMsForBooking(booking, TECH_TOKEN_TTL_MS),
+    });
     if (!minted.ok) return minted;
   }
   const notifyKey = minted ? notifyKeyFor(bookingId, minted.tokenHash) : null;
@@ -351,7 +387,84 @@ async function assignQuickOpsTech(booking, opts = {}) {
 }
 
 /**
+ * Send the assigned technician a fresh job link. Use it when the first link
+ * was already opened (it works once) and the technician lost the session,
+ * changed phones, or the link expired. Revokes the old link, mints a new one
+ * that lasts through the service day, and queues one new job text.
+ * The assignment itself (who, pay, status) does not change.
+ */
+async function reissueQuickOpsTechLink(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled' || jobCompleted(booking)) {
+    return { ok: false, error: 'locked', statusCode: 409, message: 'This job is closed' };
+  }
+  if (!hasAssignment(booking)) {
+    return { ok: false, error: 'not_assigned', statusCode: 409, message: 'No technician is assigned' };
+  }
+  const kind = String(booking.assignmentKind || '');
+  const phone = kind === 'freelance'
+    ? String(booking.freelancePhone || '')
+    : String(booking.techLinkPhone || '');
+  if (!phone) {
+    return { ok: false, error: 'invalid_sms_recipient', statusCode: 409, message: 'The technician has no mobile number on file' };
+  }
+  const bookingId = booking.id || booking.bookingId;
+  const minted = await createTechQuickOpsToken({
+    bookingId,
+    phoneE164: phone,
+    ttlMs: linkTtlMsForBooking(booking, TECH_TOKEN_TTL_MS),
+  });
+  if (!minted.ok) return minted;
+  const notifyKey = notifyKeyFor(bookingId, minted.tokenHash);
+  const committed = await commitAssignment(booking, {
+    techQuickOpsTokenHash: minted.tokenHash,
+    techNotifyKey: notifyKey,
+    techNotifyStatus: 'pending',
+    updatedAt: new Date().toISOString(),
+    eventLog: appendEventLog(booking, {
+      action: 'tech_link_reissued',
+      by: assignmentActor(opts),
+      kind,
+    }),
+  });
+  if (!committed.ok) {
+    await revokeTechQuickOpsToken(minted.tokenHash);
+    return committed;
+  }
+  await revokeTechQuickOpsToken(booking.techQuickOpsTokenHash);
+  if (opts.skipSms) {
+    const recorded = await recordNotify(committed.booking, 'skipped', notifyKey);
+    return assignResult(recorded.booking, {
+      bookingVersion: recorded.bookingVersion,
+      kind,
+      techUrl: minted.opsUrl,
+      notification: 'failed',
+      sms: { sent: false, queued: false, skipped: true, reason: 'skipped' },
+    });
+  }
+  const sms = await textTech({
+    booking: committed.booking,
+    toE164: phone,
+    url: minted.opsUrl,
+    idempotencyKey: notifyKey,
+    prisma: opts.prisma,
+    env: opts.env,
+    provider: opts.provider,
+  });
+  const notification = sms && sms.sent === true ? 'sent' : 'failed';
+  const recorded = await recordNotify(committed.booking, notification, notifyKey);
+  return assignResult(recorded.booking, {
+    bookingVersion: recorded.bookingVersion,
+    kind,
+    techUrl: minted.opsUrl,
+    notification,
+    sms,
+  });
+}
+
+/**
  * Resend the existing job text. Does not mint a second link or a second outbox row.
+ * When the technician already opened that link, use reissueQuickOpsTechLink.
  */
 async function retryQuickOpsTechNotification(booking, opts = {}) {
   if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
@@ -509,5 +622,6 @@ module.exports = {
   assignQuickOpsTech,
   unassignQuickOpsTech,
   retryQuickOpsTechNotification,
+  reissueQuickOpsTechLink,
   reloadBooking,
 };

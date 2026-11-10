@@ -195,6 +195,11 @@ function projectQuickOpsBooking(booking, shared = null) {
       };
     })(),
     assignment: assignmentFromBooking(booking),
+    progress: {
+      enRouteAt: String(booking.enRouteAt || ''),
+      arrivedAt: String(booking.arrivedAt || ''),
+      techDoneAt: String(booking.techCompletedAt || ''),
+    },
     request: pending ? {
       requestId: pending.requestId || pending.id || '',
       type: pending.requestType || pending.type || '',

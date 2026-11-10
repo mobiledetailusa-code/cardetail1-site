@@ -443,14 +443,33 @@ describe('tech quick ops access', () => {
   it('opens the freelance link and refuses admin actions', async () => {
     const assigned = await assignQuickOpsTech(booking(), { phone: '2015550123', skipSms: true });
     const token = decodeURIComponent(assigned.techUrl.split('/').pop());
+    // A browser GET (or an SMS link preview) only shows the Open job button.
+    for (let i = 0; i < 2; i += 1) {
+      const preview = await techHandler.handler({
+        httpMethod: 'GET',
+        path: `/ops/t/${token}`,
+        rawUrl: `https://cardetail1.com/ops/t/${token}`,
+        headers: { host: 'cardetail1.com', accept: 'text/html' },
+      });
+      assert.equal(preview.statusCode, 200);
+      assert.match(preview.body, /Open job/);
+      assert.match(preview.body, /<form method="post"/);
+      assert.equal(preview.headers['Set-Cookie'], undefined);
+      assert.doesNotMatch(preview.body, /Alex|Harbor|Gate code|\$120/);
+    }
     const opened = await techHandler.handler({
-      httpMethod: 'GET',
+      httpMethod: 'POST',
       path: `/ops/t/${token}`,
       rawUrl: `https://cardetail1.com/ops/t/${token}`,
-      headers: { host: 'cardetail1.com', accept: 'text/html' },
+      headers: { host: 'cardetail1.com', accept: 'text/html', 'content-type': 'application/x-www-form-urlencoded' },
+      body: '',
     });
-    assert.equal(opened.statusCode, 302);
+    assert.equal(opened.statusCode, 303);
+    assert.equal(opened.headers.Location, '/ops/t');
     assert.match(opened.headers['Set-Cookie'], new RegExp(TECH_COOKIE));
+    // The session lasts through the service day, not a fixed 12 hours.
+    const maxAge = Number(/Max-Age=(\d+)/.exec(opened.headers['Set-Cookie'])[1]);
+    assert.ok(maxAge >= 12 * 60 * 60, `Max-Age ${maxAge}`);
     const cookie = String(opened.headers['Set-Cookie']).split(';')[0];
     const page = await techHandler.handler({
       httpMethod: 'GET',
@@ -1818,5 +1837,251 @@ describe('technician payment, arrival, and contact', () => {
     });
     assert.equal(live.length, 0);
     assert.equal(testKeys.length, 0);
+  });
+});
+
+describe('quick ops high-priority fixes', () => {
+  const { linkTtlMsForBooking, MAX_TTL_MS } = require('../netlify/lib/quick-ops-link-ttl');
+  const { createQuickOpsToken, loadQuickOpsToken, mintQuickOpsUrl } = require('../netlify/lib/admin-quick-ops-token');
+  const { reissueQuickOpsTechLink } = require('../netlify/lib/quick-ops-assign');
+  const lifecycle = require('../netlify/lib/appointment-lifecycle-notifications');
+  const DAY = 24 * 60 * 60 * 1000;
+
+  function isoDay(offsetDays) {
+    return new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10);
+  }
+
+  async function openWithPost(techUrl) {
+    const token = decodeURIComponent(techUrl.split('/').pop());
+    return techHandler.handler({
+      httpMethod: 'POST',
+      path: `/ops/t/${token}`,
+      rawUrl: `https://cardetail1.com/ops/t/${token}`,
+      headers: { host: 'cardetail1.com', accept: 'text/html' },
+      body: '',
+    });
+  }
+
+  it('keeps links alive through the service day', () => {
+    const base = 48 * 60 * 60 * 1000;
+    const far = linkTtlMsForBooking({ confirmedDate: isoDay(10) }, base);
+    assert.ok(far > 11 * DAY && far < 13.5 * DAY, String(far));
+    assert.equal(linkTtlMsForBooking({ confirmedDate: isoDay(-5) }, base), base);
+    assert.equal(linkTtlMsForBooking({}, base), base);
+    assert.equal(linkTtlMsForBooking({ preferredDate: isoDay(200) }, base), MAX_TTL_MS);
+  });
+
+  it('extends the admin link for a job booked days ahead without changing it', async () => {
+    const first = await createQuickOpsToken({ bookingId: 'CD1-TQ-01' });
+    const longer = await createQuickOpsToken({ bookingId: 'CD1-TQ-01', ttlMs: 10 * DAY });
+    assert.equal(longer.token, first.token);
+    assert.equal(longer.reused, false);
+    assert.ok(Date.parse(longer.expiresAt) > Date.now() + 9 * DAY);
+    const again = await createQuickOpsToken({ bookingId: 'CD1-TQ-01' });
+    assert.equal(again.reused, true);
+    assert.equal(again.expiresAt, longer.expiresAt);
+    const loaded = await loadQuickOpsToken(first.token);
+    assert.equal(loaded.ok, true);
+    assert.equal(loaded.expiresAt, longer.expiresAt);
+  });
+
+  it('mints the admin link from the booking date', async () => {
+    setBookingStoreOverride(createCasMemoryStore({
+      'CD1-TQ-01': booking({ confirmedDate: isoDay(9), preferredDate: isoDay(9) }),
+    }));
+    const url = await mintQuickOpsUrl('CD1-TQ-01');
+    const token = decodeURIComponent(url.split('/').pop());
+    const loaded = await loadQuickOpsToken(token);
+    assert.equal(loaded.ok, true);
+    assert.ok(Date.parse(loaded.expiresAt) > Date.now() + 9 * DAY);
+  });
+
+  it('confirms a pending booking through the real confirm path when assigning', async () => {
+    const calls = [];
+    const original = lifecycle.notifyConfirmed;
+    lifecycle.notifyConfirmed = async (row, opts) => { calls.push({ row, opts }); return row; };
+    try {
+      const assigned = await assignQuickOpsTech(booking(), { phone: '2015550123', skipSms: true });
+      assert.equal(assigned.ok, true, assigned.error);
+      const saved = (await getBookingRecord('CD1-TQ-01')).booking;
+      assert.equal(saved.appointmentStatus, 'confirmed');
+      assert.ok(saved.confirmedAt);
+      assert.ok(saved.confirmationEventId);
+      assert.equal(saved.jobStatus, 'assigned');
+      assert.equal(saved.assignmentKind, 'freelance');
+      assert.ok(saved.eventLog.some((e) => e.action === 'booking_confirmed'));
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0].opts.source, 'quick_ops');
+
+      // Reassigning an already-confirmed job does not confirm or notify again.
+      const again = await assignQuickOpsTech(saved, { techId: 'sam', skipSms: true });
+      assert.equal(again.ok, true, again.error);
+      assert.equal(calls.length, 1);
+    } finally {
+      lifecycle.notifyConfirmed = original;
+    }
+  });
+
+  it('gives the tech link a TTL through the service day', async () => {
+    setBookingStoreOverride(createCasMemoryStore({
+      'CD1-TQ-01': booking({ confirmedDate: isoDay(7), preferredDate: isoDay(7) }),
+    }));
+    const row = (await getBookingRecord('CD1-TQ-01')).booking;
+    const assigned = await assignQuickOpsTech(row, { phone: '2015550123', skipSms: true });
+    const token = decodeURIComponent(assigned.techUrl.split('/').pop());
+    const loaded = await loadTechQuickOpsToken(token);
+    assert.equal(loaded.ok, true);
+    assert.ok(Date.parse(loaded.expiresAt) > Date.now() + 8 * DAY);
+    const opened = await openWithPost(assigned.techUrl);
+    assert.equal(opened.statusCode, 303);
+    const maxAge = Number(/Max-Age=(\d+)/.exec(opened.headers['Set-Cookie'])[1]);
+    assert.ok(maxAge > 8 * 24 * 60 * 60, `Max-Age ${maxAge}`);
+  });
+
+  it('reissues a fresh tech link after the first one was spent', async () => {
+    const assigned = await assignQuickOpsTech(booking(), { phone: '2015550123', skipSms: true });
+    assert.equal((await openWithPost(assigned.techUrl)).statusCode, 303);
+    const spent = await openWithPost(assigned.techUrl);
+    assert.equal(spent.statusCode, 400);
+
+    const current = (await getBookingRecord('CD1-TQ-01')).booking;
+    const reissued = await reissueQuickOpsTechLink(current, { skipSms: true });
+    assert.equal(reissued.ok, true, reissued.error);
+    assert.notEqual(reissued.techUrl, assigned.techUrl);
+    const after = (await getBookingRecord('CD1-TQ-01')).booking;
+    assert.notEqual(after.techQuickOpsTokenHash, current.techQuickOpsTokenHash);
+    assert.equal(after.assignmentKind, 'freelance');
+    assert.equal(after.freelancePhone, '+12015550123');
+    assert.ok(after.eventLog.some((e) => e.action === 'tech_link_reissued'));
+    const opened = await openWithPost(reissued.techUrl);
+    assert.equal(opened.statusCode, 303);
+
+    const closed = await reissueQuickOpsTechLink({ ...after, appointmentStatus: 'cancelled' }, { skipSms: true });
+    assert.equal(closed.ok, false);
+    const none = await reissueQuickOpsTechLink(booking({ id: 'CD1-TQ-01' }), { skipSms: true });
+    assert.equal(none.ok, false);
+    assert.equal(none.error, 'not_assigned');
+  });
+
+  it('shows Send new job link on admin quick ops only when assigned', () => {
+    const unassigned = quickOpsPage(projectQuickOpsBooking(booking()), 'csrf');
+    assert.match(unassigned.body, /id="qo-resend-link"[^>]*hidden/);
+    const assigned = quickOpsPage(projectQuickOpsBooking(booking({
+      assignmentKind: 'freelance',
+      freelancePhone: '+12015550123',
+      assignedTechName: 'Freelance 0123',
+      techQuickOpsTokenHash: 'abc',
+    })), 'csrf');
+    assert.match(assigned.body, /data-action="resend_tech_link"/);
+    assert.doesNotMatch(assigned.body, /id="qo-resend-link"[^>]*hidden/);
+  });
+
+  it('texts the customer once when the tech is on the way, with an ETA', async () => {
+    const sent = [];
+    const { prisma } = memorySmsOutbox();
+    const session = await openAssignedTech(consentedBooking());
+    setQuickOpsSmsRuntime({ prisma, env: smsDispatchEnv(), provider: fakeProvider(sent, 'accepted') });
+    const headers = {
+      cookie: session.cookie,
+      host: 'cardetail1.com',
+      'content-type': 'application/json',
+      'x-tq-csrf': session.csrf,
+    };
+    assert.equal(session.view.actions.onTheWay, true);
+    assert.equal(session.view.actions.done, true);
+    const res = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({ action: 'on_the_way', etaMinutes: '30' }),
+    });
+    assert.equal(res.statusCode, 200, res.body);
+    const body = JSON.parse(res.body);
+    assert.equal(body.view.actions.onTheWay, false);
+    assert.equal(body.view.enRoute.recorded, true);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].body, /^Cardetail1: Your technician is on the way and should arrive in about 30 minutes\./);
+    assert.doesNotMatch(sent[0].body, /Harbor|2015550177|\$/);
+    const saved = (await getBookingRecord('CD1-TQ-01')).booking;
+    assert.ok(saved.enRouteAt);
+    assert.equal(saved.enRouteEtaMinutes, 30);
+    assert.equal(saved.jobStatus, 'assigned');
+
+    const repeat = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({ action: 'on_the_way', etaMinutes: '15' }),
+    });
+    assert.equal(repeat.statusCode, 409);
+    assert.equal(sent.length, 1);
+  });
+
+  it('marks the job done for admin review without taking payment', async () => {
+    const session = await openAssignedTech(consentedBooking());
+    const headers = {
+      cookie: session.cookie,
+      host: 'cardetail1.com',
+      'content-type': 'application/json',
+      'x-tq-csrf': session.csrf,
+    };
+    const res = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({ action: 'job_done' }),
+    });
+    assert.equal(res.statusCode, 200, res.body);
+    const body = JSON.parse(res.body);
+    assert.equal(body.view.completed, true);
+    assert.equal(body.view.actions.done, false);
+    assert.equal(body.view.actions.arrive, false);
+    assert.equal(body.view.paymentDue, true);
+    assert.equal(body.view.contactRestricted, false);
+    const saved = (await getBookingRecord('CD1-TQ-01')).booking;
+    assert.equal(saved.jobStatus, 'completed_pending_admin_review');
+    assert.equal(saved.serviceStatus, 'service_completed');
+    assert.equal(saved.adminReviewRequired, true);
+    assert.ok(saved.techCompletedAt);
+    assert.ok(saved.completedAt);
+    assert.equal(saved.ledger.settledCents, 0);
+    assert.ok(saved.eventLog.some((e) => e.action === 'tech_job_done'));
+
+    const again = await techHandler.handler({
+      httpMethod: 'POST',
+      path: '/ops/t',
+      headers,
+      body: JSON.stringify({ action: 'job_done' }),
+    });
+    assert.equal(again.statusCode, 409);
+    assert.equal((await getBookingRecord('CD1-TQ-01')).booking.completedAt, saved.completedAt);
+
+    const adminView = projectQuickOpsBooking(saved);
+    assert.equal(adminView.progress.techDoneAt, saved.techCompletedAt);
+    assert.match(quickOpsPage(adminView, 'csrf').body, /Tech progress.*needs your review/s);
+  });
+
+  it('renders the job steps card on the technician page', () => {
+    const view = projectTechQuickOpsBooking(booking({
+      assignmentKind: 'freelance',
+      freelancePhone: '+12015550123',
+      quickOpsTechClose: true,
+      techQuickOpsTokenHash: 'abc',
+    }));
+    const html = techQuickOpsPage(view, 'csrf').body;
+    assert.match(html, /Job steps/);
+    assert.match(html, /data-action="on_the_way"/);
+    assert.match(html, /id="tq-arrive"/);
+    assert.match(html, /data-action="job_done"[^>]*data-confirm=/);
+    assert.ok(html.indexOf('<h2>Job steps') < html.indexOf('<h2>Your pay'));
+  });
+
+  it('renders the on-the-way template with and without an ETA', () => {
+    const withEta = renderSmsTemplate(TEMPLATE_KEYS.TECH_ON_THE_WAY, { etaMinutes: 45 });
+    assert.equal(withEta.ok, true);
+    assert.match(withEta.body, /arrive in about 45 minutes/);
+    const plain = renderSmsTemplate(TEMPLATE_KEYS.TECH_ON_THE_WAY, { etaMinutes: 'soon' });
+    assert.match(plain.body, /Your technician is on the way\./);
+    assert.match(plain.body, /STOP/);
   });
 });

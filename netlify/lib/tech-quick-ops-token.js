@@ -15,6 +15,7 @@ const SESSION_PREFIX = 'tqs_';
 const PURPOSE_TECH_QUICK_OPS = 'tech_quick_ops';
 const TOKEN_TTL_MS = 48 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const MAX_SESSION_TTL_MS = 45 * 24 * 60 * 60 * 1000;
 const COOKIE_NAME = 'cd1_tq_session';
 
 let tokenStoreFactoryOverride = null;
@@ -208,14 +209,28 @@ async function loadTechQuickOpsToken(rawToken) {
   };
 }
 
-async function createTechQuickOpsSession({ bookingId, phoneE164 }) {
+/**
+ * The session outlives a single shift: it lasts until the job link itself
+ * expires (through the service day), never less than SESSION_TTL_MS and never
+ * more than MAX_SESSION_TTL_MS. A tech who opens the link the night before
+ * must not be locked out on the job. The session is still dropped as soon as
+ * the booking is reassigned (see sessionMatchesBooking in the handler).
+ */
+function sessionTtlMs(linkExpiresAt) {
+  const linkLeft = Date.parse(String(linkExpiresAt || '')) - Date.now();
+  if (!Number.isFinite(linkLeft)) return SESSION_TTL_MS;
+  return Math.min(MAX_SESSION_TTL_MS, Math.max(SESSION_TTL_MS, linkLeft));
+}
+
+async function createTechQuickOpsSession({ bookingId, phoneE164, linkExpiresAt } = {}) {
   const id = String(bookingId || '').trim();
   const phone = String(phoneE164 || '').trim();
   if (!id || !phone) return { ok: false, error: 'booking_required' };
   const sessionId = generateSessionId();
   const csrfToken = crypto.randomBytes(18).toString('base64url');
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
+  const ttlMs = sessionTtlMs(linkExpiresAt);
+  const expiresAt = new Date(now.getTime() + ttlMs).toISOString();
   const record = {
     sessionIdHash: hashToken(sessionId),
     purpose: PURPOSE_TECH_QUICK_OPS,
@@ -227,7 +242,7 @@ async function createTechQuickOpsSession({ bookingId, phoneE164 }) {
     expiresAt,
   };
   const store = await resolveSessionStore();
-  await store.setJSON(sessionKey(sessionId), record, { ttl: Math.ceil(SESSION_TTL_MS / 1000) });
+  await store.setJSON(sessionKey(sessionId), record, { ttl: Math.ceil(ttlMs / 1000) });
   return { ok: true, sessionId, csrfToken, expiresAt, bookingId: id, phoneE164: phone };
 }
 
@@ -240,8 +255,11 @@ function parseCookie(header, name) {
   return '';
 }
 
-function sessionCookieHeader(sessionId, { secure = true } = {}) {
-  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
+function sessionCookieHeader(sessionId, { secure = true, expiresAt = '' } = {}) {
+  const left = Date.parse(String(expiresAt || '')) - Date.now();
+  const maxAge = Number.isFinite(left) && left > 0
+    ? Math.floor(left / 1000)
+    : Math.floor(SESSION_TTL_MS / 1000);
   const parts = [
     `${COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
     'Path=/',

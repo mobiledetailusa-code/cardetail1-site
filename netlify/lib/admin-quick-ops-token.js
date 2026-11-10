@@ -15,6 +15,7 @@ const SESSION_PREFIX = 'qos_';
 const PURPOSE_ADMIN_QUICK_OPS = 'admin_quick_ops';
 const TOKEN_TTL_MS = 48 * 60 * 60 * 1000;
 const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const REUSE_SLACK_MS = 60 * 60 * 1000;
 const COOKIE_NAME = 'cd1_qo_session';
 
 let tokenStoreFactoryOverride = null;
@@ -127,13 +128,18 @@ async function createQuickOpsToken({ bookingId, ttlMs = TOKEN_TTL_MS } = {}) {
   const store = await resolveTokenStore();
   const existing = await readJson(store, tokenKey(tokenHash));
   const now = new Date();
-  if (
+  const wantedMs = now.getTime() + Math.max(60_000, Number(ttlMs) || TOKEN_TTL_MS);
+  const existingLive = !!(
     existing
     && existing.purpose === PURPOSE_ADMIN_QUICK_OPS
     && existing.bookingId === id
     && envBindingMatches(existing)
     && Date.parse(existing.expiresAt) > Date.now()
-  ) {
+  );
+  // Reuse a live record unless this mint needs it to last noticeably longer
+  // (a job booked days ahead). The token is deterministic, so extending the
+  // record also keeps the link already sent to the owner working.
+  if (existingLive && Date.parse(existing.expiresAt) >= wantedMs - REUSE_SLACK_MS) {
     return {
       ok: true,
       token,
@@ -143,7 +149,10 @@ async function createQuickOpsToken({ bookingId, ttlMs = TOKEN_TTL_MS } = {}) {
       bookingId: id,
     };
   }
-  const expiresAt = new Date(now.getTime() + Math.max(60_000, Number(ttlMs) || TOKEN_TTL_MS)).toISOString();
+  const expiresAt = new Date(Math.max(
+    wantedMs,
+    existingLive ? Date.parse(existing.expiresAt) : 0,
+  )).toISOString();
   const record = {
     tokenHash,
     purpose: PURPOSE_ADMIN_QUICK_OPS,
@@ -291,9 +300,21 @@ function verifyQuickOpsCsrf(event, session) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
+async function adminLinkTtlMs(bookingId) {
+  try {
+    const { getBookingRecord } = require('./booking-repository');
+    const { linkTtlMsForBooking } = require('./quick-ops-link-ttl');
+    const rec = await getBookingRecord(bookingId);
+    return linkTtlMsForBooking(rec && rec.booking, TOKEN_TTL_MS);
+  } catch {
+    return TOKEN_TTL_MS;
+  }
+}
+
 async function mintQuickOpsUrl(bookingId) {
   try {
-    const minted = await createQuickOpsToken({ bookingId });
+    const ttlMs = await adminLinkTtlMs(bookingId);
+    const minted = await createQuickOpsToken({ bookingId, ttlMs });
     return minted.ok ? minted.opsUrl : '';
   } catch {
     return '';
