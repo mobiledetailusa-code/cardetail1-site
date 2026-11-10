@@ -427,6 +427,7 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/tech-quick-ops.js',
     'netlify/functions/tech-assignment.js',
     'netlify/lib/quick-ops-assign.js',
+    'netlify/lib/quick-ops-link-ttl.js',
     'netlify/lib/quick-ops-price.js',
     'netlify/lib/quick-ops-tech-close.js',
     'netlify/lib/tech-quick-ops-token.js',
