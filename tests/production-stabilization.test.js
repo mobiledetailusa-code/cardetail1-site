@@ -112,7 +112,7 @@ test('fleet-services.html is quote-only (no public unit pricing or fleet booking
 
 test('sitemap lists canonical public routes and excludes admin/customer portals', () => {
   const urls = extractSitemapUrls();
-  assert.equal(urls.length, 37);
+  assert.equal(urls.length, 38);
   assert.ok(urls.includes('https://cardetail1.com/'));
   for (const slug of [
     'boats-detailing',
@@ -121,6 +121,7 @@ test('sitemap lists canonical public routes and excludes admin/customer portals'
     'trucks-detailing',
     'fleet-services',
     'multi-vehicle-detailing',
+    'ceramic-coating',
     'new-jersey-hub',
     'union-county-hub',
     'morris-county-hub',

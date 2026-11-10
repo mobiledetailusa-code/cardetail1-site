@@ -196,8 +196,13 @@ describe('ceramic coating landing page', () => {
     assert.match(page, /noindex, nofollow/);
     assert.doesNotMatch(page, /<meta name="robots" content="noindex/);
     assert.doesNotMatch(page, /googletagmanager|googleadservices|gtag\(|AW-|revenue-events\.js/i);
-    assert.doesNotMatch(read('sitemap.xml'), /ceramic-coating/);
     assert.match(page, /href="\/"/);
+  });
+
+  it('is listed in the production sitemap at its canonical URL', () => {
+    const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].trim());
+    assert.equal(locs.filter((loc) => loc === 'https://cardetail1.com/ceramic-coating').length, 1);
+    assert.match(page, /<link rel="canonical" href="https:\/\/cardetail1\.com\/ceramic-coating">/);
   });
 
   it('gives every image alt text and reserved dimensions', () => {
