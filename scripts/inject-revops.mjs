@@ -77,6 +77,21 @@ function inject(file) {
     changed = true;
   }
 
+  // Pages with their own booking form report the Google Ads booking conversion
+  // through Cardetail1CheckoutAnalytics.onBookingSubmitted. Without this script
+  // booking-review-runtime.js skips the conversion silently.
+  if (
+    html.includes('assets/booking-review-runtime.js')
+    && !html.includes('assets/checkout-analytics.js')
+    && html.includes('<script src="assets/revenue-events.js"></script>')
+  ) {
+    html = html.replace(
+      '<script src="assets/revenue-events.js"></script>',
+      '<script src="assets/checkout-analytics.js"></script>\n<script src="assets/revenue-events.js"></script>'
+    );
+    changed = true;
+  }
+
   if (file === 'index.html') {
     if (!html.includes('data-cd1-garage-cta') && html.includes('car-pkg-intro')) {
       html = html.replace(
