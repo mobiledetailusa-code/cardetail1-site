@@ -1896,6 +1896,8 @@ async function handleAdminAction(body, testOpts = {}) {
     return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
+  // Outcome of approve_completion's one-per-booking review SMS (Admin / QuickOps).
+  let reviewRequest = null;
   if (action === 'approve_completion') {
     const charging = body.confirmSavedCardCharge === true;
     const js = String(booking.jobStatus || '');
@@ -1939,8 +1941,6 @@ async function handleAdminAction(body, testOpts = {}) {
     const alreadyPaid = String(money.paymentStatus || '').toLowerCase() === 'paid'
       || Math.max(0, Math.round(Number(money.remainingCents) || 0)) === 0;
     let patched = booking;
-    // Outcome of the one-per-booking review SMS, reported to Admin / QuickOps.
-    let reviewRequest = null;
     if (js === 'completed_pending_admin_review') {
       patched = {
         ...booking,
