@@ -13,14 +13,18 @@ Disallow: /receipt.html
 Disallow: /bid.html
 Disallow: /resume.html
 Disallow: /customer.html
+Disallow: /*?book=
 
 User-agent: GPTBot
 Allow: /
+Disallow: /*?book=
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /*?book=
 
 User-agent: PerplexityBot
 Allow: /
+Disallow: /*?book=
 
 Sitemap: https://cardetail1.com/sitemap.xml

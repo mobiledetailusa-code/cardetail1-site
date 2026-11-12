@@ -884,9 +884,28 @@
     }
   }
 
+  // Search-engine and audit crawlers render pages with JavaScript and follow the
+  // /?book=… deep links, which open the booking flow by themselves. Their visits
+  // are not customers, so first-party funnel events are not recorded for them.
+  // Named crawlers only: a generic "bot" pattern would also match real phones
+  // (for example CUBOT devices). Google Ads tags and conversions are not
+  // affected by this check.
+  var CRAWLER_USER_AGENT = /Googlebot|AdsBot-Google|Mediapartners-Google|Google-InspectionTool|Google-Read-Aloud|GoogleOther|Storebot-Google|APIs-Google|bingbot|BingPreview|adidxbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Applebot|PetalBot|facebookexternalhit|GPTBot|ChatGPT-User|OAI-SearchBot|PerplexityBot|ClaudeBot|Claude-User|Amazonbot|AhrefsBot|SemrushBot|MJ12bot|DotBot|HeadlessChrome|Chrome-Lighthouse|PTST\/|GTmetrix/i;
+
+  function isLikelyCrawler() {
+    try {
+      var nav = global.navigator;
+      if (!nav) return false;
+      return CRAWLER_USER_AGENT.test(String(nav.userAgent || ''));
+    } catch (eUa) {
+      return false;
+    }
+  }
+
   function track(eventName, properties) {
     try {
       if (isSharedPreviewHost()) return null;
+      if (isLikelyCrawler()) return null;
       eventName = String(eventName || '').trim().slice(0, 128);
       if (!eventName) return null;
       var eventId = (properties && properties.event_id) || uuid();
