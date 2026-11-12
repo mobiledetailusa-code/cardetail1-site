@@ -158,6 +158,34 @@
     '[aria-expanded="true"]',
   ].join(',');
 
+  // The embedded homepage renders its own consent banner. When the visitor answers
+  // one banner, answer the other with the same choice through its own button, so
+  // the page's own consent flow runs (no rule here; the choice is the visitor's).
+  function answerBanner(targetDoc, detail) {
+    var banner = targetDoc && targetDoc.getElementById('cd1-consent-banner');
+    if (!banner) return;
+    var d = detail || {};
+    var mode = d.marketing ? 'accept' : (d.analytics ? 'analytics' : 'decline');
+    var btn = banner.querySelector('button[data-consent="' + mode + '"]');
+    if (btn) btn.click();
+  }
+
+  function currentFrameDoc() {
+    try { return frame && overlay && overlay.classList.contains('is-open') ? frame.contentDocument : null; } catch (eCross) { return null; }
+  }
+
+  var parentConsentMirrored = false;
+  function wireFrameConsent() {
+    var doc = currentFrameDoc();
+    if (!doc || doc.__cd1HubConsent) return;
+    doc.__cd1HubConsent = true;
+    doc.addEventListener('cd1:consent-changed', function (ev) { answerBanner(document, ev && ev.detail); });
+    if (!parentConsentMirrored) {
+      parentConsentMirrored = true;
+      document.addEventListener('cd1:consent-changed', function (ev) { answerBanner(currentFrameDoc(), ev && ev.detail); });
+    }
+  }
+
   function wireFrameEscape() {
     var win;
     var doc;
@@ -239,6 +267,7 @@
             return;
           }
           wireFrameEscape();
+          wireFrameConsent();
         }, 300);
       };
       frame.src = '/?' + params.toString();

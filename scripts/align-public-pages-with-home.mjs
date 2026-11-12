@@ -130,6 +130,20 @@ function alignFullCloneNav(ed) {
     (s) => false);
 }
 
+/** Labels/icons match their action, as on the homepage: openPortal() goes to My
+ *  Garage, and phone links use a phone icon, not a location pin. */
+function alignActionLabels(ed) {
+  ed.edit('labels: openPortal() buttons say "My Garage" (their destination)',
+    /(onclick="openPortal\(\)">)My Booking</g, '$1My Garage<', (s) => false);
+  ed.edit('labels: phone icon on Call links and the call card',
+    /(href="tel:\+15513893986">)📍 Call/g, '$1📞 Call', (s) => false);
+  ed.edit('labels: phone icon on the "CALL OR TEXT US" card',
+    '<div class="pc-ico">📍</div>\n        <div class="pc-title">CALL OR TEXT US</div>',
+    '<div class="pc-ico">📞</div>\n        <div class="pc-title">CALL OR TEXT US</div>', (s) => false);
+  ed.edit('labels: phone icon in the chat "call or text" reply',
+    /Happy to connect you! 📍 Call or text/g, 'Happy to connect you! 📞 Call or text', (s) => false);
+}
+
 function alignSpecialtyNavLabel(ed) {
   ed.edit('specialty nav: Semi Trucks label (homepage)',
     '<a class="specialty-service-link" href="/trucks-detailing">Trucks</a>',
@@ -286,6 +300,7 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
     const isBergen = file === 'bergen-county-hub.html';
     alignFullCloneNav(ed);
     alignSpecialtyNavLabel(ed);
+    alignActionLabels(ed);
     fixMojibake(ed);
     repairFallbackMarkup(ed);
 
@@ -342,6 +357,7 @@ for (const file of STATE_HUBS) {
   run(file, (ed) => {
     alignFullCloneNav(ed);
     alignSpecialtyNavLabel(ed);
+    alignActionLabels(ed);
     fixMojibake(ed);
     repairFallbackMarkup(ed);
     removeProcess(ed);
@@ -417,7 +433,10 @@ function renameRefreshPackage(ed) {
 // index.html / assets/checkout-offer.js / backend and are not touched here.
 function removeWelcomeBalloon(ed) {
   ed.edit('pop-up: drop floating WELCOME10 balloon script (homepage has none)',
-    /\n?<script src="assets\/welcome-lead-balloon\.js"(?: defer)?><\/script>/g, '', (s) => false);
+    /\n?[ \t]*<script src="assets\/welcome-lead-balloon\.js"(?: defer)?><\/script>/g, '', (s) => false);
+  // An earlier version left the removed tag's indentation behind as a whitespace-only line.
+  ed.edit('pop-up: drop whitespace-only line left by the removed tag',
+    /\n[ \t]+(?=\n[ \t]*<script src="assets\/back-to-top\.js")/g, '', (s) => false);
 }
 
 const PUBLIC_PAGES = fs.readdirSync(root).filter((f) => f.endsWith('.html')

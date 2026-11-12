@@ -213,3 +213,47 @@ test('$335 car package uses the catalog name everywhere public; pop-up not loade
   assert.ok(fs.existsSync(path.join(root, 'assets/welcome-lead-balloon.js')));
   assert.match(read('index.html'), /New Customer Welcome — 10%/);
 });
+
+test('Bergen generator: prices from the canonical catalog, index.html mirror in parity, pages in sync', () => {
+  const out = execFileSync(process.execPath, [path.join(root, 'scripts/generate-bergen-city-pages.mjs'), '--check', '--parity'], { cwd: root, encoding: 'utf8' });
+  const { PRICING } = require('../netlify/lib/booking-price-catalog');
+  const lines = out.split('\n').filter((l) => l.startsWith('parity '));
+  assert.ok(lines.length >= 15, 'generator should report the price keys it used');
+  for (const l of lines) {
+    const [, key, val] = l.match(/^parity (\S+) canonical=(\d+)/);
+    const p = key.split('.');
+    const canon = p[0] === 'addon' ? PRICING.cars.addons.find((a) => a.id === p[1]).price
+      : p[0] === 'fleet' ? PRICING.fleet.tiers[p[1]][p[2]]
+        : PRICING.cars.tiers[p[1]][p[0]];
+    assert.equal(Number(val), canon, `${key} must equal booking-price-catalog`);
+  }
+  const src = read('scripts/generate-bergen-city-pages.mjs');
+  assert.match(src, /require\(path\.join\(root, 'netlify\/lib\/booking-price-catalog\.js'\)\)/);
+  assert.doesNotMatch(src, /\b(?:price|interior|full|refresh):\s*\d{2,4}\b/, 'generator must not carry its own price table');
+});
+
+test('specialty booking bridge accepts only its own frame, same origin, two known messages', () => {
+  const src = read('assets/specialty-booking-bridge.js');
+  assert.match(src, /ev\.origin !== window\.location\.origin/);
+  assert.match(src, /ev\.source !== frame\.contentWindow/);
+  assert.match(src, /ev\.data\.type !== 'cd1-booking-closed' && ev\.data\.type !== 'cd1-booking-error'/);
+});
+
+test('hub bridge mirrors a consent answer between page and booking frame through the banner buttons', () => {
+  const src = read('assets/hub-booking-bridge.js');
+  assert.match(src, /button\[data-consent="' \+ mode \+ '"\]/);
+  assert.match(src, /d\.marketing \? 'accept' : \(d\.analytics \? 'analytics' : 'decline'\)/);
+  // consent rules themselves are untouched
+  assert.doesNotMatch(src, /saveConsent|cd1_consent_v1/);
+});
+
+test('back to top stacks above the consent banner, booking bar and chat launcher', () => {
+  const css = read('assets/public-surface.css');
+  assert.match(css, /html\.cd1-consent-open #cd1-btt\{bottom:calc\(96px \+ var\(--cd1-consent-offset,0px\)\)\}/);
+  assert.match(css, /body:has\(#cd-chat\) #cd1-btt\{bottom:calc\(146px/);
+  for (const f of ['bergen-county-hub.html', 'new-jersey-hub.html', 'westchester-mobile-detailing.html']) {
+    const html = read(f);
+    assert.doesNotMatch(html, /📍 Call|>My Booking<|pc-ico">📍/, `${f}: call/portal labels must match their action`);
+    assert.match(html, /onclick="openPortal\(\)">My Garage</, f);
+  }
+});

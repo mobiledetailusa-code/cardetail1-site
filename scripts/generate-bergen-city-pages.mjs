@@ -2,10 +2,13 @@
 /**
  * Dedicated Bergen County city landings (not full booking clones).
  *
- * The page copy below is the reviewed content of the live pages. Every price and
- * package name in it is a {{token}} resolved at generation time from the homepage
- * catalog (index.html PRICING), so this file holds no price table of its own and
- * the generated pages are never a pricing authority.
+ * The page copy below is the reviewed content of the live pages. Every price in it
+ * is a {{token}} resolved at generation time from the canonical server catalog
+ * (netlify/lib/booking-price-catalog.js PRICING). Presentation-only fields —
+ * package names and durations — come from the homepage catalog (index.html
+ * PRICING). Before writing anything, the index.html mirror is checked against the
+ * canonical values used here; any divergence aborts. This file holds no price
+ * table of its own and the generated pages are never a pricing authority.
  *
  *   node scripts/generate-bergen-city-pages.mjs              # write pages in place
  *   node scripts/generate-bergen-city-pages.mjs --out <dir>  # write into another dir
@@ -14,6 +17,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
 
 const root = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
@@ -26,8 +30,13 @@ const PHONE = '+15513893986';
 const PHONE_DISPLAY = '(551) 389-3986';
 const GBP = 'https://g.page/r/CTJwfJerrQeCEAI/review';
 
-// ── Canonical catalog (index.html) ─────────────────────────────────────────
-function loadPricing() {
+// ── Prices: canonical server catalog (financial authority) ─────────────────
+const require = createRequire(import.meta.url);
+const CANON = require(path.join(root, 'netlify/lib/booking-price-catalog.js')).PRICING;
+const CANON_ADDON = Object.fromEntries(CANON.cars.addons.map((a) => [a.id, a.price]));
+
+// ── Presentation: homepage catalog (names, durations) ──────────────────────
+function loadHomepagePricing() {
   const src = fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace(/\r\n/g, '\n');
   const a = src.indexOf('const CAR_INTERIOR_SERVICE_ITEMS');
   const b = src.indexOf('window.PRICING = PRICING;');
@@ -36,10 +45,9 @@ function loadPricing() {
   vm.runInNewContext(`${src.slice(a, b)}\n;globalThis.__PRICING = PRICING;`, ctx);
   return ctx.__PRICING;
 }
-const PRICING = loadPricing();
-const CAR = PRICING.cars;
-const PKG = Object.fromEntries(CAR.packages.map((p) => [p.id, p]));
-const ADDON = Object.fromEntries(CAR.addons.map((a) => [a.id, a.price]));
+const MIRROR = loadHomepagePricing();
+const PKG = Object.fromEntries(MIRROR.cars.packages.map((p) => [p.id, p]));
+const MIRROR_ADDON = Object.fromEntries(MIRROR.cars.addons.map((a) => [a.id, a.price]));
 
 function need(value, label) {
   if (value === undefined || value === null || value === '') throw new Error(`catalog value missing: ${label}`);
@@ -48,15 +56,36 @@ function need(value, label) {
 const money = (n) => `$${n}`;
 const hours = (dur) => String(dur).replace(/h$/, ' hrs');
 
+/** Canonical value for a price token key; the mirror must agree or generation aborts. */
+const usedPriceKeys = new Set();
+function canonicalPrice(key) {
+  const parts = key.split('.');
+  let canon;
+  let mirror;
+  if (parts[0] === 'addon') {
+    canon = CANON_ADDON[parts[1]];
+    mirror = MIRROR_ADDON[parts[1]];
+  } else if (parts[0] === 'fleet') {
+    canon = CANON.fleet.tiers[parts[1]] && CANON.fleet.tiers[parts[1]][parts[2]];
+    mirror = MIRROR.fleet.tiers[parts[1]] && MIRROR.fleet.tiers[parts[1]][parts[2]];
+  } else {
+    const [pkgId, tier] = parts;
+    canon = CANON.cars.tiers[tier] && CANON.cars.tiers[tier][pkgId];
+    mirror = MIRROR.cars.tiers[tier] && MIRROR.cars.tiers[tier][pkgId];
+  }
+  need(canon, `canonical ${key}`);
+  if (mirror !== canon) {
+    throw new Error(`price mirror drift: index.html ${key}=${mirror} but booking-price-catalog ${key}=${canon}`);
+  }
+  usedPriceKeys.add(key);
+  return canon;
+}
+
 /** {{interior.small}} → "$200", {{addon.pethair}} → "$95", {{name.refresh}} → catalog name. */
 function resolveTokens(text) {
   return text.replace(/\{\{([a-z0-9_.]+)\}\}/gi, (_m, key) => {
-    const parts = key.split('.');
-    if (parts[0] === 'name') return need(PKG[parts[1]] && PKG[parts[1]].name, key);
-    if (parts[0] === 'addon') return money(need(ADDON[parts[1]], key));
-    if (parts[0] === 'fleet') return money(need(PRICING.fleet.tiers[parts[1]] && PRICING.fleet.tiers[parts[1]][parts[2]], key));
-    const [pkgId, tier] = parts;
-    return money(need(CAR.tiers[tier] && CAR.tiers[tier][pkgId], key));
+    if (key.startsWith('name.')) return need(PKG[key.slice(5)] && PKG[key.slice(5)].name, key);
+    return money(canonicalPrice(key));
   });
 }
 
@@ -80,7 +109,7 @@ const PACKAGES = [
 ].map((p) => ({
   ...p,
   name: need(PKG[p.id] && PKG[p.id].name, `${p.id}.name`),
-  price: need(CAR.tiers.small[p.id], `${p.id}.small`),
+  price: canonicalPrice(`${p.id}.small`),
   time: hours(need(PKG[p.id] && PKG[p.id].dur, `${p.id}.dur`)),
   note: resolveTokens(p.note),
 }));
@@ -730,12 +759,21 @@ ${CITIES.map((c) => `        <a href="/${pagePath(c)}">${esc(c.city)}</a>`).join
 `;
 }
 
-let drift = 0;
-for (const city of CITIES) {
+// Render every page first (all price tokens resolved and mirror-checked), then write.
+const rendered = CITIES.map((city) => {
   const name = `${pagePath(city)}.html`;
   const html = pageHtml(city);
   const leftover = html.match(/\{\{[^}]+\}\}/);
   if (leftover) throw new Error(`${name}: unresolved token ${leftover[0]}`);
+  return { name, html };
+});
+
+if (args.includes('--parity')) {
+  for (const key of [...usedPriceKeys].sort()) console.log(`parity ${key} canonical=${canonicalPrice(key)} mirror=ok`);
+}
+
+let drift = 0;
+for (const { name, html } of rendered) {
   const target = path.join(outDir, name);
   const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
   const eol = current && current.includes('\r\n') ? '\r\n' : '\n';
