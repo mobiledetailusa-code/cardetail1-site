@@ -95,7 +95,9 @@ function makeEditor(file) {
     /** Replace `from` (string or RegExp) with `to`, unless `done` already holds. */
     edit(name, from, to, done) {
       if (done && (typeof done === 'string' ? src.includes(done) : done.test(src))) return;
+      if (from instanceof RegExp) from.lastIndex = 0;
       const hit = typeof from === 'string' ? src.includes(from) : from.test(src);
+      if (from instanceof RegExp) from.lastIndex = 0;
       if (!hit) throw new Error(`${file}: "${name}" source not found`);
       src = typeof from === 'string' ? src.split(from).join(to) : src.replace(from, to);
       log.push(name);
@@ -133,6 +135,66 @@ function alignSpecialtyNavLabel(ed) {
     '<a class="specialty-service-link" href="/trucks-detailing">Trucks</a>',
     '<a class="specialty-service-link" href="/trucks-detailing">Semi Trucks</a>',
     '<a class="specialty-service-link" href="/trucks-detailing">Semi Trucks</a>');
+}
+
+// ── Coverage: qualitative, as on the homepage (owner decision 2026-11-12) ──
+// No numeric radius and no whole-state promise in copy, metadata or JSON-LD.
+// The ZIP gate (assets/travel-fee-client.js) is not touched.
+const COVERAGE_AREA = {
+  'new-jersey-hub.html': 'Bergen County and nearby NJ areas',
+  'ny-metro-hub.html': 'NYC &amp; NY Metro by appointment',
+  'connecticut-hub.html': 'selected Connecticut service areas',
+  'pennsylvania-hub.html': 'selected eastern Pennsylvania service areas',
+};
+const coverageArea = (file) => COVERAGE_AREA[file] || `${LEGACY[file].region} and nearby areas`;
+const coverageLine = (area) => `Based in Palisades Park, NJ. Serving ${area}. Extended service areas available by quote.`;
+
+/** areaServed keeps the named counties/cities the pages describe; drops the 150-mi circle and whole states. */
+function alignJsonLdCoverage(ed) {
+  if (!/"@type": "(?:GeoCircle|State)"/.test(ed.src)) return;
+  ed.edit('coverage: JSON-LD areaServed without radius circle or whole states',
+    /(<script type="application\/ld\+json">\n)([\s\S]*?)(\n<\/script>)/g,
+    (m, open, body, close) => {
+      if (!/"@type": "(?:GeoCircle|State)"/.test(body)) return m;
+      const data = JSON.parse(body);
+      if (JSON.stringify(data, null, 2) !== body.trim()) throw new Error('JSON-LD block is not canonical JSON; refusing to rewrite');
+      const walk = (o) => {
+        if (!o || typeof o !== 'object') return;
+        if (Array.isArray(o.areaServed)) {
+          o.areaServed = o.areaServed.filter((a) => !a || (a['@type'] !== 'GeoCircle' && a['@type'] !== 'State'));
+          if (!o.areaServed.length) throw new Error('areaServed would be empty');
+        }
+        Object.values(o).forEach(walk);
+      };
+      walk(data);
+      return `${open}${JSON.stringify(data, null, 2)}${close}`;
+    });
+}
+
+function alignCoverageCopy(ed, file) {
+  const line = coverageLine(coverageArea(file));
+  ed.edit('coverage: local line under reviews',
+    /<p class="rv-local-note"([^>]*)>📍 [^<]*<\/p>/,
+    `<p class="rv-local-note"$1>📍 ${line}</p>`,
+    `>📍 ${line}</p>`);
+  if (!LEGACY[file]) return;
+  ed.edit('coverage: ZIP helper',
+    /Based in Palisades Park(?:, NJ)? (?:-|—) we serve [^.<]*\. Pop in your ZIP to check coverage\./,
+    `${line} Pop in your ZIP to check coverage.`,
+    `${line} Pop in your ZIP to check coverage.`);
+  if (LEGACY[file].hub) {
+    ed.edit('coverage: service-area paragraph',
+      /<p class="hub-radius-desc">[\s\S]*?<\/p>/,
+      `<p class="hub-radius-desc">${line.replace('Palisades Park, NJ', '<strong>Palisades Park, NJ</strong>')} Enter your ZIP above — we'll confirm coverage before you book.</p>`,
+      `we'll confirm coverage before you book.</p>`);
+  }
+  if (LEGACY[file].city) {
+    const area = coverageArea(file);
+    ed.edit('coverage: meta/og/twitter description without "up to 120 miles"',
+      / — serving the Tri-State up to 120 miles\./g,
+      ` — based in Palisades Park, NJ, serving ${area}; extended service areas by quote.`,
+      (s) => false);
+  }
 }
 
 /** Each page keeps its own local coverage line under the shared reviews block. */
@@ -200,7 +262,9 @@ function run(file, fn) {
   const origEdit = ed.edit.bind(ed);
   ed.edit = (name, from, to, done) => {
     if (typeof done === 'function') {
+      if (from instanceof RegExp) from.lastIndex = 0;
       const hit = typeof from === 'string' ? ed.src.includes(from) : from.test(ed.src);
+      if (from instanceof RegExp) from.lastIndex = 0;
       if (!hit) return; // already applied or never present
       return origEdit(name, from, to);
     }
@@ -229,7 +293,7 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
       ed.edit('coverage copy: no 120-mile promise; Palisades Park base',
         /    <p class="hub-radius-desc">We operate from our <strong>[^<]+<\/strong> hub and travel up to <strong>120 miles<\/strong>[^\n]*\n    <p class="hub-radius-note">We travel up to 120 miles from our anchor city\.[^\n]*/,
         `    <p class="hub-radius-desc">Based in <strong>Palisades Park, NJ</strong>, we serve ${region} and nearby NJ/NY areas at your driveway, marina, or fleet yard. Enter your ZIP above — we'll confirm coverage and unlock booking for your area. Extended service areas are available by quote.</p>\n    <p class="hub-radius-note">Distance may affect your total — any travel pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>`,
-        'we serve ' + region + ' and nearby NJ/NY areas at your driveway');
+        (s) => false);
       ed.edit('coverage heading', '<div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">RADIUS</span></div>',
         '<div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">AREA</span></div>', (s) => false);
     }
@@ -238,6 +302,8 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
 
     swapReviews(ed, '<!-- CTA SECTION -->');
     addLocalReviewLine(ed, file);
+    alignCoverageCopy(ed, file);
+    alignJsonLdCoverage(ed);
 
     if (!isBergen) {
       ed.edit('local copy: services intro region',
@@ -252,7 +318,7 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
       ed.edit('local copy: ZIP helper region',
         /Based in Palisades Park (?:-|—) we serve Bergen County neighbors and the wider Tri-State\./,
         `Based in Palisades Park, NJ — we serve ${region} and nearby NJ/NY areas.`,
-        `we serve ${region} and nearby NJ/NY areas.`);
+        (s) => false);
     } else {
       ed.edit('bergen city links: styles', /(<\/style>)/, `${CITY_GRID_CSS}$1`, CITY_GRID_CSS_MARK);
     }
@@ -281,8 +347,13 @@ for (const file of STATE_HUBS) {
     removeProcess(ed);
     swapReviews(ed, '<!-- LOCAL FAQ -->');
     addLocalReviewLine(ed, file);
+    alignCoverageCopy(ed, file);
+    alignJsonLdCoverage(ed);
   });
 }
+
+// ── Homepage: structured data only (no copy or booking changes) ─────────────
+run('index.html', (ed) => alignJsonLdCoverage(ed));
 
 // ── Recent county hubs: footer hours drifted from every other page ─────────
 for (const file of COUNTY_HUBS) {
@@ -315,6 +386,46 @@ for (const file of LANDING_NAV) {
       /(\n)(    <a class="nav-link" href="tel:\+15513893986">Call \/ Text<\/a>)/,
       '$1    <a class="nav-link" href="my-garage.html">My Garage</a>\n$2',
       /id="nav-links">[\s\S]{0,700}href="my-garage\.html">My Garage<\/a>/);
+  });
+}
+
+// ── $335 car package: one public name, the catalog's (index.html PRICING id 'refresh') ──
+// Only package-name uses change; generic "exterior detailing" and other services do not.
+const REFRESH_NAME = (() => {
+  const m = home.match(/\{id:'refresh',\s*name:'([^']+)'/);
+  if (!m) throw new Error('refresh package name not found in index.html');
+  return m[1];
+})();
+function renameRefreshPackage(ed) {
+  const html = REFRESH_NAME.replace(/&/g, '&amp;');
+  const inHtml = (s) => s
+    .split('Exterior Detail &amp; Paint Enhancement').join(html)
+    .split('Exterior Detail & Paint Enhancement').join(REFRESH_NAME) // raw-& style used in some copy
+    .replace(/\bor Exterior Detail from \$335\b/g, `or ${html} from $335`)
+    .replace(/(href="\/\?book=cars&amp;pkg=refresh[^"]*">)Book Exterior Detail</g, `$1Book ${html}<`);
+  const inJson = (s) => s
+    .split('Exterior Detail & Paint Enhancement').join(REFRESH_NAME)
+    .replace(/\bor Exterior Detail from \$335\b/g, `or ${REFRESH_NAME} from $335`);
+  const before = ed.src;
+  const parts = before.split(/(<script type="application\/ld\+json">[\s\S]*?<\/script>)/);
+  const after = parts.map((p, i) => (i % 2 ? inJson(p) : inHtml(p))).join('');
+  if (after !== before) ed.edit(`naming: $335 package is "${REFRESH_NAME}"`, before, after, (s) => false);
+}
+
+// ── Floating WELCOME10 pop-up: off public pages, as on the homepage ────────
+// Display only. The WELCOME10 offer, eligibility and checkout discount live in
+// index.html / assets/checkout-offer.js / backend and are not touched here.
+function removeWelcomeBalloon(ed) {
+  ed.edit('pop-up: drop floating WELCOME10 balloon script (homepage has none)',
+    /\n?<script src="assets\/welcome-lead-balloon\.js"(?: defer)?><\/script>/g, '', (s) => false);
+}
+
+const PUBLIC_PAGES = fs.readdirSync(root).filter((f) => f.endsWith('.html')
+  && !/^(admin|technician|customer|my-garage|receipt|resume|bid|authorize)/.test(f));
+for (const file of PUBLIC_PAGES) {
+  run(file, (ed) => {
+    if (file !== 'index.html') removeWelcomeBalloon(ed);
+    renameRefreshPackage(ed);
   });
 }
 

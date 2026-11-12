@@ -34,7 +34,8 @@ test('legacy hubs no longer promise a 120-mile radius in visible copy, and keep 
     assert.doesNotMatch(html, /up to\s*(?:<strong>)?120 miles/i, f);
     assert.doesNotMatch(html, /We operate from our <strong>(?!Palisades)/, f);
     assert.match(html, /Based in <strong>Palisades Park, NJ<\/strong>/, f);
-    assert.match(html, /Extended service areas are available by quote/, f);
+    assert.match(html, /Serving [^.<]+. Extended service areas available by quote./, f);
+    assert.doesNotMatch(html, /GeoCircle|geoRadius|"@type": "State"/, `${f} JSON-LD still claims a radius or a whole state`);
   }
 });
 
@@ -182,4 +183,32 @@ test('hub booking bridge: Escape inside the frame, focus containment, strict clo
   // the about:blank load on close must not raise the failure message
   assert.match(src, /frame\.onload = null;[^\n]*\n\s*frame\.src = 'about:blank'/);
   assert.match(src, /if \(!overlay\.classList\.contains\('is-open'\)\) return;/);
+});
+
+test('no public page advertises a numeric radius or whole-state coverage (text, metadata, JSON-LD)', () => {
+  const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html')
+    && !/admin|technician|customer|my-garage|receipt|resume|bid|authorize/.test(f));
+  for (const f of pages) {
+    const html = read(f);
+    const outsideScripts = html.replace(/<script(?![^>]*ld\+json)[\s\S]*?<\/script>/g, ' ');
+    assert.doesNotMatch(outsideScripts, /GeoCircle|geoRadius/, f);
+    assert.doesNotMatch(outsideScripts, /"@type": "State"/, f);
+    assert.doesNotMatch(outsideScripts, /up to 1[25]0 ?mi|1[25]0[ -]mile|1[25]0 miles/i, f);
+    for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) JSON.parse(m[1]);
+  }
+});
+
+test('$335 car package uses the catalog name everywhere public; pop-up not loaded on public pages', () => {
+  const name = read('index.html').match(/\{id:'refresh',\s*name:'([^']+)'/)[1];
+  assert.equal(name, 'Exterior Refresh & Protect');
+  const pages = fs.readdirSync(root).filter((f) => f.endsWith('.html')
+    && !/^(admin|technician|customer|my-garage|receipt|resume|bid|authorize)/.test(f));
+  for (const f of pages) {
+    const html = read(f);
+    assert.doesNotMatch(html, /Exterior Detail (&|&amp;) Paint Enhancement|or Exterior Detail from \$335|>Book Exterior Detail</, f);
+    assert.doesNotMatch(html, /welcome-lead-balloon\.js/, `${f} still loads the floating pop-up`);
+  }
+  // the offer itself is untouched
+  assert.ok(fs.existsSync(path.join(root, 'assets/welcome-lead-balloon.js')));
+  assert.match(read('index.html'), /New Customer Welcome — 10%/);
 });
