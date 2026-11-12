@@ -227,6 +227,10 @@ function projectQuickOpsBooking(booking, shared = null) {
         cash: due,
         card: due,
         assign: status !== 'cancelled' && !done,
+        // Finish = Jobs Board complete + approve; it also requests the review.
+        finish: status === 'confirmed'
+          && !['completed_pending_payment', 'completed_paid', 'closed']
+            .includes(String(booking.jobStatus || '').toLowerCase()),
         adjust: status !== 'cancelled',
       };
     })(),

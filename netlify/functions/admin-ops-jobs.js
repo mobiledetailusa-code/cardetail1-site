@@ -1457,6 +1457,15 @@ function adminOperationalControls(booking, projection = null) {
   };
 }
 
+function reviewRequestSummary(result) {
+  if (!result) return null;
+  return {
+    queued: result.queued === true,
+    skipped: result.skipped === true,
+    reason: result.reason || result.error || null,
+  };
+}
+
 async function handleAdminAction(body, testOpts = {}) {
   const action = sanitizeText(body.action, 40);
 
@@ -1930,6 +1939,8 @@ async function handleAdminAction(body, testOpts = {}) {
     const alreadyPaid = String(money.paymentStatus || '').toLowerCase() === 'paid'
       || Math.max(0, Math.round(Number(money.remainingCents) || 0)) === 0;
     let patched = booking;
+    // Outcome of the one-per-booking review SMS, reported to Admin / QuickOps.
+    let reviewRequest = null;
     if (js === 'completed_pending_admin_review') {
       patched = {
         ...booking,
@@ -1981,7 +1992,7 @@ async function handleAdminAction(body, testOpts = {}) {
       }
       try {
         const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
-        await notifyReviewRequestedQuietly(patched, {
+        reviewRequest = await notifyReviewRequestedQuietly(patched, {
           event: testOpts.event,
           prisma: testOpts.prisma,
           env: testOpts.env,
@@ -2056,6 +2067,7 @@ async function handleAdminAction(body, testOpts = {}) {
       bookingVersion: patched.bookingVersion,
       postService: postServiceState(patched),
       charge,
+      reviewRequest: reviewRequestSummary(reviewRequest),
     });
   }
 

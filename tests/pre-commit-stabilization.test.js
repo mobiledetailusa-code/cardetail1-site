@@ -450,6 +450,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/booking-cancel.js',
     'netlify/lib/payment-resume-token.js',
     'netlify/lib/quick-ops-html.js',
+    'netlify/lib/quick-ops-job-sheet.js',
+    'netlify/lib/quick-ops-finish.js',
+    'netlify/lib/orphan-request-dismissal.js',
     // Production customer Stripe payments fail closed unless explicitly enabled.
     'netlify/functions/stripe-config.js',
     'netlify/lib/stripe-customer-payments.js',

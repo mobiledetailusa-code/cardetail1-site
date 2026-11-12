@@ -225,6 +225,20 @@ async function handlePost(event) {
       message: paymentLinkMessage(result),
     });
   }
+  if (action === 'finish_job') {
+    if (!actions.finish) {
+      return json(409, { ok: false, error: 'not_finishable', message: 'Only a confirmed job that is not finished yet can be marked finished' });
+    }
+    const { finishJobQuickOps } = require('../lib/quick-ops-finish');
+    const result = await finishJobQuickOps(booking, { event });
+    return json(result.ok ? 200 : (result.statusCode || 409), {
+      ok: !!result.ok,
+      idempotent: !!result.idempotent,
+      reload: true,
+      reviewRequest: result.reviewRequest || null,
+      message: result.ok ? result.message : (result.error || 'finish_failed'),
+    });
+  }
   if (action === 'complete_service_line') {
     const result = await completeServiceLineQuickOps(booking, body.serviceId);
     if (!result.ok) {

@@ -175,6 +175,7 @@ function quickOpsPage(view, csrfToken) {
   const buttons = [
     a.confirm ? '<button type="button" data-action="confirm">Confirm appointment</button>' : '',
     a.cancel ? '<button type="button" class="danger" data-action="cancel" data-confirm="Cancel this appointment?">Cancel appointment</button>' : '',
+    a.finish ? '<button type="button" data-action="finish_job" data-confirm="Mark this job finished? The customer gets one review request by text (only if they allowed texts). If a balance is still due, they also get the usual payment notice.">Mark job finished</button>' : '',
     a.approve ? '<button type="button" data-action="approve">Approve request</button>' : '',
     a.reject ? '<button type="button" class="danger" data-action="reject">Reject request</button>' : '',
     a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
