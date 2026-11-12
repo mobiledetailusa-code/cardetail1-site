@@ -25,7 +25,12 @@ const { JSDOM } = (() => {
   catch { return { JSDOM: null }; }
 })();
 
-const PUBLIC_PAGES = [
+// Owner decision 2026-11-12: the floating pop-up follows the homepage, which never
+// loaded it, so no public page shows it. The WELCOME10 offer itself (eligibility,
+// checkout discount, capture endpoint, terms copy) is unchanged and still tested below.
+const PUBLIC_PAGES = [];
+
+const SKIP_PAGES = [
   'bergen-county-hub.html',
   'new-jersey-hub.html',
   'ny-metro-hub.html',
@@ -35,9 +40,6 @@ const PUBLIC_PAGES = [
   'palisades-park-mobile-detailing.html',
   'fleet-services.html',
   'blog.html',
-];
-
-const SKIP_PAGES = [
   'index.html',
   'terms-conditions.html',
   'privacy-policy.html',
