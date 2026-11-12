@@ -51,6 +51,9 @@ button:disabled{opacity:.45}
 label{display:block;font-size:.85rem;color:#5b6b64;margin:10px 0 4px}
 input,select,textarea{width:100%;box-sizing:border-box;border:1px solid #d7d0c4;border-radius:10px;padding:12px;font:1rem/1.3 system-ui,sans-serif;background:#fff;color:#14201c}
 textarea{min-height:76px;resize:vertical}
+.veh{padding:8px 0;border-bottom:1px solid #eee}
+.veh:last-of-type{border-bottom:0}
+.addons{margin:4px 0 8px 18px;padding:0}
 .warn{background:#fff6e8;border:1px solid #e6d3a8;border-radius:10px;padding:10px 12px;color:#6a4b12;font-size:.92rem;margin:8px 0}
 </style>
 </head>
@@ -74,6 +77,54 @@ function neutralExpiredPage(kind = 'ops') {
 function field(label, value) {
   if (!value) return '';
   return `<div class="row"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`;
+}
+
+function addonList(addons) {
+  const list = Array.isArray(addons) ? addons : [];
+  if (!list.length) return '<p class="sub">Add-ons: none</p>';
+  return `<p class="sub">Add-ons:</p><ul class="addons">${list.map((a) => (
+    `<li>${escapeHtml(a.name)}${a.qty > 1 ? ` &times; ${escapeHtml(a.qty)}` : ''}</li>`
+  )).join('')}</ul>`;
+}
+
+function durationLabel(minutes) {
+  const m = Number(minutes);
+  if (!(m > 0)) return '';
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  if (!h) return `${rest} min`;
+  return rest ? `${h} h ${rest} min` : `${h} h`;
+}
+
+/**
+ * The appointment details both QuickOps pages share (admin /ops/q and
+ * technician /ops/t). Built from projectJobSheet, which carries no money, so
+ * rendering it on the technician page cannot leak the customer price.
+ */
+function jobSheetSection(sheet) {
+  if (!sheet) return '';
+  const vehicles = (sheet.vehicles || []).map((v, i) => `
+  <div class="veh" data-job-vehicle="${i}">
+    <p><strong>${escapeHtml(v.label)}</strong>${v.category ? ` <span class="sub">${escapeHtml(v.category)}</span>` : ''}</p>
+    ${field('Package', v.packageName)}
+    ${field('Tier', v.tier)}
+    ${addonList(v.addons)}
+  </div>`).join('');
+  const prep = sheet.ceramicPrep;
+  const days = (sheet.scheduleDays || []).length > 1 ? sheet.scheduleDays.join(', ') : '';
+  return `<section class="card" id="job-sheet">
+  <h2>${sheet.vehicleCount > 1 ? `${escapeHtml(sheet.vehicleCount)} vehicles` : 'Vehicle &amp; services'}</h2>
+  ${vehicles || '<p class="sub">No vehicle details on file.</p>'}
+  ${(sheet.appointmentAddons || []).length ? addonList(sheet.appointmentAddons) : ''}
+  ${field('Duration', durationLabel(sheet.durationMinutes))}
+  ${field('Service days', days)}
+  ${field('Location', sheet.serviceLocation)}
+  ${field('Water on site', sheet.water)}
+  ${field('Power on site', sheet.electricity)}
+  ${sheet.accessNotes ? `<p class="note" data-contact="access"><strong>Access:</strong> ${escapeHtml(sheet.accessNotes)}</p>` : ''}
+  ${sheet.customerNote ? `<p class="note" data-contact="note"><strong>Customer note:</strong> ${escapeHtml(sheet.customerNote)}</p>` : ''}
+  ${prep ? `<div class="warn"><strong>Ceramic prep</strong>${prep.packageName ? ` &middot; ${escapeHtml(prep.packageName)}` : ''}${prep.sizeLabel ? ` &middot; ${escapeHtml(prep.sizeLabel)}` : ''}${prep.companionInterior ? ' &middot; with interior' : ''}${prep.sequencingNote ? `<br>${escapeHtml(prep.sequencingNote)}` : ''}${(prep.curingInstructions || []).map((line) => `<br>&bull; ${escapeHtml(line)}`).join('')}</div>` : ''}
+</section>`;
 }
 
 function ceramicStaffCard(view) {
@@ -124,6 +175,7 @@ function quickOpsPage(view, csrfToken) {
   const buttons = [
     a.confirm ? '<button type="button" data-action="confirm">Confirm appointment</button>' : '',
     a.cancel ? '<button type="button" class="danger" data-action="cancel" data-confirm="Cancel this appointment?">Cancel appointment</button>' : '',
+    a.finish ? '<button type="button" data-action="finish_job" data-confirm="Mark this job finished? The customer gets one review request by text (only if they allowed texts). If a balance is still due, they also get the usual payment notice.">Mark job finished</button>' : '',
     a.approve ? '<button type="button" data-action="approve">Approve request</button>' : '',
     a.reject ? '<button type="button" class="danger" data-action="reject">Reject request</button>' : '',
     a.call ? `<a class="btn secondary" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
@@ -145,11 +197,7 @@ function quickOpsPage(view, csrfToken) {
   <h1>${escapeHtml(view.customer.name || 'Customer')}</h1>
   ${field('Phone', view.customer.phone)}
 </section>
-<section class="card">
-  <h2>Vehicle</h2>
-  ${field('Vehicle', [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label)}
-  ${field('Type', view.vehicle.type)}
-</section>
+${jobSheetSection(view.jobSheet)}
 <section class="card">
   <h2>Service</h2>
   ${field('Package', (view.ceramic && view.ceramic.packageName) || view.service.package)}
@@ -162,7 +210,6 @@ function quickOpsPage(view, csrfToken) {
   ${field('Address', view.service.address)}
   <div class="row"><span class="k">Technician</span><span class="v" id="qo-tech-label">${escapeHtml((view.assignment && view.assignment.label) || '—')}</span></div>
   ${field('Tech payout', money.payoutLabel)}
-  ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${a.assign ? `<section class="card">
   <h2>Assign technician</h2>
@@ -319,10 +366,9 @@ function techQuickOpsPage(view, csrfToken) {
     a.payment ? '<button type="button" class="ghost" data-action="copy_pay">Copy payment link</button>' : '',
     !a.payment ? '<p class="sub">No payment link to send.</p>' : '',
   ].filter(Boolean).join('');
-  const vehicle = [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label;
   const contact = view.contactRestricted
     ? '<p class="sub">Customer contact is hidden after the job is complete and paid.</p>'
-    : `${view.service.address ? field('Address', view.service.address) : ''}${view.service.note ? `<p class="note" data-contact="note">${escapeHtml(view.service.note)}</p>` : ''}`;
+    : `${view.service.address ? field('Address', view.service.address) : ''}`;
   return chrome({
     title: 'Technician job',
     extraHeaders: { 'X-Tq-Csrf': csrfToken },
@@ -340,11 +386,11 @@ function techQuickOpsPage(view, csrfToken) {
 <section class="card">
   <h2>Job</h2>
   <div id="tq-contact">${contact}</div>
-  ${field('Vehicle', vehicle)}
   ${field('Package', view.service.package)}
   ${field('Date', view.service.date)}
   ${field('Window', view.service.window)}
 </section>
+${jobSheetSection(view.jobSheet)}
 ${a.increase ? `<section class="card">
   <h2>Add to the payment</h2>
   <p class="sub">Type only the extra. It is saved for customer approval and is not charged before they approve it. Your pay does not change when you add it. You still do not see the original price.</p>
@@ -587,4 +633,5 @@ module.exports = {
   techQuickOpsPage,
   paymentPage,
   extraProposalPage,
+  jobSheetSection,
 };

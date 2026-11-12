@@ -3,6 +3,7 @@
 const { remainingCents } = require('./booking-aggregate');
 const { smsDateLabel, smsWindowLabel, smsVehicleLabel, smsServiceLabel, smsPriceLabel } = require('./sms-templates');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
+const { projectJobSheet } = require('./quick-ops-job-sheet');
 
 const PENDING_REQUEST = new Set(['pending', 'requested', 'open', 'submitted', 'awaiting_review']);
 
@@ -127,6 +128,7 @@ function projectQuickOpsBooking(booking, shared = null) {
   const phone = normalizeUsPhoneE164(booking.phone || booking.customerPhone || '') || '';
   const address = String(booking.address || booking.serviceAddress || '').trim();
   const date = String(booking.confirmedDate || booking.preferredDate || '');
+  const jobSheet = projectJobSheet(booking);
   const window = String(
     booking.confirmedTimeWindow
     || booking.confirmedWindow
@@ -156,10 +158,12 @@ function projectQuickOpsBooking(booking, shared = null) {
       date: smsDateLabel(date),
       window: smsWindowLabel(window),
       address,
-      note: String(booking.notes || booking.specialInstructions || '').replace(/\s+/g, ' ').trim().slice(0, 180),
+      // Same full note the technician sees (was cut at 180 chars).
+      note: jobSheet.customerNote,
       family: booking.serviceFamily || '',
       durationMinutes: booking.appointmentDurationMinutes || null,
     },
+    jobSheet,
     ceramic: booking.serviceFamily === 'ceramic_coating' && booking.ceramic
       ? {
         packageName: booking.ceramic.packageName || '',
@@ -223,6 +227,10 @@ function projectQuickOpsBooking(booking, shared = null) {
         cash: due,
         card: due,
         assign: status !== 'cancelled' && !done,
+        // Finish = Jobs Board complete + approve; it also requests the review.
+        finish: status === 'confirmed'
+          && !['completed_pending_payment', 'completed_paid', 'closed']
+            .includes(String(booking.jobStatus || '').toLowerCase()),
         adjust: status !== 'cancelled',
       };
     })(),

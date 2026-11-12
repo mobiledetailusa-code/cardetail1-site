@@ -393,6 +393,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="req-filter-btn" data-req-filter="declined" aria-pressed="false">Declined</button>
       <button type="button" class="req-filter-btn" data-req-filter="all" aria-pressed="false">All</button>
     </div>
+    <p class="hint" style="margin:8px 0"><button type="button" class="btn" id="requestsDismissOrphans">Clear test leftovers</button> Dismisses open requests whose appointment no longer exists or is archived as a test. No customer is contacted and no appointment changes.</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -4882,6 +4883,19 @@ async function loadTechs(fetchOpts, loadOpts) {
       $('#testPreview').textContent = 'Archived: '+d.archived+' · Skipped: '+d.skipped;
       await refreshAll();
     } catch(e) { toast('Archive failed: '+e.message); }
+  };
+  $('#requestsDismissOrphans').onclick = async () => {
+    const url = '/.netlify/functions/admin-customer-requests';
+    try {
+      const preview = await api(url, 'POST', { action: 'dismiss_orphan_requests', scanAll: true, dryRun: true });
+      if (!preview.eligible) { toast('No test leftovers to clear'); return; }
+      if (!confirm('Dismiss ' + preview.eligible + ' open request(s) that belong to missing or archived test appointments? Nobody is notified.')) return;
+      const done = await api(url, 'POST', { action: 'dismiss_orphan_requests', scanAll: true, reason: 'admin_cleanup_test_leftovers' });
+      toast('Dismissed ' + done.dismissed + ' test request(s)' + (done.refused ? ' · ' + done.refused + ' kept (live appointment)' : ''));
+      await loadChangeRequests();
+      renderRequests();
+      updateRequestsTabBadge();
+    } catch (e) { toast(e.message || 'Could not clear test requests'); }
   };
   $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
   $('#btnRefresh').onclick = () => opsRefresh

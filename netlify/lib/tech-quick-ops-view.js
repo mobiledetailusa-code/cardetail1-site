@@ -43,6 +43,16 @@ function projectTechQuickOpsBooking(booking, shared = null) {
   const visibleNote = contactRestricted && noteLeaksContact(full.service.note, booking)
     ? ''
     : full.service.note;
+  // Same job sheet as the admin page. After a paid, completed job the
+  // technician loses access details (gate codes) and any note naming contact.
+  const sheet = full.jobSheet;
+  const jobSheet = contactRestricted
+    ? {
+      ...sheet,
+      customerNote: noteLeaksContact(sheet.customerNote, booking) ? '' : sheet.customerNote,
+      accessNotes: '',
+    }
+    : sheet;
   return {
     bookingId: full.bookingId,
     bookingVersion: full.bookingVersion,
@@ -54,9 +64,11 @@ function projectTechQuickOpsBooking(booking, shared = null) {
       package: full.service.package,
       date: full.service.date,
       window: full.service.window,
+      durationMinutes: full.service.durationMinutes,
       address: contactRestricted ? '' : full.service.address,
       note: visibleNote,
     },
+    jobSheet,
     yourPay: {
       set: payoutCents != null,
       label: payoutCents == null ? '' : dollarsFromCents(payoutCents),
