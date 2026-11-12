@@ -125,7 +125,9 @@ async function hydrateJobsFromBlobs(timing = {}) {
   const listStarted = performance.now();
   // Strict on the primary operational path: an unavailable Blob listing is a
   // failed request, never an authoritative successful zero Jobs response.
-  const blobs = await listAllBlobsStrict(store, timing);
+  const { isInternalBookingStoreKey } = require('../lib/booking-visibility');
+  const blobs = (await listAllBlobsStrict(store, timing))
+    .filter((blob) => !isInternalBookingStoreKey(blob && blob.key));
   timing.blobListMs = performance.now() - listStarted;
   const keyed = [];
   // Eventual list reads — strong consistency is reserved for get_job / mutations.
