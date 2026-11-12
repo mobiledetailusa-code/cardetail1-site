@@ -94,12 +94,20 @@
     return overlay;
   }
 
+  // Element that opened the overlay; focus goes back to it on close (keyboard users).
+  var opener = null;
+
   function closeHubBooking() {
     if (!overlay) return;
+    var wasOpen = overlay.classList.contains('is-open');
     overlay.style.display = 'none';
     overlay.classList.remove('is-open');
     if (frame) frame.src = 'about:blank';
     document.body.style.overflow = '';
+    if (wasOpen && opener && document.contains(opener) && typeof opener.focus === 'function') {
+      try { opener.focus(); } catch (eFocus) {}
+    }
+    opener = null;
   }
 
   function resolveZip() {
@@ -141,6 +149,8 @@
       return;
     }
     try {
+      var active = document.activeElement;
+      if (active && active !== document.body && !(overlay && overlay.contains(active))) opener = active;
       ensureOverlay();
       var params = buildParams(cat, pkgId);
       frame.onload = function () {
@@ -155,6 +165,13 @@
       overlay.style.display = 'flex';
       overlay.classList.add('is-open');
       document.body.style.overflow = 'hidden';
+      // Focus the overlay's own close button (parent document): Escape keeps working
+      // here, and Tab moves on into the booking frame. The embedded homepage has no
+      // Escape handler of its own, so focusing the frame would strand Escape.
+      setTimeout(function () {
+        var closeBtn = overlay.querySelector('button[aria-label="Close booking"]');
+        try { (closeBtn || frame).focus(); } catch (eFocus) {}
+      }, 80);
     } catch (err) {
       showError();
     }
@@ -175,7 +192,12 @@
       ].join(';');
       document.body.appendChild(el);
     }
-    el.textContent = BOOKING_FAIL_MSG;
+    el.textContent = BOOKING_FAIL_MSG + ' ';
+    var call = document.createElement('a');
+    call.href = 'tel:+15513893986';
+    call.textContent = 'Call / Text';
+    call.style.cssText = 'color:#4da3ff;font-weight:600;text-decoration:none';
+    el.appendChild(call);
     el.hidden = false;
   }
 

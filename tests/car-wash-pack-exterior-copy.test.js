@@ -254,7 +254,10 @@ test('how-it-works cards use photo backgrounds instead of emoji icons', () => {
   assert.equal(home.includes('how-grid--compact'), false);
   assert.doesNotMatch(home, /how-card--book/);
 
-  const fourStep = [
+  // The legacy county/city clones dropped the old four-card "Four steps / Zero hassle"
+  // section for the state hubs' three-step block (scripts/align-public-pages-with-home.mjs),
+  // so every hub/city clone now carries the same photo-backed arrive card and no emoji icons.
+  const threeStep = [
     'bergen-county-hub.html',
     'hudson-county-hub.html',
     'essex-county-hub.html',
@@ -263,19 +266,15 @@ test('how-it-works cards use photo backgrounds instead of emoji icons', () => {
     'trenton-mobile-detailing.html',
     'westchester-mobile-detailing.html',
     'template-city.html',
+    'new-jersey-hub.html',
+    'ny-metro-hub.html',
+    'connecticut-hub.html',
+    'pennsylvania-hub.html',
   ];
-  for (const file of fourStep) {
-    const html = read(file);
-    assert.match(html, /how-card--book/, file);
-    assert.match(html, /how-card--request/, file);
-    assert.match(html, /how-card--arrive/, file);
-    assert.match(html, /how-card--inspect/, file);
-    assert.doesNotMatch(html, /class="how-ico"/, file);
-  }
-
-  for (const file of ['new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
+  for (const file of threeStep) {
     const html = read(file);
     assert.match(html, /how-card--arrive/, file);
+    assert.doesNotMatch(html, /how-card--(book|request|inspect)/, file);
     assert.doesNotMatch(html, /class="how-ico"/, file);
   }
 });
