@@ -101,8 +101,12 @@
   var inerted = [];
   var inertObserver = null;
 
+  // The consent banner (z-index above this dialog) must stay answerable while
+  // booking is open; consent rules are not this bridge's to change.
+  var KEEP_INTERACTIVE = { 'hub-booking-error': 1, 'cd1-consent-banner': 1 };
+
   function inertOne(el) {
-    if (!el || el.nodeType !== 1 || el === overlay || el.id === 'hub-booking-error' || el.tagName === 'SCRIPT' || el.inert) return;
+    if (!el || el.nodeType !== 1 || el === overlay || KEEP_INTERACTIVE[el.id] || el.tagName === 'SCRIPT' || el.inert) return;
     el.inert = true;
     inerted.push(el);
   }

@@ -174,6 +174,7 @@ test('hub booking bridge: Escape inside the frame, focus containment, strict clo
   assert.match(src, /el\.inert = true/);
   assert.match(src, /new MutationObserver/);
   assert.match(src, /setBackgroundInert\(false\)/);
+  assert.match(src, /'cd1-consent-banner': 1/, 'consent banner must stay interactive while booking is open');
   // Escape in the frame yields to inner layers first
   assert.match(src, /win\.addEventListener\('keydown'[\s\S]*?\}, true\);/);
   assert.match(src, /now < layersAtKeydown\) return;/);
