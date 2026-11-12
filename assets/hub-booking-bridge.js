@@ -96,18 +96,90 @@
 
   // Element that opened the overlay; focus goes back to it on close (keyboard users).
   var opener = null;
+  // Page siblings made inert while the dialog is open, so Tab/Shift+Tab cannot
+  // leave the dialog for the page behind it. Only elements we changed are restored.
+  var inerted = [];
+  var inertObserver = null;
+
+  function inertOne(el) {
+    if (!el || el.nodeType !== 1 || el === overlay || el.id === 'hub-booking-error' || el.tagName === 'SCRIPT' || el.inert) return;
+    el.inert = true;
+    inerted.push(el);
+  }
+
+  function setBackgroundInert(on) {
+    if (on) {
+      Array.prototype.forEach.call(document.body.children, inertOne);
+      // Widgets injected while the dialog is open (chat, offers) stay behind it too.
+      if (!inertObserver && typeof MutationObserver === 'function') {
+        inertObserver = new MutationObserver(function (records) {
+          records.forEach(function (r) { Array.prototype.forEach.call(r.addedNodes, inertOne); });
+        });
+        inertObserver.observe(document.body, { childList: true });
+      }
+      return;
+    }
+    if (inertObserver) { inertObserver.disconnect(); inertObserver = null; }
+    inerted.forEach(function (el) { el.inert = false; });
+    inerted = [];
+  }
 
   function closeHubBooking() {
     if (!overlay) return;
     var wasOpen = overlay.classList.contains('is-open');
     overlay.style.display = 'none';
     overlay.classList.remove('is-open');
-    if (frame) frame.src = 'about:blank';
+    if (frame) {
+      frame.onload = null; // the about:blank load below is not a booking load
+      frame.src = 'about:blank';
+    }
     document.body.style.overflow = '';
+    setBackgroundInert(false);
     if (wasOpen && opener && document.contains(opener) && typeof opener.focus === 'function') {
       try { opener.focus(); } catch (eFocus) {}
     }
     opener = null;
+  }
+
+  // Layers inside the booking that handle Escape themselves (package details,
+  // address / make / model suggestions, login). If one is open when Escape is
+  // pressed, Escape belongs to it and the booking dialog stays open.
+  var INNER_LAYER_OPEN = [
+    '#car-pkg-detail-ov:not([hidden])',
+    '#login-ov.open',
+    '#bk-addr-dd:not([hidden])',
+    '.srch-dd.open',
+    '#g-make-dd.open',
+    '#g-model-dd.open',
+    '[aria-expanded="true"]',
+  ].join(',');
+
+  function wireFrameEscape() {
+    var win;
+    var doc;
+    try {
+      win = frame.contentWindow;
+      doc = frame.contentDocument;
+    } catch (eCross) { return; }
+    if (!win || !doc || doc.__cd1HubEscape) return;
+    doc.__cd1HubEscape = true;
+    var openLayers = function () {
+      try { return doc.querySelectorAll(INNER_LAYER_OPEN).length; } catch (eSel) { return -1; }
+    };
+    var layersAtKeydown = 0;
+    // Capture on the frame window runs before any handler inside the booking.
+    win.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') layersAtKeydown = openLayers();
+    }, true);
+    // Bubble on the frame window runs after them. If an inner layer consumed
+    // this Escape (it closed, or its handler prevented default), the booking
+    // stays open; a second Escape then closes the booking.
+    win.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape' || ev.defaultPrevented) return;
+      var now = openLayers();
+      if (layersAtKeydown < 0 || now < 0 || now < layersAtKeydown) return;
+      if (overlay && overlay.classList.contains('is-open')) closeHubBooking();
+    });
   }
 
   function resolveZip() {
@@ -153,18 +225,23 @@
       if (active && active !== document.body && !(overlay && overlay.contains(active))) opener = active;
       ensureOverlay();
       var params = buildParams(cat, pkgId);
+      var staleError = document.getElementById('hub-booking-error');
+      if (staleError) staleError.hidden = true;
       frame.onload = function () {
         setTimeout(function () {
+          if (!overlay.classList.contains('is-open')) return;
           if (!iframeReady()) {
             showError();
             return;
           }
+          wireFrameEscape();
         }, 300);
       };
       frame.src = '/?' + params.toString();
       overlay.style.display = 'flex';
       overlay.classList.add('is-open');
       document.body.style.overflow = 'hidden';
+      setBackgroundInert(true);
       // Focus the overlay's own close button (parent document): Escape keeps working
       // here, and Tab moves on into the booking frame. The embedded homepage has no
       // Escape handler of its own, so focusing the frame would strand Escape.
@@ -226,9 +303,13 @@
     wrap('openBookingFromHome', global.openBookingFromHome);
     wrap('openBookingCarPkg', global.openBookingCarPkg);
 
+    // Only our own booking frame may close the dialog, and only with the one
+    // message the embedded homepage sends (index.html, embed mode).
     global.addEventListener('message', function (ev) {
-      if (!ev || !ev.data) return;
-      if (ev.data.type === 'cd1-booking-closed') closeHubBooking();
+      if (!ev || ev.origin !== global.location.origin) return;
+      if (!frame || ev.source !== frame.contentWindow) return;
+      if (!ev.data || typeof ev.data !== 'object' || ev.data.type !== 'cd1-booking-closed') return;
+      closeHubBooking();
     });
 
     document.addEventListener('keydown', function (ev) {

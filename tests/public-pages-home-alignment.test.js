@@ -42,13 +42,16 @@ test('the operational ZIP gate is unchanged (presentation-only change)', () => {
   assert.match(read('assets/travel-fee-client.js'), /var TRAVEL_MAX_MILES = 120;/);
 });
 
-test('legacy "Four steps / Zero hassle" section is replaced by the current three-step process', () => {
+test('hub/city clones carry no "How it works" block, as on the homepage', () => {
   for (const f of FULL_CLONES) {
     const html = read(f);
     assert.doesNotMatch(html, /FOUR STEPS/, f);
     assert.doesNotMatch(html, /ZERO HASSLE/, f);
-    assert.match(html, /<div class="sec-title">Three simple steps<\/div>/, f);
-    assert.match(html, /\.how-grid--three\{/, f);
+    assert.doesNotMatch(html, /Three simple steps/, f);
+    assert.equal(html.includes('id="how"'), false, f);
+    assert.doesNotMatch(html, /href="[^"]*#how"/, `${f} links to the removed block`);
+    // booking itself is untouched: the inline fallback keeps all six steps
+    assert.match(html, /id="bk-ov"/, f);
   }
 });
 
@@ -144,4 +147,39 @@ test('the hub booking bridge and inline fallback are still wired on every full c
     assert.match(html, /assets\/hub-booking-bridge\.js/, f);
     assert.match(html, /id="bk-ov"/, `${f} lost the inline fallback modal`);
   }
+});
+
+test('inline fallback booking markup keeps #make-search-wrap inside step 3 (75829276 regression)', () => {
+  const { JSDOM } = require('jsdom');
+  for (const f of FULL_CLONES) {
+    const html = read(f);
+    assert.doesNotMatch(html, /\n        <div \n/, `${f} has a stray "<div " line`);
+    assert.doesNotMatch(html, /\n        id="make-search-wrap"/, `${f} has a broken make-search tag`);
+    const doc = new JSDOM(html).window.document;
+    const make = doc.getElementById('make-search-wrap');
+    assert.ok(make && make.closest('#bs3'), `${f}: #make-search-wrap must parse inside #bs3`);
+    assert.equal(make.parentElement, doc.getElementById('generic-search-wrap').parentElement, f);
+    assert.equal(doc.getElementById('bs4').parentElement, doc.getElementById('bs3').parentElement, `${f}: step 4 nested in step 3`);
+  }
+});
+
+test('hub booking bridge: Escape inside the frame, focus containment, strict close message', () => {
+  const src = read('assets/hub-booking-bridge.js');
+  // only our own frame, same origin, one message type
+  assert.match(src, /ev\.origin !== global\.location\.origin/);
+  assert.match(src, /ev\.source !== frame\.contentWindow/);
+  assert.match(src, /ev\.data\.type !== 'cd1-booking-closed'/);
+  // background is inert while open (including widgets injected later) and restored on close
+  assert.match(src, /el\.inert = true/);
+  assert.match(src, /new MutationObserver/);
+  assert.match(src, /setBackgroundInert\(false\)/);
+  // Escape in the frame yields to inner layers first
+  assert.match(src, /win\.addEventListener\('keydown'[\s\S]*?\}, true\);/);
+  assert.match(src, /now < layersAtKeydown\) return;/);
+  for (const sel of ['#car-pkg-detail-ov:not([hidden])', '#bk-addr-dd:not([hidden])', '#g-make-dd.open', '[aria-expanded="true"]']) {
+    assert.ok(src.includes(`'${sel}'`), `inner layer ${sel} not respected`);
+  }
+  // the about:blank load on close must not raise the failure message
+  assert.match(src, /frame\.onload = null;[^\n]*\n\s*frame\.src = 'about:blank'/);
+  assert.match(src, /if \(!overlay\.classList\.contains\('is-open'\)\) return;/);
 });

@@ -42,7 +42,6 @@ const LANDING_NAV = [
 ];
 
 const home = read('index.html').replace(/\r\n/g, '\n');
-const nj = read('new-jersey-hub.html').replace(/\r\n/g, '\n');
 
 function between(src, start, end, label) {
   const i = src.indexOf(start);
@@ -54,8 +53,14 @@ function between(src, start, end, label) {
 // ── Canonical fragments taken from the live sources, not retyped ───────────
 const HOME_REVIEWS = between(home, '<!-- REVIEWS -->\n<div id="reviews"', '\n\n<!-- HOME FAQ', 'home reviews').trimEnd() + '\n';
 const HOME_REVIEW_FNS = between(home, 'function renderReviews(){', '\n// ═══', 'home review fns').trimEnd() + '\n';
-const NJ_HOW = between(nj, '<!-- HOW IT WORKS -->', '\n\n<!-- SPECIALTY SERVICES', 'nj how-it-works').trimEnd() + '\n';
+// The homepage no longer has a "How it works" block; hub/city clones drop theirs
+// (four-step or three-step). Booking steps live in the booking modal itself.
+const PROCESS_BLOCK = /\n<!-- HOW IT WORKS -->\n<div id="how"[\s\S]*?\n<\/div>\n(?=\n<!-- (?:TRUST|SPECIALTY SERVICES))/;
 const HOW3_CSS = '.how-grid--three{grid-template-columns:repeat(3,minmax(0,1fr))}\n@media(max-width:760px){.how-grid--three{grid-template-columns:1fr}}\n';
+function removeProcess(ed) {
+  ed.edit('process: remove "How it works" block (homepage has none)', PROCESS_BLOCK, '', (s) => false);
+  ed.edit('process: drop now-unused three-column CSS', HOW3_CSS, '', (s) => false);
+}
 // Homepage carousel rules, re-pointed at the dark hub palette (hubs define no --ink/--line).
 // Starts at .rv-vh: the shared module renders visually-hidden star text with it.
 const RV_CSS_START = '.rv-vh{';
@@ -166,6 +171,21 @@ function swapReviews(ed, nextMarker) {
     RV_CSS);
 }
 
+/**
+ * The inline fallback booking lost the "<div" of its car make-search wrapper
+ * (75829276), so the parser drops #make-search-wrap and selectCategory() throws
+ * in renderTierChips — the fallback cannot leave step 1. Restore the tag exactly
+ * as in index.html; no booking logic changes.
+ */
+function repairFallbackMarkup(ed) {
+  // 75829276 inserted the truck-cab block in the middle of the tag, leaving a
+  // stray "<div " before it and the tag's attributes after it.
+  ed.edit('fallback booking: restore <div id="make-search-wrap"> and drop the stray "<div " (as in index.html)',
+    /        <!-- Make search \(cars only\) -->\n        <div \n([\s\S]*?)\n        (?:<div )?id="make-search-wrap" style="display:none">\n/,
+    '$1\n        <!-- Make search (cars only) -->\n        <div id="make-search-wrap" style="display:none">\n',
+    (s) => false);
+}
+
 function fixMojibake(ed) {
   ed.edit('encoding: boat icon', '🚥️️️️', '🛥️', (s) => false);
   ed.edit('encoding: multiplication sign', "' Ã—'", "' ×'", (s) => false);
@@ -203,6 +223,7 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
     alignFullCloneNav(ed);
     alignSpecialtyNavLabel(ed);
     fixMojibake(ed);
+    repairFallbackMarkup(ed);
 
     if (hub) {
       ed.edit('coverage copy: no 120-mile promise; Palisades Park base',
@@ -213,14 +234,7 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
         '<div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">AREA</span></div>', (s) => false);
     }
 
-    ed.edit('process: legacy "Four steps / Zero hassle" → current three steps',
-      /<!-- HOW IT WORKS -->\n<div id="how"[\s\S]*?FOUR STEPS\.<br>ZERO HASSLE\.[\s\S]*?\n<\/div>\n(?=\n<!-- TRUST -->)/,
-      NJ_HOW,
-      'Three simple steps');
-    ed.edit('process: three-column grid CSS',
-      /(\.how-grid\{[^\n]*\n)/,
-      `$1${HOW3_CSS}`,
-      '.how-grid--three{');
+    removeProcess(ed);
 
     swapReviews(ed, '<!-- CTA SECTION -->');
     addLocalReviewLine(ed, file);
@@ -263,6 +277,8 @@ for (const file of STATE_HUBS) {
     alignFullCloneNav(ed);
     alignSpecialtyNavLabel(ed);
     fixMojibake(ed);
+    repairFallbackMarkup(ed);
+    removeProcess(ed);
     swapReviews(ed, '<!-- LOCAL FAQ -->');
     addLocalReviewLine(ed, file);
   });

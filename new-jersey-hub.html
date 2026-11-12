@@ -1396,8 +1396,6 @@ body{background:var(--bg0)!important;color:var(--tx)!important;-webkit-font-smoo
 .sec-eye{font-size:12px!important;font-weight:500!important;letter-spacing:.06em!important;text-transform:none!important;color:var(--blue)!important}
 .sec-title{font-family:var(--fb)!important;font-size:clamp(26px,4.5vw,40px)!important;line-height:1.15!important;font-weight:600!important;color:var(--ink)!important;letter-spacing:-.02em!important}
 .sec-desc{color:var(--ink-soft)!important;line-height:1.65!important}
-.how-grid--three{grid-template-columns:repeat(3,minmax(0,1fr))}
-@media(max-width:760px){.how-grid--three{grid-template-columns:1fr}}
 .how-card{background:var(--bg1)!important;border:1px solid var(--line)!important;box-shadow:var(--shadow-sm)!important}
 .how-title{color:var(--ink)!important;font-weight:600!important}
 .how-desc{color:var(--ink-soft)!important;font-size:13px!important;line-height:1.55!important}
@@ -2880,31 +2878,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
   </div>
 </div>
 
-<!-- HOW IT WORKS -->
-<div id="how" style="background:var(--bg0)">
-  <div class="section">
-    <div class="sec-eye">How it works</div>
-    <div class="sec-title">Three simple steps</div>
-    <div class="sec-desc">No payment is required to submit a booking request. We review it first. Long-distance appointments may require quote approval, and payment is handled later when applicable.</div>
-    <div class="how-grid how-grid--three">
-      <div class="how-card">
-        <div class="how-title">Enter ZIP &amp; request</div>
-        <div class="how-desc">Check your area and start your appointment online — we confirm coverage before you book.</div>
-      </div>
-      <div class="how-card">
-        <div class="how-title">Choose package &amp; add-ons</div>
-        <div class="how-desc">Pick interior, full, or exterior detail. Add pet hair, odor, engine bay, and more when you book.</div>
-      </div>
-      <div class="how-card how-card--photo how-card--arrive">
-        <div class="how-card-copy">
-        <div class="how-title">We come to you</div>
-        <div class="how-desc">Our tech arrives at your driveway or office. Walk the vehicle when done — pay after the detail.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- SPECIALTY SERVICES (secondary) -->
 <section class="specialty-section specialty-section--secondary" id="specialty-services">
   <div class="section">
@@ -3459,8 +3432,6 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <div class="tier-chips" id="tier-chips"></div>
         </div>
 
-        <!-- Make search (cars only) -->
-        <div 
         <!-- Truck cab type (trucks / semis only) — same pattern as boat / RV type -->
         <div id="truck-cab-wrap" style="display:none;margin-bottom:14px">
           <div class="sel-g" style="margin-bottom:10px">
@@ -3486,7 +3457,8 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
           <p id="truck-cab-note" style="font-size:11.5px;color:var(--blue);line-height:1.45;margin:10px 0 0;padding:8px 10px;background:rgba(77,163,255,.06);border-radius:7px;border:1px solid rgba(77,163,255,.15)">Pickups book under Cars &amp; SUVs. Trucks here are commercial semis only.</p>
         </div>
 
-        id="make-search-wrap" style="display:none">
+        <!-- Make search (cars only) -->
+        <div id="make-search-wrap" style="display:none">
           <div class="srch-wrap">
             <span class="srch-ico">🔍</span>
             <input class="srch-in" id="make-in" type="text" placeholder="Search make - Toyota, BMW, Ford…" autocomplete="off">

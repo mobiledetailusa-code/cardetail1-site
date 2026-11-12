@@ -204,7 +204,11 @@ test('Bergen city landing prices match the car catalog', () => {
     assert.match(html, new RegExp(`<div class="sp-pkg-price">From \\$${cars.small.interior}</div>`));
     assert.match(html, new RegExp(`<div class="sp-pkg-price">From \\$${cars.small.full}</div>`));
     assert.match(html, new RegExp(`<div class="sp-pkg-price">From \\$${cars.small.refresh}</div>`));
-    assert.match(html, new RegExp(`"name": "Exterior Detail & Paint Enhancement",[\\s\\S]*?"price": "${cars.small.refresh}"`));
+    // Public name of the $335 package is the catalog name (owner decision, 2026-11-12).
+    const refreshName = read('index.html').match(/\{id:'refresh',\s*name:'([^']+)'/)[1];
+    assert.equal(refreshName, 'Exterior Refresh & Protect');
+    assert.match(html, new RegExp(`"name": "${refreshName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}",[\\s\\S]*?"price": "${cars.small.refresh}"`));
+    assert.doesNotMatch(html, /Exterior Detail &(amp;)? Paint Enhancement/);
     assert.match(html, new RegExp(interior.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(html, new RegExp(full.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.doesNotMatch(html, /From \$320|from \$370|\$220 interior|\$275 full|\$385 sedan/);
