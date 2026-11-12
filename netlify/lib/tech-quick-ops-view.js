@@ -66,13 +66,21 @@ function projectTechQuickOpsBooking(booking, shared = null) {
       at: booking && booking.arrivedAt ? String(booking.arrivedAt) : '',
       delivery: String(booking && booking.arrivalNotifyStatus || ''),
     },
+    enRoute: {
+      recorded: !!(booking && booking.enRouteAt),
+      at: booking && booking.enRouteAt ? String(booking.enRouteAt) : '',
+    },
+    completed,
     paymentDue: due,
     actions: {
       call: !contactRestricted && !!full.telUrl && !cancelled,
       map: !contactRestricted && !!full.mapUrl,
       payment: due,
       increase: !cancelled && !completed,
+      onTheWay: !cancelled && !completed && !!booking.techQuickOpsTokenHash
+        && !booking.arrivedAt && !booking.enRouteAt,
       arrive: !cancelled && !completed && !!booking.techQuickOpsTokenHash,
+      done: !cancelled && !completed && !!booking.techQuickOpsTokenHash,
     },
     mapUrl: contactRestricted ? '' : full.mapUrl,
     telUrl: contactRestricted ? '' : full.telUrl,

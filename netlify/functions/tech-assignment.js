@@ -3,7 +3,9 @@
 // so the Jobs Board sends the job text and can remove the assignment.
 const { jsonCors, verifyAdminKey, sanitizeText } = require('../lib/tech-security');
 const { getBookingRecord } = require('../lib/booking-repository');
-const { assignQuickOpsTech, unassignQuickOpsTech, retryQuickOpsTechNotification } = require('../lib/quick-ops-assign');
+const {
+  assignQuickOpsTech, unassignQuickOpsTech, retryQuickOpsTechNotification, reissueQuickOpsTechLink,
+} = require('../lib/quick-ops-assign');
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
@@ -40,6 +42,25 @@ exports.handler = async (event) => {
       bookingId,
       jobStatus: result.booking && result.booking.jobStatus,
       assignment: result.assignment || null,
+      message: result.message,
+    });
+  }
+
+  if (action === 'reissue_link') {
+    const result = await reissueQuickOpsTechLink(booking, { by: 'admin' });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 409, {
+        ok: false,
+        error: result.error || 'reissue_failed',
+        message: result.message || 'Could not send a new link',
+      });
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      assignment: result.assignment || null,
+      notification: result.notification || 'failed',
+      techUrl: result.techUrl || null,
       message: result.message,
     });
   }

@@ -71,6 +71,24 @@ function neutralExpiredPage(kind = 'ops') {
   });
 }
 
+/**
+ * First stop for a technician job link. Shows no job details. The link is
+ * only spent when the technician taps the button (a POST), so SMS link
+ * previews cannot use it up.
+ */
+function techOpenJobPage() {
+  return chrome({
+    title: 'Open your job',
+    body: `<section class="card">
+  <h1>Your Cardetail1 job</h1>
+  <p class="sub">Tap below to open the job on this phone. Keep using this phone for the job: the link works once.</p>
+  <form method="post" class="actions">
+    <button type="submit">Open job</button>
+  </form>
+</section>`,
+  });
+}
+
 function field(label, value) {
   if (!value) return '';
   return `<div class="row"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`;
@@ -104,6 +122,27 @@ function ceramicStaffCard(view) {
   ${(internal.cureRequirements || []).map((line) => `<p class="note">${escapeHtml(line)}</p>`).join('')}
   ${latest ? `<p class="sub">Last audit: ${escapeHtml(latest.action || '')} ${escapeHtml(latest.at || '')}</p>` : ''}
 </section>`;
+}
+
+function timeLabel(iso) {
+  const ms = Date.parse(String(iso || ''));
+  if (!Number.isFinite(ms)) return '';
+  try {
+    return new Date(ms).toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function techProgressLabel(progress) {
+  const p = progress || {};
+  const at = (label, iso) => [label, timeLabel(iso)].filter(Boolean).join(' ');
+  if (p.techDoneAt) return `${at('Done', p.techDoneAt)} — needs your review`;
+  if (p.arrivedAt) return at('Arrived', p.arrivedAt);
+  if (p.enRouteAt) return at('On the way', p.enRouteAt);
+  return '';
 }
 
 function quickOpsPage(view, csrfToken) {
@@ -162,6 +201,7 @@ function quickOpsPage(view, csrfToken) {
   ${field('Address', view.service.address)}
   <div class="row"><span class="k">Technician</span><span class="v" id="qo-tech-label">${escapeHtml((view.assignment && view.assignment.label) || '—')}</span></div>
   ${field('Tech payout', money.payoutLabel)}
+  ${field('Tech progress', techProgressLabel(view.progress))}
   ${view.service.note ? `<p class="note">${escapeHtml(view.service.note)}</p>` : ''}
 </section>
 ${a.assign ? `<section class="card">
@@ -169,8 +209,9 @@ ${a.assign ? `<section class="card">
   <p id="qo-assigned" class="status">${view.assignment && view.assignment.assigned ? `Assigned to ${escapeHtml(view.assignment.label)}` : 'No technician is assigned.'}</p>
   <div class="actions">
     <button type="button" class="secondary" id="qo-unassign" data-action="unassign_tech" data-confirm="Remove this job from the assigned technician? You can assign it to someone else after." ${view.assignment && view.assignment.assigned ? '' : 'hidden'}>Remove assignment</button>
+    <button type="button" class="secondary" id="qo-resend-link" data-action="resend_tech_link" data-confirm="Text the technician a new job link? The old link stops working." ${view.assignment && view.assignment.assigned ? '' : 'hidden'}>Send new job link</button>
   </div>
-  <p class="sub">Send this job to someone already on the roster, or type a mobile number. Assigning sends a text right away: a saved technician gets the portal link on the phone in their account, and a new number gets a one-time job link. The text does not include the customer address or phone. The job total stays hidden. An extra they add waits for customer approval and is not charged before that.</p>
+  <p class="sub">Send this job to someone already on the roster, or type a mobile number. Assigning sends a text right away with a job link that opens once on the technician's phone and works through the service day. If they cannot open it, use Send new job link. The text does not include the customer address or phone. The job total stays hidden. An extra they add waits for customer approval and is not charged before that.</p>
   <label for="qo-tech">Registered technician</label>
   <select id="qo-tech"><option value="">Load the roster, or leave blank</option></select>
   <div class="actions"><button type="button" class="secondary" data-action="list_techs">Load roster</button></div>
@@ -293,6 +334,8 @@ ${ceramicStaffCard(view)}
         if (assignedEl) assignedEl.textContent = assignedText;
         if (techLabel) techLabel.textContent = data.assignment.label || '—';
         if (unassignBtn) unassignBtn.hidden = !data.assignment.label;
+        var resendBtn = document.getElementById('qo-resend-link');
+        if (resendBtn) resendBtn.hidden = !data.assignment.label;
       }
       if (data.techUrl) {
         try { await navigator.clipboard.writeText(data.techUrl); } catch (e) {}
@@ -314,11 +357,32 @@ function techQuickOpsPage(view, csrfToken) {
   const buttons = [
     a.call ? `<a class="btn secondary" data-contact="call" href="${escapeHtml(view.telUrl)}">Call customer</a>` : '',
     a.map ? `<a class="btn ghost" data-contact="map" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
-    a.arrive ? '<button type="button" id="tq-arrive" data-action="arrive">I\'ve arrived</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link to customer</button>' : '',
     a.payment ? '<button type="button" class="ghost" data-action="copy_pay">Copy payment link</button>' : '',
     !a.payment ? '<p class="sub">No payment link to send.</p>' : '',
   ].filter(Boolean).join('');
+  const stepState = view.completed
+    ? '<p class="status" id="tq-step-state">Job marked done</p>'
+    : (view.arrival && view.arrival.recorded
+      ? '<p class="status" id="tq-step-state">Arrived</p>'
+      : (view.enRoute && view.enRoute.recorded ? '<p class="status" id="tq-step-state">On the way</p>' : ''));
+  const steps = [
+    a.onTheWay ? `<div id="tq-otw-box">
+    <label for="tq-eta">Arriving in</label>
+    <select id="tq-eta"><option value="">Don't say</option><option value="15">15 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">1 hour</option></select>
+    <div class="actions"><button type="button" class="secondary" id="tq-otw" data-action="on_the_way" data-confirm="Text the customer that you are on the way?">On my way</button></div>
+  </div>` : '',
+    a.arrive ? '<button type="button" id="tq-arrive" data-action="arrive">I\'ve arrived</button>' : '',
+    a.done ? '<button type="button" id="tq-done" data-action="job_done" data-confirm="Mark this job done? The office reviews it next. This does not take payment.">Job done</button>' : '',
+  ].filter(Boolean).join('');
+  const stepsCard = steps || stepState
+    ? `<section class="card">
+  <h2>Job steps</h2>
+  ${stepState}
+  <div class="actions" id="tq-steps">${steps}</div>
+  <p class="msg" id="tq-step-msg"></p>
+</section>`
+    : '';
   const vehicle = [view.vehicle.year, view.vehicle.make, view.vehicle.model].filter(Boolean).join(' ') || view.vehicle.label;
   const contact = view.contactRestricted
     ? '<p class="sub">Customer contact is hidden after the job is complete and paid.</p>'
@@ -330,8 +394,9 @@ function techQuickOpsPage(view, csrfToken) {
 <section class="card">
   <div class="status">${escapeHtml(view.status)}</div>
   <h1>${escapeHtml(view.customer.name || 'Customer')}</h1>
-  <p class="sub">Your pay is the amount the office entered. The customer price stays off this page. Arrival does not complete the job or take payment.</p>
+  <p class="sub">Your pay is the amount the office entered. The customer price stays off this page. Arrival and Job done do not take payment.</p>
 </section>
+${stepsCard}
 <section class="card">
   <h2>Your pay</h2>
   <p id="tq-pay" style="font-size:1.8rem;font-weight:700;margin:4px 0">${view.yourPay && view.yourPay.set ? escapeHtml(view.yourPay.label) : 'Not set yet'}</p>
@@ -382,8 +447,27 @@ ${a.increase ? `<section class="card">
     var payEl = document.getElementById('tq-pay');
     if (payEl) payEl.textContent = (view.yourPay && view.yourPay.set) ? view.yourPay.label : 'Not set yet';
     if (view.contactRestricted) clearContact();
+    var acts = view.actions || {};
     var arrive = document.getElementById('tq-arrive');
-    if (arrive && view.actions && view.actions.arrive === false) arrive.hidden = true;
+    if (arrive && acts.arrive === false) arrive.hidden = true;
+    var otw = document.getElementById('tq-otw-box');
+    if (otw && acts.onTheWay === false) otw.hidden = true;
+    var done = document.getElementById('tq-done');
+    if (done && acts.done === false) done.hidden = true;
+    var state = view.completed ? 'Job marked done'
+      : (view.arrival && view.arrival.recorded ? 'Arrived'
+        : (view.enRoute && view.enRoute.recorded ? 'On the way' : ''));
+    var steps = document.getElementById('tq-steps');
+    if (state && steps) {
+      var stateEl = document.getElementById('tq-step-state');
+      if (!stateEl) {
+        stateEl = document.createElement('p');
+        stateEl.className = 'status';
+        stateEl.id = 'tq-step-state';
+        steps.parentNode.insertBefore(stateEl, steps);
+      }
+      stateEl.textContent = state;
+    }
   }
   async function refreshView(){
     try {
@@ -405,7 +489,14 @@ ${a.increase ? `<section class="card">
     var btn = ev.target.closest('[data-action]');
     if (!btn) return;
     var action = btn.getAttribute('data-action');
+    var card = btn.closest('.card');
+    msg = (card && card.querySelector('.msg')) || document.getElementById('tq-msg');
+    var confirmText = btn.getAttribute('data-confirm');
+    if (confirmText && !window.confirm(confirmText)) return;
     var payload = { action: action, bookingVersion: bookingVersion };
+    if (action === 'on_the_way') {
+      payload.etaMinutes = (document.getElementById('tq-eta') || {}).value || '';
+    }
     if (action === 'adjust_price') {
       payload.type = 'increase';
       payload.amountDollars = (document.getElementById('tq-adj-amount') || {}).value || '';
@@ -585,6 +676,7 @@ module.exports = {
   neutralExpiredPage,
   quickOpsPage,
   techQuickOpsPage,
+  techOpenJobPage,
   paymentPage,
   extraProposalPage,
 };

@@ -294,6 +294,22 @@ async function handlePost(event) {
       message: result.message || result.error || 'Could not remove the assignment',
     });
   }
+  if (action === 'resend_tech_link') {
+    if (!actions.assign) {
+      return json(409, { ok: false, error: 'locked', message: 'This job is closed' });
+    }
+    const { reissueQuickOpsTechLink } = require('../lib/quick-ops-assign');
+    const result = await reissueQuickOpsTechLink(booking, { by: 'quick_ops' });
+    return json(result.ok ? 200 : (result.statusCode || 409), {
+      ok: !!result.ok,
+      reload: false,
+      bookingVersion: result.bookingVersion || null,
+      techUrl: result.techUrl || null,
+      message: result.ok
+        ? (result.notification === 'sent' ? 'New job link sent' : 'New job link ready — text failed, copy it below')
+        : (result.message || result.error || 'Could not send a new link'),
+    });
+  }
   if (action === 'set_tech_pay') {
     if (!actions.assign && !actions.adjust) {
       return json(409, { ok: false, error: 'locked', message: 'This job cannot be updated' });

@@ -16,10 +16,12 @@ const {
   textCustomer,
   paymentLinkMessage,
   recordTechnicianArrival,
+  recordTechnicianOnTheWay,
+  recordTechnicianJobDone,
   offerExtraToCustomer,
 } = require('../lib/admin-quick-ops-actions');
 const { projectTechQuickOpsBooking } = require('../lib/tech-quick-ops-view');
-const { neutralExpiredPage, techQuickOpsPage } = require('../lib/quick-ops-html');
+const { neutralExpiredPage, techQuickOpsPage, techOpenJobPage } = require('../lib/quick-ops-html');
 
 function json(statusCode, payload, extraHeaders = {}) {
   return {
@@ -95,47 +97,70 @@ async function present(session, event) {
   return techQuickOpsPage(view, session.csrfToken);
 }
 
+async function checkToken(token) {
+  const loaded = await loadTechQuickOpsToken(token);
+  if (!loaded.ok) return { ok: false, statusCode: loaded.statusCode || 400 };
+  const projected = await loadProjectedBooking(loaded.bookingId);
+  if (!projected.ok || !sessionMatchesBooking(loaded, projected.booking)) {
+    return { ok: false, statusCode: 401 };
+  }
+  return { ok: true, loaded };
+}
+
+/**
+ * Spend the one-time link and start the technician session.
+ * statusCode 302 for the JSON GET path, 303 after the HTML "Open job" form.
+ */
+async function openWithToken(event, token, statusCode) {
+  const checked = await checkToken(token);
+  if (!checked.ok) {
+    return wantsJson(event)
+      ? json(checked.statusCode, { ok: false, error: 'invalid' })
+      : neutralExpiredPage('ops');
+  }
+  const { loaded } = checked;
+  const consumed = await consumeTechQuickOpsToken(token);
+  if (!consumed.ok) {
+    return wantsJson(event)
+      ? json(401, { ok: false, error: 'invalid' })
+      : neutralExpiredPage('ops');
+  }
+  const session = await createTechQuickOpsSession({
+    bookingId: loaded.bookingId,
+    phoneE164: loaded.phoneE164,
+    linkExpiresAt: loaded.expiresAt,
+  });
+  if (!session.ok) {
+    return wantsJson(event)
+      ? json(503, { ok: false, error: 'session_unavailable' })
+      : neutralExpiredPage('ops');
+  }
+  const cookie = sessionCookieHeader(session.sessionId, {
+    secure: !isLocalDev(event),
+    expiresAt: session.expiresAt,
+  });
+  return {
+    statusCode,
+    headers: {
+      Location: '/ops/t',
+      'Set-Cookie': cookie,
+      'Cache-Control': 'no-store',
+      'Referrer-Policy': 'no-referrer',
+    },
+    body: '',
+  };
+}
+
 async function handleGet(event) {
   const token = tokenFromEvent(event);
   if (token) {
-    const loaded = await loadTechQuickOpsToken(token);
-    if (!loaded.ok) {
-      return wantsJson(event)
-        ? json(loaded.statusCode || 400, { ok: false, error: 'invalid' })
-        : neutralExpiredPage('ops');
-    }
-    const projected = await loadProjectedBooking(loaded.bookingId);
-    if (!projected.ok || !sessionMatchesBooking(loaded, projected.booking)) {
-      return wantsJson(event)
-        ? json(401, { ok: false, error: 'invalid' })
-        : neutralExpiredPage('ops');
-    }
-    const consumed = await consumeTechQuickOpsToken(token);
-    if (!consumed.ok) {
-      return wantsJson(event)
-        ? json(401, { ok: false, error: 'invalid' })
-        : neutralExpiredPage('ops');
-    }
-    const session = await createTechQuickOpsSession({
-      bookingId: loaded.bookingId,
-      phoneE164: loaded.phoneE164,
-    });
-    if (!session.ok) {
-      return wantsJson(event)
-        ? json(503, { ok: false, error: 'session_unavailable' })
-        : neutralExpiredPage('ops');
-    }
-    const cookie = sessionCookieHeader(session.sessionId, { secure: !isLocalDev(event) });
-    return {
-      statusCode: 302,
-      headers: {
-        Location: '/ops/t',
-        'Set-Cookie': cookie,
-        'Cache-Control': 'no-store',
-        'Referrer-Policy': 'no-referrer',
-      },
-      body: '',
-    };
+    if (wantsJson(event)) return openWithToken(event, token, 302);
+    // A browser GET only checks the link and shows an "Open job" button.
+    // SMS apps fetch links for previews; spending the one-time link on a GET
+    // locked technicians out before they ever tapped it.
+    const checked = await checkToken(token);
+    if (!checked.ok) return neutralExpiredPage('ops');
+    return techOpenJobPage(token);
   }
 
   const session = await loadTechQuickOpsSession(event);
@@ -148,6 +173,8 @@ async function handleGet(event) {
 }
 
 async function handlePost(event) {
+  const openToken = tokenFromEvent(event);
+  if (openToken) return openWithToken(event, openToken, 303);
   const session = await loadTechQuickOpsSession(event);
   if (!session.ok) return json(401, { ok: false, error: 'invalid' });
   if (!verifyTechQuickOpsCsrf(event, session)) {
@@ -206,6 +233,47 @@ async function handlePost(event) {
       idempotent: !!result.idempotent,
       bookingVersion: result.bookingVersion,
       view: fresh,
+      message: result.message,
+    });
+  }
+  if (action === 'on_the_way') {
+    if (!actions.onTheWay) {
+      return json(409, { ok: false, error: 'locked', message: 'On the way is already recorded or the job is closed.' });
+    }
+    const result = await recordTechnicianOnTheWay(booking, { etaMinutes: body.etaMinutes });
+    if (!result.ok) {
+      return json(result.statusCode || 409, {
+        ok: false,
+        error: result.error,
+        message: result.message || 'Could not save on the way',
+      });
+    }
+    return json(200, {
+      ok: true,
+      delivery: result.delivery,
+      idempotent: !!result.idempotent,
+      bookingVersion: result.bookingVersion,
+      view: projectTechQuickOpsBooking(result.booking, loaded.shared),
+      message: result.message,
+    });
+  }
+  if (action === 'job_done') {
+    if (!actions.done) {
+      return json(409, { ok: false, error: 'locked', message: 'This job is already done or closed.' });
+    }
+    const result = await recordTechnicianJobDone(booking);
+    if (!result.ok) {
+      return json(result.statusCode || 409, {
+        ok: false,
+        error: result.error,
+        message: result.message || 'Could not mark the job done',
+      });
+    }
+    return json(200, {
+      ok: true,
+      idempotent: !!result.idempotent,
+      bookingVersion: result.bookingVersion,
+      view: projectTechQuickOpsBooking(result.booking, loaded.shared),
       message: result.message,
     });
   }

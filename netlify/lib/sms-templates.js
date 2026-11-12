@@ -29,6 +29,7 @@ const TEMPLATE_KEYS = Object.freeze({
   REVIEW_REQUESTED: 'booking.review_requested',
   PAYMENT_RESUME: 'booking.payment_resume',
   TECH_ARRIVED: 'booking.technician_arrived',
+  TECH_ON_THE_WAY: 'booking.technician_on_the_way',
   EXTRA_APPROVAL: 'booking.extra_approval',
   OWNER_FOLLOWUP: 'booking.owner_followup',
   // CUSTOMER_BOOKING_SMS_SAFE_CONFIRMATION — consent true, phone mismatch: no private link
@@ -404,6 +405,12 @@ function renderSmsTemplate(templateKey, data = {}) {
     case TEMPLATE_KEYS.TECH_ARRIVED:
       body = `${smsPrefix(templateKey)} Your technician has arrived at your service location.`;
       break;
+    case TEMPLATE_KEYS.TECH_ON_THE_WAY: {
+      const eta = Math.round(Number(data.etaMinutes));
+      body = `${smsPrefix(templateKey)} Your technician is on the way`
+        + (Number.isFinite(eta) && eta > 0 && eta <= 180 ? ` and should arrive in about ${eta} minutes.` : '.');
+      break;
+    }
     case TEMPLATE_KEYS.EXTRA_APPROVAL: {
       const amount = asciiSms(data.amount).slice(0, 16);
       body = `${smsPrefix(templateKey)} An extra${amount ? ` of ${amount}` : ''} is waiting for your approval.`

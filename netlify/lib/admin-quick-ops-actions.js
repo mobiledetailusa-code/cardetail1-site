@@ -649,6 +649,127 @@ async function recordTechnicianArrival(booking, opts = {}) {
   };
 }
 
+function onTheWayMessage(result = {}, repeat) {
+  if (repeat && (result.delivery === 'delivered' || result.delivery === 'accepted')) {
+    return 'Customer already told you are on the way.';
+  }
+  if (result.reason === 'booking_sms_consent_required') {
+    return 'Saved. Customer text was not sent. Customer SMS consent required.';
+  }
+  if (result.delivery === 'suppressed' || result.reason === 'sms_suppressed') {
+    return 'Saved. Customer text was not sent. This number opted out.';
+  }
+  if (result.delivery === 'delivered') return 'Customer told you are on the way. Text delivered.';
+  if (result.delivery === 'accepted' || result.delivery === 'pending') return 'Customer told you are on the way.';
+  return 'Saved. Customer text was not sent.';
+}
+
+/**
+ * Technician tapped "On my way". Texts the customer once (optional ETA).
+ * Does not change the job status, the price, or payment.
+ */
+async function recordTechnicianOnTheWay(booking, opts = {}) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled' || jobCompleted(booking)) {
+    return { ok: false, error: 'locked', statusCode: 409, message: 'This job is closed.' };
+  }
+  if (!booking.techQuickOpsTokenHash) {
+    return { ok: false, error: 'not_assigned', statusCode: 409, message: 'This job is not assigned.' };
+  }
+  if (booking.arrivedAt) {
+    return { ok: false, error: 'already_arrived', statusCode: 409, message: 'Arrival is already recorded.' };
+  }
+  const eta = Math.round(Number(opts.etaMinutes));
+  const etaMinutes = Number.isFinite(eta) && eta > 0 && eta <= 180 ? eta : null;
+  const bookingId = booking.id || booking.bookingId;
+  const key = `qo.enroute:${bookingId}`;
+  const already = !!booking.enRouteAt;
+  let current = booking;
+  if (!already) {
+    const now = new Date().toISOString();
+    const committed = await commitArrival(booking, {
+      enRouteAt: now,
+      enRouteEtaMinutes: etaMinutes,
+      enRouteNotifyStatus: 'pending',
+      updatedAt: now,
+      eventLog: appendEventLog(booking, { action: 'tech_en_route', by: 'tech_quick_ops', etaMinutes }),
+    });
+    if (!committed.ok) return committed;
+    current = committed.booking;
+  }
+  const sent = await dispatchCustomerTemplate({
+    booking: current,
+    idempotencyKey: key,
+    templateKey: TEMPLATE_KEYS.TECH_ON_THE_WAY,
+    templateData: { etaMinutes: current.enRouteEtaMinutes },
+    prisma: opts.prisma,
+    env: opts.env,
+    provider: opts.provider,
+  });
+  const notifyStatus = ['delivered', 'accepted', 'suppressed', 'pending'].includes(sent.delivery)
+    ? sent.delivery
+    : 'failed';
+  if (current.enRouteNotifyStatus !== notifyStatus) {
+    const recorded = await commitArrival(current, {
+      enRouteNotifyStatus: notifyStatus,
+      updatedAt: new Date().toISOString(),
+    });
+    if (recorded.ok) current = recorded.booking;
+  }
+  const repeat = already && !!sent.idempotent && (sent.delivery === 'delivered' || sent.delivery === 'accepted');
+  return {
+    ok: true,
+    booking: current,
+    bookingVersion: current.bookingVersion,
+    enRouteAt: current.enRouteAt,
+    delivery: sent.delivery,
+    reason: sent.reason || null,
+    idempotent: repeat,
+    message: onTheWayMessage(sent, repeat),
+  };
+}
+
+/**
+ * Technician tapped "Job done". Moves the job to the same state the Jobs
+ * Board's "complete service" uses: completed, waiting for admin review.
+ * It does not take or request payment and does not text the customer; the
+ * owner reviews it and closes it out from Admin. completedAt is write-once.
+ */
+async function recordTechnicianJobDone(booking) {
+  if (!booking) return { ok: false, error: 'not_found', statusCode: 404 };
+  if (bookingStatus(booking) === 'cancelled') {
+    return { ok: false, error: 'locked', statusCode: 409, message: 'This job is closed.' };
+  }
+  if (!booking.techQuickOpsTokenHash) {
+    return { ok: false, error: 'not_assigned', statusCode: 409, message: 'This job is not assigned.' };
+  }
+  if (jobCompleted(booking)) {
+    return { ok: true, idempotent: true, booking, bookingVersion: booking.bookingVersion, message: 'Job already marked done.' };
+  }
+  const { syncLegacyFields } = require('./operations-lifecycle');
+  const now = new Date().toISOString();
+  const patched = syncLegacyFields({
+    ...booking,
+    serviceStatus: 'service_completed',
+    jobStatus: 'completed_pending_admin_review',
+    completionSubmitted: true,
+    adminReviewRequired: true,
+    techCompletedAt: now,
+    completedAt: booking.completedAt || now,
+    completedByQuickOpsTech: true,
+    updatedAt: now,
+    eventLog: appendEventLog(booking, { action: 'tech_job_done', by: 'tech_quick_ops' }),
+  });
+  const committed = await commitArrival(booking, patched);
+  if (!committed.ok) return committed;
+  return {
+    ok: true,
+    booking: committed.booking,
+    bookingVersion: committed.bookingVersion,
+    message: 'Job marked done. The office will review it.',
+  };
+}
+
 module.exports = {
   loadProjectedBooking,
   confirmQuickOps,
@@ -659,6 +780,8 @@ module.exports = {
   paymentLinkMessage,
   offerExtraToCustomer,
   recordTechnicianArrival,
+  recordTechnicianOnTheWay,
+  recordTechnicianJobDone,
   recordOnSitePayment,
   completeServiceLineQuickOps,
   setQuickOpsSmsRuntime,
