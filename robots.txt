@@ -1,4 +1,11 @@
+# One group for every crawler. The AI crawlers are named so their explicit
+# Allow stays visible, but they share the private-path rules below: a
+# separate User-agent group would not inherit the rules of User-agent: *.
 User-agent: *
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: PerplexityBot
+Allow: /
 Disallow: /customer/
 Disallow: /admin/
 Disallow: /tech/
@@ -13,18 +20,9 @@ Disallow: /receipt.html
 Disallow: /bid.html
 Disallow: /resume.html
 Disallow: /customer.html
+# Booking deep links open the booking flow by themselves; book= may follow
+# other query parameters (utm_*, gclid, zip), so both forms are covered.
 Disallow: /*?book=
-
-User-agent: GPTBot
-Allow: /
-Disallow: /*?book=
-
-User-agent: ChatGPT-User
-Allow: /
-Disallow: /*?book=
-
-User-agent: PerplexityBot
-Allow: /
-Disallow: /*?book=
+Disallow: /*&book=
 
 Sitemap: https://cardetail1.com/sitemap.xml
