@@ -149,6 +149,7 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/garage-plan-submit.js',
     'netlify/functions/revenue-admin.js',
     'netlify/functions/analytics-public-config.mjs',
+    'netlify/functions/analytics-public-config.js',
     'netlify/functions/revenue-resume-link.js',
     'netlify/functions/booking-card-status.js',
     'netlify/functions/lookup-booking.js',
