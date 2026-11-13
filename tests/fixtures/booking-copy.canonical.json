@@ -380,7 +380,7 @@
         {
           "id": "hero-cta",
           "selector": ".hero .hero-zip-btn-lbl",
-          "text": "Check Price & Availability",
+          "text": "Check Prices & Availability",
           "why": "Cold-traffic entry is discovery-level, not a commitment to book."
         }
       ],

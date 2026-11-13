@@ -48,7 +48,10 @@ test('Step 5 uses short booking policy bullets, not collapsible long terms', () 
 
 test('public header and saved-card infrastructure remain available', () => {
   assert.match(index, /onclick="openBooking\(null\)"/);
-  assert.match(index, /onclick="openPortal\(\)"/);
+  // A+ homepage: the sticky My Garage button is gone; My Garage stays in the header and
+  // openPortal() is still wired to a real control (booking success "View in My Garage").
+  assert.match(index, /class="nav-book-mobile" href="my-garage\.html"/);
+  assert.match(index, /onclick="[^"]*openPortal\(\)"/);
   assert.match(index, /href="tel:\+15513893986"/);
   assert.match(index, /waitForVerifiedCardSave/);
   assert.match(index, /Step 05 — Review/);
