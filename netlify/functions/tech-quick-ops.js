@@ -17,6 +17,7 @@ const {
   paymentLinkMessage,
   recordTechnicianArrival,
   offerExtraToCustomer,
+  recordOnSitePayment,
 } = require('../lib/admin-quick-ops-actions');
 const { projectTechQuickOpsBooking } = require('../lib/tech-quick-ops-view');
 const { neutralExpiredPage, techQuickOpsPage } = require('../lib/quick-ops-html');
@@ -207,6 +208,50 @@ async function handlePost(event) {
       bookingVersion: result.bookingVersion,
       view: fresh,
       message: result.message,
+    });
+  }
+  if (action === 'record_cash' || action === 'record_card') {
+    const allowed = action === 'record_cash' ? actions.collectCash : actions.collectCard;
+    if (!allowed) {
+      return json(409, {
+        ok: false,
+        error: 'not_authorized',
+        message: 'Cash or card can be recorded after you arrive, while a balance is still due.',
+      });
+    }
+    const result = await recordOnSitePayment(booking, {
+      method: action === 'record_cash' ? 'cash' : 'card_on_site',
+      expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
+      reference: body.reference,
+      requireReference: action === 'record_card',
+      amount: body.amount,
+      confirmServicePerformed: body.confirmServicePerformed === true,
+      reason: action === 'record_cash' ? 'tech_quick_ops_cash' : 'tech_quick_ops_card',
+      event,
+    });
+    if (!result.ok) {
+      const message = result.error === 'postgres_payment_disabled'
+        ? 'On-site payment recording is unavailable'
+        : result.error === 'reference_required'
+          ? 'Enter the terminal reference'
+          : result.error === 'unsafe_card_reference'
+            ? 'That reference cannot be stored'
+            : result.error === 'cash_amount_mismatch'
+              ? 'The amount does not match the balance due'
+              : result.error === 'zero_balance' || result.error === 'already_paid'
+                ? 'Paid / No balance due'
+                : 'Could not record payment';
+      return json(result.statusCode || 409, { ok: false, error: result.error, message });
+    }
+    const fresh = projectTechQuickOpsBooking(result.booking || booking, null);
+    return json(200, {
+      ok: true,
+      reload: true,
+      view: fresh,
+      autoClose: result.autoClose || null,
+      message: result.autoClose && result.autoClose.closed
+        ? 'Payment recorded. Job finished.'
+        : 'Payment recorded.',
     });
   }
   if (action === 'adjust_price') {

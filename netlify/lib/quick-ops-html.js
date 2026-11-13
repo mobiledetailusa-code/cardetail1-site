@@ -164,9 +164,13 @@ function quickOpsPage(view, csrfToken) {
     ? field('Remaining', money.remainingLabel)
     : `<div class="row"><span class="k">Balance</span><span class="v">Paid / No balance due</span></div>`;
   const methodLine = money.methodLabel ? field('Method', money.methodLabel) : '';
-  const lockedNote = view.locked
+  const lockedNote = view.paid && view.completed
     ? '<p class="sub">Paid / completed — details are locked</p>'
-    : '';
+    : view.paid
+      ? '<p class="sub">Paid — the service stays open until it is finished</p>'
+      : view.completed
+        ? '<p class="sub">Service finished — a balance is still open</p>'
+        : '';
   const request = view.request
     ? `<section class="card"><h2>Request</h2><p>${escapeHtml(view.request.summary)}</p></section>`
     : (view.cancelRequested
@@ -183,8 +187,10 @@ function quickOpsPage(view, csrfToken) {
     a.map ? `<a class="btn ghost" href="${escapeHtml(view.mapUrl)}" target="_blank" rel="noopener noreferrer">Open map</a>` : '',
     a.payment ? '<button type="button" class="secondary" data-action="copy_pay">Copy payment link</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link</button>' : '',
-    a.cash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the remaining balance as cash? This uses the same Admin payment ledger.">Record cash</button>' : '',
-    a.card ? '<button type="button" class="secondary" data-action="record_card" data-confirm="Record the remaining balance as card on site? This uses the same Admin payment ledger.">Record card</button>' : '',
+    a.cash && a.finish ? '<button type="button" data-action="record_cash" data-performed="1" data-confirm="Record the full cash payment and mark this service finished?">Cash received and finish</button>' : '',
+    a.card && a.finish ? '<button type="button" data-action="record_card" data-performed="1" data-confirm="Record the full card payment and mark this service finished?">Card received and finish</button>' : '',
+    a.cash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the remaining balance as cash? The service stays open until it is finished.">Record cash</button>' : '',
+    a.card ? '<button type="button" class="secondary" data-action="record_card" data-confirm="Record the remaining balance as card on site? The service stays open until it is finished.">Record card</button>' : '',
     !a.payment && !a.cash && !a.card ? '<p class="sub">Paid / No balance due</p>' : '',
     lockedNote,
   ].filter(Boolean).join('');
@@ -286,6 +292,7 @@ ${ceramicStaffCard(view)}
     var confirmText = btn.getAttribute('data-confirm');
     if (confirmText && !window.confirm(confirmText)) return;
     var payload = { action: action, bookingVersion: bookingVersion, serviceId: btn.getAttribute('data-service-id') || '' };
+    if (btn.getAttribute('data-performed') === '1') payload.confirmServicePerformed = true;
     if (action === 'assign_tech') {
       payload.techId = (document.getElementById('qo-tech') || {}).value || '';
       payload.phone = (document.getElementById('qo-phone') || {}).value || '';
@@ -364,6 +371,9 @@ function techQuickOpsPage(view, csrfToken) {
     a.arrive ? '<button type="button" id="tq-arrive" data-action="arrive">I\'ve arrived</button>' : '',
     a.payment ? '<button type="button" class="secondary" data-action="text_pay">Text payment link to customer</button>' : '',
     a.payment ? '<button type="button" class="ghost" data-action="copy_pay">Copy payment link</button>' : '',
+    a.collectCash ? '<button type="button" data-action="record_cash" data-performed="1" data-confirm="Confirm the service is done and the full balance was paid in cash? Your pay does not change.">Cash received and finish</button>' : '',
+    a.collectCash ? '<button type="button" class="secondary" data-action="record_cash" data-confirm="Record the cash payment only? This does not finish the service. Your pay does not change.">Cash received</button>' : '',
+    a.collectCard ? '<label for="tq-card-ref">Card receipt reference</label><input id="tq-card-ref" maxlength="40" placeholder="Terminal reference" autocomplete="off"><button type="button" data-action="record_card" data-performed="1">Card received and finish</button><button type="button" class="secondary" data-action="record_card">Card received</button>' : '',
     !a.payment ? '<p class="sub">No payment link to send.</p>' : '',
   ].filter(Boolean).join('');
   const contact = view.contactRestricted
@@ -452,6 +462,7 @@ ${a.increase ? `<section class="card">
     if (!btn) return;
     var action = btn.getAttribute('data-action');
     var payload = { action: action, bookingVersion: bookingVersion };
+    if (btn.getAttribute('data-performed') === '1') payload.confirmServicePerformed = true;
     if (action === 'adjust_price') {
       payload.type = 'increase';
       payload.amountDollars = (document.getElementById('tq-adj-amount') || {}).value || '';
@@ -459,6 +470,18 @@ ${a.increase ? `<section class="card">
       if (!String(payload.amountDollars).trim()) { setMsg('Enter the extra amount'); return; }
       if (String(payload.reason).trim().length < 8) { setMsg('Add a note of at least 8 characters'); return; }
       if (!window.confirm('Save this extra for customer approval? It is not charged until they approve it.')) return;
+    }
+    if (action === 'record_card') {
+      payload.reference = (document.getElementById('tq-card-ref') || {}).value || '';
+      if (!String(payload.reference).trim()) { setMsg('Enter the terminal reference'); return; }
+      var cardConfirm = btn.getAttribute('data-performed') === '1'
+        ? 'Confirm the service is done and the card payment was approved on the terminal? Your pay does not change.'
+        : 'Confirm the card payment was approved on the terminal? This does not finish the service. Your pay does not change.';
+      if (!window.confirm(cardConfirm)) return;
+    }
+    if (action === 'record_cash') {
+      var cashConfirm = btn.getAttribute('data-confirm') || 'Record this payment?';
+      if (!window.confirm(cashConfirm)) return;
     }
     btn.disabled = true;
     try {

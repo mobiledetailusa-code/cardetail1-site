@@ -27,6 +27,7 @@ const TEMPLATE_KEYS = Object.freeze({
   CHANGE_APPROVED: 'booking.change_approved',
   CHANGE_REJECTED: 'booking.change_rejected',
   REVIEW_REQUESTED: 'booking.review_requested',
+  SERVICE_COMPLETED: 'booking.service_completed',
   PAYMENT_RESUME: 'booking.payment_resume',
   TECH_ARRIVED: 'booking.technician_arrived',
   EXTRA_APPROVAL: 'booking.extra_approval',
@@ -397,6 +398,16 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} How was your detail? Leave a review.`
         + viewLink(url);
       break;
+    case TEMPLATE_KEYS.SERVICE_COMPLETED: {
+      // Receipt and the configured Google review link only. No prices, no tokens.
+      const receipt = asciiSms(data.receiptUrl).slice(0, 180);
+      const review = asciiSms(data.reviewUrl).slice(0, 120);
+      body = `${smsPrefix(templateKey)} Your detailing service is complete. Thank you for choosing us!`
+        + (receipt ? ` View your receipt: ${receipt}` : '')
+        + (review ? ` Enjoyed our service? We'd appreciate your Google review: ${review}` : '')
+        + ' Thank you for choosing Cardetail1!';
+      break;
+    }
     case TEMPLATE_KEYS.PAYMENT_RESUME:
       body = `${smsPrefix(templateKey)} Your secure payment link:`
         + (url ? ` ${url}` : '');

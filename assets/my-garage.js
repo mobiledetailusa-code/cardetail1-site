@@ -267,10 +267,19 @@
    *
    * Classification used to read the operational status only, so an appointment
    * that was served but never closed out — still labelled Pending review or
-   * Confirmed — stayed in Upcoming forever. That is what makes the customer's
-   * upcoming list grow without bound. Today still counts as upcoming, and an
-   * unparseable or missing date never archives itself.
+   * Confirmed — stayed in Upcoming forever. Today still counts as upcoming.
+   * A missing or unparseable date is not an upcoming appointment.
    */
+  function hasAppointmentDate(b) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String((b && (b.confirmedDate || b.preferredDate)) || ''));
+  }
+
+  function displayScheduleDate(value, emptyLabel) {
+    var raw = String(value || '');
+    if (!raw) return emptyLabel || '—';
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : 'Date unavailable';
+  }
+
   function appointmentDatePassed(b) {
     var iso = String((b && (b.confirmedDate || b.preferredDate)) || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
@@ -282,6 +291,7 @@
     if (!b) return false;
     // Anything still waiting on the customer stays visible regardless of date.
     if (appointmentNeedsAttention(b)) return false;
+    if (!hasAppointmentDate(b)) return true;
     if (appointmentDatePassed(b)) return true;
     var status = String(b.status || '');
     var job = String(b.jobStatus || '').toLowerCase();
@@ -460,6 +470,9 @@
       scrollPortalTarget('payments');
     } else if (kind === 'reschedule') {
       ev.preventDefault();
+      if (global.CD1GarageDashboard && typeof global.CD1GarageDashboard.open === 'function') {
+        global.CD1GarageDashboard.open();
+      }
       openActionModal('reschedule_request', card);
     }
   }
@@ -1473,7 +1486,9 @@
     // A raw booking id is rejected server-side as invalid_focus, which drops the
     // pin and toasts an error on every poll — only send the opaque ref.
     if (isOpaqueFocusRef(focusRef)) payload.appointment = focusRef;
-    if (state.syncVersion) payload.ifSyncVersion = state.syncVersion;
+    payload.historyPage = { limit: 8, cursor: opts.historyCursor || '' };
+    if (opts.historyCursor) delete payload.ifSyncVersion;
+    else if (state.syncVersion) payload.ifSyncVersion = state.syncVersion;
     var r = await post('customer-portal-data', payload, { signal: opts.signal });
     portalLastLoadOutcome = {
       ok: !!(r.ok && r.data && r.data.ok),
@@ -1512,7 +1527,9 @@
       || (r.data.bookingsComplete !== true
         && !(r.data.bookings || []).length
         && (state.bookings || []).length > 0);
+    var previousPostService = state.postServiceByBooking;
     state.bookings = mergePortalBookings(r.data.bookings, r.data.bookingsComplete, accountId);
+    if (r.data.historyPage) state.historyPage = r.data.historyPage;
     state.customerAccountId = accountId;
     // Apply sticky focus before falling back to server selectUpcoming().
     applyAppointmentFocus(r.data);
@@ -1522,6 +1539,9 @@
     applyPortalPayload(r.data, {
       retainBookingScoped: degraded && !r.data.upcoming && !!state.payment,
     });
+    if (opts.historyCursor && previousPostService && state.postServiceByBooking) {
+      state.postServiceByBooking = Object.assign({}, previousPostService, state.postServiceByBooking);
+    }
     // Never cache a degraded snapshot's cursor — the next poll must re-resolve
     // instead of being answered notModified against a short list.
     if (degraded) state.syncVersion = '';
@@ -1906,6 +1926,42 @@
     return due > 0 ? 'Pay securely · ' + fmtMoney(due) : 'Pay securely';
   }
 
+  var LIST_PAGE = 8;
+
+  function customerPayLabel(b, pay) {
+    var p = pay || {};
+    var hasMoney = p.remainingCents != null || p.settledCents != null
+      || p.amountDueApproved != null || p.approvedCents != null;
+    if (hasMoney) {
+      var remaining = remainingCentsFromPayment(p);
+      var settled = settledCentsFromPayment(p);
+      var rawPay = String(p.paymentStatus || p.state || (b && b.paymentStatus) || '').toLowerCase();
+      if (rawPay === 'refunded' || rawPay === 'partially_refunded') {
+        return remaining > 0 ? 'Partially refunded' : 'Refunded';
+      }
+      if (rawPay === 'failed') return 'Payment failed';
+      if (remaining > 0 && settled > 0) return 'Partially paid';
+      if (remaining > 0) return 'Unpaid';
+      if (settled > 0 || rawPay === 'paid' || rawPay === 'paid_cash' || rawPay === 'paid_card_on_site') return 'Paid';
+      return 'No payment due yet';
+    }
+    if (b && b.paymentStatusLabel && !/not_due/i.test(b.paymentStatusLabel)) return b.paymentStatusLabel;
+    return 'No payment due yet';
+  }
+
+  function customerSummary(b, pay) {
+    var summary = (b && b.statusSummary) || appointmentStatusLabel(b);
+    var remaining = remainingCentsFromPayment(pay || {});
+    var settled = settledCentsFromPayment(pay || {});
+    if (remaining === 0 && settled > 0 && /payment due/i.test(summary)) {
+      return /complete/i.test(String((b && (b.jobStatus || b.customerStatus || b.status)) || ''))
+        ? 'Completed — Paid'
+        : 'Paid';
+    }
+    if (remaining > 0 && /not_due/i.test(summary)) return 'Balance due';
+    return summary;
+  }
+
   function renderPaymentsPanel(pay) {
     var panel = $('payments-panel');
     var empty = $('payments-empty');
@@ -1930,7 +1986,7 @@
     panel.innerHTML =
       '<div class="card pay-card">' +
       '<dl class="meta-grid">' +
-      '<div><dt>Invoice status</dt><dd>' + esc(paid ? 'paid' : (pay.state || '—')) + '</dd></div>' +
+      '<div><dt>Invoice status</dt><dd>' + esc(paid ? 'Paid' : customerPayLabel(state.booking, pay)) + '</dd></div>' +
       '<div><dt>Total approved</dt><dd>' + approvedLabel + '</dd></div>' +
       '<div><dt>Amount paid</dt><dd>' + paidLabel + '</dd></div>' +
       '<div><dt>Amount due</dt><dd>' + dueLabel + '</dd></div>' +
@@ -2081,7 +2137,7 @@
       : '<div><dt>Vehicle</dt><dd>' + esc(vehicleLine(b)) + '</dd></div>' +
         '<div><dt>Add-ons</dt><dd>' + esc(addonLines(b)) + '</dd></div>';
 
-    var statusLabel = appointmentStatusLabel(b);
+    var statusLabel = customerSummary(b, pay);
     var arrivalLabels = {
       '08:00-11:00': '8:00 AM – 11:00 AM',
       '09:00-12:00': '9:00 AM – 12:00 PM',
@@ -2130,10 +2186,10 @@
     // the portal is looking for, so it sits behind a disclosure instead of
     // pushing the appointment actions off the screen.
     var siteRows = '';
-    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + '</dd></div>';
+    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(displayScheduleDate(b.preferredDate)) + '</dd></div>';
     siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
     if (b.alternatePreferredDate) {
-      siteRows += '<div><dt>Alternate date</dt><dd>' + esc(b.alternatePreferredDate) +
+      siteRows += '<div><dt>Alternate date</dt><dd>' + esc(displayScheduleDate(b.alternatePreferredDate)) +
         (b.alternateArrivalWindow ? ' · ' + esc(arrivalLabels[b.alternateArrivalWindow] || b.alternateArrivalWindow) : '') +
         '</dd></div>';
     }
@@ -2160,7 +2216,7 @@
     // neither is repeated here. Everything else moved into the disclosure
     // below, which is what brings the appointment actions back above the fold.
     var essentialRows =
-      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
+      '<div><dt>Date</dt><dd>' + esc(displayScheduleDate(b.confirmedDate || b.preferredDate)) + '</dd></div>' +
       '<div><dt>Arrival window</dt><dd>' + esc(arrivalPrimary) + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       legacyVehicleRows +
@@ -2185,7 +2241,7 @@
       (b.depositAmount != null && b.ceramicPaymentPlan === 'deposit'
         ? '<div><dt>Deposit</dt><dd>' + fmtMoney(b.depositAmount) + '</dd></div>'
         : '') +
-      (b.paymentStatus ? '<div><dt>Payment status</dt><dd>' + esc(b.paymentStatus) + '</dd></div>' : '') +
+      '<div><dt>Payment status</dt><dd>' + esc(customerPayLabel(b, pay)) + '</dd></div>' +
       '</dl>' +
       (b.ceramic && (b.serviceFamily === 'ceramic_coating' || b.ceramic.serviceFamily === 'ceramic_coating')
         ? '<div class="ceramic-summary">'
@@ -2235,10 +2291,10 @@
     });
     var hist = owned.filter(appointmentIsPast);
 
-    renderList('appointments-list', upcoming, function (item) {
+    renderPagedList('appointments-list', 'appointments-more', upcoming, state.upcomingLimit, function (item) {
       return appointmentRowHtml(item, { focusable: true });
     });
-    renderList('history-list', hist, function (item) {
+    renderPagedList('history-list', 'history-more', hist, state.historyLimit, function (item) {
       return appointmentRowHtml(item, { showTotal: true });
     });
     bindAppointmentRowActions();
@@ -2583,7 +2639,8 @@
       && state.focusedAppointment
       && item.appointmentPublicRef
       && state.focusedAppointment.appointmentPublicRef === item.appointmentPublicRef;
-    var date = item.confirmedDate || item.preferredDate || '—';
+    var rawDate = item.confirmedDate || item.preferredDate || '';
+    var date = /^\d{4}-\d{2}-\d{2}$/.test(String(rawDate)) ? rawDate : 'Date unavailable';
     var total = item.approvedFinalAmount != null ? item.approvedFinalAmount : item.totalPrice;
     var meta = [esc(item.service || item.package || 'Service'), esc(date)].join(' · ');
     var tail = [esc(appointmentStatusLabel(item))];
@@ -2601,6 +2658,24 @@
   }
 
   function bindAppointmentRowActions() {
+    [['appointments-more', 'upcomingLimit'], ['history-more', 'historyLimit']].forEach(function (pair) {
+      var more = $(pair[0]);
+      if (!more || more.getAttribute('data-bound') === '1') return;
+      more.setAttribute('data-bound', '1');
+      more.addEventListener('click', function () {
+        var serverMore = pair[0] === 'history-more' && state.historyPage && state.historyPage.hasMore;
+        var shown = pageLimit(state[pair[1]]);
+        var loaded = pair[0] === 'history-more'
+          ? (state.bookings || []).filter(appointmentIsPast).length
+          : (state.bookings || []).length;
+        if (serverMore && shown >= loaded && state.historyPage.nextCursor) {
+          loadAccount({ historyCursor: state.historyPage.nextCursor, managePhase: false });
+          return;
+        }
+        state[pair[1]] = shown + LIST_PAGE;
+        renderDashboard({ payment: state.payment });
+      });
+    });
     ['appointments-list', 'history-list'].forEach(function (id) {
       var root = $(id);
       if (!root) return;
@@ -2631,6 +2706,25 @@
       return;
     }
     el.innerHTML = items.map(mapFn).join('');
+  }
+
+  function pageLimit(current) {
+    var n = Number(current);
+    return n >= LIST_PAGE ? n : LIST_PAGE;
+  }
+
+  function renderPagedList(id, moreId, items, limit, mapFn) {
+    var all = items || [];
+    var shown = all.slice(0, pageLimit(limit));
+    renderList(id, shown, mapFn);
+    var more = $(moreId);
+    if (!more) return;
+    var rest = all.length - shown.length;
+    var serverMore = moreId === 'history-more' && state.historyPage && state.historyPage.hasMore && shown >= all.length;
+    more.hidden = rest <= 0 && !serverMore;
+    more.textContent = rest > 0
+      ? ('Show more (' + rest + ')')
+      : (serverMore ? 'Show more' : '');
   }
 
   async function submitAction(action, payload, opts) {
@@ -3638,6 +3732,9 @@
   }
 
   function openActionModal(action, openerEl) {
+    if (action === 'reschedule_request' && global.CD1GarageDashboard && typeof global.CD1GarageDashboard.open === 'function') {
+      global.CD1GarageDashboard.open();
+    }
     modalOpenerEl = openerEl || document.activeElement || null;
     var moneyLocked = {
       maintenance_request: true,

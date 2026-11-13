@@ -311,6 +311,10 @@ function todayIsoDate(now) {
   return new Date(now).toISOString().slice(0, 10);
 }
 
+function hasScheduleDate(b) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(appointmentDate(b));
+}
+
 /** Newest first when dates tie, so a freshly created booking is never buried. */
 function byDateAscending(a, b) {
   const cmp = appointmentDate(a).localeCompare(appointmentDate(b));
@@ -327,17 +331,18 @@ function byDateDescending(a, b) {
 /**
  * Deterministic current-appointment selection.
  *
- * 1. actionable/current appointment
+ * 1. upcoming actionable appointment with a real date
  * 2. nearest upcoming appointment with an open balance
  * 3. nearest upcoming non-settled appointment
- * 4. most recent past appointment with an open balance
- * 5. most recent non-terminal past appointment
- * 6. settled-paid only when nothing else competes
- * 7. most recently completed/cancelled appointment
+ * 4. actionable work that is already past or has no date
+ * 5. most recent past appointment with an open balance
+ * 6. most recent non-terminal past appointment
+ * 7. undated rows, only when nothing dated is left
+ * 8. settled-paid only when nothing else competes
+ * 9. most recently completed/cancelled appointment
  *
- * The date horizon outranks the balance: an open balance decides between
- * siblings on the same side of today, but a years-old unpaid invoice never
- * displaces the customer's next appointment.
+ * A missing or invalid date is not "upcoming". An old unpaid invoice does not
+ * displace the customer's next dated appointment.
  *
  * Selection never removes an appointment from the returned collection.
  */
@@ -345,17 +350,17 @@ function selectUpcoming(projected, { now = Date.now() } = {}) {
   if (!Array.isArray(projected) || !projected.length) return null;
   const today = todayIsoDate(now);
 
-  const actionable = projected.filter(isActionableAppointment).sort(byDateAscending);
-  if (actionable.length) return actionable[0];
-
   const active = projected.filter((b) => !isTerminalAppointment(b));
-  const isUpcoming = (b) => !appointmentDate(b) || appointmentDate(b) >= today;
+  const isUpcoming = (b) => hasScheduleDate(b) && appointmentDate(b) >= today;
 
   const ranked = [
+    projected.filter((b) => isActionableAppointment(b) && isUpcoming(b)).sort(byDateAscending),
     active.filter((b) => isUpcoming(b) && hasOpenPayableBalance(b)).sort(byDateAscending),
     active.filter((b) => isUpcoming(b) && !isSettledPaidHero(b)).sort(byDateAscending),
-    active.filter((b) => !isUpcoming(b) && hasOpenPayableBalance(b)).sort(byDateDescending),
-    active.filter((b) => !isUpcoming(b) && !isSettledPaidHero(b)).sort(byDateDescending),
+    projected.filter((b) => isActionableAppointment(b) && !isUpcoming(b)).sort(byDateDescending),
+    active.filter((b) => hasScheduleDate(b) && !isUpcoming(b) && hasOpenPayableBalance(b)).sort(byDateDescending),
+    active.filter((b) => hasScheduleDate(b) && !isUpcoming(b) && !isSettledPaidHero(b)).sort(byDateDescending),
+    active.filter((b) => !hasScheduleDate(b) && !isSettledPaidHero(b)).sort(byDateDescending),
     active.filter(isSettledPaidHero).sort(byDateDescending),
   ];
   for (const bucket of ranked) {
@@ -363,6 +368,85 @@ function selectUpcoming(projected, { now = Date.now() } = {}) {
   }
 
   return [...projected].sort(byDateDescending)[0] || null;
+}
+
+const HISTORY_PAGE_LIMIT = 8;
+const UPCOMING_PAGE_LIMIT = 16;
+
+/**
+ * Optional first-screen page. Callers that omit historyPage still receive
+ * every owned booking. The ownership scan still loads the candidate set so
+ * the current appointment cannot be missed; only the response is cut.
+ */
+function parseHistoryPage(body) {
+  const raw = body && body.historyPage;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const limit = Math.min(
+    HISTORY_PAGE_LIMIT,
+    Math.max(1, Math.round(Number(raw.limit) || HISTORY_PAGE_LIMIT))
+  );
+  const cursor = String(raw.cursor || '').trim().slice(0, 80);
+  return { limit, cursor };
+}
+
+function selectPortalPage(projected, { now = Date.now(), limit = HISTORY_PAGE_LIMIT, cursor = '', focusId = '' } = {}) {
+  const rows = Array.isArray(projected) ? projected : [];
+  const today = todayIsoDate(now);
+  const hero = selectUpcoming(rows, { now });
+  const heroId = String((hero && (hero.id || hero.bookingId)) || '');
+  const focus = String(focusId || '');
+  const relevant = [];
+  const history = [];
+  for (const row of rows) {
+    const id = String((row && (row.id || row.bookingId)) || '');
+    if (!id) continue;
+    if (id === heroId || (focus && id === focus)) {
+      relevant.push(row);
+      continue;
+    }
+    if (hasScheduleDate(row) && appointmentDate(row) >= today && !isTerminalAppointment(row)) {
+      relevant.push(row);
+      continue;
+    }
+    history.push(row);
+  }
+  history.sort(byDateDescending);
+  const heroRow = relevant.find((row) => String(row.id || row.bookingId) === heroId) || null;
+  const focusRow = focus && focus !== heroId
+    ? relevant.find((row) => String(row.id || row.bookingId) === focus) || null
+    : null;
+  const upcoming = relevant
+    .filter((row) => row !== heroRow && row !== focusRow)
+    .sort(byDateAscending)
+    .slice(0, UPCOMING_PAGE_LIMIT);
+  let start = 0;
+  if (cursor) {
+    const at = history.findIndex((row) => String(row.id || row.bookingId) === cursor);
+    start = at >= 0 ? at + 1 : 0;
+  }
+  const pageLimit = Math.min(HISTORY_PAGE_LIMIT, Math.max(1, Math.round(Number(limit) || HISTORY_PAGE_LIMIT)));
+  const page = history.slice(start, start + pageLimit);
+  const hasMore = start + page.length < history.length;
+  const last = page.length ? page[page.length - 1] : null;
+  const seen = new Set();
+  const bookings = [];
+  for (const row of [heroRow, focusRow, ...upcoming, ...page]) {
+    if (!row) continue;
+    const id = String(row.id || row.bookingId || '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    bookings.push(row);
+  }
+  return {
+    bookings,
+    historyPage: {
+      limit: pageLimit,
+      returned: page.length,
+      total: history.length,
+      hasMore,
+      nextCursor: hasMore && last ? String(last.id || last.bookingId || '') : null,
+    },
+  };
 }
 
 /** Test / inspect seam — production traffic uses exports.handler only. */
@@ -628,6 +712,19 @@ async function handlePortalData(event, body) {
     }
   }
 
+  const historyRequest = parseHistoryPage(body);
+  const portalPage = historyRequest
+    ? selectPortalPage(projected, {
+      limit: historyRequest.limit,
+      cursor: historyRequest.cursor,
+      focusId: focused ? (focused.id || focused.bookingId) : '',
+    })
+    : null;
+  const responseBookings = portalPage ? portalPage.bookings : projected;
+  const responseComplete = portalPage
+    ? ownershipComplete && !portalPage.historyPage.hasMore && !historyRequest.cursor
+    : ownershipComplete;
+
   const upcoming = focused || selectUpcoming(projected);
   const payment = upcoming
     ? await safePaymentStateAsync(bookings.find((b) => (b.id || b.bookingId) === upcoming.id) || {})
@@ -664,10 +761,11 @@ async function handlePortalData(event, body) {
     scope: 'account',
     customerAccountId: session.customerAccountId || null,
     customer,
-    bookings: projected,
-    // False when an ownership source failed: the collection may be short, so the
-    // client must merge it into its cache instead of replacing it.
-    bookingsComplete: ownershipComplete,
+    bookings: responseBookings,
+    // False when an ownership source failed, or when a requested history page
+    // is not the complete owned set. The client merges those responses.
+    bookingsComplete: responseComplete,
+    historyPage: portalPage ? portalPage.historyPage : null,
     upcoming,
     focusedAppointment: focused
       ? {
@@ -686,7 +784,7 @@ async function handlePortalData(event, body) {
     // Every owned booking carries its own window state so a completed job further
     // down the list still shows the right action after a refresh.
     postServiceByBooking: Object.fromEntries(
-      bookings
+      (portalPage ? responseBookings.map((row) => bookings.find((b) => (b.id || b.bookingId) === (row.id || row.bookingId)) || row) : bookings)
         .map((b) => [String(b.id || b.bookingId || ''), postServiceState(b)])
         .filter(([id]) => !!id)
     ),
@@ -707,10 +805,13 @@ exports.__test = {
   safePaymentStateFromProjection,
   handlePortalData,
   selectUpcoming,
+  selectPortalPage,
+  parseHistoryPage,
   hasOpenPayableBalance,
   isSettledPaidHero,
   isTerminalAppointment,
   isActionableAppointment,
+  hasScheduleDate,
   contactMatchesSession,
   verifiedContactIntersection,
   authoritativeAccountConjunct,

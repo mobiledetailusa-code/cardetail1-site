@@ -320,7 +320,8 @@ describe('P0 — customer portal history survives polling', { skip: JSDOM ? fals
 describe('P0 — portal data marks a degraded ownership read', () => {
   it('exposes bookingsComplete on the account payload contract', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/customer-portal-data.js'), 'utf8');
-    assert.match(src, /bookingsComplete: ownershipComplete/);
+    assert.match(src, /bookingsComplete: responseComplete/);
+    assert.match(src, /ownershipComplete && !portalPage\.historyPage\.hasMore/);
     // Both Postgres ownership sources must record their own degradation.
     assert.equal((src.match(/ownershipComplete = false/g) || []).length, 3);
   });
