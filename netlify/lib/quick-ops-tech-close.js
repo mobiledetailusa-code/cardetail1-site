@@ -1,10 +1,11 @@
 'use strict';
 
 /**
- * Paying an invoice does not complete the service. A job that has not been
- * executed keeps its operational status when the balance is paid. The only
- * money-driven close is completed_pending_payment → completed_paid, and that
- * lives in the payment compatibility patch because the visit was already done.
+ * Paying an invoice does not by itself complete a service that has not been
+ * performed. QuickOps auto-close (onsite-job-close.js) runs only after a
+ * confirmed cash or card receipt when arrival or an in-progress status shows
+ * the visit happened. The compatibility patch still advances
+ * completed_pending_payment → completed_paid, because that visit was already done.
  */
 
 function isCancelledBooking(booking) {

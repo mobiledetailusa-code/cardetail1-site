@@ -365,18 +365,43 @@
 
   function bindPanel() {
     if (bound) return;
+    var toggle = document.getElementById('mg-show-calendar');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        open();
+        if (typeof toggle.scrollIntoView === 'function') {
+          try { toggle.scrollIntoView({ block: 'start' }); } catch (e) { /* ignore */ }
+        }
+      });
+    }
     var root = document.getElementById('mg-dashboard');
     if (!root) return;
     root.addEventListener('click', onDashboardClick);
     bound = true;
   }
 
+  function calendarOpen() {
+    var shell = document.getElementById('mg-dashboard');
+    return !!(shell && shell.getAttribute('data-open') === 'true');
+  }
+
+  function open() {
+    var shell = document.getElementById('mg-dashboard');
+    if (shell) shell.setAttribute('data-open', 'true');
+    render();
+  }
+
   function render() {
     if (!api) return;
     var shell = document.getElementById('mg-dashboard');
     var b = api.getBooking ? api.getBooking() : null;
-    if (shell) shell.hidden = !b;
-    if (!b) return;
+    var showCalendar = calendarOpen();
+    if (shell) shell.hidden = !b || !showCalendar;
+    if (!b || !showCalendar) {
+      var grid = document.getElementById('mgMonthGrid');
+      if (grid && !showCalendar) grid.innerHTML = '';
+      return;
+    }
     if (!selectedDate) syncSelectedFromBooking();
     if (!viewYear) syncViewToSelected();
     renderMonthLabel();
@@ -396,5 +421,5 @@
     render();
   }
 
-  global.CD1GarageDashboard = { attach: attach, render: render };
+  global.CD1GarageDashboard = { attach: attach, render: render, open: open };
 })(window);

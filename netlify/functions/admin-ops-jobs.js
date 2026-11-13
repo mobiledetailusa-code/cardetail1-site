@@ -1971,7 +1971,6 @@ async function handleAdminAction(body, testOpts = {}) {
       patched = persisted.booking;
       // Idempotent by the notification ledger: a second approve_completion for the
       // same state key does not send a second completion email.
-      // Skip pay-required notify when the invoice is already settled.
       if (!alreadyPaid) {
         try {
           const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
@@ -1991,12 +1990,22 @@ async function handleAdminAction(body, testOpts = {}) {
         }
       }
       try {
-        const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
-        reviewRequest = await notifyReviewRequestedQuietly(patched, {
-          event: testOpts.event,
-          prisma: testOpts.prisma,
-          env: testOpts.env,
-        });
+        if (alreadyPaid) {
+          const { notifyIfServiceClosedAndPaid } = require('../lib/service-completion-notice');
+          reviewRequest = await notifyIfServiceClosedAndPaid(patched, {
+            event: testOpts.event,
+            prisma: testOpts.prisma,
+            env: testOpts.env,
+            source: 'approve_completion',
+          });
+        } else {
+          const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
+          reviewRequest = await notifyReviewRequestedQuietly(patched, {
+            event: testOpts.event,
+            prisma: testOpts.prisma,
+            env: testOpts.env,
+          });
+        }
       } catch (e) {
         console.warn('[admin-ops-jobs] review-request notify failed:', e.message);
       }

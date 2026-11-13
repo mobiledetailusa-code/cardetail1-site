@@ -85,6 +85,10 @@ function projectTechQuickOpsBooking(booking, shared = null) {
       payment: due,
       increase: !cancelled && !completed,
       arrive: !cancelled && !completed && !!booking.techQuickOpsTokenHash,
+      // Assigned technician, already on site, balance still due. The page does
+      // not print the customer total; the server settles the remaining balance.
+      collectCash: !cancelled && !completed && due && !!booking.arrivedAt && !!booking.techQuickOpsTokenHash,
+      collectCard: !cancelled && !completed && due && !!booking.arrivedAt && !!booking.techQuickOpsTokenHash,
     },
     mapUrl: contactRestricted ? '' : full.mapUrl,
     telUrl: contactRestricted ? '' : full.telUrl,

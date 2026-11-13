@@ -237,6 +237,13 @@ async function recordOnSitePayment(booking, opts = {}) {
     return { ok: false, error: 'postgres_payment_disabled', statusCode: 503, authority: 'unavailable' };
   }
 
+  if (method === 'card_on_site' && opts.requireReference) {
+    const reference = String(opts.reference || '').trim();
+    if (!reference) return { ok: false, error: 'reference_required', statusCode: 400 };
+    if (reference.replace(/\D/g, '').length >= 12) {
+      return { ok: false, error: 'unsafe_card_reference', statusCode: 400 };
+    }
+  }
   const body = method === 'cash'
     ? {
         reason: String(opts.reason || 'quick_ops_cash').trim().slice(0, 500),
@@ -247,6 +254,7 @@ async function recordOnSitePayment(booking, opts = {}) {
         reference: String(opts.reference || 'onsite').trim().slice(0, 120),
         expectedBookingVersion: expected,
       };
+  if (opts.amount != null && opts.amount !== '') body.amount = opts.amount;
 
   const settle = injectedSettle
     ? opts.settle
@@ -262,6 +270,20 @@ async function recordOnSitePayment(booking, opts = {}) {
   }
   if (!opts.skipNotify) {
     await notifyQuickOpsPaymentReceived(booking, result, method);
+  }
+  if (!opts.skipAutoClose && result.booking) {
+    try {
+      const { maybeAutoCloseAfterOnSitePayment } = require('./onsite-job-close');
+      result.autoClose = await maybeAutoCloseAfterOnSitePayment(result.booking, {
+        event: opts.event,
+        env,
+        prisma: opts.prisma,
+        confirmServicePerformed: opts.confirmServicePerformed === true,
+      });
+    } catch (err) {
+      console.warn('[quick-ops] auto-close failed', String(err && err.message || err).slice(0, 80));
+      result.autoClose = { ok: true, closed: false, reason: 'auto_close_failed' };
+    }
   }
   return result;
 }

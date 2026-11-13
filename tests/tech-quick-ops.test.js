@@ -499,7 +499,8 @@ describe('tech quick ops access', () => {
       },
       body: JSON.stringify({ action: 'record_cash', bookingVersion: body.view.bookingVersion }),
     });
-    assert.equal(cash.statusCode, 400);
+    assert.equal(cash.statusCode, 409);
+    assert.equal(JSON.parse(cash.body).error, 'not_authorized');
 
     const added = await techHandler.handler({
       httpMethod: 'POST',

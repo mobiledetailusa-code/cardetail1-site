@@ -214,7 +214,12 @@ function projectBookingForCustomer(b) {
   const projectedVehicles = vehiclesArr
     .map(projectVehicleForCustomer)
     .filter(Boolean);
-  const { customerFacingStatusLabel, customerFacingStatusKey } = require('./booking-customer-status');
+  const {
+    customerFacingStatusLabel,
+    customerFacingStatusKey,
+    customerPaymentLabel,
+    customerStatusSummary,
+  } = require('./booking-customer-status');
   const customerStatusKey = customerFacingStatusKey(src);
   const customerStatus = customerFacingStatusLabel(src);
   return {
@@ -229,6 +234,8 @@ function projectBookingForCustomer(b) {
     status,
     customerStatus,
     customerStatusKey,
+    statusSummary: customerStatusSummary(src),
+    paymentStatusLabel: customerPaymentLabel(src),
     jobStatus,
     paymentWorkflowStatus,
     appointmentStatus: src.appointmentStatus || (jobStatus === 'cancelled' ? 'canceled' : jobStatus === 'confirmed' ? 'confirmed' : 'pending_review'),
