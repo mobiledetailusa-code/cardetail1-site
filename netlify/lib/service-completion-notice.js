@@ -67,6 +67,30 @@ function shouldNotifyFromWebhook(result) {
   return projection.paymentStatus === 'paid' && remaining === 0;
 }
 
+/**
+ * Webhook delivery is fail-closed. A missing, blank, or unparseable completion
+ * timestamp is not recent. A valid timestamp older than the window is historical.
+ * Operator-initiated notices do not use this gate.
+ */
+function webhookCompletionGate(booking, now = Date.now()) {
+  const raw = booking && (booking.completedAt || booking.jobCompletedAt);
+  if (raw == null || String(raw).trim() === '') {
+    return { ok: false, reason: 'completion_timestamp_untrusted' };
+  }
+  const completedAt = Date.parse(raw);
+  if (!Number.isFinite(completedAt)) {
+    return { ok: false, reason: 'completion_timestamp_untrusted' };
+  }
+  const clock = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+  if (completedAt > clock + 5 * 60 * 1000) {
+    return { ok: false, reason: 'completion_timestamp_untrusted' };
+  }
+  if (clock - completedAt > WEBHOOK_NOTICE_WINDOW_MS) {
+    return { ok: false, reason: 'historical_completion' };
+  }
+  return { ok: true, completedAt };
+}
+
 async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
   try {
     if (!booking) return { ok: true, skipped: true, queued: false, reason: 'booking_required' };
@@ -74,10 +98,8 @@ async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
     const settled = invoiceSettled(booking);
     if (!settled.paid) return { ok: true, skipped: true, queued: false, reason: 'not_paid' };
     if (opts.source === 'stripe_webhook') {
-      const completedAt = Date.parse(booking.completedAt || booking.jobCompletedAt || '');
-      if (Number.isFinite(completedAt) && Date.now() - completedAt > WEBHOOK_NOTICE_WINDOW_MS) {
-        return { ok: true, skipped: true, queued: false, reason: 'historical_completion' };
-      }
+      const gate = webhookCompletionGate(booking, opts.now);
+      if (!gate.ok) return { ok: true, skipped: true, queued: false, reason: gate.reason };
     }
 
     const env = opts.env || process.env;
@@ -148,5 +170,6 @@ module.exports = {
   jobIsClosed,
   invoiceSettled,
   shouldNotifyFromWebhook,
+  webhookCompletionGate,
   notifyIfServiceClosedAndPaid,
 };

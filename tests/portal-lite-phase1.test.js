@@ -162,5 +162,126 @@ if (JSDOM) {
       assert.equal(doc.querySelectorAll('[data-portal-pay]').length, 0);
       assert.equal(doc.querySelectorAll('#pay-sticky-btn').length, 1);
     });
+
+    it('walks the signed-in appointment, payment, receipt, history, and a later change', async () => {
+      const { api, doc, window } = await boot();
+      const widths = [390, 1280];
+      for (const width of widths) {
+        window.innerWidth = width;
+        api.state.scope = 'account';
+        api.state.customerAccountId = 'acct_alice';
+        api.state.session = true;
+        api.state.customer = { profile: { firstName: 'Alice' } };
+        const history = [];
+        for (let i = 0; i < 10; i += 1) {
+          history.push({
+            id: `CD1-H${i}`,
+            status: 'Completed',
+            jobStatus: 'completed_paid',
+            paymentStatus: 'paid',
+            service: `Past service ${i}`,
+            confirmedDate: `2020-01-${String(i + 1).padStart(2, '0')}`,
+            totalPrice: 80 + i,
+            appointmentPublicRef: `aptr_hist0${i}aaaa`,
+          });
+        }
+        history.push({
+          id: 'CD1-BAD',
+          status: 'Completed',
+          jobStatus: 'completed',
+          service: 'Undated visit',
+          preferredDate: 'next Tuesday',
+          confirmedDate: '',
+          appointmentPublicRef: 'aptr_baddateaaaa',
+        });
+        api.state.bookings = [
+          {
+            id: 'CD1-NOW',
+            status: 'Confirmed',
+            jobStatus: 'confirmed',
+            service: 'Interior Detail',
+            confirmedDate: '2026-11-18',
+            preferredDate: '2026-11-18',
+            address: '1 Main St',
+            appointmentPublicRef: 'aptr_currentaaa',
+          },
+          ...history,
+        ];
+        api.state.booking = api.state.bookings[0];
+        api.state.historyLimit = 8;
+        const payment = {
+          approvedCents: 19000,
+          settledCents: 5000,
+          remainingCents: 14000,
+          amountDueApproved: 140,
+          approvedTotal: 190,
+          canPay: true,
+          canCreatePayLink: true,
+          paymentStatus: 'partially_paid',
+        };
+        api.renderDashboard({ payment });
+        const hero = doc.getElementById('upcoming-panel').textContent;
+        assert.match(hero, /Interior Detail/);
+        assert.match(hero, /2026-11-18/);
+        assert.match(hero, /Partially paid/);
+        assert.match(hero, /\$140\.00/);
+        assert.equal(doc.getElementById('home-card-reschedule').hidden, false);
+        assert.equal(doc.getElementById('home-card-book-title').textContent, 'Book another service');
+        assert.equal(doc.querySelectorAll('#history-list li').length, 8);
+        assert.equal(doc.getElementById('history-more').hidden, false);
+        assert.match(doc.getElementById('history-more').textContent, /Show more/);
+        doc.getElementById('history-more').click();
+        assert.ok(doc.querySelectorAll('#history-list li').length > 8);
+        assert.match(doc.getElementById('history-list').textContent, /Date unavailable/);
+        assert.doesNotMatch(doc.getElementById('history-list').textContent, /next Tuesday/);
+        const paymentReceipt = doc.querySelector('[data-receipt-link][href*="type=payment"]');
+        assert.ok(paymentReceipt);
+        assert.match(paymentReceipt.getAttribute('href'), /bookingId=CD1-NOW/);
+        assert.equal(doc.querySelector('[data-receipt-link][href*="type=final"]'), null);
+        api.state.booking = history[history.length - 1];
+        api.renderDashboard({ payment });
+        assert.match(doc.getElementById('upcoming-panel').textContent, /Date unavailable/);
+        assert.doesNotMatch(doc.getElementById('upcoming-panel').textContent, /next Tuesday/);
+        api.state.booking = api.state.bookings[0];
+
+        api.state.booking = {
+          ...api.state.bookings[0],
+          status: 'Completed',
+          jobStatus: 'completed_paid',
+          customerStatus: 'Completed',
+          completedAt: '2026-11-18T16:00:00.000Z',
+        };
+        api.renderDashboard({
+          payment: {
+            approvedCents: 19000,
+            settledCents: 19000,
+            remainingCents: 0,
+            amountDueApproved: 0,
+            approvedTotal: 190,
+            canPay: false,
+            paymentStatus: 'paid',
+          },
+        });
+        const after = doc.getElementById('upcoming-panel').textContent;
+        assert.match(after, /Paid/);
+        assert.doesNotMatch(after, /Payment Due|not_due/);
+        const receipt = doc.querySelector('[data-receipt-link][href*="type=final"]');
+        assert.ok(receipt);
+        assert.match(receipt.getAttribute('href'), /bookingId=CD1-NOW/);
+        assert.doesNotMatch(doc.body.textContent, /techPayout|adminNotes|CD1-OTHER/);
+
+        api.state.customerAccountId = 'acct_bob';
+        api.state.bookings = [{
+          id: 'CD1-OTHER',
+          status: 'Confirmed',
+          service: 'Other account',
+          confirmedDate: '2026-12-01',
+        }];
+        api.state.booking = api.state.bookings[0];
+        api.renderDashboard({ payment: { approvedCents: 100, settledCents: 0, remainingCents: 100 } });
+        assert.match(doc.getElementById('upcoming-panel').textContent, /Other account/);
+        assert.doesNotMatch(doc.body.textContent, /Interior Detail|CD1-NOW|CD1-H0/);
+      }
+    });
   });
 }

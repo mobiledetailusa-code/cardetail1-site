@@ -725,4 +725,78 @@ describe('on-site close', () => {
     assert.equal(replay.reason, 'historical_completion');
     assert.equal(rows.size, 1);
   });
+
+  it('refuses webhook completion texts without a trustworthy recent timestamp', async () => {
+    const rows = new Map();
+    const prisma = {
+      smsOutbox: {
+        async findUnique({ where }) {
+          return rows.get(where.idempotencyKey) || null;
+        },
+        async create({ data }) {
+          if (rows.has(data.idempotencyKey)) {
+            const err = new Error('unique');
+            err.code = 'P2002';
+            throw err;
+          }
+          const row = { id: `sms_${rows.size + 1}`, ...data };
+          rows.set(data.idempotencyKey, row);
+          return row;
+        },
+      },
+    };
+    const env = {
+      CONTEXT: 'production',
+      BRANCH: 'master',
+      URL: 'https://cardetail1.com',
+      PUBLIC_SITE_URL: 'https://cardetail1.com',
+      CUSTOMER_TRANSACTIONAL_SMS_ENABLED: 'true',
+      TWILIO_OUTBOX_ENABLED: 'true',
+      TWILIO_ENABLED: 'true',
+    };
+    const base = paidVisit({
+      jobStatus: 'completed_paid',
+      status: 'Completed',
+      phone: '2015550144',
+      transactionalSmsConsentAccepted: true,
+      transactionalSmsConsent: canonicalBookingSmsConsent(true, '2020-06-01T12:00:00.000Z', '2015550144'),
+    });
+    const now = Date.parse('2026-11-12T18:00:00.000Z');
+    const send = (booking) => notifyIfServiceClosedAndPaid(booking, {
+      prisma,
+      env,
+      source: 'stripe_webhook',
+      now,
+    });
+
+    const ancient = await send({ ...base, completedAt: '2020-01-15T12:00:00.000Z' });
+    assert.equal(ancient.reason, 'historical_completion');
+
+    const missing = { ...base };
+    delete missing.completedAt;
+    delete missing.jobCompletedAt;
+    const noStamp = await send(missing);
+    assert.equal(noStamp.reason, 'completion_timestamp_untrusted');
+
+    const blank = await send({ ...base, completedAt: '   ', jobCompletedAt: '' });
+    assert.equal(blank.reason, 'completion_timestamp_untrusted');
+
+    const invalid = await send({ ...base, completedAt: 'next Tuesday', jobCompletedAt: null });
+    assert.equal(invalid.reason, 'completion_timestamp_untrusted');
+
+    const recent = await send({ ...base, completedAt: '2026-11-12T16:00:00.000Z' });
+    assert.equal(recent.queued, true);
+    assert.equal(recent.reason, null);
+
+    const duplicate = { duplicate: true, projection: { paymentStatus: 'paid', remainingCents: 0 } };
+    assert.equal(shouldNotifyFromWebhook(duplicate), false);
+    if (shouldNotifyFromWebhook(duplicate)) await send(base);
+    assert.equal(rows.size, 1);
+
+    const latePayment = await send({ ...base, id: 'CD1-OLDPAID', completedAt: '2020-06-01T18:00:00.000Z' });
+    assert.equal(latePayment.queued, false);
+    assert.equal(latePayment.reason, 'historical_completion');
+    assert.equal(rows.size, 1);
+    assert.equal(completionIdempotencyKey(base), completionIdempotencyKey({ ...base, completedAt: '2020-01-01T00:00:00.000Z' }));
+  });
 });

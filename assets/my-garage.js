@@ -274,6 +274,12 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(String((b && (b.confirmedDate || b.preferredDate)) || ''));
   }
 
+  function displayScheduleDate(value, emptyLabel) {
+    var raw = String(value || '');
+    if (!raw) return emptyLabel || '—';
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : 'Date unavailable';
+  }
+
   function appointmentDatePassed(b) {
     var iso = String((b && (b.confirmedDate || b.preferredDate)) || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
@@ -2180,10 +2186,10 @@
     // the portal is looking for, so it sits behind a disclosure instead of
     // pushing the appointment actions off the screen.
     var siteRows = '';
-    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(b.preferredDate || '—') + '</dd></div>';
+    siteRows += '<div><dt>Preferred date</dt><dd>' + esc(displayScheduleDate(b.preferredDate)) + '</dd></div>';
     siteRows += '<div><dt>Preferred arrival window</dt><dd>' + esc(preferredArrival) + '</dd></div>';
     if (b.alternatePreferredDate) {
-      siteRows += '<div><dt>Alternate date</dt><dd>' + esc(b.alternatePreferredDate) +
+      siteRows += '<div><dt>Alternate date</dt><dd>' + esc(displayScheduleDate(b.alternatePreferredDate)) +
         (b.alternateArrivalWindow ? ' · ' + esc(arrivalLabels[b.alternateArrivalWindow] || b.alternateArrivalWindow) : '') +
         '</dd></div>';
     }
@@ -2210,7 +2216,7 @@
     // neither is repeated here. Everything else moved into the disclosure
     // below, which is what brings the appointment actions back above the fold.
     var essentialRows =
-      '<div><dt>Date</dt><dd>' + esc(b.confirmedDate || b.preferredDate || '—') + '</dd></div>' +
+      '<div><dt>Date</dt><dd>' + esc(displayScheduleDate(b.confirmedDate || b.preferredDate)) + '</dd></div>' +
       '<div><dt>Arrival window</dt><dd>' + esc(arrivalPrimary) + '</dd></div>' +
       '<div><dt>Location</dt><dd>' + esc(b.address || b.serviceLocation || '—') + '</dd></div>' +
       legacyVehicleRows +
