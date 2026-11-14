@@ -227,6 +227,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/financial-reconciliation-audit.js',
     // Production customer Stripe payments fail closed unless explicitly enabled.
     'netlify/functions/stripe-config.js',
+    // Bounded drain for confirmation analytics. Does not confirm or text.
+    'netlify/functions/confirm-analytics-recovery.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

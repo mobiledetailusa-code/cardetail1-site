@@ -180,6 +180,8 @@ const REVOPS_FUNCTION_ALLOWLIST = new Set([
   'netlify/functions/stripe-config.js',
   // Public GA4 measurement-id lookup. Returns null unless a valid id is configured.
   'netlify/functions/analytics-public-config.mjs',
+  // Bounded drain for confirmation analytics. Does not confirm or text.
+  'netlify/functions/confirm-analytics-recovery.js',
 ]);
 
 function assertOnlyAllowedFunctionDiff(tracked, label) {
