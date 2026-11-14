@@ -2391,28 +2391,33 @@ body.luxury-surface .hero h1{
   body.luxury-surface .hero-badge{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(18,24,31,.82)!important}
 }
 </style>
-<link rel="stylesheet" href="assets/home-aplus.css">
 </head>
-<body class="luxury-surface" data-home-variant="aplus">
+<body class="luxury-surface">
 
 <!-- NAV -->
 <nav class="nav" id="main-nav">
-  <a class="nav-brand-img" href="#" onclick="(document.scrollingElement||document.documentElement).scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Palisades Park NJ" decoding="async"></a>
+  <a class="nav-brand-img" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Palisades Park NJ" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" onclick="openBooking(null);document.getElementById('nav-links').classList.remove('open')">Services</a>
     <a class="nav-link" href="/ceramic-coating" onclick="document.getElementById('nav-links').classList.remove('open')">Ceramic Coating</a>
-    <!-- A+: specialty services listed individually in the mobile menu; desktop reaches them from the "Explore More Services" strip -->
-    <a class="nav-link nav-link--menu-only" href="/rv-detailing">RV &amp; Trailers</a>
-    <a class="nav-link nav-link--menu-only" href="/boats-detailing">Boats</a>
-    <a class="nav-link nav-link--menu-only" href="/trucks-detailing">Semi Trucks</a>
-    <a class="nav-link nav-link--menu-only" href="/powersports-detailing">Powersports</a>
     <a class="nav-link" href="/blog">Guides</a>
     <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" href="tel:+15513893986">Call / Text</a>
-    <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Check Prices &amp; Availability</a>
+    <a class="nav-cta booking-popup-trigger" onclick="openBooking(null)">Check Price</a>
   </div>
   <a class="nav-book-mobile" href="my-garage.html">My Garage</a>
-  <button class="nav-menu-btn" onclick="toggleNav()" aria-label="Menu" aria-controls="nav-links">☰</button>
+  <button class="nav-menu-btn" onclick="toggleNav()">☰</button>
+</nav>
+
+<nav class="specialty-service-nav" aria-label="Specialty detailing services">
+  <div class="specialty-service-nav-inner">
+    <div class="specialty-service-links">
+      <a class="specialty-service-link" href="/trucks-detailing">Semi Trucks</a>
+      <a class="specialty-service-link" href="/rv-detailing">RV &amp; Trailers</a>
+      <a class="specialty-service-link" href="/boats-detailing">Boats</a>
+      <a class="specialty-service-link" href="/powersports-detailing">Powersports</a>
+    </div>
+  </div>
 </nav>
 
 
@@ -2452,7 +2457,7 @@ body.luxury-surface .hero h1{
     <div class="hero-badge">Palisades Park, NJ · Mobile Detailing</div>
     <h1>Mobile Car Detailing<br>at Your Home or Office</h1>
 
-    <div id="zip-section" data-primary aria-label="Check price and availability by ZIP code">
+    <div id="zip-section" aria-label="Check price and availability by ZIP code">
       <div class="hero-zip-wrap hero-zip-wrap--compact">
         <label class="hero-zip-label" for="hero-zip">ZIP code</label>
         <div class="hero-zip-row">
@@ -2467,7 +2472,7 @@ body.luxury-surface .hero h1{
             oninput="onHeroZipInput(this.value)"
             onkeydown="if(event.key==='Enter')onHeroZipSubmit()"
           >
-          <button class="hero-zip-btn booking-popup-trigger" id="hero-zip-btn" type="button" onclick="onHeroZipSubmit()"><span class="hero-zip-spin" aria-hidden="true"></span><span class="hero-zip-btn-lbl">Check Prices &amp; Availability</span></button>
+          <button class="hero-zip-btn booking-popup-trigger" id="hero-zip-btn" type="button" onclick="onHeroZipSubmit()"><span class="hero-zip-spin" aria-hidden="true"></span><span class="hero-zip-btn-lbl">Check Price &amp; Availability</span></button>
         </div>
         <div class="hero-zip-feedback" id="hero-zip-feedback" aria-live="polite"></div>
       </div>
@@ -2479,26 +2484,14 @@ body.luxury-surface .hero h1{
       <span class="hero-assure-lbl">Request first, pay later</span>
     </p>
 
-    <!-- A+: starting prices in the first screen. Values come from PRICING via _updateHomeFromPrices(). -->
-    <a class="hero-prices" href="#services" aria-label="See packages and starting prices">
-      <span class="hero-price"><em>Interior</em> from <b id="hero-from-interior">$200</b></span>
-      <span class="hero-price"><em>Full Detail</em> from <b id="hero-from-full">$250</b></span>
-      <span class="hero-price"><em>Exterior</em> from <b id="hero-from-refresh">$335</b></span>
-    </a>
-
-    <!-- A+ review: compact access to specialty services from the first screen.
-         Native <details> disclosure (keyboard + screen reader support, works
-         without JS); real links to the existing dedicated pages. -->
-    <details class="hero-more" id="hero-more">
-      <summary class="hero-more-btn">Explore other services</summary>
-      <ul class="hero-more-list" aria-label="Other services">
-        <li><a href="/ceramic-coating">Ceramic Coating</a></li>
-        <li><a href="/rv-detailing">RV Detailing</a></li>
-        <li><a href="/boats-detailing">Boat Detailing</a></li>
-        <li><a href="/trucks-detailing">Semi Trucks</a></li>
-        <li><a href="/powersports-detailing">Powersports</a></li>
-      </ul>
-    </details>
+    <div class="hero-quote-call">
+      <p class="hero-quote-call-label">Call or text for a quote</p>
+      <a class="hero-quote-call-number" href="tel:+15513893986">(551) 389-3986</a>
+      <div class="hero-quote-call-actions">
+        <a class="hero-quote-call-btn hero-quote-call-btn--call" href="tel:+15513893986">Call now</a>
+        <a class="hero-quote-call-btn hero-quote-call-btn--text" href="sms:+15513893986">Text us</a>
+      </div>
+    </div>
 
     <ul class="hero-trust-line" aria-label="Why customers book Cardetail1">
       <li><span class="hero-trust-chip">5+ Years Experience</span></li>
@@ -2508,18 +2501,28 @@ body.luxury-surface .hero h1{
     </ul>
     <p class="hero-owner-line">The person you book is the person who shows up.</p>
 
-    <!-- A+: one compact call/text line instead of a second block of buttons -->
-    <div class="hero-quote-call hero-quote-call--compact">
-      <p class="hero-quote-call-label">Call or text for a quote</p>
-      <a class="hero-quote-call-number" href="tel:+15513893986">(551) 389-3986</a>
-      <a class="hero-quote-call-sms" href="sms:+15513893986">Text us</a>
-    </div>
+    <a class="hero-packages-link" href="#services" onclick="document.getElementById('services').scrollIntoView({behavior:'smooth'});return false;">See packages</a>
   </div>
 </section>
 
-<!-- A+: the vehicle-category carousel that sat here moved into the compact
-     "Explore More Services" strip below the packages (same destinations, same
-     starting prices from formatLocFrom). Service-area copy lives in #service-areas. -->
+<!-- LOCATION CAROUSEL -->
+<div class="loc-section cd1-tone-base" id="loc-section">
+  <div class="loc-inner">
+    <div class="loc-header">
+      <div class="cd1-head">
+        <div class="sec-eye" style="text-align:left;margin-bottom:6px">Service area</div>
+        <div class="sec-title" style="font-family:var(--fb);font-size:clamp(22px,3.5vw,32px);font-weight:600;color:var(--ink);letter-spacing:-.02em;line-height:1.2;text-align:left">Mobile detailing<br><span style="color:var(--blue)">near you</span></div>
+        <p class="loc-area-desc">Based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. <span class="loc-area-ext">Extended service areas available by quote.</span></p>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <span class="loc-v2-hint">Choose your vehicle</span>
+        <div id="loc-zone-pill" class="loc-zone-pill" style="display:none">📍 <span id="loc-pill-text">Detected</span></div>
+        <div id="loc-surcharge-msg" class="loc-surcharge" style="display:none"></div>
+      </div>
+    </div>
+    <div class="loc-scroll" id="loc-scroll"></div>
+  </div>
+</div>
 
 <!-- SERVICES — car-first purchase path -->
 <div id="services" class="cd1-tone-raised">
@@ -2527,17 +2530,7 @@ body.luxury-surface .hero h1{
     <div class="car-pkg-intro cd1-head">
       <div class="sec-eye">Featured packages</div>
       <h2 class="sec-title">Popular services</h2>
-      <p class="sec-desc">The three packages customers book most. Pick your vehicle to see its starting price — add-ons and any travel fee are shown in booking before you send a request.</p>
-    </div>
-
-    <!-- A+: display-only vehicle size selector. It changes the starting prices shown
-         on the cards; it does NOT set the booking vehicle class (booking still
-         classifies make/model/year through the vehicle catalog). -->
-    <div class="home-tier-seg" role="radiogroup" aria-label="Vehicle size for starting prices" data-home-tier>
-      <button type="button" role="radio" aria-checked="true" data-tier="small">Sedan / coupe</button>
-      <button type="button" role="radio" aria-checked="false" data-tier="suv2">SUV 2-row</button>
-      <button type="button" role="radio" aria-checked="false" data-tier="suv3">SUV 3-row / minivan</button>
-      <button type="button" role="radio" aria-checked="false" data-tier="truck">Pickup truck</button>
+      <p class="sec-desc">The three packages customers book most. Price follows the vehicle.</p>
     </div>
 
     <div class="car-pkg-grid">
@@ -2560,7 +2553,7 @@ body.luxury-surface .hero h1{
               <span class="car-pkg-price-note" id="home-from-interior-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Choose Interior</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('interior')">Book this package</button>
         </div>
       </article>
       <article class="car-pkg-card car-pkg-card--popular" data-pkg="full">
@@ -2582,7 +2575,7 @@ body.luxury-surface .hero h1{
               <span class="car-pkg-price-note" id="home-from-full-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Choose Full Detail</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('full')">Book this package</button>
         </div>
       </article>
       <article class="car-pkg-card" data-pkg="refresh">
@@ -2604,34 +2597,15 @@ body.luxury-surface .hero h1{
               <span class="car-pkg-price-note" id="home-from-refresh-note">priced by vehicle type</span>
             </div>
           </div>
-          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('refresh')">Choose Exterior</button>
+          <button type="button" class="car-pkg-cta" onclick="openBookingCarPkg('refresh')">Book this package</button>
         </div>
       </article>
     </div>
 
-    <p class="home-tier-note" aria-live="polite"><span data-home-tier-note>Starting prices for a sedan / coupe.</span> Vans and other vehicles are priced in booking from your make, model and year. Your estimate is shown in booking before you send a request.</p>
-
     <div class="cd1-multi-cta" data-cd1-multi-vehicle-section>
       <p>Detail 2 or more vehicles in one visit</p>
-      <button type="button" class="btn-outline booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
+      <button type="button" class="btn-primary booking-popup-trigger" data-booking-multi-home="1" onclick="(function(){ try{ if(window.ST){ ST._forceMultiVehicle=true; } }catch(e){} openBooking(null); setTimeout(function(){ var b=document.querySelector('.btn-add-veh'); if(b){ b.style.outline='2px solid #4da3ff'; b.scrollIntoView({block:'nearest',behavior:'smooth'}); } }, 500); })()">Book Multiple Vehicles</button>
     </div>
-
-    <!-- A+: compact "Explore More Services" strip. Links go to the existing
-         dedicated pages; starting prices are filled from formatLocFrom(). -->
-    <section class="home-xs" aria-labelledby="home-xs-h">
-      <h2 class="home-xs-h" id="home-xs-h">Explore More Services</h2>
-      <a class="home-xs-feature" href="/ceramic-coating"><b>Ceramic Coating</b><span>Paint protection, up to 1 or 3 years · from <span data-xs-from="ceramic">$650</span></span></a>
-      <nav class="specialty-service-nav" aria-label="Specialty detailing services">
-        <div class="specialty-service-nav-inner">
-          <div class="specialty-service-links">
-            <a class="specialty-service-link" href="/trucks-detailing"><b>Semi Trucks</b><span class="home-xs-from" data-xs-from="trucks">From $295</span></a>
-            <a class="specialty-service-link" href="/rv-detailing"><b>RV &amp; Trailers</b><span class="home-xs-from" data-xs-from="rvs">Exterior wash from $199</span></a>
-            <a class="specialty-service-link" href="/boats-detailing"><b>Boats</b><span class="home-xs-from" data-xs-from="boats">From $175</span></a>
-            <a class="specialty-service-link" href="/powersports-detailing"><b>Powersports</b><span class="home-xs-from" data-xs-from="powersports">From $180</span></a>
-          </div>
-        </div>
-      </nav>
-    </section>
   </div>
 </div>
 
@@ -2691,10 +2665,11 @@ body.luxury-surface .hero h1{
 
 <div class="car-addons-block">
       <p class="car-addons-sub">Compatible add-ons are shown during booking.</p>
+      <button type="button" class="btn-outline" onclick="openBooking(null)">Check price and options</button>
     </div>
 
     <div class="car-services-cta">
-      <button type="button" class="btn-outline booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">View all packages</button>
       <button type="button" class="btn-outline" id="home-specialty-cta" onclick="openBooking(null)">Semi trucks, boats, RVs &amp; powersports</button>
     </div>
   </div>
@@ -3069,6 +3044,10 @@ body.luxury-surface .hero h1{
       <div class="cred-item"><span>📋</span><span><b>Clear packages</b> — know what you're booking</span></div>
       <div class="cred-item"><span>🔒</span><span><b>Secure checkout</b> — payment terms shown before confirmation</span></div>
     </div>
+    <div class="results-cta">
+      <button class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
+      <button class="btn-outline" onclick="openBooking(null)">View all packages</button>
+    </div>
   </div>
 </div>
 
@@ -3094,6 +3073,7 @@ body.luxury-surface .hero h1{
 
     <div class="rv-actions">
       <a class="btn-outline" id="rv-view-all" href="/reviews">View all reviews</a>
+      <button type="button" class="btn-primary booking-popup-trigger" onclick="openBooking(null)">Book Your Detail</button>
       <a class="btn-outline" href="my-garage.html#lookup">Leave a Cardetail1 review</a>
       <a class="btn-outline" href="https://g.page/r/CTJwfJerrQeCEAI/review" target="_blank" rel="noopener noreferrer">Leave a Google Review</a>
     </div>
@@ -3170,10 +3150,10 @@ body.luxury-surface .hero h1{
         <a class="pc-number" href="tel:+15513893986">(551) 389-3986</a>
         <div class="pc-note">Monday–Saturday · By Appointment Only · Palisades Park, NJ · Bergen County &amp; nearby NJ/NY</div>
       </div>
-      <div class="phone-cta" data-primary>
+      <div class="phone-cta">
         <div class="pc-ico">📅</div>
         <div class="pc-title">Ready to book?</div>
-        <button class="btn-primary booking-popup-trigger" style="font-size:14px;padding:14px 28px;margin-bottom:8px" onclick="openBooking(null)">Check Prices &amp; Availability</button>
+        <button class="btn-primary booking-popup-trigger" style="font-size:14px;padding:14px 28px;margin-bottom:8px" onclick="openBooking(null)">Book Your Detail</button>
         <div class="pc-note">We text to confirm your appointment time and day.</div>
       </div>
     </div>
@@ -3182,11 +3162,10 @@ body.luxury-surface .hero h1{
 
 <!-- BACK TO TOP -->
 <!-- MOBILE STICKY CTA -->
-<!-- A+: two actions only (My Garage stays in the header). Hidden while a primary
-     CTA (hero ZIP, final CTA) is on screen — see assets/home-aplus.js. -->
 <div class="mobile-sticky-cta" id="mobile-sticky-cta">
-  <a class="msc-call" href="tel:+15513893986" aria-label="Call (551) 389-3986"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg><span>Call</span></a>
-  <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check Prices &amp; Availability</button>
+  <button class="msc-book booking-popup-trigger" onclick="openBooking(null)">Check price</button>
+  <button class="msc-portal" onclick="openPortal()">My Garage</button>
+  <a class="msc-call" href="tel:+15513893986">📞 Call</a>
 </div>
 
 <!-- FOOTER -->
@@ -9304,7 +9283,7 @@ function setHeroZipLoading(on){
     btn.disabled = on;
     btn.classList.toggle('loading', on);
     const lbl = btn.querySelector('.hero-zip-btn-lbl');
-    if(lbl) lbl.textContent = on ? 'Loading…' : 'Check Prices & Availability';
+    if(lbl) lbl.textContent = on ? 'Loading…' : 'Check Price & Availability';
   }
   if(inp) inp.disabled = on;
 }
@@ -9372,30 +9351,6 @@ function _updateHomeFromPrices(){
   const fullNote=document.getElementById('home-from-full-note');
   if(fullAmt) fullAmt.textContent=fmtFull(tiers.small.full);
   if(fullNote) fullNote.textContent='priced by vehicle type';
-  // A+ homepage: hero starting prices (lowest tier, same formula as the cards).
-  setPkgAmt('hero-from-interior','interior');
-  setPkgAmt('hero-from-refresh','refresh');
-  const heroFull=document.getElementById('hero-from-full');
-  if(heroFull) heroFull.textContent=fmtFull(tiers.small.full);
-  // A+ homepage: display-only vehicle selector. Shows the selected tier's
-  // starting price on the three cards; booking still classifies the vehicle.
-  const selTier=window.CD1HomeTier&&tiers[window.CD1HomeTier]?window.CD1HomeTier:'';
-  if(selTier){
-    ['interior','full','refresh'].forEach((field)=>{
-      const amt=document.getElementById('home-from-'+field);
-      const note=document.getElementById('home-from-'+field+'-note');
-      const base=tiers[selTier][field];
-      if(amt&&base) amt.textContent='$'+(applyRichPrice(base)+fee);
-      if(note) note.textContent='starting price · '+(window.CD1HomeTierLabel||'selected vehicle');
-    });
-  }
-  // A+ homepage: "Explore More Services" strip, same source as the old category carousel.
-  document.querySelectorAll('[data-xs-from]').forEach((el)=>{
-    const cat=el.getAttribute('data-xs-from');
-    try{
-      el.textContent=cat==='ceramic'?'$'+(applyRichPrice(minTier('ceramic_1yr'))+fee):formatLocFrom(cat);
-    }catch(e){}
-  });
 }
 
 function renderHomeAddons(){}
@@ -10058,6 +10013,5 @@ body.cd1-booking-embed #cd-chat{display:none!important}
 <script src="assets/booking-availability-client.js"></script>
 
   <script src="assets/back-to-top.js" defer></script>
-  <script src="assets/home-aplus.js" defer></script>
 </body>
 </html>

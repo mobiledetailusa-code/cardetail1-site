@@ -133,7 +133,7 @@ test('neither utility field is required to advance past the contact step', () =>
 test('cold-traffic entry points use discovery language', () => {
   assert.match(
     read('index.html'),
-    /hero-zip-btn-lbl">Check Prices &amp; Availability<\/span>/,
+    /hero-zip-btn-lbl">Check Price &amp; Availability<\/span>/,
     'index hero ZIP CTA is not the discovery CTA',
   );
   assert.match(
@@ -177,12 +177,7 @@ test('discovery CTAs still open the same booking flow', () => {
 
 test('in-context CTAs keep booking intent (the hierarchy has two levels)', () => {
   const index = read('index.html');
-  // A+ homepage: generic booking CTAs share one label; the lower-funnel entry is the final CTA.
-  // Bounded to the final CTA block so the sticky bar's identical button cannot satisfy it.
-  const finalStart = index.indexOf('<div class="phone-cta" data-primary>');
-  assert.ok(finalStart >= 0, 'index lost its lower-funnel booking CTA block');
-  const finalCta = index.slice(finalStart, index.indexOf('</div>\n    </div>', finalStart));
-  assert.match(finalCta, /class="btn-primary booking-popup-trigger"[^>]*onclick="openBooking\(null\)">Check Prices &amp; Availability<\/button>/, 'index lost its lower-funnel booking CTA');
+  assert.match(index, />Book Your Detail<\/button>/, 'index lost its lower-funnel booking CTA');
 });
 
 // ── D. Availability copy must track the enforced scheduling rule ──────────────

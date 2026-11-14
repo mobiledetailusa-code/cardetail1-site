@@ -376,13 +376,9 @@ test('16. mobile structure is valid', () => {
 test('17. existing booking CTA remains available', () => {
   const sectionStart = index.indexOf('<div id="reviews"');
   const section = index.slice(sectionStart, index.indexOf('<section class="home-service-areas"'));
-  // A+ homepage: no booking button inside reviews; the final CTA after service areas keeps the entry.
-  const finalStart = index.indexOf('<div class="phone-cta" data-primary>');
-  const finalCta = index.slice(finalStart, index.indexOf('</div>\n    </div>', finalStart));
-  assert.ok(finalStart > index.indexOf('<section class="home-service-areas"'), 'final CTA must follow service areas');
-  assert.match(finalCta, /onclick="openBooking\(null\)"/);
-  assert.match(finalCta, /Check Prices &amp; Availability/);
-  assert.match(finalCta, /booking-popup-trigger/);
+  assert.match(section, /onclick="openBooking\(null\)"/);
+  assert.match(section, /Book Your Detail/);
+  assert.match(section, /booking-popup-trigger/);
 });
 
 test('18. Admin Publish/Hide contract unchanged', () => {
