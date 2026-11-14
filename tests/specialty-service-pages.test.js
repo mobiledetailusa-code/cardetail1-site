@@ -230,12 +230,28 @@ describe('homepage specialty switcher placement and state', () => {
     assert.equal(blocks.length, 1);
   });
 
-  it('homepage switcher appears after global header and before hero', () => {
+  it('homepage switcher sits in the Explore More Services strip right after the packages', () => {
+    // A+ homepage: the switcher moved from above the hero to below the car packages.
     const html = read('index.html');
-    const mainNav = html.indexOf('id="main-nav"');
+    const packages = html.indexOf('class="car-pkg-grid"');
+    const strip = html.indexOf('class="home-xs"');
     const specialty = html.indexOf('class="specialty-service-nav"');
-    const hero = html.indexOf('<section class="hero">');
-    assert.ok(mainNav >= 0 && specialty > mainNav && hero > specialty);
+    const ceramic = html.indexOf('id="ceramic-coating"');
+    assert.ok(packages >= 0 && strip > packages && specialty > strip && ceramic > specialty);
+    assert.match(html, /<a class="home-xs-feature" href="\/ceramic-coating">/);
+  });
+
+  it('homepage hero offers the five specialty services as real links in a disclosure', () => {
+    // A+ review: compact access from the first screen (no extra specialty-service-nav).
+    const html = read('index.html');
+    const hero = html.slice(html.indexOf('<section class="hero">'), html.indexOf('</section>', html.indexOf('<section class="hero">')));
+    const more = hero.match(/<details class="hero-more"[\s\S]*?<\/details>/);
+    assert.ok(more, 'hero disclosure missing');
+    assert.match(more[0], /<summary class="hero-more-btn">Explore other services<\/summary>/);
+    assert.doesNotMatch(more[0], /onclick=/);
+    const hrefs = [...more[0].matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    assert.deepEqual(hrefs, ['/ceramic-coating', '/rv-detailing', '/boats-detailing', '/trucks-detailing', '/powersports-detailing']);
+    for (const h of hrefs) assert.ok(exists(h.slice(1) + '.html'), h + ' page missing');
   });
 
   it('homepage switcher has exactly four links in Trucks / RV / Boats / Powersports order', () => {
