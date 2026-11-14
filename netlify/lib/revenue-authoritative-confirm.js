@@ -11,9 +11,10 @@
 // the record immutable.
 //
 // A Postgres outage does not invent $0 and does not fall back to the blob.
-// The booking confirmation still stands. The next authorized confirm of this
-// same booking retries the event. Bookings confirmed before this marker existed
-// are not scanned and are not backfilled.
+// The booking confirmation still stands. A pending key in the booking store
+// lets a bounded recovery pass finish the event without a second confirm.
+// Bookings confirmed before this marker existed have no pending key and are
+// not scanned.
 
 'use strict';
 
@@ -21,6 +22,8 @@ const crypto = require('crypto');
 
 const SERVER_SESSION = 'server_confirm';
 const EVENT_NAME = 'booking_confirmed';
+const PENDING_PREFIX = 'confirm-analytics-pending:';
+const RECOVERY_LIMIT = 20;
 
 let revenueDeps = null;
 let quoteReader = null;
@@ -177,20 +180,136 @@ async function persistEvent(eventId, properties) {
   let canonical = reservation;
   if (!reservationWrite.created) {
     canonical = await stores.read(idemStore, idemKey);
-    if (!reservationIsUsable(canonical, eventId)) {
+    if (!reservationIsUsable(canonical, eventId) || canonical.record.event !== EVENT_NAME) {
       throw new Error('idempotency_reservation_invalid');
     }
-    if (canonical.fingerprint !== fingerprint) {
+    const owner = canonical.record.properties && canonical.record.properties.booking_reference;
+    const caller = properties.booking_reference;
+    if (owner && caller && owner !== caller) {
+      // The id already belongs to another booking. Finish that booking's
+      // original projection if it is missing, and do not attach this caller.
+      const eventStore = await stores.get('events');
+      await stores.create(eventStore, canonical.storeKey, canonical.record);
       return { ok: false, retryable: false, reason: 'event_id_conflict' };
     }
+    // Same confirmation. A later approved amount must not replace the record
+    // captured by this reservation, and must not block its projection.
   }
   const eventStore = await stores.get('events');
   const eventWrite = await stores.create(eventStore, canonical.storeKey, canonical.record);
   return {
     ok: true,
     duplicate: !reservationWrite.created || !eventWrite.created,
+    preservedOriginal: !reservationWrite.created && canonical.fingerprint !== fingerprint,
     storeKey: canonical.storeKey,
   };
+}
+
+async function bookingStore() {
+  const { getStore } = require('./booking-repository');
+  return getStore();
+}
+
+async function enqueuePending(booking) {
+  try {
+    const store = await bookingStore();
+    const id = String(booking.id || booking.bookingId || '').trim();
+    const eventId = String(booking.confirmationAnalytics.eventId || '').trim();
+    if (!id || !eventId || typeof store.setJSON !== 'function') return;
+    const key = `${PENDING_PREFIX}${id}`;
+    const existing = typeof store.get === 'function'
+      ? await store.get(key, { type: 'json' }).catch(() => null)
+      : null;
+    if (existing && existing.eventId) return;
+    await store.setJSON(key, { bookingId: id, eventId }, { onlyIfNew: true });
+  } catch (err) {
+    console.warn('[revenue-confirm] pending_index_failed', String(err && err.message || err).slice(0, 120));
+  }
+}
+
+async function deletePending(bookingId) {
+  try {
+    const store = await bookingStore();
+    if (typeof store.delete !== 'function') return;
+    await store.delete(`${PENDING_PREFIX}${bookingId}`);
+  } catch (err) {
+    console.warn('[revenue-confirm] pending_delete_failed', String(err && err.message || err).slice(0, 120));
+  }
+}
+
+async function listPending(store, cap) {
+  if (!store || typeof store.list !== 'function') return [];
+  const take = (blobs) => {
+    const out = [];
+    for (const blob of blobs || []) {
+      const key = blob && (blob.key || blob.blobKey || blob);
+      if (key && String(key).startsWith(PENDING_PREFIX)) out.push(String(key));
+      if (out.length >= cap) break;
+    }
+    return out;
+  };
+  try {
+    const listed = await store.list({ prefix: PENDING_PREFIX, paginate: true });
+    if (listed && typeof listed[Symbol.asyncIterator] === 'function') {
+      const out = [];
+      for await (const page of listed) {
+        out.push(...take(page && page.blobs));
+        if (out.length >= cap) return out.slice(0, cap);
+      }
+      return out;
+    }
+    if (listed && listed.blobs) return take(listed.blobs);
+  } catch (err) {
+    console.warn('[revenue-confirm] pending_list_failed', String(err && err.message || err).slice(0, 120));
+  }
+  try {
+    const listing = await store.list({ prefix: PENDING_PREFIX });
+    return take(listing && listing.blobs);
+  } catch (err) {
+    console.warn('[revenue-confirm] pending_list_failed', String(err && err.message || err).slice(0, 120));
+    return [];
+  }
+}
+
+/**
+ * Finish confirmation events whose booking commit already succeeded.
+ * Reads only the pending index written for the new marker. One pass is capped.
+ * It does not confirm, cancel, or rewrite a booking.
+ */
+async function recoverPendingConfirmations({ limit = RECOVERY_LIMIT } = {}) {
+  const cap = Math.min(Math.max(Math.round(Number(limit) || RECOVERY_LIMIT), 1), 25);
+  const store = await bookingStore();
+  const keys = await listPending(store, cap);
+  let recovered = 0;
+  let waiting = 0;
+  let dropped = 0;
+  for (const key of keys) {
+    const pending = typeof store.get === 'function'
+      ? await store.get(key, { type: 'json' }).catch(() => null)
+      : null;
+    const bookingId = pending && pending.bookingId;
+    if (!bookingId) {
+      if (typeof store.delete === 'function') await store.delete(key);
+      dropped += 1;
+      continue;
+    }
+    const { getBookingRecord } = require('./booking-repository');
+    const rec = await getBookingRecord(bookingId);
+    const marker = rec.booking && rec.booking.confirmationAnalytics;
+    const eligible = rec.exists
+      && marker
+      && marker.required === true
+      && marker.eventId === pending.eventId;
+    if (!eligible) {
+      if (typeof store.delete === 'function') await store.delete(key);
+      dropped += 1;
+      continue;
+    }
+    const result = await settleAuthoritativeConfirmation(rec.booking);
+    if (result && result.ok) recovered += 1;
+    else waiting += 1;
+  }
+  return { ok: true, recovered, waiting, dropped, scanned: keys.length };
 }
 
 /**
@@ -211,11 +330,13 @@ async function settleAuthoritativeConfirmation(booking) {
     if (!eventId || eventId.length > 128) {
       return { ok: false, retryable: false, reason: 'invalid_event_id' };
     }
+    await enqueuePending(booking);
     const amount = await resolveAmount(booking);
     if (amount.state === 'unavailable') {
       return { ok: false, retryable: true, reason: 'amount_authority_unavailable' };
     }
     const stored = await persistEvent(eventId, eventProperties(booking, eventId, amount));
+    if (stored && stored.ok) await deletePending(booking.id || booking.bookingId);
     return stored;
   } catch (err) {
     console.warn('[revenue-confirm] emit_failed', String(err && err.message || err).slice(0, 120));
@@ -225,6 +346,7 @@ async function settleAuthoritativeConfirmation(booking) {
 
 module.exports = {
   settleAuthoritativeConfirmation,
+  recoverPendingConfirmations,
   setAuthoritativeConfirmDeps,
   resetAuthoritativeConfirmDeps,
   setConfirmationQuoteReader,

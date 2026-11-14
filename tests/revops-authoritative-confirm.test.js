@@ -13,6 +13,7 @@ const { confirmBookingTransition } = require('../netlify/lib/booking-confirm');
 const { cancelBookingTransition } = require('../netlify/lib/booking-cancel');
 const { confirmQuickOps } = require('../netlify/lib/admin-quick-ops-actions');
 const {
+  recoverPendingConfirmations,
   setAuthoritativeConfirmDeps,
   resetAuthoritativeConfirmDeps,
   setConfirmationQuoteReader,
@@ -420,6 +421,150 @@ test('cancelling a booking does not create a confirmation event', async () => {
   assert.equal(confirmationRecords(deps).length, 1);
   const stored = await getBookingRecord('CD1-CANCEL-DONE');
   assert.notEqual(stored.booking.appointmentStatus, 'confirmed');
+});
+
+function attachPendingList(store) {
+  store.list = async ({ prefix = '' } = {}) => {
+    const blobs = [];
+    for (const key of store._data.keys()) {
+      if (!prefix || String(key).startsWith(prefix)) blobs.push({ key });
+    }
+    return { blobs };
+  };
+  return store;
+}
+
+test('a changed approved amount finishes the original reservation', async () => {
+  const booking = pendingBooking('CD1-AMOUNT-CHANGE');
+  const store = attachPendingList(createCasMemoryStore({ [booking.id]: booking }));
+  setBookingStoreOverride(store);
+  let cents = 22000;
+  setConfirmationQuoteReader(async () => ({ state: 'ready', approvedCents: cents }));
+  const deps = memoryRevenue();
+  const realCreate = deps.create.bind(deps);
+  let failProjection = true;
+  deps.create = async (target, key, value) => {
+    if (failProjection && !String(key).startsWith('evt:')) {
+      failProjection = false;
+      throw new Error('projection down');
+    }
+    return realCreate(target, key, value);
+  };
+  setAuthoritativeConfirmDeps(deps);
+  const first = await confirmBookingTransition({ bookingId: booking.id, now: NOW, by: 'admin' });
+  assert.equal(first.transitioned, true);
+  assert.equal(confirmationRecords(deps).length, 0);
+  cents = 31000;
+  const second = await confirmBookingTransition({
+    bookingId: booking.id,
+    now: '2026-07-24T21:00:00.000Z',
+    by: 'admin',
+  });
+  assert.equal(second.idempotent, true);
+  const records = confirmationRecords(deps);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].value.properties.estimated_value, 220);
+  assert.equal(records[0].value.properties.booking_reference, booking.id);
+  assert.equal(records[0].value.properties.event_origin, 'server_confirm');
+});
+
+test('another booking cannot reuse a confirmation event id', async () => {
+  const firstBooking = pendingBooking('CD1-OWNER-1');
+  const deps = install(firstBooking, { state: 'ready', approvedCents: 22000 });
+  const first = await confirmBookingTransition({ bookingId: firstBooking.id, now: NOW, by: 'admin' });
+  const stolenId = first.booking.confirmationEventId;
+  const other = pendingBooking('CD1-OWNER-2', {
+    status: 'Confirmed',
+    appointmentStatus: 'confirmed',
+    jobStatus: 'confirmed',
+    confirmedAt: NOW,
+    confirmationEventId: stolenId,
+    confirmationAnalytics: { required: true, eventId: stolenId, storedApprovedDollars: 999 },
+  });
+  setBookingStoreOverride(createCasMemoryStore({
+    [firstBooking.id]: first.booking,
+    [other.id]: other,
+  }));
+  setAuthoritativeConfirmDeps(deps);
+  setConfirmationQuoteReader(async () => ({ state: 'ready', approvedCents: 99900 }));
+  const replay = await confirmBookingTransition({ bookingId: other.id, now: '2026-07-24T22:00:00.000Z', by: 'admin' });
+  assert.equal(replay.idempotent, true);
+  const records = confirmationRecords(deps);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].value.properties.booking_reference, firstBooking.id);
+  assert.equal(records[0].value.properties.estimated_value, 220);
+});
+
+test('a missed event is recovered without another confirmation', async () => {
+  const booking = pendingBooking('CD1-RECOVER-AUTO');
+  const historical = pendingBooking('CD1-RECOVER-OLD', {
+    status: 'Confirmed',
+    appointmentStatus: 'confirmed',
+    jobStatus: 'confirmed',
+    confirmedAt: '2026-01-01T00:00:00.000Z',
+    confirmationEventId: 'confirmed:CD1-RECOVER-OLD:2026-01-01T00:00:00.000Z',
+  });
+  const store = attachPendingList(createCasMemoryStore({
+    [booking.id]: booking,
+    [historical.id]: historical,
+  }));
+  setBookingStoreOverride(store);
+  setConfirmationQuoteReader(async () => ({ state: 'ready', approvedCents: 22000 }));
+  const deps = memoryRevenue();
+  const realCreate = deps.create.bind(deps);
+  let failProjection = true;
+  deps.create = async (target, key, value) => {
+    if (failProjection && !String(key).startsWith('evt:')) throw new Error('projection down');
+    return realCreate(target, key, value);
+  };
+  setAuthoritativeConfirmDeps(deps);
+  const confirmed = await confirmBookingTransition({ bookingId: booking.id, now: NOW, by: 'admin' });
+  assert.equal(confirmed.transitioned, true);
+  assert.equal(confirmationRecords(deps).length, 0);
+  const version = confirmed.booking.bookingVersion;
+  failProjection = false;
+  const recovery = await recoverPendingConfirmations({ limit: 20 });
+  assert.equal(recovery.recovered, 1);
+  assert.equal(confirmationRecords(deps).length, 1);
+  assert.equal(confirmationRecords(deps)[0].value.properties.estimated_value, 220);
+  const stored = await getBookingRecord(booking.id);
+  assert.equal(stored.booking.bookingVersion, version);
+  assert.equal(stored.booking.status, 'Confirmed');
+  const again = await recoverPendingConfirmations({ limit: 20 });
+  assert.equal(again.recovered, 0);
+  assert.equal(again.scanned, 0);
+  assert.equal(confirmationRecords(deps).length, 1);
+  const old = await getBookingRecord(historical.id);
+  assert.equal(old.booking.confirmationAnalytics, undefined);
+});
+
+test('recovery is capped and ignores a caller-supplied booking id', async () => {
+  const deps = memoryRevenue();
+  setAuthoritativeConfirmDeps(deps);
+  setConfirmationQuoteReader(async () => ({ state: 'ready', approvedCents: 10000 }));
+  const rows = ['CD1-CAP-1', 'CD1-CAP-2', 'CD1-CAP-3'].map((id) => pendingBooking(id));
+  const store = attachPendingList(createCasMemoryStore(Object.fromEntries(rows.map((row) => [row.id, row]))));
+  setBookingStoreOverride(store);
+  const realCreate = deps.create.bind(deps);
+  deps.create = async () => { throw new Error('blob down'); };
+  for (const row of rows) {
+    const result = await confirmBookingTransition({ bookingId: row.id, now: NOW, by: 'admin' });
+    assert.equal(result.transitioned, true);
+  }
+  deps.create = realCreate;
+  const firstPass = await recoverPendingConfirmations({ limit: 1 });
+  assert.equal(firstPass.scanned, 1);
+  assert.equal(firstPass.recovered, 1);
+  assert.equal(confirmationRecords(deps).length, 1);
+  const handler = require('../netlify/functions/confirm-analytics-recovery').handler;
+  const response = await handler({
+    httpMethod: 'POST',
+    body: JSON.stringify({ bookingId: 'CD1-RECOVER-OLD', event: 'booking_confirmed' }),
+  });
+  const body = JSON.parse(response.body);
+  assert.equal(body.scanned <= 2, true);
+  assert.equal(confirmationRecords(deps).length <= 3, true);
+  assert.ok(confirmationRecords(deps).every((row) => row.value.properties.event_origin === 'server_confirm'));
 });
 
 test('already confirmed bookings without the marker are not backfilled', async () => {
