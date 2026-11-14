@@ -6,6 +6,7 @@
 
 const { getBookingRecord, commitBooking, setBookingStoreOverride } = require('./booking-repository');
 const { portalReleasePatch } = require('./booking-visibility');
+const { settleAuthoritativeConfirmation } = require('./revenue-authoritative-confirm');
 
 const MAX_CAS_ATTEMPTS = 4;
 
@@ -15,6 +16,37 @@ function isConfirmedBooking(booking) {
   const js = String(booking.jobStatus || '').toLowerCase();
   const st = String(booking.status || '').toLowerCase();
   return appt === 'confirmed' || js === 'confirmed' || st === 'confirmed';
+}
+
+function explicitApprovedDollars(raw) {
+  if (!raw || typeof raw !== 'object' || !Object.prototype.hasOwnProperty.call(raw, 'approvedFinalAmount')) {
+    return null;
+  }
+  if (raw.approvedFinalAmount == null || raw.approvedFinalAmount === '') return null;
+  const amount = Number(raw.approvedFinalAmount);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  return Math.round(amount * 100) / 100;
+}
+
+function confirmationMarker(booking, eventId, raw) {
+  const existing = booking && booking.confirmationAnalytics;
+  if (existing && existing.required === true && existing.eventId) return existing;
+  // Capture the pre-normalize amount. Later reads of the stored aggregate can
+  // derive approvedFinalAmount from totalPrice, and that derived number is not
+  // an approved amount.
+  return {
+    required: true,
+    eventId,
+    storedApprovedDollars: explicitApprovedDollars(raw),
+  };
+}
+
+async function settleConfirmationAnalytics(booking) {
+  try {
+    await settleAuthoritativeConfirmation(booking);
+  } catch (err) {
+    console.warn('[booking-confirm] analytics_emit_failed', String(err && err.message || err).slice(0, 120));
+  }
 }
 
 function appendConfirmEvent(booking, now, by) {
@@ -48,6 +80,7 @@ async function confirmBookingTransition({
 
     const booking = current.booking;
     if (isConfirmedBooking(booking)) {
+      await settleConfirmationAnalytics(booking);
       return {
         ok: true,
         idempotent: true,
@@ -58,6 +91,7 @@ async function confirmBookingTransition({
 
     // confirmedAt is written exactly once by the winning transition.
     const confirmedAt = booking.confirmedAt || now;
+    const confirmationEventId = booking.confirmationEventId || `confirmed:${id}:${confirmedAt}`;
     const expected = Math.max(0, Math.round(Number(booking.bookingVersion) || 0));
     const next = {
       ...booking,
@@ -69,8 +103,10 @@ async function confirmBookingTransition({
       adminReviewed: true,
       adminReviewedAt: booking.adminReviewedAt || now,
       confirmedAt,
-      // Stable confirmation identity for notification idempotency.
-      confirmationEventId: booking.confirmationEventId || `confirmed:${id}:${confirmedAt}`,
+      // Stable confirmation identity for notification idempotency and for the
+      // revenue event. The analytics write is not part of this CAS.
+      confirmationEventId,
+      confirmationAnalytics: confirmationMarker(booking, confirmationEventId, current.raw),
       finalizedAt: booking.finalizedAt || now,
       updatedAt: now,
       updatedByRole: 'admin',
@@ -86,6 +122,7 @@ async function confirmBookingTransition({
     });
 
     if (committed.ok) {
+      await settleConfirmationAnalytics(committed.booking);
       return {
         ok: true,
         idempotent: false,
@@ -107,6 +144,7 @@ async function confirmBookingTransition({
 
   const finalRec = await getBookingRecord(id);
   if (finalRec.exists && isConfirmedBooking(finalRec.booking)) {
+    await settleConfirmationAnalytics(finalRec.booking);
     return {
       ok: true,
       idempotent: true,

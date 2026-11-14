@@ -1,5 +1,15 @@
 // Revenue event dictionary, allowlists, GA4 mapping, and payload validation.
 
+// Appointment confirmation and service completion are written only by trusted
+// server code (see revenue-authoritative-confirm.js). A public POST cannot
+// create them. booking_submitted stays public: the browser records it after
+// submit-booking returns durable evidence. That event is a request, not an
+// approved amount and not an appointment confirmation.
+const SERVER_AUTHORITATIVE_EVENTS = Object.freeze([
+  'booking_confirmed',
+  'service_completed',
+]);
+
 const APPROVED_EVENTS = Object.freeze([
   'page_view', 'service_page_view', 'city_page_view', 'hub_page_view',
   'offer_viewed', 'promotion_selected', 'package_view', 'package_selected',
@@ -8,11 +18,11 @@ const APPROVED_EVENTS = Object.freeze([
   'contact_captured', 'vehicle_added', 'multi_vehicle_detected',
   'garage_plan_started', 'garage_plan_completed',
   'schedule_selected', 'payment_step_viewed', 'payment_method_saved',
-  'booking_submitted', 'booking_confirmed', 'booking_error', 'booking_closed',
+  'booking_submitted', 'booking_error', 'booking_closed',
   'booking_resumed', 'quote_requested', 'fleet_quote_requested',
   'click_call', 'click_text', 'chat_opened', 'chat_pricing_question',
   'lead_created', 'lead_qualified', 'lead_contacted', 'lead_lost',
-  'service_completed', 'maintenance_interest', 'rebooking_started',
+  'maintenance_interest', 'rebooking_started',
   'rebooking_completed', 'referral_interest', 'gift_card_interest',
   'flexible_payment_interest',
   // Booking conversion funnel (non-PII)
@@ -32,7 +42,7 @@ const APPROVED_PROPERTIES = Object.freeze([
   'first_utm_source', 'first_utm_medium', 'first_utm_campaign', 'first_utm_content',
   'first_utm_term', 'last_landing_page', 'last_referrer_domain',
   'booking_reference', 'lead_temperature', 'household_segment',
-  'error_code', 'offer_id', 'multi_vehicle_band',
+  'error_code', 'event_origin', 'offer_id', 'multi_vehicle_band',
   'flexibility_mode', 'weekend_selected', 'funnel_step', 'failure_code',
   'service_category',
 ]);
@@ -67,7 +77,7 @@ const GA4_OMIT_PROPERTIES = Object.freeze([
 ]);
 
 const PRIMARY_CONVERSION_EVENTS = Object.freeze([
-  'lead_created', 'booking_submitted', 'booking_confirmed', 'service_completed',
+  'lead_created', 'booking_submitted',
 ]);
 
 const MAX_PAYLOAD_BYTES = 8192;
@@ -102,6 +112,9 @@ function validateEventPayload(body) {
     return { ok: false, error: 'invalid_payload' };
   }
   const eventName = String(body.event || body.eventName || '').trim();
+  if (eventName && SERVER_AUTHORITATIVE_EVENTS.includes(eventName)) {
+    return { ok: false, error: 'authoritative_event_forbidden' };
+  }
   if (!eventName || !APPROVED_EVENTS.includes(eventName)) {
     return { ok: false, error: 'unknown_event' };
   }
@@ -141,6 +154,7 @@ function mapToGa4(eventName, properties) {
 
 module.exports = {
   APPROVED_EVENTS,
+  SERVER_AUTHORITATIVE_EVENTS,
   APPROVED_PROPERTIES,
   PII_PROPERTY_KEYS,
   GA4_EVENT_MAP,
