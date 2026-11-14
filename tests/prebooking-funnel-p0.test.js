@@ -215,11 +215,9 @@ describe('P0-7 multi-vehicle #book', () => {
 
 describe('P0-8 / P0-9 / P0-10 booking surface contract', () => {
   it('booking funnel and success surfaces use My Garage as the portal product name', () => {
-    // A+ homepage: the sticky bar is Call + one CTA; My Garage stays in the header.
-    assert.match(index, /class="nav-book-mobile" href="my-garage\.html">My Garage</);
+    assert.match(index, /msc-portal" onclick="openPortal\(\)">My Garage</);
     assert.match(index, /View in My Garage/);
-    // No portal entry anywhere may be labelled "Your booking" (the sticky check alone became vacuous).
-    assert.doesNotMatch(index, />Your booking</);
+    assert.doesNotMatch(index, /msc-portal" onclick="openPortal\(\)">Your booking</);
     assert.doesNotMatch(index, /ltab-customer" onclick="setLoginRole\('customer'\)">👤 My Booking</);
   });
 

@@ -327,8 +327,7 @@ describe('home page compression', () => {
 
   it('replaces the priced add-on strip and drops the homepage how-it-works section', () => {
     assert.match(html, /Compatible add-ons are shown during booking\./);
-    // A+ homepage: the redundant "Check price and options" button was removed; add-ons stay in booking.
-    assert.doesNotMatch(html, /Check price and options/);
+    assert.match(html, /Check price and options/);
     assert.equal(html.includes('id="home-addon-chips"'), false);
     assert.equal(html.includes('HOME_ADDON_IDS'), false);
     assert.equal(html.includes('id="how"'), false);

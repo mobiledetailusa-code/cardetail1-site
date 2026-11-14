@@ -54,13 +54,9 @@ test('homepage reviews copy is first-party plus a labeled static Google snapshot
 });
 
 test('homepage reviews keep booking, Cardetail1, and optional Google CTAs', () => {
-  // A+ homepage: no booking button inside reviews; the final CTA keeps the booking entry.
-  const finalStart = index.indexOf('<div class="phone-cta" data-primary>');
-  const finalCta = index.slice(finalStart, index.indexOf('</div>\n    </div>', finalStart));
-  assert.ok(finalStart > index.indexOf('<section class="home-service-areas"'), 'final CTA must follow service areas');
-  assert.match(finalCta, /onclick="openBooking\(null\)"/);
-  assert.match(finalCta, /booking-popup-trigger/);
-  assert.match(finalCta, /Check Prices &amp; Availability/);
+  assert.match(section, /onclick="openBooking\(null\)"/);
+  assert.match(section, /booking-popup-trigger/);
+  assert.match(section, /Book Your Detail/);
   assert.match(section, /href="my-garage.html#lookup"/);
   assert.match(section, /Leave a Cardetail1 review/);
   assert.match(
