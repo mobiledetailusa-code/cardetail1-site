@@ -84,7 +84,8 @@ exports.handler = async (event) => {
 
   const validated = validateEventPayload(body);
   if (!validated.ok) {
-    return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: validated.error }) };
+    const statusCode = validated.error === 'authoritative_event_forbidden' ? 403 : 400;
+    return { statusCode, headers: cors, body: JSON.stringify({ ok: false, error: validated.error }) };
   }
 
   // Query flags and payload fields such as enabled, price, or duration cannot

@@ -229,6 +229,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/tech-accounts.js',
     'netlify/lib/revenue-store.js',
     'netlify/lib/revops-dashboard.js',
+    // Server-only booking_confirmed writer. Public revenue-event cannot create it.
+    'netlify/lib/revenue-authoritative-confirm.js',
+    'netlify/functions/confirm-analytics-recovery.js',
     'netlify/functions/qa-opscore-lifecycle.js',
     'netlify/lib/booking-price-catalog.js',
     // Public car bookings must match the official catalog class.

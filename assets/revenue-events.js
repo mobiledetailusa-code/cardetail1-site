@@ -32,11 +32,11 @@
     contact_captured: 1, vehicle_added: 1, multi_vehicle_detected: 1,
     garage_plan_started: 1, garage_plan_completed: 1,
     schedule_selected: 1, payment_step_viewed: 1, payment_method_saved: 1,
-    booking_submitted: 1, booking_confirmed: 1, booking_error: 1, booking_closed: 1,
+    booking_submitted: 1, booking_error: 1, booking_closed: 1,
     booking_resumed: 1, quote_requested: 1, fleet_quote_requested: 1,
     click_call: 1, click_text: 1, chat_opened: 1, chat_pricing_question: 1,
     lead_created: 1, lead_qualified: 1, lead_contacted: 1, lead_lost: 1,
-    service_completed: 1, maintenance_interest: 1, rebooking_started: 1,
+    maintenance_interest: 1, rebooking_started: 1,
     rebooking_completed: 1, referral_interest: 1, gift_card_interest: 1,
     flexible_payment_interest: 1,
     utilities_completed: 1, date_selected: 1, flexibility_selected: 1,
@@ -55,7 +55,7 @@
     first_utm_source: 1, first_utm_medium: 1, first_utm_campaign: 1, first_utm_content: 1,
     first_utm_term: 1, last_landing_page: 1, last_referrer_domain: 1,
     booking_reference: 1, lead_temperature: 1, household_segment: 1,
-    error_code: 1, offer_id: 1, multi_vehicle_band: 1, flexibility_mode: 1,
+    error_code: 1, event_origin: 1, offer_id: 1, multi_vehicle_band: 1, flexibility_mode: 1,
     weekend_selected: 1, funnel_step: 1, failure_code: 1, service_category: 1,
   };
 

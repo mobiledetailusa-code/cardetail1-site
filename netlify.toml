@@ -30,6 +30,11 @@
 [functions."twilio-outbox-worker"]
   schedule = "*/2 * * * *"
 
+# Finish confirmation analytics after the booking commit. No public URL:
+# schedule is mutually exclusive with path. Does not send SMS or change bookings.
+[functions."confirm-analytics-recovery"]
+  schedule = "*/15 * * * *"
+
 [dev]
   port = 8888
   publish = "."
