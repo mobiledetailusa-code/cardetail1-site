@@ -1,0 +1,289 @@
+{
+  "capturedFrom": "assets/customer-reviews.js at master 625eb830a600e33e15923bf06c622e37454df0ca",
+  "capturedAt": "2026-11-17",
+  "note": "Immutable baseline. Every stored field of every historical review, plus the label it is displayed with. Do not edit; a test fails if a record changes or disappears.",
+  "counts": {
+    "google": 12,
+    "thumbtack": 6,
+    "legacy": 7,
+    "total": 25
+  },
+  "reviews": [
+    {
+      "id": "g-lauren-murphy",
+      "name": "Lauren Murphy",
+      "rating": 5,
+      "text": "My car looks incredible — it honestly feels brand new again. Everything from the exterior, seats and console to the dash and little details was spotless. He was extremely thorough, professional, and clearly takes pride in his work.",
+      "date": "Sep 2026",
+      "relativeDate": "a day ago",
+      "source": "google",
+      "sort": 1,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-michael-purcell",
+      "name": "Michael Purcell",
+      "rating": 5,
+      "text": "He did a fantastic job cleaning an RV I have from head to toe 10 out of 10 would recommend",
+      "date": "Sep 2026",
+      "relativeDate": "a week ago",
+      "source": "google",
+      "sort": 2,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-kasey-wasserbeck",
+      "name": "Kasey Wasserbeck",
+      "rating": 5,
+      "text": "Amazing detail service. Quick and spotless clean. Car looks brand new on the inside again!",
+      "date": "Aug 2026",
+      "relativeDate": "4 weeks ago",
+      "source": "google",
+      "sort": 3,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-john-daquila",
+      "name": "John Daquila",
+      "rating": 5,
+      "text": "White BMW 760 ! First time booking and I couldn't be happier! Car is showroom new inside and out. I have a vinyl wrap on my exterior and it isn't the easiest to work with but not for Magno! He did and incredible job and will absolutely be booking again in the near future! 10/10 experience would recommend to everyone",
+      "date": "Aug 2026",
+      "relativeDate": "a week ago",
+      "source": "google",
+      "sort": 10,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-carol-gladis",
+      "name": "Carol Gladis",
+      "rating": 5,
+      "text": "The car looks terrific...excellent job!! Thanks!",
+      "date": "Aug 2026",
+      "relativeDate": "a week ago",
+      "source": "google",
+      "sort": 20,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-scott-rosenwald",
+      "name": "Scott Rosenwald",
+      "rating": 5,
+      "text": "Great service !! Fantastic job !! Highly recommend. Very professional.",
+      "date": "Aug 2026",
+      "relativeDate": "a week ago",
+      "source": "google",
+      "sort": 30,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-gerard-baltazar",
+      "name": "Gerard Baltazar",
+      "rating": 5,
+      "text": "Truly impressive work! They stayed extra long to do a thorough job! I've never experienced such excellent skill and dedication for detailing! This is my family commuter car, and we have a dog! They made my car look and feel like new!",
+      "date": "Jul 2026",
+      "relativeDate": "a month ago",
+      "source": "google",
+      "sort": 40,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-claudio-campos",
+      "name": "Claudio Campos",
+      "rating": 5,
+      "text": "Great Job !! Highly recommended ! My car looks like it came out of the new lot! Thank You so much 😊",
+      "date": "May 2026",
+      "relativeDate": "3 months ago",
+      "source": "google",
+      "sort": 50,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-adilsom-pedro",
+      "name": "Adilsom pedro",
+      "rating": 5,
+      "text": "Excellent work, 100% guaranteed.",
+      "date": "May 2026",
+      "relativeDate": "3 months ago",
+      "source": "google",
+      "sort": 60,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-mj-oliveira",
+      "name": "M. J oliveira",
+      "rating": 5,
+      "text": "My cars looked like new! Guy did a great job. Very satisfied would recommend",
+      "date": "May 2026",
+      "relativeDate": "Edited 3 months ago",
+      "source": "google",
+      "sort": 70,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-dani-sames",
+      "name": "Dani Sames",
+      "rating": 5,
+      "text": "My car was horrible. Now it's brand new, great job",
+      "date": "Aug 2025",
+      "relativeDate": "a year ago",
+      "source": "google",
+      "sort": 80,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "g-rose-alves",
+      "name": "Rose Alves",
+      "rating": 5,
+      "text": "Good job, my was car was terrible , now is brand new.",
+      "date": "Aug 2025",
+      "relativeDate": "a year ago",
+      "source": "google",
+      "sort": 90,
+      "sourceLabel": "Google review"
+    },
+    {
+      "id": "tt-dachena-g",
+      "name": "Dachena G.",
+      "rating": 5,
+      "text": "Highly recommend! He did an amazing job detailing my car. He was professional, took his time, and paid attention to every little detail. My car came out looking and feeling brand new. You can definitely tell he takes pride in his work. Great service and quality work — I’ll definitely be coming back!",
+      "date": "Sep 26, 2026",
+      "source": "thumbtack",
+      "sort": 1,
+      "sourceLabel": "Thumbtack review"
+    },
+    {
+      "id": "tt-jackie-b",
+      "name": "Jackie B.",
+      "rating": 5,
+      "text": "Great service! Magno was quick to respond, easy to communicate with and did a wonderful job on the interior of my car. It looks brand new!",
+      "date": "Sep 25, 2026",
+      "source": "thumbtack",
+      "sort": 2,
+      "sourceLabel": "Thumbtack review"
+    },
+    {
+      "id": "tt-jasmin-g",
+      "name": "Jasmin G.",
+      "rating": 5,
+      "text": "The best service ever!! Not only were they on time with quick replies—- they did the best job on our school vehicles which were embarrassingly disgusting. We were able to start this school year with a clean start (literally).  This is a humble, hard working and very detailed service. Highly recommended and we will definitely use this service in the future!! Book them NOW!!",
+      "date": "Sep 24, 2026",
+      "source": "thumbtack",
+      "sort": 3,
+      "sourceLabel": "Thumbtack review"
+    },
+    {
+      "id": "tt-cynthia-c",
+      "name": "Cynthia C.",
+      "rating": 5,
+      "text": "I couldn't be happier with the service! He was absolutely amazing from start to finish — very communicative, punctual, professional, and organized. He came all the way to my location, which was incredibly convenient, and detailed two vehicles in one visit. He arrived fully prepared with all of his own professional products and equipment, and you could really tell that he takes pride in his work. The results were fantastic! He paid attention to all the little details, did an excellent job with the waxing, and even completely removed stains from the seats in one of my vehicles that I honestly wasn't sure would come out. I'm extremely pleased with how both cars turned out. The convenience, professionalism, attention to detail, and quality of the work were all outstanding. I would absolutely recommend him and will definitely be using his services again!",
+      "date": "Sep 8, 2026",
+      "source": "thumbtack",
+      "sort": 5,
+      "sourceLabel": "Thumbtack review"
+    },
+    {
+      "id": "tt-kasey-w",
+      "name": "Kasey W.",
+      "rating": 5,
+      "text": "Amazing car detail, looks brand new",
+      "date": "Aug 30, 2026",
+      "source": "thumbtack",
+      "sort": 6,
+      "sourceLabel": "Thumbtack review"
+    },
+    {
+      "id": "tt-carol-g",
+      "name": "Carol G.",
+      "rating": 5,
+      "text": "Excellent job detailing my car!  Would highly recommend.",
+      "date": "Aug 21, 2026",
+      "source": "thumbtack",
+      "sort": 7,
+      "sourceLabel": "Thumbtack review"
+    },
+    {
+      "id": "legacy-pablo-sanchez",
+      "name": "Pablo Sanchez",
+      "rating": 5,
+      "text": "The detailer did an amazing job, very thorough and I'm impressed with the high level of quality service he provided. The car looks brand new.",
+      "location": "NJ Area",
+      "date": "May 2025",
+      "service": "Subaru Crosstrek · Exterior Detail",
+      "source": "legacy",
+      "sort": 200,
+      "sourceLabel": "Customer"
+    },
+    {
+      "id": "legacy-craig-bitman",
+      "name": "Craig Bitman",
+      "rating": 5,
+      "text": "Incredible work on my BMW. Magno was professional, punctual, and the results speak for themselves. Highly recommend Cardetail1 to anyone who takes pride in their car.",
+      "location": "Craryville, NY",
+      "date": "May 2025",
+      "service": "BMW 4 Series · Exterior Detail",
+      "source": "legacy",
+      "sort": 210,
+      "sourceLabel": "Customer"
+    },
+    {
+      "id": "legacy-paul-berliner",
+      "name": "Paul Berliner",
+      "rating": 5,
+      "text": "Fantastic detailing by Magno! Super intelligent, efficient and a pleasure to deal with. My Land Rover Defender now looks brand new! Thank you Magno! My life is now better!",
+      "location": "Brooklyn, NY",
+      "date": "Jun 2025",
+      "service": "Land Rover Defender 130 · Exterior Detail",
+      "source": "legacy",
+      "sort": 220,
+      "sourceLabel": "Customer"
+    },
+    {
+      "id": "legacy-patrice-zaborski",
+      "name": "Patrice Zaborski",
+      "rating": 5,
+      "text": "Magno, our detailer did a wonderful job. Our RV looks like new. He was professional, pleasant and detail oriented. He took his time to make sure all was perfect. We look forward to Magno working on our vehicle in the future. Thank you!",
+      "location": "East Hampton, NY",
+      "date": "Jun 2025",
+      "service": "Renegade Vienna Motorhome · Full Detail",
+      "source": "legacy",
+      "sort": 230,
+      "sourceLabel": "Customer"
+    },
+    {
+      "id": "legacy-david-johnson",
+      "name": "David Johnson",
+      "rating": 5,
+      "text": "Excellent work! Arrived timely and was a pleasure to work with. I was thinking this would be a one time thing but it's been a good experience so we're considering getting the other car done.",
+      "location": "Amityville, NY",
+      "date": "Jun 2025",
+      "service": "Grand Design 320G 5th Wheel · Full Detail",
+      "source": "legacy",
+      "sort": 240,
+      "sourceLabel": "Customer"
+    },
+    {
+      "id": "legacy-maryjane-raymond",
+      "name": "MaryJane Raymond",
+      "rating": 5,
+      "text": "Magno was excellent and efficient!!!",
+      "location": "Far Hills, NJ",
+      "date": "Jun 2025",
+      "service": "Volvo XC60 · Full Detail",
+      "source": "legacy",
+      "sort": 250,
+      "sourceLabel": "Customer"
+    },
+    {
+      "id": "legacy-andy-rudin",
+      "name": "Andy Rudin",
+      "rating": 5,
+      "text": "Service was timely and the car is gorgeous.",
+      "location": "Bronx, NY",
+      "date": "Jun 2025",
+      "service": "Honda CR-V · Full Detail",
+      "source": "legacy",
+      "sort": 260,
+      "sourceLabel": "Customer"
+    }
+  ]
+}

@@ -315,6 +315,13 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
 
     removeProcess(ed);
 
+    // "★★★★★ Neighbor-rated" was a copy-tone line (c4bad00c) with no per-area
+    // rating data behind it. Use the homepage's factual wording instead.
+    ed.edit('hero proof: neutral owner-operated line instead of an unsupported rating claim',
+      '<span>★★★★★ Neighbor-rated</span>',
+      '<span>Owner-operated mobile detailing</span>',
+      '<span>Owner-operated mobile detailing</span>');
+
     swapReviews(ed, '<!-- CTA SECTION -->');
     addLocalReviewLine(ed, file);
     alignCoverageCopy(ed, file);

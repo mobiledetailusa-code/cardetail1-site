@@ -117,17 +117,21 @@ const PACKAGES = [
   note: resolveTokens(p.note),
 }));
 
-/** First-party quotes copied verbatim from the public Google listing. */
-const REVIEWS = [
-  {
-    name: 'John Daquila',
-    text: "White BMW 760 ! First time booking and I couldn't be happier! Car is showroom new inside and out. I have a vinyl wrap on my exterior and it isn't the easiest to work with but not for Magno! He did and incredible job and will absolutely be booking again in the near future! 10/10 experience would recommend to everyone",
-  },
-  {
-    name: 'Gerard Baltazar',
-    text: "Truly impressive work! They stayed extra long to do a thorough job! I've never experienced such excellent skill and dedication for detailing! This is my family commuter car, and we have a dog! They made my car look and feel like new!",
-  },
-];
+/**
+ * The two Google quotes shown on every city page, read by id from the one review
+ * dataset (assets/customer-reviews.js). Text, name, rating and source label come
+ * from there, so the city pages cannot drift from it. Generation aborts if an id
+ * disappears or stops being a Google review.
+ */
+const CITY_REVIEW_IDS = ['g-john-daquila', 'g-gerard-baltazar'];
+const REVIEW_DATA = require(path.join(root, 'assets/customer-reviews.js'));
+const REVIEWS = CITY_REVIEW_IDS.map((id) => {
+  const r = REVIEW_DATA.googleReviews().find((x) => x.id === id);
+  if (!r) throw new Error(`city review ${id} is missing from assets/customer-reviews.js`);
+  if (r.source !== 'google') throw new Error(`city review ${id} is no longer a Google review`);
+  const rating = Math.max(0, Math.min(5, Math.round(Number(r.rating) || 0)));
+  return { id: r.id, name: r.name, text: r.text, rating, label: REVIEW_DATA.sourceLabel(r) };
+});
 
 /** Reviewed page copy. Prices and the $335 package name are {{tokens}} (see resolveTokens). */
 const CITIES = [
@@ -671,9 +675,9 @@ ${schema(city)}
   <p class="sp-sec-copy">Quotes are shown as written on the public Google listing.</p>
   <div class="city-reviews">
     ${REVIEWS.map((r) => `<article class="city-review">
-      <div class="city-stars" aria-label="5 stars">★★★★★</div>
+      <div class="city-stars" aria-label="${r.rating} stars">${'★'.repeat(r.rating)}</div>
       <p>${esc(r.text).replace(/&quot;/g, '"')}</p>
-      <p class="city-review-meta">${esc(r.name)} · Google review</p>
+      <p class="city-review-meta">${esc(r.name)} · ${esc(r.label)}</p>
     </article>`).join('\n    ')}
   </div>
   <p class="sp-sec-copy" style="margin-top:18px"><a href="${GBP}">Read or leave a Google review</a></p>
