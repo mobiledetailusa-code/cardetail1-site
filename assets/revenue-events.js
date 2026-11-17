@@ -146,6 +146,39 @@
     CLICK_ID_KEYS.forEach(function (key) { target[key] = null; });
   }
 
+  // AI assistants. Identical to AI_ASSISTANTS in netlify/lib/ai-attribution.js
+  // (tests/ai-attribution.test.js fails if the two differ). Only a referring
+  // domain or a utm_source can mark a visit as AI; nothing is inferred.
+  var AI_ASSISTANTS = [
+    { key: 'chatgpt', domains: ['chatgpt.com', 'chat.openai.com'], utmSources: ['chatgpt.com', 'chatgpt', 'chat.openai.com', 'openai'] },
+    { key: 'perplexity', domains: ['perplexity.ai'], utmSources: ['perplexity.ai', 'perplexity'] },
+    { key: 'gemini', domains: ['gemini.google.com', 'bard.google.com'], utmSources: ['gemini.google.com', 'gemini', 'bard'] },
+    { key: 'copilot', domains: ['copilot.microsoft.com'], utmSources: ['copilot.microsoft.com', 'copilot'] },
+    { key: 'claude', domains: ['claude.ai'], utmSources: ['claude.ai', 'claude'] },
+    { key: 'other_ai', domains: ['chat.mistral.ai', 'meta.ai', 'grok.com', 'chat.deepseek.com', 'poe.com', 'you.com', 'phind.com'], utmSources: ['mistral', 'meta.ai', 'grok', 'deepseek', 'poe', 'you.com', 'phind'] },
+  ];
+
+  function aiForReferrer(host) {
+    var h = String(host || '').trim().toLowerCase().replace(/\.$/, '').replace(/^www\./, '');
+    if (!h) return null;
+    for (var i = 0; i < AI_ASSISTANTS.length; i++) {
+      var ds = AI_ASSISTANTS[i].domains;
+      for (var j = 0; j < ds.length; j++) {
+        if (h === ds[j] || h.slice(-(ds[j].length + 1)) === '.' + ds[j]) return AI_ASSISTANTS[i].key;
+      }
+    }
+    return null;
+  }
+
+  function aiForUtmSource(source) {
+    var s = String(source || '').trim().toLowerCase();
+    if (!s) return null;
+    for (var i = 0; i < AI_ASSISTANTS.length; i++) {
+      if (AI_ASSISTANTS[i].utmSources.indexOf(s) >= 0) return AI_ASSISTANTS[i].key;
+    }
+    return null;
+  }
+
   function trafficType(attr) {
     attr = attr || {};
     var medium = String(attr.utm_medium || '').toLowerCase();
@@ -154,9 +187,15 @@
     if (hasStoredClick || hasUrlClick || medium === 'cpc' || medium === 'ppc' || medium === 'paid' || medium === 'paid_social') {
       return 'paid';
     }
+    // A visit whose campaign or newest referrer is an AI assistant. Checked
+    // before the generic rules so gemini.google.com is not counted as Google
+    // organic search. google.com itself (including AI Overviews) stays organic.
+    var lastRef = attr.last_touch && attr.last_touch.referrer_domain;
+    if (aiForUtmSource(attr.utm_source) || aiForReferrer(lastRef)) return 'ai_assistant';
     if (medium === 'organic') return 'organic';
     if (medium) return 'referral';
     var ref = String(attr.referrer_domain || '').toLowerCase();
+    if (!attr.utm_source && aiForReferrer(ref)) return 'ai_assistant';
     if (/google\.|bing\.|yahoo\.|duckduckgo\./.test(ref)) return 'organic';
     if (ref || attr.utm_source || attr.utm_medium || attr.utm_campaign) return 'referral';
     return 'direct';
@@ -216,7 +255,12 @@
       var hasNewCampaign = !!(cleanAttr(q.utm_source) || cleanAttr(q.utm_medium) || cleanAttr(q.utm_campaign)
         || cleanAttr(q.utm_content) || cleanAttr(q.utm_term)
         || (marketingAllowed() && urlPaidClick));
-      if (hasNewCampaign || !existing.last_touch) {
+      // Assistants such as Perplexity usually send no UTM tags, so a returning
+      // visit from one would otherwise never become the last touch. Only a new
+      // AI referrer qualifies; direct or ordinary returns keep the stored touch.
+      var prevLastRef = existing.last_touch && existing.last_touch.referrer_domain;
+      var newAiReferral = !!(externalRef && aiForReferrer(externalRef) && externalRef !== prevLastRef);
+      if (hasNewCampaign || newAiReferral || !existing.last_touch) {
         merged.last_touch = {
           utm_source: cleanAttr(q.utm_source),
           utm_medium: cleanAttr(q.utm_medium),

@@ -536,6 +536,12 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     </div>
     <div id="revopsContent">
     <div class="grid g4" id="revopsStats"></div>
+    <div class="card" style="margin-top:14px" id="revopsAi">
+      <h3 style="margin-bottom:6px">AI search performance</h3>
+      <p class="hint" id="revopsAiNote" style="margin:0 0 10px"></p>
+      <div class="grid g4" id="revopsAiStats"></div>
+      <div id="revopsAiSources" style="margin-top:10px"></div>
+    </div>
     <div class="card" style="margin-top:14px">
       <h3 style="margin-bottom:10px">Needs attention now</h3>
       <div id="revopsPriority"><div class="empty">No items need attention right now.</div></div>
@@ -5220,6 +5226,59 @@ async function loadTechs(fetchOpts, loadOpts) {
     }
   }
 
+  // AI search performance: recorded counts from revenue-admin?view=ai-search.
+  // Loaded after the main dashboard on its own error path, so a failure here
+  // never blanks or delays the rest of RevOps. Amounts arrive in dollars.
+  function aiMoney(n) {
+    return '$' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  function aiPct(r) {
+    return r == null ? '—' : (Math.round(r * 1000) / 10) + '%';
+  }
+  function renderAiSearch(d) {
+    const t = d.totals || {};
+    let note;
+    if (!d.coverageStart) {
+      note = 'No AI-attributed visits recorded yet. Counts appear once a visitor arrives from an AI assistant.';
+    } else {
+      note = 'Recorded data only, tracked since ' + esc(String(d.coverageStart).slice(0, 10)) + '.';
+      if (!d.complete) note += ' Partial for this range' + (d.truncated ? ' (row limit reached)' : '') + '.';
+      note += ' Server-confirmed bookings in range: ' + esc(d.allConfirmedBookingsInRange || 0) +
+        ', of which ' + esc(d.confirmedWithoutAiRecord || 0) + ' have no AI attribution record.';
+    }
+    $('#revopsAiNote').innerHTML = note;
+    $('#revopsAiStats').innerHTML = [
+      ['AI-attributed visits', esc(t.visits || 0)],
+      ['Booking starts', esc(t.bookingStarts || 0)],
+      ['Booking submissions', esc(t.bookingSubmissions || 0)],
+      ['Server-confirmed bookings', esc(t.confirmedBookings || 0)],
+      ['Confirmed value', aiMoney(t.confirmedValue)],
+      ['Avg confirmed value', t.averageConfirmedValue == null ? '—' : aiMoney(t.averageConfirmedValue)],
+      ['Visit → submission', aiPct(t.submissionRate)],
+      ['Visit → confirmed', aiPct(t.confirmationRate)],
+    ].map(function (row) {
+      return '<div class="card"><h3>' + row[0] + '</h3><div class="stat">' + row[1] + '</div></div>';
+    }).join('');
+    const rows = d.sources || [];
+    $('#revopsAiSources').innerHTML =
+      '<table class="tbl"><thead><tr><th>Source</th><th>Visits</th><th>Starts</th><th>Submissions</th><th>Confirmed</th><th>Confirmed value</th></tr></thead><tbody>' +
+      rows.map(function (s) {
+        return '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.visits) + '</td><td>' + esc(s.bookingStarts) + '</td><td>' +
+          esc(s.bookingSubmissions) + '</td><td>' + esc(s.confirmedBookings) + '</td><td>' + aiMoney(s.confirmedValue) +
+          (s.confirmedMissingAmount ? ' <span class="hint">(' + esc(s.confirmedMissingAmount) + ' without amount)</span>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<p class="hint" style="margin-top:8px">Calls, typed URLs, links copied from an assistant, and Google AI Overviews cannot be told apart from other traffic and are not counted here.</p>';
+  }
+  async function refreshAiSearch() {
+    try {
+      renderAiSearch(await api('/.netlify/functions/revenue-admin?view=ai-search'));
+    } catch (e) {
+      $('#revopsAiNote').textContent = 'AI search report unavailable: ' + (e.message || 'unknown error');
+      $('#revopsAiStats').innerHTML = '';
+      $('#revopsAiSources').innerHTML = '';
+    }
+  }
+
   async function refreshRevopsTab() {
     if (revopsInflight) return revopsInflight;
     setRevopsError('');
@@ -5230,6 +5289,7 @@ async function loadTechs(fetchOpts, loadOpts) {
         const q = '/.netlify/functions/revenue-admin?view=dashboard&limit=50' + (pf ? '&priority=' + encodeURIComponent(pf) : '');
         const data = await api(q);
         renderRevopsDashboard(data);
+        refreshAiSearch();
         const lu = $('#revopsLastUpdated');
         if (lu) lu.textContent = 'Last updated ' + new Date().toLocaleTimeString();
       } catch (e) {

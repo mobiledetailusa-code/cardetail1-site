@@ -13,6 +13,7 @@ const REVENUE_STORES = Object.freeze({
   eventIdempotency: 'revenue-event-idempotency',
   adminAudit: 'revenue-admin-audit',
   welcomeLeads: 'revenue-welcome-leads',
+  aiIndex: 'revenue-ai-index',
 });
 
 const RETENTION_DAYS = {
@@ -29,6 +30,8 @@ const RETENTION_DAYS = {
   eventIdempotency: 400,
   adminAudit: 365,
   welcomeLeads: 730,
+  // Index rows mirror events they point at, so they share the events policy.
+  aiIndex: 400,
 };
 
 const RETENTION_ENFORCEMENT = Object.freeze({
