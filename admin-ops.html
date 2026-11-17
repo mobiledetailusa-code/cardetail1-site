@@ -534,14 +534,15 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <div id="revopsError" class="card" hidden style="border-color:rgba(239,68,68,.35)">
       <p id="revopsErrorMsg" class="hint" style="color:var(--err)"></p>
     </div>
-    <div id="revopsContent">
-    <div class="grid g4" id="revopsStats"></div>
-    <div class="card" style="margin-top:14px" id="revopsAi">
+    <!-- Outside #revopsContent so it stays visible while the main RevOps request loads or fails. -->
+    <div class="card" style="margin-bottom:14px" id="revopsAi">
       <h3 style="margin-bottom:6px">AI search performance</h3>
       <p class="hint" id="revopsAiNote" style="margin:0 0 10px"></p>
       <div class="grid g4" id="revopsAiStats"></div>
       <div id="revopsAiSources" style="margin-top:10px"></div>
     </div>
+    <div id="revopsContent">
+    <div class="grid g4" id="revopsStats"></div>
     <div class="card" style="margin-top:14px">
       <h3 style="margin-bottom:10px">Needs attention now</h3>
       <div id="revopsPriority"><div class="empty">No items need attention right now.</div></div>
@@ -5287,18 +5288,29 @@ async function loadTechs(fetchOpts, loadOpts) {
       '<details style="margin-top:8px"><summary class="hint">How these numbers are measured</summary><ul class="hint">' +
       (d.limitations || []).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul></details>';
   }
-  async function refreshAiSearch() {
-    try {
-      renderAiSearch(await api('/.netlify/functions/revenue-admin?view=ai-search'));
-    } catch (e) {
-      $('#revopsAiNote').textContent = 'AI search report unavailable: ' + (e.message || 'unknown error');
-      $('#revopsAiStats').innerHTML = '';
-      $('#revopsAiSources').innerHTML = '';
-    }
+  // Independent of the main RevOps request: started first, never awaited by it,
+  // and one request at a time (repeated tab clicks reuse the in-flight one).
+  let aiSearchInflight = null;
+  function refreshAiSearch() {
+    if (aiSearchInflight) return aiSearchInflight;
+    if (!$('#revopsAiStats').innerHTML) $('#revopsAiNote').textContent = 'Loading AI search data…';
+    aiSearchInflight = (async function () {
+      try {
+        renderAiSearch(await api('/.netlify/functions/revenue-admin?view=ai-search'));
+      } catch (e) {
+        $('#revopsAiNote').textContent = 'AI search report unavailable: ' + (e.message || 'unknown error') + '. No figures are shown.';
+        $('#revopsAiStats').innerHTML = '';
+        $('#revopsAiSources').innerHTML = '';
+      } finally {
+        aiSearchInflight = null;
+      }
+    })();
+    return aiSearchInflight;
   }
 
   async function refreshRevopsTab() {
     if (revopsInflight) return revopsInflight;
+    refreshAiSearch();
     setRevopsError('');
     setRevopsLoading(true);
     revopsInflight = (async function () {
@@ -5307,7 +5319,6 @@ async function loadTechs(fetchOpts, loadOpts) {
         const q = '/.netlify/functions/revenue-admin?view=dashboard&limit=50' + (pf ? '&priority=' + encodeURIComponent(pf) : '');
         const data = await api(q);
         renderRevopsDashboard(data);
-        refreshAiSearch();
         const lu = $('#revopsLastUpdated');
         if (lu) lu.textContent = 'Last updated ' + new Date().toLocaleTimeString();
       } catch (e) {
