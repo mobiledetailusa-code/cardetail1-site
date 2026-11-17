@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createRequire } from 'node:module';
+import { loadCanonicalBusiness } from './lib/canonical-business-entity.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
@@ -29,6 +30,8 @@ const ORIGIN = 'https://cardetail1.com';
 const PHONE = '+15513893986';
 const PHONE_DISPLAY = '(551) 389-3986';
 const GBP = 'https://g.page/r/CTJwfJerrQeCEAI/review';
+const BUSINESS = loadCanonicalBusiness(root);
+if (BUSINESS.telephone !== PHONE) throw new Error(`index.html business telephone ${BUSINESS.telephone} != ${PHONE}`);
 
 // ── Prices: canonical server catalog (financial authority) ─────────────────
 const require = createRequire(import.meta.url);
@@ -513,25 +516,9 @@ function schema(city) {
   const graph = {
     '@context': 'https://schema.org',
     '@graph': [
-      {
-        '@type': ['LocalBusiness', 'AutomotiveBusiness'],
-        '@id': `${ORIGIN}/#business`,
-        name: 'Cardetail1',
-        legalName: 'Detailing Zone L.L.C.',
-        url: ORIGIN,
-        telephone: PHONE,
-        image: `${ORIGIN}/assets/cardetail1-logo.webp`,
-        logo: { '@type': 'ImageObject', url: `${ORIGIN}/assets/cardetail1-logo-square.png`, width: 720, height: 720 },
-        priceRange: '$$',
-        address: { '@type': 'PostalAddress', addressLocality: 'Palisades Park', addressRegion: 'NJ', postalCode: '07650', addressCountry: 'US' },
-        geo: { '@type': 'GeoCoordinates', latitude: 40.8482, longitude: -73.9976 },
-        areaServed: [
-          { '@type': 'City', name: `${city.city}, NJ` },
-          { '@type': 'AdministrativeArea', name: 'Bergen County, NJ' },
-          { '@type': 'AdministrativeArea', name: 'Palisades Park, NJ' },
-        ],
-        sameAs: ['https://www.instagram.com/cardetail1com', GBP],
-      },
+      // The one business entity, copied from index.html. City geography lives
+      // in the Service node below, never in a redefinition of /#business.
+      { ...BUSINESS },
       {
         '@type': 'Service',
         '@id': `${url}#service`,
