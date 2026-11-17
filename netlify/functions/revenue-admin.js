@@ -2,7 +2,8 @@
 
 const { verifyAdminRequest } = require('../lib/admin-security');
 const { jsonCors } = require('../lib/tech-security');
-const { getRevenueStore, blobGetJson, blobSetJson, generateOpaqueId } = require('../lib/revenue-store');
+const { getRevenueStore, blobGetJson, blobGetJsonStrict, blobSetJson, generateOpaqueId } = require('../lib/revenue-store');
+const { buildAiSearchReport } = require('../lib/ai-search-report');
 const { LOST_REASONS } = require('../lib/revenue-household');
 const { createResumeToken } = require('../lib/revenue-resume');
 const { enqueueRecoveryJob, cancelRecoveryForLead } = require('../lib/revenue-recovery');
@@ -13,6 +14,7 @@ const {
   buildPriorityQueue,
   sanitizeOpportunityForAdmin,
   findBookingAttribution,
+  parseDateRange,
   GARAGE_PLAN_STATUSES,
   newRequestId,
 } = require('../lib/revops-dashboard');
@@ -101,6 +103,16 @@ exports.handler = async (event) => {
         const lead = await getLeadWithIdentity(String(q.leadId));
         if (!lead) return revopsJson(404, { ok: false, error: 'not_found' });
         return revopsJson(200, { ok: true, lead });
+      }
+
+      if (view === 'ai-search') {
+        // Same admin gate as the dashboard. Strict reads: a storage failure makes
+        // the report partial or unavailable, never a false zero (ai-search-report.js).
+        const report = await buildAiSearchReport(parseDateRange(q), {
+          getStore: getRevenueStore,
+          getJson: blobGetJsonStrict,
+        });
+        return revopsJson(200, report);
       }
 
       if (view === 'booking-attribution') {
