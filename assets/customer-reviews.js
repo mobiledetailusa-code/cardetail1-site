@@ -328,6 +328,95 @@
     }
   ];
 
+  // ── Source profiles and review metadata ─────────────────────────────────
+  // Official listing pages, verified 2026-11-17 (name, phone and website
+  // match). Neither platform exposes a permalink per review, so a review's
+  // sourceUrl is its platform profile and sourceUrlKind says so. The Google
+  // review-request link (GOOGLE_REVIEW_URL) is for leaving a review only.
+  var SOURCE_PROFILES = {
+    google: {
+      label: 'Cardetail1 on Google Maps',
+      url: 'https://www.google.com/maps?cid=9369648502260133938'
+    },
+    thumbtack: {
+      label: 'Cardetail1 on Thumbtack',
+      url: 'https://www.thumbtack.com/nj/palisades-park/mobile-auto-detailing-services/cardetail1/service/568247975711367170'
+    }
+  };
+
+  // Attribution categories. Records keep their existing `source`; a record
+  // moves to a new category only after the owner confirms it.
+  //   cardetail1 → direct Cardetail1 customer feedback (first-party channel)
+  //   google     → Google review
+  //   thumbtack  → Thumbtack review
+  //   partner    → professional service feedback: work the owner did through
+  //                a partner detailing company (no record uses this yet)
+  //   legacy     → unverified historical source (displayed as "Customer")
+  var SOURCE_TYPES = ['cardetail1', 'google', 'thumbtack', 'partner', 'legacy'];
+
+  // Snapshot dates come from the notes above each list. Legacy quotes have no
+  // recorded source or capture date: they stay null (unknown), not guessed.
+  var CAPTURED_AT = {
+    'g-lauren-murphy': '2026-09-26',
+    'g-michael-purcell': '2026-09-26',
+    'g-kasey-wasserbeck': '2026-09-26',
+    'g-john-daquila': '2026-08-25',
+    'g-carol-gladis': '2026-08-25',
+    'g-scott-rosenwald': '2026-08-25',
+    'g-gerard-baltazar': '2026-08-25',
+    'g-claudio-campos': '2026-08-25',
+    'g-adilsom-pedro': '2026-08-25',
+    'g-mj-oliveira': '2026-08-25',
+    'g-dani-sames': '2026-08-25',
+    'g-rose-alves': '2026-08-25',
+    'tt-dachena-g': '2026-09-26',
+    'tt-jackie-b': '2026-09-26',
+    'tt-jasmin-g': '2026-09-26',
+    'tt-cynthia-c': '2026-09-26',
+    'tt-kasey-w': '2026-09-26',
+    'tt-carol-g': '2026-09-26'
+  };
+
+  // Open questions for the owner. Not rendered; the records stay as they are.
+  var REVIEW_FLAGS = {
+    'legacy-david-johnson': [
+      'Until commit d22dd3d6 (2026-08-24) this exact text was also attributed to Jeanne Anderson (Subaru Impreza, West Islip, NY). It mentions "the other car" on a 5th-wheel RV job. Owner to confirm the correct reviewer.'
+    ],
+    'legacy-craig-bitman': [
+      'A May 2025 quote that recommends "Cardetail1" by name. Owner to confirm it against the original source.'
+    ],
+    'g-lauren-murphy': [
+      'Stored text stops at the last fully visible sentence of the 2026-09-26 knowledge panel. The full review is public on Google; completing it needs owner confirmation.'
+    ]
+  };
+
+  var SOURCE_METADATA = {
+    google: { verification: 'public-listing-snapshot', relationship: 'direct' },
+    thumbtack: { verification: 'public-listing-snapshot', relationship: 'direct' },
+    legacy: { verification: 'unverified', relationship: 'unknown' }
+  };
+
+  /**
+   * Metadata for one stored review. Unknown values are null. It is kept apart
+   * from the record so rendering, ordering and dedup never change because of it.
+   */
+  function reviewMetadata(review) {
+    var source = String(review && review.source || '');
+    var base = SOURCE_METADATA[source] || { verification: null, relationship: null };
+    var profile = SOURCE_PROFILES[source] || null;
+    var id = String(review && review.id || '');
+    return {
+      id: id,
+      sourceType: SOURCE_TYPES.indexOf(source) >= 0 ? source : null,
+      sourceUrl: profile ? profile.url : null,
+      sourceUrlKind: profile ? 'profile' : null,
+      capturedAt: Object.prototype.hasOwnProperty.call(CAPTURED_AT, id) ? CAPTURED_AT[id] : null,
+      verification: base.verification,
+      relationship: base.relationship,
+      flags: (REVIEW_FLAGS[id] || []).slice()
+    };
+  }
+
   var rvIdx = 0;
   var carouselReviews = [];
   var mountedDoc = null;
@@ -454,6 +543,7 @@
     if (source === 'google') return 'Google review';
     if (source === 'thumbtack') return 'Thumbtack review';
     if (source === 'cardetail1') return 'Verified Cardetail1 customer';
+    if (source === 'partner') return 'Professional Service Feedback';
     return 'Customer';
   }
 
@@ -860,6 +950,9 @@
     READ_MORE_LINES: READ_MORE_LINES,
     HOME_LIMIT: HOME_LIMIT,
     REVIEWS_PAGE_URL: REVIEWS_PAGE_URL,
+    SOURCE_PROFILES: SOURCE_PROFILES,
+    SOURCE_TYPES: SOURCE_TYPES.slice(),
+    reviewMetadata: reviewMetadata,
     all: publicList,
     googleReviews: googleReviews,
     thumbtackReviews: thumbtackReviews,
