@@ -2,7 +2,7 @@
 
 const { verifyAdminRequest } = require('../lib/admin-security');
 const { jsonCors } = require('../lib/tech-security');
-const { getRevenueStore, blobGetJson, blobSetJson, blobListKeys, generateOpaqueId } = require('../lib/revenue-store');
+const { getRevenueStore, blobGetJson, blobGetJsonStrict, blobSetJson, generateOpaqueId } = require('../lib/revenue-store');
 const { buildAiSearchReport } = require('../lib/ai-search-report');
 const { LOST_REASONS } = require('../lib/revenue-household');
 const { createResumeToken } = require('../lib/revenue-resume');
@@ -106,11 +106,11 @@ exports.handler = async (event) => {
       }
 
       if (view === 'ai-search') {
-        // Same admin gate as the dashboard. Recorded counts only; see ai-search-report.js.
+        // Same admin gate as the dashboard. Strict reads: a storage failure makes
+        // the report partial or unavailable, never a false zero (ai-search-report.js).
         const report = await buildAiSearchReport(parseDateRange(q), {
           getStore: getRevenueStore,
-          listKeys: blobListKeys,
-          getJson: blobGetJson,
+          getJson: blobGetJsonStrict,
         });
         return revopsJson(200, report);
       }

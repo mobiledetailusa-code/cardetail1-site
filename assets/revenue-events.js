@@ -258,8 +258,11 @@
       // Assistants such as Perplexity usually send no UTM tags, so a returning
       // visit from one would otherwise never become the last touch. Only a new
       // AI referrer qualifies; direct or ordinary returns keep the stored touch.
+      // A visitor with a stored paid campaign or click ID keeps that paid touch:
+      // an AI return never overwrites paid attribution.
       var prevLastRef = existing.last_touch && existing.last_touch.referrer_domain;
-      var newAiReferral = !!(externalRef && aiForReferrer(externalRef) && externalRef !== prevLastRef);
+      var newAiReferral = !!(externalRef && aiForReferrer(externalRef) && externalRef !== prevLastRef
+        && trafficType(existing) !== 'paid');
       if (hasNewCampaign || newAiReferral || !existing.last_touch) {
         merged.last_touch = {
           utm_source: cleanAttr(q.utm_source),

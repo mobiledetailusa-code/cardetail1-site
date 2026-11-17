@@ -471,6 +471,11 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Square webhook signature check. No public endpoint and no ledger write.
     'netlify/lib/square-webhook-verifier.js',
     'netlify/lib/square-webhook-event.js',
+    // AI search attribution: write-time index and admin-only report (PR #406).
+    // No booking, price, payment or Ads conversion code.
+    'netlify/lib/ai-attribution.js',
+    'netlify/lib/ai-attribution-index.js',
+    'netlify/lib/ai-search-report.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

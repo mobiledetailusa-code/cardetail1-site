@@ -124,7 +124,22 @@ function classifyEventAttribution(properties = {}) {
     sourceKey: primary ? primary.key : null,
     firstTouch: first,
     lastTouch: last,
+    paidSignal: hasPaidSignal(p),
   };
+}
+
+/**
+ * True when the event carries any paid-campaign evidence the server can see:
+ * a paid utm_medium (latest or first campaign) or the browser's own "paid"
+ * traffic label, which is set for stored Google Ads click IDs. Click IDs are
+ * never sent to the server. Used only to keep paid bookings out of AI totals,
+ * so trusting the browser label here can only reduce an AI claim.
+ */
+function hasPaidSignal(properties = {}) {
+  const p = properties && typeof properties === 'object' ? properties : {};
+  const paidMedium = (v) => PAID_MEDIUMS.includes(String(v || '').trim().toLowerCase());
+  return paidMedium(p.utm_medium) || paidMedium(p.first_utm_medium)
+    || String(p.traffic_type || '').trim().toLowerCase() === 'paid';
 }
 
 function labelFor(key) {
@@ -141,5 +156,6 @@ module.exports = {
   assistantForUtmSource,
   classifyTouch,
   classifyEventAttribution,
+  hasPaidSignal,
   labelFor,
 };

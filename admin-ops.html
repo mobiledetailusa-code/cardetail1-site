@@ -5232,42 +5232,60 @@ async function loadTechs(fetchOpts, loadOpts) {
   function aiMoney(n) {
     return '$' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   }
-  function aiPct(r) {
-    return r == null ? '—' : (Math.round(r * 1000) / 10) + '%';
-  }
   function renderAiSearch(d) {
-    const t = d.totals || {};
-    let note;
-    if (!d.coverageStart) {
-      note = 'No AI-attributed visits recorded yet. Counts appear once a visitor arrives from an AI assistant.';
-    } else {
-      note = 'Recorded data only, tracked since ' + esc(String(d.coverageStart).slice(0, 10)) + '.';
-      if (!d.complete) note += ' Partial for this range' + (d.truncated ? ' (row limit reached)' : '') + '.';
-      note += ' Server-confirmed bookings in range: ' + esc(d.allConfirmedBookingsInRange || 0) +
-        ', of which ' + esc(d.confirmedWithoutAiRecord || 0) + ' have no AI attribution record.';
+    const clear = function () { $('#revopsAiStats').innerHTML = ''; $('#revopsAiSources').innerHTML = ''; };
+    // Unavailable data is never shown as 0.
+    if (!d || d.status === 'unavailable' || !d.totals) {
+      $('#revopsAiNote').textContent = 'AI search data is unavailable right now (storage could not be read). No figures are shown.';
+      clear();
+      return;
+    }
+    if (d.status === 'not_started') {
+      $('#revopsAiNote').textContent = 'No AI-attributed activity recorded yet. Tracking starts with the first visit from an AI assistant.';
+      clear();
+      return;
+    }
+    const t = d.totals;
+    const x = d.excluded || {};
+    // Partial ranges show lower bounds ("≥") because some data could not be read.
+    const n = function (v) { return (d.lowerBound ? '≥ ' : '') + esc(v || 0); };
+    const usd = function (v) { return (d.lowerBound ? '≥ ' : '') + aiMoney(v); };
+    let note = 'Browser-reported attribution, not independently verified. Tracked since ' +
+      esc(d.coverageStart ? String(d.coverageStart).slice(0, 10) : 'unknown') + '. ';
+    note += d.status === 'complete'
+      ? 'Complete for this range.'
+      : '<strong>Partial for this range</strong>: some data is missing or could not be read, so figures are minimums.';
+    if (x.paidAssistedConfirmed || x.paidAssistedSubmissions) {
+      note += ' Paid ad + AI-assisted (not counted above): ' + esc(x.paidAssistedSubmissions || 0) + ' submitted, ' +
+        esc(x.paidAssistedConfirmed || 0) + ' confirmed, ' + aiMoney(x.paidAssistedApprovedValue) + ' approved.';
+    }
+    if (x.unverifiableSubmissions || x.unverifiableConfirmed) {
+      note += ' Conflicting or unverifiable attribution (excluded): ' + esc(x.unverifiableSubmissions || 0) + ' submitted, ' +
+        esc(x.unverifiableConfirmed || 0) + ' confirmed.';
     }
     $('#revopsAiNote').innerHTML = note;
     $('#revopsAiStats').innerHTML = [
-      ['AI-attributed visits', esc(t.visits || 0)],
-      ['Booking starts', esc(t.bookingStarts || 0)],
-      ['Booking submissions', esc(t.bookingSubmissions || 0)],
-      ['Server-confirmed bookings', esc(t.confirmedBookings || 0)],
-      ['Confirmed value', aiMoney(t.confirmedValue)],
-      ['Avg confirmed value', t.averageConfirmedValue == null ? '—' : aiMoney(t.averageConfirmedValue)],
-      ['Visit → submission', aiPct(t.submissionRate)],
-      ['Visit → confirmed', aiPct(t.confirmationRate)],
+      ['AI-attributed sessions', n(t.aiSessions)],
+      ['AI-attributed booking submissions', n(t.bookingSubmissions)],
+      ['Server-confirmed AI bookings', n(t.confirmedBookings)],
+      ['Approved booking value — not collected payment', usd(t.approvedValue)],
     ].map(function (row) {
       return '<div class="card"><h3>' + row[0] + '</h3><div class="stat">' + row[1] + '</div></div>';
     }).join('');
-    const rows = d.sources || [];
+    const rows = (d.sources || []).filter(function (s) {
+      return s.latestReferralSessions || s.firstAcquiredSessions || s.bookingSubmissions || s.confirmedBookings;
+    });
     $('#revopsAiSources').innerHTML =
-      '<table class="tbl"><thead><tr><th>Source</th><th>Visits</th><th>Starts</th><th>Submissions</th><th>Confirmed</th><th>Confirmed value</th></tr></thead><tbody>' +
-      rows.map(function (s) {
-        return '<tr><td>' + esc(s.label) + '</td><td>' + esc(s.visits) + '</td><td>' + esc(s.bookingStarts) + '</td><td>' +
-          esc(s.bookingSubmissions) + '</td><td>' + esc(s.confirmedBookings) + '</td><td>' + aiMoney(s.confirmedValue) +
-          (s.confirmedMissingAmount ? ' <span class="hint">(' + esc(s.confirmedMissingAmount) + ' without amount)</span>' : '') + '</td></tr>';
-      }).join('') + '</tbody></table>' +
-      '<p class="hint" style="margin-top:8px">Calls, typed URLs, links copied from an assistant, and Google AI Overviews cannot be told apart from other traffic and are not counted here.</p>';
+      (rows.length
+        ? '<table class="tbl"><thead><tr><th>AI platform</th><th>Latest referral sessions</th><th>First acquired sessions</th><th>Submissions</th><th>Server-confirmed</th><th>Approved value</th></tr></thead><tbody>' +
+          rows.map(function (s) {
+            return '<tr><td>' + esc(s.label) + '</td><td>' + n(s.latestReferralSessions) + '</td><td>' + n(s.firstAcquiredSessions) +
+              '</td><td>' + n(s.bookingSubmissions) + '</td><td>' + n(s.confirmedBookings) + '</td><td>' + usd(s.approvedValue) +
+              (s.confirmedMissingAmount ? ' <span class="hint">(' + esc(s.confirmedMissingAmount) + ' without amount)</span>' : '') + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '') +
+      '<details style="margin-top:8px"><summary class="hint">How these numbers are measured</summary><ul class="hint">' +
+      (d.limitations || []).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul></details>';
   }
   async function refreshAiSearch() {
     try {
