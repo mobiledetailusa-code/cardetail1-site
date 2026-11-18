@@ -47,8 +47,9 @@ Only models confirmed on manufacturer press sites were added, as data in the sin
 | Chevrolet | Silverado 1500 | news.gm.com |
 | Hyundai | Tucson (all-new, still compact 2-row) | hyundainews.com 2027 changes |
 | Subaru | Outback, BRZ | media.subaru.com |
+| Kia | Telluride (new generation, three-row, 199.2 in; there is no 2026 Telluride) | hyundaimotorgroup.com newsroom, added 2026-11-18 |
 
-Seen only in secondary coverage, so **not** confirmed yet: Honda Civic, Kia Telluride, Kia Sorento, Ford F-150, Ford Mustang, Chevrolet Colorado, Tahoe and Equinox. A 2027 Honda Civic therefore shows "We haven't confirmed the 2027 version of this model yet" and a quote button. Adding a model is a one-line data change with a manufacturer source. The tests require that every listed vehicle exists and that its make has a source.
+29 models in total. Seen only in secondary coverage, so **not** confirmed yet: Honda Civic, Kia Sorento, Ford F-150, Ford Mustang, Chevrolet Colorado, Tahoe and Equinox. A 2027 Honda Civic therefore shows "We haven't confirmed the 2027 version of this model yet" and a quote button. Adding a model is a one-line data change with a manufacturer source. The tests require that every listed vehicle exists and that its make has a source.
 
 New 2027 vehicles that are not in the catalog at all: Toyota bZ Woodland, Subaru Uncharted, and the new 2027 Chevrolet Bolt (a different body from the catalog's Bolt EV). Each needs an owner size decision (see 7).
 
@@ -72,6 +73,8 @@ New 2027 vehicles that are not in the catalog at all: Toyota bZ Woodland, Subaru
 - **Duplicates / conflicting tiers across years:** none. The only multi-class model is Hyundai Santa Fe (≤2023 suv2, 2024+ suv3), which is correct for the 2024 3-row redesign.
 
 ## 7. Classifications that need an owner decision (nothing changed)
+
+> Superseded by the dimension-based review in section 12. In particular, the CX-70 and the two-row luxury SUVs are **not** smaller than three-row SUVs.
 
 Ordered by likely impact. "Under" means the customer may currently pay less than the work.
 
@@ -192,3 +195,146 @@ Pick Your Package                    Pick Your Package
 - **Measure:** paid sessions reaching Details. The current sample (4 at Package, 0 at Details) is too small to show price sensitivity on its own.
 
 The ordering within groups is the "package reordering" you asked to hold. It is shown here for approval only.
+
+## 12. Final classification review (2026-11-18)
+
+### Prices used below (unchanged; `index.html` PRICING.cars)
+
+| Tier | Exterior Hand Wash | Premium Full Detail | Signature Restoration | Ceramic 1 yr |
+|---|---|---|---|---|
+| small | $125 | $250 | $400 | $650 |
+| suv2 | $145 | $285 | $495 | $725 |
+| suv3 | $165 | $310 | $570 | $825 |
+| truck | $165 | $300 | $555 | $825 |
+
+### Size reference points
+
+Lengths are rounded overall length. Sources are listed at the end of this section.
+
+| Vehicle | Tier now | Length | Rows / seats |
+|---|---|---|---|
+| Toyota RAV4 | suv2 | ~181 in | 2 / 5 |
+| Hyundai IONIQ 5 | suv2 | ~182.5 in | 2 / 5 |
+| Toyota Highlander | suv3 | ~195 in | 3 / 7–8 |
+| Mazda CX-90 | suv3 | ~201.6 in | 3 / 7–8 |
+| Kia Telluride (2027) | suv3 | 199.2 in | 3 / 7–8 |
+
+The key finding: the two-row luxury SUVs (X5, GLE, Q8, Cayenne) are 194–197 in long and about 78 in wide. That is the same exterior size as a Highlander, and the exterior is most of a detail's workload. Having two rows does not make a vehicle smaller.
+
+### Per vehicle
+
+| Vehicle | Tier now | Years affected | Body | Exterior | Interior | Compared with | Recommended | Price effect today (Full / Signature) | Evidence |
+|---|---|---|---|---|---|---|---|---|---|
+| Mercedes EQS **Sedan** | small | 2022+ (record is generic 1990–2027) | 4-door sedan/liftback | ~205 in, low roof | 5 seats | other large sedans (S-Class, 7 Series) are small | keep small | — | sedan record |
+| Mercedes EQS **SUV** | not in catalog; picked as "EQS" → small | 2023+ | full-size electric SUV | ~201.8 in (5,125 mm), ~80 in wide, ~67.6 in tall | 5 seats, optional 3rd row (7) | Highlander and CX-90 (suv3) | suv3 | was underpriced: $250 vs $310 / $400 vs $570 | MBUSA (5, 7 optional), Wards (3rd row), Carwow (5,125 × 2,034 mm) |
+| Mercedes EQE **Sedan** | small | 2023+ | sedan | ~196.9 in | 5 | E-Class (small) | keep small | — | TrueCar (manufacturer specs) |
+| Mercedes EQE **SUV** | not in catalog; picked as "EQE" → small | 2023+ | midsize electric SUV | ~191.8 in, 76.4 in wide, ~66 in tall | 2 rows / 5 | Lexus RX, GLC-size (suv2) | suv2 | was underpriced: $250 vs $285 / $400 vs $495 | TrueCar, Yahoo Autos |
+| Kia EV6 | small | 2022+ | low crossover / liftback | 184.3–184.8 in, 74.0–74.4 in wide, 60.8 in tall | 2 / 5 | its platform twin IONIQ 5 (182.5 in) is suv2 | suv2 (lower roof than most SUVs, but crossover body and hatch area) | underpriced by $35 / $95 | kiamedia.com 2022 specifications |
+| Mazda CX-70 | suv3 | 2025+ | midsize SUV | 200.8–201.6 in, same 122.8 in wheelbase as the CX-90 | 2 / 5 | CX-90 (suv3), the same body with 3 rows | **keep suv3** (it is as large as the CX-90) | — | Edmunds, KBB, Mazda dealer spec |
+| BMW X5 | suv3 | G05 2019+ (also earlier gens) | midsize luxury SUV | ~194.3 in, ~78.9 in wide | 5, optional 3rd row on G05 | Highlander (suv3) | keep suv3 | — | vehiclesizes (4,935 mm), dealer (optional 3rd row) |
+| Mercedes GLE | suv3 | 2016+ (ML before) | midsize luxury SUV | ~193.9–195 in | 5, optional 3rd row (W167, 2020+) | X5 (suv3) | keep suv3 | — | KBB 2026 (193.9 in), Mercedes dealer (5 or 7) |
+| Audi Q8 | suv3 | 2019+ | large two-row coupe-SUV | 196.3–196.8 in, 78.5 in wide (no mirrors), ~67 in tall | 5 seats | larger than the X5 | keep suv3 | — | Audi MediaCenter (4,986 × 1,995 × 1,705 mm, "space for five") |
+| Porsche Cayenne | **suv2** | 2003+ | midsize luxury SUV | 194.1 in, 78.1 in wide, 66.8 in tall | 5 seats | same size as X5/GLE/Q8 (suv3) | **suv3** | underpriced by $25 / $75 (ceramic 1-yr $100) | Velocity Journal, Porsche dealer (194.1 in, 114 in wheelbase) |
+| Range Rover Sport | suv3 | 2006+ | midsize luxury SUV | not verified this round | 2 / 5 | X5 group | keep suv3 | — | dimensions still to be sourced |
+| Jeep Grand Cherokee (2-row) | suv3 | 1993+ | midsize SUV | ~193.5 in (Grand Cherokee L is 204.9 in and 11.4 in longer) | 2 / 5 | X5 group, Highlander | keep suv3 | — | vehiclesizes (L 5,204 mm), dealer comparison (+11.4 in) |
+| Toyota 4Runner | **suv2** | 1990+ | body-on-frame midsize SUV | ~194.9 in (2025 generation, 4,950 mm) | 2 / 5; optional 3rd row on some generations | Grand Cherokee (suv3), Cayenne | **suv3**, same rule as Cayenne | underpriced by $25 / $75 | vehiclesizes (4,950 mm) |
+| GMC Hummer EV | suv3 (one record) | 2022+ | **Pickup** and **SUV** share one name | Pickup ~216.8 in; SUV ~196.8 in | 5 seats | Pickup ≈ full-size truck; SUV ≈ suv3 | **separate variants**: Pickup → truck, SUV → keep suv3 | Pickup is overpriced by $10 / $15 today | evspecifications, carbuzz (wheelbase 135.6 vs 126.7 in) |
+| Toyota Land Cruiser | suv3 | 1990–2021 full-size 3-row; 2024+ (250 series) two-row | SUV | 250 series ~193.9 in | 2024+: 2 rows in the US | X5 group (suv3) | keep suv3 (the 250 is still X5-sized) | — | vehiclesizes (4,925 mm) |
+| Land Rover Defender | suv3 (one record) | 2020+ | 90 (2-door), 110, 130 | 90 ~180.4 in; 130 ~210.9 in | 90: 5–6; 110: 5/7; 130: up to 8 | 90 ≈ RAV4 size; 130 ≈ Suburban size | **separate variants**: 90 → suv2, 110 and 130 → suv3 | 90 overpriced by $25 / $75 | Land Rover (seats), vehiclesizes, driving.co.uk |
+| Mitsubishi Outlander / Dodge Journey | suv3 | Outlander 2007+ with 3rd row; Journey 2009–2020 | compact or midsize with a small 3rd row | not verified this round | 3 rows (small) | between RAV4 and Highlander | keep suv3 for now | possibly overpriced | dimensions still to be sourced |
+| Hyundai Santa Fe XL (2013–2019) | suv2 (through the Santa Fe record) | 2013–2019 | 3-row long-wheelbase version | not verified this round | 3 rows / 6–7 | Highlander (suv3) | separate variant "Santa Fe XL" → suv3, quote until approved | underpriced by $25 / $75 | needs a source |
+| Tier spread (suv3, truck) | — | — | — | Mazda CX-90 to Suburban; Maverick to F-350 | — | — | keep tiers; new tiers need owner approval | — | — |
+
+### Recommendations
+
+| # | Vehicle | Action |
+|---|---|---|
+| 1 | Mercedes EQS SUV | **SEPARATE MODEL VARIANTS.** Done in this PR as a *quote-only* entry. The dropdown shows "EQS Sedan" (same record, same price) and "EQS SUV (quote)". The SUV goes to the quote form and the server refuses it as a priced booking. Pricing it at suv3 needs owner approval. |
+| 2 | Mercedes EQE SUV | **SEPARATE MODEL VARIANTS.** Same treatment ("EQE Sedan" / "EQE SUV (quote)"). Suggested suv2. |
+| 3 | Mercedes EQS / EQE sedans | **KEEP CURRENT TIER** (small). |
+| 4 | Kia EV6 | **CHANGE TIER — OWNER APPROVAL REQUIRED** (small → suv2). |
+| 5 | Mazda CX-70 | **KEEP CURRENT TIER** (suv3). This reverses the earlier suggestion: the CX-70 is the CX-90's size. |
+| 6 | BMW X5 | **KEEP CURRENT TIER** (suv3) |
+| 7 | Mercedes GLE | **KEEP CURRENT TIER** (suv3) |
+| 8 | Audi Q8 | **KEEP CURRENT TIER** (suv3) |
+| 9 | Porsche Cayenne | **CHANGE TIER — OWNER APPROVAL REQUIRED** (suv2 → suv3, so it matches the vehicles it is the same size as) |
+| 10 | Range Rover Sport, Jeep Grand Cherokee | **KEEP CURRENT TIER** (suv3) |
+| 11 | Toyota 4Runner | **CHANGE TIER — OWNER APPROVAL REQUIRED** (suv2 → suv3, same rule as Cayenne) |
+| 12 | GMC Hummer EV | **SEPARATE MODEL VARIANTS** (Pickup → truck, SUV → suv3). Owner approval required. |
+| 13 | Toyota Land Cruiser | **KEEP CURRENT TIER** (suv3) |
+| 14 | Land Rover Defender | **SEPARATE MODEL VARIANTS** (90 → suv2; 110 and 130 → suv3). Owner approval required. |
+| 15 | Mitsubishi Outlander, Dodge Journey | **KEEP CURRENT TIER** until dimensions are sourced |
+| 16 | Hyundai Santa Fe XL 2013–2019 | **MANUAL ESTIMATE UNTIL VERIFIED.** Add it as a quote-only variant like the EQS SUV once you agree. Not done in this PR. |
+| 17 | Tier spread | **KEEP CURRENT TIER.** New tiers need owner approval. |
+
+Not implemented in this PR: every CHANGE TIER item, the Hummer and Defender splits, and the Santa Fe XL. Each is a one-record catalog change plus a test, once approved.
+
+### 2027 recheck (Task 3)
+
+- **Confirmed list:** 29 models (Kia Telluride added from the Hyundai Motor Group newsroom).
+- **Naming changes:**
+  - Toyota sells the bZ4X as "bZ" for 2027. It is mapped to the bZ4X record.
+  - The 2027 Highlander is a new generation, still 3-row.
+  - The 2027 Telluride is a new generation, still 3-row.
+  - None changed body class.
+- **Discontinued models never get a 2027 price.** Tests cover the Chevrolet Camaro and Malibu: refused for 2027, still priced for 2024.
+- **The browser and server use the same rule** (`modelYearStatus`, from the same JSON).
+- **Historical ranges are untouched** (Dodge Magnum 2005–2008 small, Sequoia 2006 suv3, Santa Fe split at 2024).
+- **Remaining gap:** 2027 appears in every model's year list, and a model that doesn't exist in 2027 shows "not confirmed yet" plus a quote button, not a price. Real per-model year lists depend on the year-range work below.
+
+### Generic 1990–2027 ranges (Task 4)
+
+**What can go wrong today:** for single-class models the year is ignored, so impossible combinations are accepted and priced with today's class. Examples:
+- a "1990 Tesla Model Y" or "1995 Toyota Crown"
+- old generations whose body differs from today's: 1990s Ford Bronco and Chevrolet Blazer (two-door full-size or compact), Honda CR-V or Toyota RAV4 first generations, Nissan Rogue 2014–2020 with optional 3rd row
+
+The price risk is mostly small. The identity risk is real (impossible vehicles accepted), and it is what blocks per-model year lists and strict year validation.
+
+**Long-term strategy:**
+1. **Source the years.** Use NHTSA's vPIC (`GetModelsForMakeYear`), a free US-government API, to produce each model's first and last US model year. Store the result in `data/cars-vehicle-catalog.json` (one source), with the vPIC snapshot date.
+2. **Add generations only where the class changes.** Santa Fe already works this way. Candidates are the Land Cruiser, CR-V/RAV4 first generations, the Bronco and the Blazer. Each needs owner approval with dimensions.
+3. **Add a CI guard:** a test that fails if a public model has the blanket range, so new entries can't regress.
+4. **Turn on strict years** for public bookings only after steps 1–3. Years outside the range then go to the quote form, as unconfirmed 2027s do now. Staff mode stays lenient.
+5. **Ship in batches by make,** each as its own PR, starting with the makes customers actually book (Toyota, Honda, Nissan, Chevrolet, Ford, Jeep, BMW, Mercedes-Benz).
+
+### PR #408 safety recheck (Task 5)
+
+All of the following are covered by tests that run the real `index.html` code in jsdom and the server check:
+- **Nicknames:** chevy, vw, benz, mercedes, range rover, caddy, infinity, and all 44 makes by name.
+- **Make switching** clears the old selections.
+- **Missing vehicles reach the quote form:** "No make found", the "not listed" button, and EQS/EQE SUV.
+- **Unknown vehicles are never priced:** Pontiac, Honda Prelude, EQS SUV, unconfirmed 2027s.
+- **Server tier validation is active** (`tier_mismatch`, `vehicle_unresolved`).
+- **Magnum and Sequoia are unchanged.**
+- **2027 works as designed:** Camry and Telluride priced, Civic refused, 2028 refused.
+- **No customer data is lost:**
+  - the quote request carries name, phone, email, vehicle, ZIP and notes, and is sent to the owner by email and SMS through `submit-inquiry`
+  - a failed send shows the phone number, and the form keeps what was typed
+  - no existing booking field was removed
+
+**Line-ending regression resolved.** `scripts/sync-vehicle-catalog.cjs --check` and the "MODELS hashes identical" test now compare content with line endings normalized. A Windows checkout with `core.autocrlf=true` no longer reports false drift. On this machine, 12 tests that fail on master now pass, and none fail that pass on master.
+
+### Sources for section 12
+
+- MBUSA EQS 450 4MATIC SUV — https://Mbusa.Com/en/vehicles/model/eqs/suv/eqs450x4
+- Wards, EQS SUV — https://www.wardsauto.com/node/386479
+- Carwow, EQS SUV dimensions — https://carwow.co.uk/mercedes/eqs-suv/specifications
+- TrueCar, EQE sedan vs SUV sizing — https://www.truecar.com/compare/mercedes-benz-eqe-sedan-vs-mercedes-benz-eqe-suv/sizing/
+- Kia Media, 2022 EV6 specifications — https://kiamedia.com/us/en/models/ev6/2022/specifications
+- Edmunds, CX-70 — https://www.edmunds.com/mazda/cx-70/2025/st-402026411/features-specs
+- KBB, CX-70 — https://www.kbb.com/mazda/cx-70/2026/specs
+- vehiclesizes, X5 G05 LCI — https://www.vehiclesizes.com/cars/bmw/x5/x5-g05-lci-facelift-2023-suv-2024
+- BMW dealer, X5 dimensions — https://www.bmwofarlington.com/bmw-research/bmw-x5-dimensions-arlington-tx/
+- KBB, GLE — https://www.kbb.com/mercedes-benz/gle/2026/specs/
+- Mercedes dealer, GLE — https://www.rusnakarcadia.com/mercedes-benz-information/mercedes-benz-gle-dimensions/
+- Audi MediaCenter, Q8 dimensions — https://audi-mediacenter.com/en/the-audi-q8-the-new-top-model-of-the-q-family-10412/dimensional-and-space-concept-10415
+- Velocity Journal, 2024 Cayenne — https://www.velocityjournal.com/models/37590/configuration/97055
+- Porsche Westlake, Cayenne dimensions — https://westlake.porsche.com/en/porsche-information/porsche-cayenne-dimensions
+- vehiclesizes, Grand Cherokee L vs 4Runner — https://www.vehiclesizes.com/compare/10269-1631/jeep-grand-cherokee-l-v-wl-facelift-2025-suv-2026-vs-toyota-4runner-vi-suv-2025
+- evspecifications, Hummer EV Pickup — https://www.evspecifications.com/en/model/08e81ca
+- CarBuzz, Hummer EV SUV vs Pickup — https://carbuzz.com/news/gmc-hummer-ev-suv-vs-pickup-the-main-differences
+- vehiclesizes, Land Cruiser vs Defender 90 — https://www.vehiclesizes.com/compare/1950-2716/toyota-land-cruiser-j250-suv-2024-vs-land-rover-defender-90-l663-off-road-vehicle-2020
+- Land Rover, Defender — https://www.landrover.com/vehicles/defender/index
+- Hyundai Motor Group, 2027 Telluride — https://www.hyundaimotorgroup.com/en/news/introducing-the-all-new-2027-kia-telluride-first-ever-hybrid-increased-x-pro-capability-elevate-the-three-row-suv
+
+Third-party spec sites were used where the manufacturer page publishes dimensions only as images. Figures vary by trim and model year by up to about 1 inch. No recommendation depends on a difference that small.

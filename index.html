@@ -3487,7 +3487,7 @@ body.luxury-surface .hero h1{
             <div class="sel-g"><div class="sel-l">Model</div><select class="sel-s" id="model-sel" disabled><option value="">— select make first —</option></select></div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="year-sel" disabled><option value="">— select model —</option></select></div>
           </div>
-          <p id="car-year-note" class="car-year-note" role="status" hidden>We haven’t confirmed the <span data-year></span> version of this model yet, so we can’t price it online. <button type="button" class="srch-empty-btn car-year-note-btn" onclick="openCarUnlisted()">Request a quote →</button></p>
+          <p id="car-year-note" class="car-year-note" role="status" hidden><span data-msg></span> <button type="button" class="srch-empty-btn car-year-note-btn" onclick="openCarUnlisted()">Request a quote →</button></p>
           <button type="button" id="car-unlisted-btn" class="car-unlisted-btn" aria-expanded="false" aria-controls="car-unlisted" onclick="openCarUnlisted()">My vehicle isn’t listed</button>
           <!-- Vehicle not in the catalog: quote request only. The server prices only
                catalog vehicles (require_identity), so no size, price or booking is set here. -->
@@ -7280,10 +7280,17 @@ async function submitCarUnlisted(e){
   }
 }
 
-function showCarYearNote(year){
+function showCarNote(msg){
   const el=document.getElementById('car-year-note'); if(!el) return;
-  el.querySelector('[data-year]').textContent=String(year);
+  el.querySelector('[data-msg]').textContent=msg;
   el.hidden=false;
+}
+function showCarYearNote(year){
+  showCarNote('We haven’t confirmed the '+year+' version of this model yet, so we can’t price it online.');
+}
+// Same-name body variants (EQS SUV vs EQS sedan) that are quoted by hand.
+function carQuoteOnlyModels(make){
+  return (window.CD1VehicleCatalog&&CD1VehicleCatalog.quoteOnlyModels)?CD1VehicleCatalog.quoteOnlyModels(make):[];
 }
 function hideCarYearNote(){
   const el=document.getElementById('car-year-note'); if(el) el.hidden=true;
@@ -7297,6 +7304,15 @@ function selectMake(make){
   const data=MODELS[make];
   ms.innerHTML='<option value="">— select model —</option>';
   if(data)data.m.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;ms.appendChild(o);});
+  // Same-name body variants: label the catalog model by its body ("EQS Sedan",
+  // value unchanged) and list the variant as a quote-only choice.
+  carQuoteOnlyModels(make).forEach(q=>{
+    const same=[...ms.options].find(o=>o.value===q.sameNameAs);
+    if(same&&q.relabelSameNameAs) same.textContent=q.relabelSameNameAs;
+    if([...ms.options].some(o=>o.value===q.model)) return;
+    const o=document.createElement('option'); o.value=q.model; o.textContent=q.model+' (quote)'; o.dataset.quoteOnly='1';
+    if(same) same.after(o); else ms.appendChild(o);
+  });
   ms.disabled=false; ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
   ST.model=''; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
   document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
@@ -7308,6 +7324,17 @@ document.getElementById('model-sel').addEventListener('change',function(){
   const ys=document.getElementById('year-sel');
   hideCarYearNote();
   if(!ST.model){ys.disabled=true;return;}
+  const picked=this.options[this.selectedIndex];
+  if(picked && picked.dataset && picked.dataset.quoteOnly==='1'){
+    // Not a catalog vehicle: no year, size or price. Quote by hand.
+    ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
+    ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.basePrice=0;
+    ST.vehicleLabel='';
+    document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
+    showCarNote('We price the '+ST.model+' by hand because it shares a name with the sedan but is a larger vehicle.');
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
+    return;
+  }
   // Year range comes from the catalog policy (selectableMax covers next model year).
   const policy=(window.CD1VehicleCatalog&&CD1VehicleCatalog.getYearPolicy)?CD1VehicleCatalog.getYearPolicy():{};
   const cur=Math.max(new Date().getFullYear(), Number(policy.selectableMax)||0);

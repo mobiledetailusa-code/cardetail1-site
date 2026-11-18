@@ -42,18 +42,43 @@
           "Chevrolet|Silverado 1500",
           "Hyundai|Tucson",
           "Subaru|Outback",
-          "Subaru|BRZ"
+          "Subaru|BRZ",
+          "Kia|Telluride"
         ],
         "sources": {
           "Toyota": "https://pressroom.toyota.com/whats-new-for-2027/ (bZ4X is sold as bZ for 2027); Highlander: https://pressroom.toyota.com/elevated-style-meets-modern-power-in-the-next-generation-2027-toyota-highlander/",
           "Nissan": "https://usa.nissannews.com/en-US/releases/nissan-whats-new",
           "Chevrolet": "https://news.gm.com/home.detail.html/Pages/news/us/en/2026/jun/0516-chevrolet-next-generation-2027-silverado.html",
           "Hyundai": "https://www.hyundainews.com/releases/hyundai-announces-2027-model-year-changes",
-          "Subaru": "https://media.subaru.com/pressrelease/2509/1/2027-subaru-outback-press-kit ; https://media.subaru.com/pressrelease/2450/1/subaru-america-announces-pricing-2027-subaru-brz"
+          "Subaru": "https://media.subaru.com/pressrelease/2509/1/2027-subaru-outback-press-kit ; https://media.subaru.com/pressrelease/2450/1/subaru-america-announces-pricing-2027-subaru-brz",
+          "Kia": "https://www.hyundaimotorgroup.com/en/news/introducing-the-all-new-2027-kia-telluride-first-ever-hybrid-increased-x-pro-capability-elevate-the-three-row-suv (three-row, 199.2 in; no 2026 Telluride)"
         },
-        "checkedAt": "2026-11-17"
+        "checkedAt": "2026-11-18"
       }
     }
+  },
+  "quoteOnlyModels": {
+    "notes": "Vehicles sold under the same name as a catalog model but with a different body. They are listed so the customer can tell them apart, and they go to a manual quote until the owner approves a class. The server refuses them on public bookings because they are not catalog vehicles.",
+    "models": [
+      {
+        "make": "Mercedes-Benz",
+        "model": "EQS SUV",
+        "sameNameAs": "EQS",
+        "relabelSameNameAs": "EQS Sedan",
+        "firstYear": 2023,
+        "suggestedClass": "suv3",
+        "reason": "About 201.8 in (5,125 mm) long, 5 seats or 7 with the optional third row. The EQS sedan record is priced as small."
+      },
+      {
+        "make": "Mercedes-Benz",
+        "model": "EQE SUV",
+        "sameNameAs": "EQE",
+        "relabelSameNameAs": "EQE Sedan",
+        "firstYear": 2023,
+        "suggestedClass": "suv2",
+        "reason": "About 191.8 in long, two rows, 76.4 in wide. The EQE sedan record is priced as small."
+      }
+    ]
   },
   "pricingClasses": [
     "small",

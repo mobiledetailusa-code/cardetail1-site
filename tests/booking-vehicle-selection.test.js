@@ -243,6 +243,33 @@ describe('vehicle step behavior (index.html CAR SEARCH block)', () => {
     assert.equal(sb.doc.getElementById('car-year-note').hidden, true);
   });
 
+  it('EQS/EQE: sedans are labelled as sedans and the SUVs go to a quote, never a sedan price', () => {
+    const sb = makeSandbox();
+    sb.fns.selectMake('Mercedes-Benz');
+    const opts = [...sb.doc.getElementById('model-sel').options];
+    const byValue = (v) => opts.find((o) => o.value === v);
+    assert.equal(byValue('EQS').textContent, 'EQS Sedan');
+    assert.equal(byValue('EQE').textContent, 'EQE Sedan');
+    assert.equal(byValue('EQS SUV').dataset.quoteOnly, '1');
+    assert.equal(byValue('EQE SUV').dataset.quoteOnly, '1');
+    assert.equal(opts.indexOf(byValue('EQS SUV')), opts.indexOf(byValue('EQS')) + 1, 'SUV sits next to the sedan');
+
+    choose(sb, 'model-sel', 'EQS SUV');
+    assert.equal(sb.ST().tierKey, '');
+    assert.equal(sb.ST().basePrice, 0);
+    assert.equal(sb.doc.getElementById('year-sel').disabled, true);
+    assert.equal(sb.doc.getElementById('next3').disabled, true);
+    assert.equal(sb.doc.getElementById('car-year-note').hidden, false);
+    sb.fns.openCarUnlisted();
+    assert.equal(sb.doc.getElementById('cu-model').value, 'EQS SUV');
+    assert.equal(sb.doc.getElementById('cu-make').value, 'Mercedes-Benz');
+
+    // The sedan keeps its existing class.
+    choose(sb, 'model-sel', 'EQS'); choose(sb, 'year-sel', 2024);
+    assert.equal(sb.ST().tierKey, 'small');
+    assert.equal(sb.doc.getElementById('car-year-note').hidden, true);
+  });
+
   it('"No make found" offers the not-listed form, prefilled with what was typed', () => {
     const sb = makeSandbox();
     type(sb, 'pontiac');
@@ -308,6 +335,8 @@ describe('server: model year verification and tier validation (car-catalog-tier)
     assert.deepEqual(check('Toyota', 'Camry', 2027, 'small'), { ok: true });
     assert.deepEqual(check('Toyota', 'Camry', 2027, 'suv2'), { ok: false, error: 'tier_mismatch' });
     assert.deepEqual(check('Chevrolet', 'Silverado 1500', 2027, 'truck'), { ok: true });
+    assert.deepEqual(check('Kia', 'Telluride', 2027, 'suv3'), { ok: true });
+    assert.deepEqual(check('Kia', 'Telluride', 2027, 'suv2'), { ok: false, error: 'tier_mismatch' });
   });
 
   it('an unconfirmed 2027 model gets no price, whatever size the client claims', () => {
@@ -325,6 +354,21 @@ describe('server: model year verification and tier validation (car-catalog-tier)
   it('a vehicle outside the catalog is never priced on a public booking', () => {
     assert.deepEqual(check('Pontiac', 'Grand Prix', 2007, 'small'), { ok: false, error: 'vehicle_unresolved' });
     assert.deepEqual(check('Honda', 'Prelude', 2001, 'small'), { ok: false, error: 'vehicle_unresolved' });
+  });
+
+  it('EQS SUV / EQE SUV are never priced as the sedan on the server', () => {
+    for (const tier of ['small', 'suv2', 'suv3']) {
+      assert.deepEqual(check('Mercedes-Benz', 'EQS SUV', 2024, tier), { ok: false, error: 'vehicle_unresolved' }, tier);
+      assert.deepEqual(check('Mercedes-Benz', 'EQE SUV', 2024, tier), { ok: false, error: 'vehicle_unresolved' }, tier);
+    }
+    assert.deepEqual(check('Mercedes-Benz', 'EQS', 2024, 'small'), { ok: true });
+    assert.deepEqual(check('Mercedes-Benz', 'EQE', 2024, 'small'), { ok: true });
+  });
+
+  it('discontinued models get no 2027 price', () => {
+    assert.deepEqual(check('Chevrolet', 'Camaro', 2027, 'small'), { ok: false, error: 'vehicle_unresolved' });
+    assert.deepEqual(check('Chevrolet', 'Malibu', 2027, 'small'), { ok: false, error: 'vehicle_unresolved' });
+    assert.deepEqual(check('Chevrolet', 'Camaro', 2024, 'small'), { ok: true });
   });
 
   it('staff (known_only) mode is unchanged for future years', () => {
@@ -346,8 +390,21 @@ describe('catalog data (single source: data/cars-vehicle-catalog.json)', () => {
     }
   });
 
+  it('quote-only body variants are not catalog vehicles and point at an existing sedan', () => {
+    const keys = new Set(catalogJson.vehicles.map((v) => v.make + '|' + v.model));
+    const q = catalogJson.quoteOnlyModels.models;
+    assert.deepEqual(q.map((m) => m.model).sort(), ['EQE SUV', 'EQS SUV']);
+    for (const m of q) {
+      assert.equal(keys.has(m.make + '|' + m.model), false, m.model + ' must not be priced');
+      assert.ok(keys.has(m.make + '|' + m.sameNameAs), m.sameNameAs);
+      assert.equal(Catalog.resolveVehicle({ make: m.make, model: m.model }).ok, false);
+    }
+    assert.equal(Catalog.resolveVehicle({ make: 'Mercedes-Benz', model: 'EQS' }).tierKey, 'small');
+  });
+
   it('the browser runtime carries the same verification data as the JSON', () => {
     const generated = require('../assets/generated/cars-vehicle-catalog.generated.js');
+    assert.deepEqual(generated.quoteOnlyModels, catalogJson.quoteOnlyModels);
     assert.deepEqual(generated.modelYearVerification, mv);
     assert.deepEqual(generated.vehicles, catalogJson.vehicles);
   });

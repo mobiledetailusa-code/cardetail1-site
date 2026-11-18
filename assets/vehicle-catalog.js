@@ -433,9 +433,21 @@
       : { verified: false, reason: 'model_year_unverified', verifiedThrough: through };
   }
 
+  /**
+   * Same-name body variants that are not catalog vehicles yet (e.g. EQS SUV
+   * next to the EQS sedan). Listed for the customer, quoted by hand, never priced.
+   */
+  function quoteOnlyModels(make) {
+    const q = catalog().quoteOnlyModels;
+    const list = (q && Array.isArray(q.models)) ? q.models : [];
+    const mk = normKey(make);
+    return list.filter((m) => normKey(m.make) === mk).map((m) => Object.assign({}, m));
+  }
+
   return {
     getYearPolicy,
     modelYearStatus,
+    quoteOnlyModels,
     DISPLAY,
     catalog,
     setCatalogForTests,
