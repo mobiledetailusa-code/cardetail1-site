@@ -66,21 +66,34 @@ function postEvent(body) {
   };
 }
 
-// Same contract as Netlify Blobs: `onlyIfNew` is an atomic create-only write
-// (the check and the write happen with no await in between).
-function memoryStore({ failKey = null } = {}) {
+// Same contract as Netlify Blobs: `onlyIfNew` / `onlyIfMatch` are atomic
+// conditional writes (the check and the write happen with no await between),
+// and strong reads return { data, etag } or null.
+function memoryStore({ failKey = null, failRead = null } = {}) {
   const map = new Map();
+  const etags = new Map();
+  let n = 0;
   return {
     map,
     async set(key, value, opts = {}) {
       await new Promise((r) => setImmediate(r)); // let concurrent requests interleave
-      if (failKey && failKey(key)) throw new Error('blob write failed');
+      if (failKey && failKey(key, value)) throw new Error('blob write failed');
       if (opts.onlyIfNew && map.has(key)) return { modified: false };
+      if (opts.onlyIfMatch && etags.get(key) !== opts.onlyIfMatch) return { modified: false };
       map.set(key, value);
-      return { modified: true, etag: 'e1' };
+      const etag = `"e${++n}"`;
+      etags.set(key, etag);
+      return { modified: true, etag };
     },
     async get(key) { return map.get(key) || null; },
-    async delete(key) { map.delete(key); },
+    async getWithMetadata(key, opts = {}) {
+      await new Promise((r) => setImmediate(r));
+      assert.equal(opts.consistency, 'strong', `strong read for ${key}`);
+      if (failRead && failRead(key)) throw new Error('blob read failed');
+      if (!map.has(key)) return null;
+      return { data: map.get(key), etag: etags.get(key), metadata: {} };
+    },
+    async delete(key) { map.delete(key); etags.delete(key); },
     async list({ prefix = '' } = {}) {
       return { blobs: [...map.keys()].filter((k) => k.startsWith(prefix)).sort().map((key) => ({ key })) };
     },
@@ -160,11 +173,12 @@ describe('submit-inquiry: commercial & specialty quote requests', () => {
     const res = await submit(SCHOOL_BUS);
     assert.equal(res.status, 200);
     assert.equal(res.body.ok, true);
-    assert.equal(res.body.stored, true);
+    assert.equal(res.body.status, 'sent');
     assert.match(res.body.id, /^INQ-[A-Z0-9]+-[A-F0-9]{6}$/);
+    assert.deepEqual(Object.keys(res.body).sort(), ['id', 'ok', 'status'], 'no provider details in the response');
 
     const [rec] = storedRecords();
-    assert.equal(store.map.size, 1);
+    assert.equal(storedRecords().length, 1);
     assert.equal(rec.id, res.body.id);
     assert.equal(rec.kind, 'vehicle_quote');
     assert.equal(rec.status, 'new');
@@ -304,7 +318,7 @@ describe('submit-inquiry: existing chat questions and notifications', () => {
     const res = await submit({ id: 'INQ-LX1', name: 'Sam', phone: '201-555-0100', email: '', message: 'Do you do boats?', source: 'Chat widget' });
     assert.equal(res.status, 200);
     assert.equal(res.body.ok, true);
-    assert.equal(res.body.stored, true);
+    assert.equal(res.body.status, 'sent');
     const [rec] = storedRecords();
     assert.equal(rec.kind, 'question');
     assert.equal(rec.vehicle, null);
@@ -326,7 +340,8 @@ describe('submit-inquiry: existing chat questions and notifications', () => {
     storeFails = true;
     const res = await submit(SCHOOL_BUS);
     assert.equal(res.status, 200);
-    assert.equal(res.body.stored, false);
+    assert.equal(res.body.status, 'sent', 'the team was alerted, so this is a real success');
+    assert.equal(store.map.size, 0);
     assert.equal(emails.length, 1);
     assert.equal(smsCalls.length, 1);
   });
@@ -336,9 +351,9 @@ describe('submit-inquiry: existing chat questions and notifications', () => {
     const res = await submit(SCHOOL_BUS);
     assert.equal(res.status, 202);
     assert.equal(res.body.ok, true);
-    assert.equal(res.body.stored, true);
-    assert.equal(res.body.notified, false);
     assert.equal(res.body.status, 'saved_not_notified');
+    assert.equal(res.body.email, undefined, 'no provider details');
+    assert.equal(res.body.sms, undefined, 'no provider details');
     assert.match(res.body.message, /no need to send it again/);
     const [rec] = storedRecords();
     assert.equal(rec.id, res.body.id);
@@ -350,7 +365,7 @@ describe('submit-inquiry: existing chat questions and notifications', () => {
   it('a delivered request records the alert outcome on the stored record', async () => {
     const res = await submit(SCHOOL_BUS);
     assert.equal(res.status, 200);
-    assert.equal(res.body.notified, true);
+    assert.equal(res.body.status, 'sent');
     const [rec] = storedRecords();
     assert.deepEqual({ state: rec.notification.state, email: rec.notification.email, sms: rec.notification.sms },
       { state: 'sent', email: 'sent', sms: 'queued' });
@@ -361,12 +376,14 @@ describe('submit-inquiry: existing chat questions and notifications', () => {
     const res = await submit(SCHOOL_BUS);
     assert.equal(res.status, 503);
     assert.equal(res.body.ok, false);
+    assert.equal(res.body.status, 'not_delivered');
+    assert.equal(res.body.email, undefined);
   });
 
   it('two requests in the same millisecond get separate records', async () => {
     await submit(SCHOOL_BUS);
     await submit(SCHOOL_BUS);
-    assert.equal(store.map.size, 2);
+    assert.equal(storedRecords().length, 2);
   });
 
   it('preview and branch deploys still store and send nothing', async () => {
@@ -427,7 +444,7 @@ function makeSandbox(opts = {}) {
         return { ok: r.status >= 200 && r.status < 300, status: r.status, json: async () => r.body };
       }
       if (opts.fetchFails) throw new Error('offline');
-      return { ok: true, json: async () => ({ ok: true, id: 'INQ-X' }) };
+      return { ok: true, json: async () => ({ ok: true, id: 'INQ-X', status: 'sent' }) };
     },
   });
   w.eval(code + '\nwindow.__CS_FIELDS=CS_FIELDS;');
@@ -549,9 +566,16 @@ describe('submit-inquiry: duplicate and concurrent submissions', () => {
 
   it('concurrent duplicates create exactly one record and one email + SMS', async () => {
     const results = await Promise.all(Array.from({ length: 8 }, () => submit(withSubmission(SCHOOL_BUS))));
-    assert.ok(results.every((r) => r.status === 200 && r.body.ok === true), JSON.stringify(results.map((r) => r.status)));
-    assert.equal(new Set(results.map((r) => r.body.id)).size, 1, 'every response names the same request');
-    assert.equal(results.filter((r) => !r.body.duplicate).length, 1);
+    const statuses = results.map((r) => r.body.status);
+    assert.equal(results.filter((r) => r.status === 200 && r.body.status === 'sent' && !r.body.duplicate).length, 1, JSON.stringify(statuses));
+    for (const r of results) {
+      if (r.body.status === 'sent') continue;
+      assert.equal(r.status, 409, JSON.stringify(statuses));
+      assert.equal(r.body.status, 'processing');
+      assert.equal(r.body.retryable, true);
+      assert.equal(r.body.ok, false, 'never a false success');
+    }
+    assert.equal(new Set(results.map((r) => r.body.id).filter(Boolean)).size, 1, 'every response names the same request');
     assert.equal(storedRecords().length, 1);
     assert.equal(emails.length, 1);
     assert.equal(smsCalls.length, 1);
@@ -594,11 +618,11 @@ describe('submit-inquiry: duplicate and concurrent submissions', () => {
     store = memoryStore({ failKey: (k) => failRecords && k.startsWith('rec/') });
     const first = await submit(withSubmission(SCHOOL_BUS));
     assert.equal(first.status, 200, 'notifications still went out');
-    assert.equal(first.body.stored, false);
+    assert.equal(first.body.status, 'sent');
     assert.equal(store.map.size, 0, 'claim released');
     failRecords = false;
     const retry = await submit(withSubmission(SCHOOL_BUS));
-    assert.equal(retry.body.stored, true);
+    assert.equal(retry.body.status, 'sent');
     assert.notEqual(retry.body.duplicate, true);
     assert.equal(storedRecords().length, 1);
   });
@@ -712,7 +736,7 @@ describe('storage contract: real @netlify/blobs SDK + local BlobsServer', () => 
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cd1-inq-blobs-'));
     server = new BlobsServer({ directory: dir, token: 'local-inquiry-token' });
     const { port } = await server.start();
-    realStore = getStore({ edgeURL: `http://127.0.0.1:${port}`, name: 'revenue-inquiries', token: 'local-inquiry-token', siteID: 'local-inquiry-site' });
+    realStore = getStore({ edgeURL: `http://127.0.0.1:${port}`, uncachedEdgeURL: `http://127.0.0.1:${port}`, name: 'revenue-inquiries', token: 'local-inquiry-token', siteID: 'local-inquiry-site' });
     revenueStore.getRevenueStore = async (name) => {
       assert.equal(name, 'inquiries');
       if (storeFails) throw new Error('blobs down');
@@ -737,7 +761,8 @@ describe('storage contract: real @netlify/blobs SDK + local BlobsServer', () => 
     const retry = await submit(withSubmission(SCHOOL_BUS));
     await new Promise((r) => setTimeout(r, 5));
     const chat = await submit({ name: 'Sam', phone: '201-555-0100', message: 'Boats?' });
-    assert.equal(first.body.stored, true);
+    assert.equal(first.body.status, 'sent');
+    assert.equal(retry.body.status, 'sent', 'retry of a confirmed request');
     assert.equal(retry.body.duplicate, true);
     assert.equal(retry.body.id, first.body.id);
     assert.equal(emails.length, 2, 'school bus once + chat once');
@@ -761,7 +786,7 @@ describe('storage contract: real @netlify/blobs SDK + local BlobsServer', () => 
       return realSet(key, value, opts);
     };
     const res = await submit(withSubmission(SCHOOL_BUS));
-    assert.equal(res.body.stored, false);
+    assert.equal(res.body.status, 'sent', 'alerted without storage');
     const claims = await realStore.list({ prefix: 'sub/' });
     assert.equal(claims.blobs.length, 0);
   });
@@ -770,7 +795,7 @@ describe('storage contract: real @netlify/blobs SDK + local BlobsServer', () => 
 // ── browser: stable submission id and the saved-not-notified message ───────────
 describe('quote forms send a stable submission id', () => {
   it('the commercial form reuses its id on retry and starts a new one after a sent request', async () => {
-    const sb = makeSandbox({ responses: ['throw', { status: 200, body: { ok: true, id: 'INQ-A' } }] });
+    const sb = makeSandbox({ responses: ['throw', { status: 200, body: { ok: true, id: 'INQ-A', status: 'sent' } }] });
     sb.w.openCommercialInquiry();
     sb.set('cs-category', 'cargo_van'); sb.check('exterior_wash');
     sb.set('cs-name', 'Lee'); sb.set('cs-phone', '2015550150');
@@ -808,5 +833,249 @@ describe('quote forms send a stable submission id', () => {
     const fleet = fs.readFileSync(path.join(ROOT, 'fleet-services.html'), 'utf8');
     assert.match(fleet, /submissionId:submissionId/);
     assert.match(fleet, /saved_not_notified/);
+  });
+});
+
+// ── notification recovery: claims, interruption, strict reads ─────────────────
+const VI = require('../netlify/lib/vehicle-inquiry');
+
+describe('submit-inquiry: notification recovery and truthful status', () => {
+  const LATER = () => Date.now() + VI.NOTIFY_LEASE_MS + 60_000;
+  afterEach(() => VI.__test.setClock(null));
+
+  /** Seed the store as an earlier, interrupted request would have left it. */
+  async function seed({ record: withRecord = true, notification = { state: 'pending' }, ntf = null } = {}) {
+    const built = VI.buildInquiryRecord(withSubmission(SCHOOL_BUS));
+    const record = { ...built.record, notification };
+    const recordKey = VI.recordKeyFor(record);
+    await store.set(`sub/${built.dedupeKey}`, JSON.stringify({ id: record.id, recordKey, createdAt: record.createdAt, at: record.createdAt }));
+    if (withRecord) await store.set(recordKey, JSON.stringify(record));
+    if (ntf) await store.set(`ntf/${record.id}`, JSON.stringify({ at: new Date().toISOString(), ...ntf }));
+    return { record, recordKey };
+  }
+  const recordById = (id) => storedRecords().find((r) => r.id === id);
+  const retry = () => submit(withSubmission(SCHOOL_BUS));
+
+  it('pending record, never notified (no claim), then retry: sends once and confirms', async () => {
+    const { record } = await seed();
+    const res = await retry();
+    assert.equal(res.status, 200);
+    assert.equal(res.body.status, 'sent');
+    assert.equal(res.body.id, record.id);
+    assert.equal(emails.length, 1);
+    assert.equal(smsCalls.length, 1);
+    assert.equal(recordById(record.id).notification.state, 'sent');
+    assert.equal(storedRecords().length, 1, 'no duplicate record');
+    const again = await retry();
+    assert.equal(again.body.status, 'sent');
+    assert.equal(emails.length, 1, 'confirmed requests are never re-sent');
+  });
+
+  it('function interrupted before notification (claim write fails): truthful retry, then recovery', async () => {
+    let failClaims = true;
+    store = memoryStore({ failKey: (k) => failClaims && k.startsWith('ntf/') });
+    const first = await retry();
+    assert.equal(first.status, 503);
+    assert.equal(first.body.status, 'retry');
+    assert.equal(first.body.retryable, true);
+    assert.equal(first.body.ok, false, 'no false success');
+    assert.equal(emails.length + smsCalls.length, 0, 'nothing sent without a claim');
+    assert.equal(storedRecords()[0].notification.state, 'pending');
+    failClaims = false;
+    const second = await retry();
+    assert.equal(second.body.status, 'sent');
+    assert.equal(second.body.id, first.body.id);
+    assert.equal(emails.length, 1);
+    assert.equal(storedRecords().length, 1);
+  });
+
+  it('outcome write fails after providers accepted: customer told sent, outcome kept on the claim, retry does not resend', async () => {
+    let failOutcome = true;
+    store = memoryStore({ failKey: (k, v) => failOutcome && k.startsWith('rec/') && /"state":"sent"/.test(v) });
+    const first = await retry();
+    assert.equal(first.body.status, 'sent', 'this process saw the providers accept');
+    const rec = storedRecords()[0];
+    assert.equal(rec.notification.state, 'pending', 'record update failed');
+    const claim = JSON.parse(store.map.get(`ntf/${rec.id}`));
+    assert.equal(claim.phase, 'done');
+    assert.equal(claim.outcome.state, 'sent');
+    failOutcome = false;
+    const again = await retry();
+    assert.equal(again.body.status, 'sent');
+    assert.equal(emails.length, 1, 'not resent');
+  });
+
+  it('provider accepted but the function died before recording anything: never resent, flagged unknown', async () => {
+    const { record } = await seed({ ntf: { phase: 'sending' } });
+    const soon = await retry();
+    assert.equal(soon.status, 409);
+    assert.equal(soon.body.status, 'processing');
+    assert.equal(soon.body.ok, false);
+    VI.__test.setClock(LATER);
+    const later = await retry();
+    assert.equal(later.status, 202);
+    assert.equal(later.body.status, 'saved_alert_unconfirmed');
+    assert.equal(later.body.ok, true);
+    assert.equal(later.body.id, record.id);
+    assert.equal(emails.length + smsCalls.length, 0, 'no automatic resend when a provider may have accepted');
+    assert.equal(recordById(record.id).notification.state, 'unknown', 'visible to admins');
+    const again = await retry();
+    assert.equal(again.body.status, 'saved_alert_unconfirmed');
+    assert.equal(emails.length, 0);
+  });
+
+  it('orphaned claim (stale, no provider called) is taken over once; a fresh one is respected', async () => {
+    const { record } = await seed({ ntf: { phase: 'claimed' } });
+    const fresh = await retry();
+    assert.equal(fresh.body.status, 'processing');
+    assert.equal(emails.length, 0);
+    VI.__test.setClock(LATER);
+    const results = await Promise.all(Array.from({ length: 6 }, retry));
+    const sent = results.filter((r) => r.body.status === 'sent');
+    assert.equal(sent.length, 1, JSON.stringify(results.map((r) => r.body.status)));
+    assert.ok(results.every((r) => ['sent', 'processing'].includes(r.body.status)));
+    assert.equal(emails.length, 1, 'one takeover, one alert');
+    assert.equal(smsCalls.length, 1);
+    assert.equal(recordById(record.id).notification.state, 'sent');
+    assert.equal(storedRecords().length, 1);
+  });
+
+  it('concurrent retries of a pending record send exactly one alert', async () => {
+    await seed();
+    const results = await Promise.all(Array.from({ length: 8 }, retry));
+    assert.equal(results.filter((r) => r.body.status === 'sent').length, 1, JSON.stringify(results.map((r) => r.body.status)));
+    assert.ok(results.every((r) => r.body.status === 'sent' || (r.status === 409 && r.body.ok === false)));
+    assert.equal(emails.length, 1);
+    assert.equal(smsCalls.length, 1);
+    assert.equal(storedRecords().length, 1);
+  });
+
+  it('dedupe claim with a missing record: waits during the lease, then recovers once', async () => {
+    await seed({ record: false });
+    const soon = await retry();
+    assert.equal(soon.status, 409);
+    assert.equal(soon.body.status, 'processing');
+    assert.equal(storedRecords().length, 0, 'no record created while the first request may still be writing');
+    VI.__test.setClock(LATER);
+    const results = await Promise.all(Array.from({ length: 5 }, retry));
+    assert.equal(results.filter((r) => r.body.status === 'sent').length, 1, JSON.stringify(results.map((r) => r.body.status)));
+    assert.equal(storedRecords().length, 1, 'exactly one record after recovery');
+    assert.equal(emails.length, 1);
+  });
+
+  it('strict read failures return a retryable status and change nothing', async () => {
+    for (const prefix of ['sub/', 'rec/', 'ntf/']) {
+      store = memoryStore();
+      await seed();
+      const seededKeys = store.map.size;
+      const fail = memoryStore({ failRead: (k) => k.startsWith(prefix) });
+      for (const [k, v] of store.map) await fail.set(k, v);
+      store = fail;
+      emails.length = 0; smsCalls.length = 0;
+      const res = await retry();
+      assert.equal(res.status, 503, prefix);
+      assert.equal(res.body.status, 'retry', prefix);
+      assert.equal(res.body.retryable, true, prefix);
+      assert.equal(res.body.ok, false, prefix);
+      assert.equal(emails.length + smsCalls.length, 0, `${prefix}: nothing sent`);
+      assert.equal(store.map.size, seededKeys, `${prefix}: nothing written`);
+    }
+  });
+
+  it('an unreadable record is a storage error, not a success', async () => {
+    const { recordKey } = await seed();
+    await store.set(recordKey, '{not json');
+    const res = await retry();
+    assert.equal(res.status, 503);
+    assert.equal(res.body.status, 'retry');
+    assert.equal(emails.length, 0);
+  });
+
+  it('only state "sent" counts as notified; failed and unknown are reported as such', async () => {
+    await seed({ notification: { state: 'failed' } });
+    const failed = await retry();
+    assert.equal(failed.status, 202);
+    assert.equal(failed.body.status, 'saved_not_notified');
+    store = memoryStore();
+    await seed({ notification: { state: 'unknown' } });
+    const unknown = await retry();
+    assert.equal(unknown.status, 202);
+    assert.equal(unknown.body.status, 'saved_alert_unconfirmed');
+    store = memoryStore();
+    await seed({ notification: undefined });
+    VI.__test.setClock(LATER);
+    await store.set(`ntf/${storedRecords()[0].id}`, JSON.stringify({ phase: 'sending', at: new Date().toISOString() }));
+    const missing = await retry();
+    assert.equal(missing.body.status, 'saved_alert_unconfirmed', 'a missing state is never treated as sent');
+    assert.equal(emails.length, 0);
+  });
+
+  it('admins see a request left pending past the lease as unconfirmed', async () => {
+    await seed();
+    VI.__test.setClock(LATER);
+    const { inquiries } = await VI.listInquiries({ limit: 5 });
+    assert.equal(inquiries[0].notification.state, 'unknown');
+  });
+
+  it('public responses carry only status, id and customer-safe text', async () => {
+    emailFails = true; smsFails = true;
+    const res = await submit(SCHOOL_BUS);
+    assert.deepEqual(Object.keys(res.body).sort(), ['id', 'message', 'ok', 'status']);
+    const src = fs.readFileSync(path.join(ROOT, 'netlify/functions/submit-inquiry.js'), 'utf8');
+    const respondFn = src.slice(src.indexOf('function respond('));
+    assert.doesNotMatch(respondFn, /\bemail\b|\bsms\b|reason|outbox/i, 'respond() never echoes provider details');
+  });
+});
+
+describe('quote forms never claim "sent" without evidence', () => {
+  const fill = (sb) => {
+    sb.set('cs-category', 'cargo_van'); sb.check('exterior_wash');
+    sb.set('cs-name', 'Lee'); sb.set('cs-phone', '2015550150');
+  };
+  for (const [label, response] of [
+    ['ok without a status', { status: 200, body: { ok: true, id: 'INQ-A' } }],
+    ['saved_alert_unconfirmed', { status: 202, body: { ok: true, id: 'INQ-A', status: 'saved_alert_unconfirmed' } }],
+    ['processing', { status: 409, body: { ok: false, id: 'INQ-A', status: 'processing', retryable: true } }],
+    ['retry', { status: 503, body: { ok: false, status: 'retry', retryable: true } }],
+  ]) {
+    it(`${label}: no "Request sent"`, async () => {
+      const sb = makeSandbox({ responses: [response] });
+      fill(sb);
+      await sb.submitForm();
+      assert.doesNotMatch(sb.status(), /Request sent/);
+    });
+  }
+
+  it('processing/retry keep the button and the same submission id for a safe retry', async () => {
+    const sb = makeSandbox({ responses: [
+      { status: 409, body: { ok: false, status: 'processing', retryable: true } },
+      { status: 200, body: { ok: true, id: 'INQ-A', status: 'sent' } },
+    ] });
+    fill(sb);
+    await sb.submitForm();
+    assert.match(sb.status(), /won’t create a duplicate/);
+    assert.equal(sb.doc.getElementById('cs-submit').disabled, false);
+    await sb.submitForm();
+    assert.equal(sb.calls.fetch[1].body.submissionId, sb.calls.fetch[0].body.submissionId);
+    assert.match(sb.status(), /Request sent/);
+  });
+
+  it('saved_alert_unconfirmed says saved and not to resend', async () => {
+    const sb = makeSandbox({ responses: [{ status: 202, body: { ok: true, id: 'INQ-A1', status: 'saved_alert_unconfirmed' } }] });
+    fill(sb);
+    await sb.submitForm();
+    assert.match(sb.status(), /saved \(ref INQ-A1\)/);
+    assert.match(sb.status(), /couldn’t confirm our team was alerted/);
+    assert.match(sb.status(), /no need to send it again/);
+    assert.equal(sb.doc.getElementById('cs-submit').disabled, true);
+  });
+
+  it('the car form and the fleet page require status "sent" for a sent message', () => {
+    const car = slice('async function submitCarUnlisted', 'function showCarNote');
+    assert.match(car, /if\(ok&&body\.status==='sent'\)/);
+    assert.match(car, /body&&body\.retryable/);
+    const fleet = fs.readFileSync(path.join(ROOT, 'fleet-services.html'), 'utf8');
+    assert.match(fleet, /if\(ok && data\.status==='sent'\)/);
+    assert.match(fleet, /data && data\.retryable/);
   });
 });

@@ -397,12 +397,19 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         })
       });
       var data=await res.json().catch(function(){return {};});
-      if(res.ok && data.ok!==false){
-        if(statusEl) statusEl.textContent=data.status==='saved_not_notified'
-          ? 'Your request is saved. Our team was not alerted right away, so a reply may take a little longer. No need to send it again — or call or text (551) 389-3986.'
-          : 'Quote request sent — we will follow up by text or email.';
+      // "Sent" only with server evidence that the team was alerted.
+      var ok=res.ok && data.ok===true;
+      if(ok && data.status==='sent'){
+        if(statusEl) statusEl.textContent='Quote request sent — we will follow up by text or email.';
         form.reset();
         submissionId='';
+      }else if(ok && (data.status==='saved_not_notified' || data.status==='saved_alert_unconfirmed')){
+        if(statusEl) statusEl.textContent='Your request is saved. We could not confirm our team was alerted, so a reply may take a little longer. No need to send it again — or call or text (551) 389-3986.';
+        form.reset();
+        submissionId='';
+      }else if(data && data.retryable){
+        // Keep the same submission id: retrying cannot create a duplicate.
+        if(statusEl) statusEl.textContent='We are still confirming your request. Please try again in a moment — it will not create a duplicate. Or call or text (551) 389-3986.';
       }else{
         if(statusEl) statusEl.textContent='Could not send online — please call or text (551) 389-3986.';
       }

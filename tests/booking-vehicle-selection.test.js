@@ -81,7 +81,7 @@ function makeSandbox(opts = {}) {
     fetch: async (url, init) => {
       calls.fetch.push({ url, body: JSON.parse(init.body) });
       if (opts.fetchFails) throw new Error('offline');
-      return { ok: true, json: async () => ({ ok: true, id: 'INQ-TEST' }) };
+      return { ok: true, json: async () => ({ ok: true, id: 'INQ-TEST', status: 'sent' }) };
     },
   });
   w.eval('var ST={cat:"cars",make:"",model:"",year:"",tierKey:"",tier:null,vehicleLabel:"",classNeedsConfirm:false,basePrice:0};');

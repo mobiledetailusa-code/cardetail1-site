@@ -261,67 +261,265 @@ function inquiryBlobsAvailable() {
   const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
   return Boolean(siteID && token);
 }
-/**
- * Create-only write; a storage failure is reported, never thrown.
- *
- * With a dedupeKey, a create-only claim (`sub/<hash>`) is taken first. Only the
- * request that wins the claim writes the record and sends notifications; a
- * retry or a concurrent duplicate gets { duplicate: true } with the original id.
- * Netlify Blobs `onlyIfNew` (If-None-Match: *) makes the claim atomic.
- */
-async function persistInquiry(record, { dedupeKey = '' } = {}) {
-  if (!inquiryBlobsAvailable()) return { stored: false, reason: 'storage_unavailable' };
-  const recordKey = recordKeyFor(record);
-  let store;
-  let claimKey = '';
+// ── Storage + notification state machine ────────────────────────────────────
+//
+// Keys in the `revenue-inquiries` store:
+//   rec/<inverted time>_<id>  the inquiry record (notification.state below)
+//   sub/<hash>                dedupe claim: one per (submissionId, phone)
+//   ntf/<id>                  notification claim: who may call email/SMS
+//
+// record.notification.state:
+//   pending  stored, alert outcome not recorded yet
+//   sent     at least one channel accepted (evidence written by the sender)
+//   failed   both channels rejected
+//   unknown  the sender stopped after calling providers; outcome cannot be known
+//
+// ntf/<id> phase:
+//   claimed  taken, no provider called yet  → if stale, nothing was sent: safe to take over
+//   sending  providers may have been called → if stale, never resend automatically
+//   done     outcome copied here when the record update failed
+//
+// All claims are create-only (onlyIfNew) or compare-and-swap (onlyIfMatch), so
+// concurrent retries cannot both send. Reads on the duplicate path are strong
+// reads that distinguish "missing" from "storage error".
+
+const NOTIFY_PREFIX = 'ntf/';
+const NOTIFY_LEASE_MS = 2 * 60 * 1000;
+
+let clock = () => Date.now();
+
+class StorageReadError extends Error {}
+
+/** Strong read: { found: false } when missing; throws StorageReadError on any storage or parse error. */
+async function readStrict(store, key) {
+  let res;
   try {
-    store = await revenueStore.getRevenueStore('inquiries');
-    if (dedupeKey) {
-      claimKey = `${CLAIM_PREFIX}${dedupeKey}`;
-      const claim = await revenueStore.blobCreateJson(store, claimKey, {
-        id: record.id, recordKey, createdAt: record.createdAt,
-      });
-      if (!claim.created) {
-        const prior = await revenueStore.blobGetJson(store, claimKey);
-        const priorRecord = prior && prior.recordKey ? await revenueStore.blobGetJson(store, prior.recordKey) : null;
-        return {
-          stored: true,
-          duplicate: true,
-          id: (prior && prior.id) || '',
-          notification: (priorRecord && priorRecord.notification) || { state: 'pending' },
-        };
-      }
-    }
-    const result = await revenueStore.blobCreateJson(store, recordKey, record);
-    if (!result.created) throw new Error('record_key_collision');
-    return { stored: true, duplicate: false, id: record.id, recordKey, store };
+    res = await store.getWithMetadata(key, { type: 'text', consistency: 'strong' });
   } catch (e) {
-    console.warn('[vehicle-inquiry] persist failed:', e && e.message);
-    // Release the claim so a retry can store the request instead of being
-    // treated as a duplicate of something that was never saved.
-    if (store && claimKey) {
-      try { await store.delete(claimKey); } catch { /* best effort */ }
-    }
-    return { stored: false, reason: 'storage_error' };
+    throw new StorageReadError(`read ${key}: ${e && e.message}`);
+  }
+  if (res === null || res === undefined || res.data === null || res.data === undefined) return { found: false };
+  try {
+    return { found: true, data: JSON.parse(res.data), etag: res.etag || null };
+  } catch {
+    throw new StorageReadError(`unreadable ${key}`);
   }
 }
 
-/** Record the email/SMS outcome on the stored inquiry (admin visibility). */
-async function recordNotificationOutcome(persisted, record, outcome) {
-  if (!persisted || !persisted.stored || persisted.duplicate || !persisted.store) return false;
+async function createOnly(store, key, value) {
+  const r = await store.set(key, JSON.stringify(value), { onlyIfNew: true });
+  return { created: !!(r && r.modified), etag: (r && r.etag) || null };
+}
+
+/** Compare-and-swap on a value previously read or written with an etag. */
+async function swap(store, key, value, etag) {
+  if (!etag) return false;
+  const r = await store.set(key, JSON.stringify(value), { onlyIfMatch: etag });
+  return !!(r && r.modified);
+}
+
+function ageMs(iso) {
+  const t = Date.parse(iso || '');
+  return Number.isFinite(t) ? clock() - t : Infinity;
+}
+
+const result = (status, id, extra = {}) => ({ status, id: id || '', ...extra });
+
+/** Call providers and record the outcome. Caller must own the ntf claim in phase 'sending'. */
+async function sendAndRecord(store, record, recordKey, ntfKey, notify, extra) {
+  const outcome = await notify(record);
+  const notification = {
+    state: outcome.delivered ? 'sent' : 'failed',
+    email: outcome.email,
+    sms: outcome.sms,
+    at: new Date(clock()).toISOString(),
+  };
   try {
-    record.notification = outcome;
-    await revenueStore.blobSetJson(persisted.store, persisted.recordKey, record);
-    return true;
+    await revenueStore.blobSetJson(store, recordKey, { ...record, notification });
   } catch (e) {
-    console.warn('[vehicle-inquiry] notification outcome not saved:', e && e.message);
-    return false;
+    console.warn('[vehicle-inquiry] outcome not saved on record:', e && e.message);
+    try {
+      await store.set(ntfKey, JSON.stringify({ phase: 'done', at: notification.at, outcome: notification }));
+    } catch (e2) {
+      console.warn('[vehicle-inquiry] outcome not saved on claim:', e2 && e2.message);
+    }
   }
+  // This process has direct evidence of what the providers returned.
+  return result(outcome.delivered ? 'sent' : 'saved_not_notified', record.id, extra);
+}
+
+/** Take the notification claim for a stored record and send once. */
+async function notifyStored(store, record, recordKey, notify, extra = {}) {
+  const ntfKey = `${NOTIFY_PREFIX}${record.id}`;
+  let claim;
+  try {
+    claim = await createOnly(store, ntfKey, { phase: 'claimed', at: new Date(clock()).toISOString() });
+  } catch (e) {
+    // Nothing sent and nothing claimed: a retry (same submission id) recovers.
+    console.warn('[vehicle-inquiry] notification claim failed:', e && e.message);
+    return result('retry', record.id, extra);
+  }
+  if (!claim.created) return result('processing', record.id, extra);
+  try {
+    const moved = await swap(store, ntfKey, { phase: 'sending', at: new Date(clock()).toISOString() }, claim.etag);
+    if (!moved) return result('processing', record.id, extra);
+  } catch (e) {
+    // Still 'claimed' and no provider called: becomes recoverable after the lease.
+    console.warn('[vehicle-inquiry] notification claim not advanced:', e && e.message);
+    return result('processing', record.id, extra);
+  }
+  return sendAndRecord(store, record, recordKey, ntfKey, notify, extra);
+}
+
+/** Decide what to do with an existing stored record (retry / duplicate / recovery). */
+async function resumeStored(store, recEntry, recordKey, notify) {
+  const record = recEntry.data;
+  const extra = { duplicate: true };
+  const state = record.notification && record.notification.state;
+  if (state === 'sent') return result('sent', record.id, extra);
+  if (state === 'failed') return result('saved_not_notified', record.id, extra);
+  if (state === 'unknown') return result('saved_alert_unconfirmed', record.id, extra);
+
+  const ntfKey = `${NOTIFY_PREFIX}${record.id}`;
+  let ntf;
+  try {
+    ntf = await readStrict(store, ntfKey);
+  } catch (e) {
+    console.warn('[vehicle-inquiry]', e.message);
+    return result('retry', record.id, extra);
+  }
+  // Interrupted before any notification attempt: nothing was sent, send now.
+  if (!ntf.found) return notifyStored(store, record, recordKey, notify, extra);
+
+  const c = ntf.data || {};
+  if (c.phase === 'done' && c.outcome) {
+    return result(c.outcome.state === 'sent' ? 'sent' : 'saved_not_notified', record.id, extra);
+  }
+  if (ageMs(c.at) < NOTIFY_LEASE_MS) return result('processing', record.id, extra);
+
+  if (c.phase === 'claimed') {
+    // Stale before any provider call: provably nothing was sent. Take over atomically.
+    try {
+      const took = await swap(store, ntfKey, { phase: 'sending', at: new Date(clock()).toISOString(), takeover: true }, ntf.etag);
+      if (!took) return result('processing', record.id, extra);
+    } catch (e) {
+      console.warn('[vehicle-inquiry] claim takeover failed:', e && e.message);
+      return result('retry', record.id, extra);
+    }
+    return sendAndRecord(store, record, recordKey, ntfKey, notify, extra);
+  }
+
+  // Stale in 'sending': a provider may already have accepted. Never resend
+  // automatically; flag for the team instead.
+  try {
+    await swap(store, recordKey, {
+      ...record,
+      notification: { state: 'unknown', at: new Date(clock()).toISOString(), reason: 'sender_interrupted' },
+    }, recEntry.etag);
+  } catch (e) {
+    console.warn('[vehicle-inquiry] could not flag unknown alert:', e && e.message);
+  }
+  return result('saved_alert_unconfirmed', record.id, extra);
+}
+
+/** A duplicate submission: follow the dedupe claim to the original request. */
+async function resumeSubmission(store, claimKey, record, notify) {
+  let sub;
+  try {
+    sub = await readStrict(store, claimKey);
+  } catch (e) {
+    console.warn('[vehicle-inquiry]', e.message);
+    return result('retry', '');
+  }
+  // Released after a failed write between our create and this read: retry creates it.
+  if (!sub.found) return result('retry', '');
+  const prior = sub.data || {};
+
+  let rec = { found: false };
+  if (prior.recordKey) {
+    try {
+      rec = await readStrict(store, prior.recordKey);
+    } catch (e) {
+      console.warn('[vehicle-inquiry]', e.message);
+      return result('retry', prior.id);
+    }
+  }
+  if (rec.found) return resumeStored(store, rec, prior.recordKey, notify);
+
+  // Claimed but no record: the first request is still writing, or it died
+  // before storing (so it never notified). Only take over once it is stale.
+  if (ageMs(prior.at || prior.createdAt) < NOTIFY_LEASE_MS) return result('processing', prior.id);
+  const recordKey = recordKeyFor(record);
+  try {
+    const took = await swap(store, claimKey, {
+      id: record.id, recordKey, createdAt: record.createdAt, at: new Date(clock()).toISOString(), takeoverOf: prior.id || '',
+    }, sub.etag);
+    if (!took) return result('processing', prior.id);
+    const created = await createOnly(store, recordKey, record);
+    if (!created.created) return result('retry', record.id);
+  } catch (e) {
+    console.warn('[vehicle-inquiry] orphaned claim recovery failed:', e && e.message);
+    return result('retry', record.id);
+  }
+  return notifyStored(store, record, recordKey, notify, { recovered: true });
+}
+
+/** No usable storage: notify directly (pre-existing behavior); no dedupe is possible. */
+async function notifyWithoutStorage(record, notify) {
+  const outcome = await notify(record);
+  return outcome.delivered ? result('sent', record.id, { stored: false }) : result('not_delivered', '');
+}
+
+/**
+ * Store an inquiry (deduplicated) and alert the team at most once.
+ * notify(record) → { delivered, email, sms } must not throw.
+ * Returns { status, id, duplicate?, stored? } where status is one of:
+ *   sent | saved_not_notified | saved_alert_unconfirmed | processing | retry | not_delivered
+ */
+async function processInquiry(record, { dedupeKey = '', notify }) {
+  if (!inquiryBlobsAvailable()) return notifyWithoutStorage(record, notify);
+  let store;
+  try {
+    store = await revenueStore.getRevenueStore('inquiries');
+  } catch (e) {
+    console.warn('[vehicle-inquiry] store unavailable:', e && e.message);
+    return notifyWithoutStorage(record, notify);
+  }
+  const recordKey = recordKeyFor(record);
+  let claimKey = '';
+  if (dedupeKey) {
+    claimKey = `${CLAIM_PREFIX}${dedupeKey}`;
+    let claim;
+    try {
+      claim = await createOnly(store, claimKey, {
+        id: record.id, recordKey, createdAt: record.createdAt, at: new Date(clock()).toISOString(),
+      });
+    } catch (e) {
+      console.warn('[vehicle-inquiry] dedupe claim failed:', e && e.message);
+      return notifyWithoutStorage(record, notify);
+    }
+    if (!claim.created) return resumeSubmission(store, claimKey, record, notify);
+  }
+  try {
+    const created = await createOnly(store, recordKey, record);
+    if (!created.created) throw new Error('record_key_collision');
+  } catch (e) {
+    console.warn('[vehicle-inquiry] record write failed:', e && e.message);
+    // Release the claim so a retry stores the request instead of finding an orphan.
+    if (claimKey) {
+      try { await store.delete(claimKey); } catch { /* becomes an orphan; recovered after the lease */ }
+    }
+    return notifyWithoutStorage(record, notify);
+  }
+  return notifyStored(store, record, recordKey, notify);
 }
 
 /** Admin view of one stored record. */
 function adminInquiryView(rec) {
   const v = rec.vehicle || null;
+  const n = rec.notification || { state: 'unknown' };
+  // A request left 'pending' past the lease was never confirmed as alerted.
+  const state = n.state === 'pending' && ageMs(rec.createdAt) >= NOTIFY_LEASE_MS ? 'unknown' : (n.state || 'unknown');
   return {
     id: rec.id,
     createdAt: rec.createdAt,
@@ -343,7 +541,7 @@ function adminInquiryView(rec) {
     services: v ? v.services.map((s) => SERVICES[s] || s) : [],
     extras: v ? v.extras.map((s) => EXTRAS[s] || s) : [],
     message: rec.message || '',
-    notification: rec.notification || { state: 'unknown' },
+    notification: { ...n, state },
   };
 }
 
@@ -368,11 +566,12 @@ module.exports = {
   VEHICLE_CATEGORIES,
   SERVICES,
   EXTRAS,
+  NOTIFY_LEASE_MS,
   buildInquiryRecord,
-  persistInquiry,
-  recordNotificationOutcome,
+  processInquiry,
   listInquiries,
   recordKeyFor,
   vehicleSummaryLines,
   validateVehicle,
+  __test: { setClock(fn) { clock = typeof fn === 'function' ? fn : () => Date.now(); } },
 };

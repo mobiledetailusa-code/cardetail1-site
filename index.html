@@ -5791,15 +5791,22 @@ async function submitCommercialForm(e){
     ok=res.ok&&body&&body.ok===true;
   }catch(err){ ok=false; }
   btn.disabled=false;
-  if(ok){
+  // "Request sent" only with server evidence that the team was alerted.
+  const saved=ok&&(body.status==='saved_not_notified'||body.status==='saved_alert_unconfirmed');
+  if(ok&&body.status==='sent'){
     form.dataset.sent='1';
-    if(body.status==='saved_not_notified'){
-      status.innerHTML='Your request is saved'+(body.id?' (ref '+String(body.id).replace(/[^A-Z0-9-]/gi,'')+')':'')+'. Our team wasn’t alerted right away, so a reply may take a little longer. There’s no need to send it again. For faster help, call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
-    }else{
-      status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
-    }
+    status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
     status.className='car-unlisted-status is-ok';
     btn.disabled=true;
+  }else if(saved){
+    form.dataset.sent='1';
+    status.innerHTML='Your request is saved'+(body.id?' (ref '+String(body.id).replace(/[^A-Z0-9-]/gi,'')+')':'')+'. '+(body.status==='saved_not_notified'?'Our team wasn’t alerted right away':'We couldn’t confirm our team was alerted')+', so a reply may take a little longer. There’s no need to send it again. For faster help, call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
+    status.className='car-unlisted-status is-ok';
+    btn.disabled=true;
+  }else if(body&&body.retryable){
+    // Same submission id on retry: the server cannot create a duplicate.
+    status.innerHTML='We’re still confirming your request. Please try again in a moment — it won’t create a duplicate. Or call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
+    status.className='car-unlisted-status is-error';
   }else{
     status.innerHTML='We couldn’t send that right now. Please call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a> for a quote.';
     status.className='car-unlisted-status is-error';
@@ -7496,14 +7503,20 @@ async function submitCarUnlisted(e){
     ok=res.ok&&body&&body.ok===true;
   }catch(err){ ok=false; }
   btn.disabled=false;
-  if(ok){
-    if(body.status==='saved_not_notified'){
-      status.innerHTML='Your request is saved'+(body.id?' (ref '+String(body.id).replace(/[^A-Z0-9-]/gi,'')+')':'')+'. Our team wasn’t alerted right away, so a reply may take a little longer. There’s no need to send it again. For faster help, call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
-    }else{
-      status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
-    }
+  // "Request sent" only with server evidence that the team was alerted.
+  const saved=ok&&(body.status==='saved_not_notified'||body.status==='saved_alert_unconfirmed');
+  if(ok&&body.status==='sent'){
+    status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
     status.className='car-unlisted-status is-ok';
     btn.disabled=true;
+  }else if(saved){
+    status.innerHTML='Your request is saved'+(body.id?' (ref '+String(body.id).replace(/[^A-Z0-9-]/gi,'')+')':'')+'. '+(body.status==='saved_not_notified'?'Our team wasn’t alerted right away':'We couldn’t confirm our team was alerted')+', so a reply may take a little longer. There’s no need to send it again. For faster help, call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
+    status.className='car-unlisted-status is-ok';
+    btn.disabled=true;
+  }else if(body&&body.retryable){
+    // Same submission id on retry: the server cannot create a duplicate.
+    status.innerHTML='We’re still confirming your request. Please try again in a moment — it won’t create a duplicate. Or call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
+    status.className='car-unlisted-status is-error';
   }else{
     status.innerHTML='We couldn’t send that right now. Please call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a> for a quote.';
     status.className='car-unlisted-status is-error';
