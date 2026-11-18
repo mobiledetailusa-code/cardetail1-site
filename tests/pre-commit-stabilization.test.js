@@ -422,6 +422,10 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/address-suggest.js',
     'netlify/functions/welcome-lead-capture.js',
     'netlify/lib/welcome-lead-store.js',
+    // Commercial & specialty quote requests: validation + inquiry storage (no pricing or payment imports).
+    'netlify/lib/vehicle-inquiry.js',
+    // Read-only admin list of stored quote requests (existing admin session auth).
+    'netlify/functions/admin-inquiries.js',
     'netlify/lib/welcome-offer-redemption.js',
     'netlify/functions/review-invite.js',
     'netlify/lib/review-request-notifications.js',

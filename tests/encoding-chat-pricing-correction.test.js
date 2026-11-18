@@ -203,6 +203,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/tech-accounts.js',
     // PR5 Twilio readiness: all provider traffic is isolated behind the outbox.
     'netlify/functions/submit-inquiry.js',
+    // Read-only admin list of stored quote requests (PR #409).
+    'netlify/functions/admin-inquiries.js',
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',

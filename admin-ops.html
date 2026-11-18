@@ -225,6 +225,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
       <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
       <button type="button" class="tab" data-tab="reviews" role="tab" aria-selected="false">Homepage reviews</button>
+      <button type="button" class="tab" data-tab="inquiries" role="tab" aria-selected="false">Quote requests</button>
       <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
       <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
     </div>
@@ -514,6 +515,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <h3>On the homepage</h3>
       <div id="reviewsPublished"><div class="empty">Loading…</div></div>
     </div>
+  </section>
+
+  <section class="panel" id="p-inquiries">
+    <p class="hint">Quote requests and questions sent from the website (vehicles not priced online, commercial and specialty vehicles, chat). Read-only. “Not alerted” means the email and text to the team both failed — follow up from here.</p>
+    <div class="toolbar">
+      <button type="button" class="btn ghost sm" id="inquiriesRefresh">Reload</button>
+    </div>
+    <div class="card" id="inquiriesList"><div class="empty">Loading…</div></div>
   </section>
 
   <section class="panel" id="p-events">
@@ -4741,6 +4750,46 @@ async function loadTechs(fetchOpts, loadOpts) {
       '<p style="margin:0 0 10px">' + comment + '</p>' + action + '</div>';
   }
 
+  // ── Quote requests (read-only; admin-inquiries) ────────────────────────────
+  const INQUIRY_ALERT_LABEL = { sent: 'Team alerted', failed: 'Not alerted', pending: 'Alert pending', unknown: 'Alert unknown' };
+  function inquiryRowHtml(q) {
+    const c = q.contact || {};
+    const v = q.vehicle;
+    const when = q.createdAt ? new Date(q.createdAt).toLocaleString() : '';
+    const state = (q.notification && q.notification.state) || 'unknown';
+    const alertBadge = '<span class="badge" style="background:' + (state === 'failed' ? 'rgba(239,68,68,.18);color:var(--err)' : 'rgba(148,163,184,.15);color:var(--mu)') + '">' + esc(INQUIRY_ALERT_LABEL[state] || state) + '</span>';
+    const vehicleLine = v ? esc([v.categoryLabel, [v.year, v.make, v.model].filter(Boolean).join(' ')].filter(Boolean).join(' — ')) : 'Question (no vehicle)';
+    const details = v ? [
+      v.passengerCapacity != null ? 'Seats: ' + esc(v.passengerCapacity) : '',
+      v.wheelchairSpaces != null ? 'Wheelchair spaces: ' + esc(v.wheelchairSpaces) : '',
+      v.lengthFt != null ? 'Length: ~' + esc(v.lengthFt) + ' ft' : '',
+    ].filter(Boolean).join(' · ') : '';
+    const services = (q.services || []).concat(q.extras || []).map(esc).join(', ');
+    return '<div class="inq-row" data-inquiry-id="' + esc(q.id) + '" style="border-bottom:1px solid var(--line);padding:12px 0">' +
+      '<h5 style="margin:0 0 4px">' + vehicleLine + '</h5>' +
+      '<p class="hint" style="margin:0 0 6px">' + esc(when) + ' · ' + esc(q.id) + ' · Status: ' + esc(q.status || 'new') + ' ' + alertBadge + '</p>' +
+      '<p style="margin:0 0 4px">' + esc(c.name) + ' · <a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + '</a>' +
+        (c.email ? ' · <a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '') + (c.zip ? ' · ZIP ' + esc(c.zip) : '') + '</p>' +
+      (details ? '<p class="hint" style="margin:0 0 4px">' + details + '</p>' : '') +
+      (services ? '<p style="margin:0 0 4px">Services: ' + services + '</p>' : '') +
+      (q.message ? '<p class="hint" style="margin:0;white-space:pre-wrap">' + esc(q.message) + '</p>' : '') +
+      '</div>';
+  }
+  async function refreshInquiriesTab() {
+    const el = $('#inquiriesList');
+    if (!el) return;
+    el.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const data = await api('/.netlify/functions/admin-inquiries?limit=100', 'GET');
+      const rows = (data && data.inquiries) || [];
+      el.innerHTML = rows.length
+        ? rows.map(inquiryRowHtml).join('') + (data.truncated ? '<p class="hint">Showing the newest ' + rows.length + ' of ' + esc(data.total) + '.</p>' : '')
+        : '<div class="empty">No quote requests yet.</div>';
+    } catch (e) {
+      el.innerHTML = '<div class="empty">Could not load quote requests.</div>';
+    }
+  }
+
   async function refreshHomepageReviews() {
     const pendingEl = $('#reviewsPending');
     const publishedEl = $('#reviewsPublished');
@@ -4827,6 +4876,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
     if (b.dataset.tab === 'reviews') refreshHomepageReviews();
+    if (b.dataset.tab === 'inquiries') refreshInquiriesTab();
     if (b.dataset.tab === 'techs') {
       ensureTechsForManagement()
         .then(() => { renderTechs(); renderOverview(); })
@@ -4839,6 +4889,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     }
   };
   if ($('#reviewsRefresh')) $('#reviewsRefresh').onclick = () => refreshHomepageReviews();
+  if ($('#inquiriesRefresh')) $('#inquiriesRefresh').onclick = () => refreshInquiriesTab();
   ['reviewsPending', 'reviewsPublished'].forEach((id) => {
     const el = $('#' + id);
     if (!el) return;
