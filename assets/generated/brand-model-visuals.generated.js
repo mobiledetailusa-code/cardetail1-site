@@ -56,9 +56,7 @@
       "TT": "sport_coupe",
       "Q6 e-tron": "luxury_crossover",
       "e-tron GT": "luxury_crossover",
-      "R8": "supercar",
-      "A4 allroad": "executive_sedan",
-      "A6 allroad": "executive_sedan"
+      "R8": "supercar"
     },
     "Bentley": {
       "Bentayga": "family_suv3",
@@ -109,7 +107,6 @@
       "Century": "compact_sedan",
       "Lucerne": "compact_sedan",
       "Park Avenue": "compact_sedan",
-      "Rendezvous": "family_suv3",
       "Rainier": "midsize_crossover",
       "Terraza": "family_minivan",
       "Verano": "compact_sedan",
@@ -165,13 +162,11 @@
       "Avalanche": "midsize_pickup",
       "Cavalier": "compact_sedan",
       "Cobalt": "compact_sedan",
-      "HHR": "midsize_crossover",
       "Sonic": "compact_sedan",
       "Aveo": "compact_sedan",
       "Volt": "compact_sedan",
       "Uplander": "family_minivan",
       "Venture": "family_minivan",
-      "Astro": "family_minivan",
       "Monte Carlo": "compact_sedan",
       "Lumina": "compact_sedan",
       "S-10": "midsize_pickup",
@@ -186,7 +181,6 @@
       "Town & Country": "family_minivan",
       "Voyager": "family_minivan",
       "Sebring": "compact_sedan",
-      "PT Cruiser": "compact_sedan",
       "Aspen": "family_suv3",
       "Crossfire": "compact_sedan",
       "Concorde": "compact_sedan"
@@ -343,7 +337,9 @@
       "Tiburon": "compact_sedan",
       "Entourage": "family_minivan",
       "Veracruz": "family_suv3",
-      "Nexo": "midsize_crossover"
+      "Nexo": "midsize_crossover",
+      "Santa Fe Sport": "midsize_crossover",
+      "Santa Fe XL": "midsize_crossover"
     },
     "INFINITI": {
       "Q50": "executive_sedan",
@@ -356,13 +352,11 @@
       "G37": "executive_sedan",
       "M35": "executive_sedan",
       "M37": "executive_sedan",
-      "FX35": "luxury_crossover",
       "EX35": "luxury_crossover",
       "JX35": "family_suv3",
       "QX56": "family_suv3",
       "QX4": "luxury_crossover",
       "QX30": "luxury_crossover",
-      "QX70": "luxury_crossover",
       "Q70": "executive_sedan",
       "I35": "executive_sedan"
     },
@@ -413,8 +407,7 @@
       "Cadenza": "compact_sedan",
       "K900": "compact_sedan",
       "Amanti": "compact_sedan",
-      "Borrego": "family_suv3",
-      "Rondo": "family_suv3"
+      "Borrego": "family_suv3"
     },
     "Lamborghini": {
       "Huracán": "supercar",
@@ -496,7 +489,6 @@
       "Mazda6": "executive_sedan",
       "MX-30": "midsize_crossover",
       "MX-5 Miata": "convertible",
-      "Mazda5": "family_minivan",
       "CX-7": "midsize_crossover",
       "Tribute": "midsize_crossover",
       "RX-8": "compact_sedan",
@@ -592,7 +584,6 @@
       "Z": "sport_coupe",
       "Xterra": "midsize_crossover",
       "Juke": "midsize_crossover",
-      "Cube": "midsize_crossover",
       "350Z": "compact_sedan",
       "370Z": "compact_sedan",
       "300ZX": "compact_sedan",
@@ -708,7 +699,6 @@
       "CC": "compact_sedan",
       "Eos": "compact_sedan",
       "Routan": "family_minivan",
-      "Touareg": "family_suv3",
       "Rabbit": "compact_sedan"
     },
     "Volvo": {
@@ -770,7 +760,6 @@
     },
     "Scion": {
       "tC": "compact_sedan",
-      "xB": "midsize_crossover",
       "xD": "compact_sedan",
       "FR-S": "compact_sedan",
       "iA": "compact_sedan",
@@ -803,7 +792,6 @@
     "Isuzu": {
       "Rodeo": "midsize_crossover",
       "Trooper": "midsize_crossover",
-      "Ascender": "family_suv3",
       "Axiom": "midsize_crossover",
       "i-Series": "midsize_pickup"
     },
@@ -870,8 +858,6 @@
     "audi|q6 e-tron": "luxury_crossover",
     "audi|e-tron gt": "luxury_crossover",
     "audi|r8": "supercar",
-    "audi|a4 allroad": "executive_sedan",
-    "audi|a6 allroad": "executive_sedan",
     "bentley|bentayga": "family_suv3",
     "bentley|continental gt": "executive_sedan",
     "bentley|flying spur": "executive_sedan",
@@ -916,7 +902,6 @@
     "buick|century": "compact_sedan",
     "buick|lucerne": "compact_sedan",
     "buick|park avenue": "compact_sedan",
-    "buick|rendezvous": "family_suv3",
     "buick|rainier": "midsize_crossover",
     "buick|terraza": "family_minivan",
     "buick|verano": "compact_sedan",
@@ -968,13 +953,11 @@
     "chevrolet|avalanche": "midsize_pickup",
     "chevrolet|cavalier": "compact_sedan",
     "chevrolet|cobalt": "compact_sedan",
-    "chevrolet|hhr": "midsize_crossover",
     "chevrolet|sonic": "compact_sedan",
     "chevrolet|aveo": "compact_sedan",
     "chevrolet|volt": "compact_sedan",
     "chevrolet|uplander": "family_minivan",
     "chevrolet|venture": "family_minivan",
-    "chevrolet|astro": "family_minivan",
     "chevrolet|monte carlo": "compact_sedan",
     "chevrolet|lumina": "compact_sedan",
     "chevrolet|s-10": "midsize_pickup",
@@ -987,7 +970,6 @@
     "chrysler|town & country": "family_minivan",
     "chrysler|voyager": "family_minivan",
     "chrysler|sebring": "compact_sedan",
-    "chrysler|pt cruiser": "compact_sedan",
     "chrysler|aspen": "family_suv3",
     "chrysler|crossfire": "compact_sedan",
     "chrysler|concorde": "compact_sedan",
@@ -1129,6 +1111,8 @@
     "hyundai|entourage": "family_minivan",
     "hyundai|veracruz": "family_suv3",
     "hyundai|nexo": "midsize_crossover",
+    "hyundai|santa fe sport": "midsize_crossover",
+    "hyundai|santa fe xl": "midsize_crossover",
     "infiniti|q50": "executive_sedan",
     "infiniti|q60": "sport_coupe",
     "infiniti|qx50": "luxury_crossover",
@@ -1139,13 +1123,11 @@
     "infiniti|g37": "executive_sedan",
     "infiniti|m35": "executive_sedan",
     "infiniti|m37": "executive_sedan",
-    "infiniti|fx35": "luxury_crossover",
     "infiniti|ex35": "luxury_crossover",
     "infiniti|jx35": "family_suv3",
     "infiniti|qx56": "family_suv3",
     "infiniti|qx4": "luxury_crossover",
     "infiniti|qx30": "luxury_crossover",
-    "infiniti|qx70": "luxury_crossover",
     "infiniti|q70": "executive_sedan",
     "infiniti|i35": "executive_sedan",
     "jaguar|e-pace": "luxury_crossover",
@@ -1191,7 +1173,6 @@
     "kia|k900": "compact_sedan",
     "kia|amanti": "compact_sedan",
     "kia|borrego": "family_suv3",
-    "kia|rondo": "family_suv3",
     "lamborghini|huracan": "supercar",
     "lamborghini|revuelto": "supercar",
     "lamborghini|urus": "luxury_crossover",
@@ -1259,7 +1240,6 @@
     "mazda|mazda6": "executive_sedan",
     "mazda|mx-30": "midsize_crossover",
     "mazda|mx-5 miata": "convertible",
-    "mazda|mazda5": "family_minivan",
     "mazda|cx-7": "midsize_crossover",
     "mazda|tribute": "midsize_crossover",
     "mazda|rx-8": "compact_sedan",
@@ -1345,7 +1325,6 @@
     "nissan|z": "sport_coupe",
     "nissan|xterra": "midsize_crossover",
     "nissan|juke": "midsize_crossover",
-    "nissan|cube": "midsize_crossover",
     "nissan|350z": "compact_sedan",
     "nissan|370z": "compact_sedan",
     "nissan|300zx": "compact_sedan",
@@ -1443,7 +1422,6 @@
     "volkswagen|cc": "compact_sedan",
     "volkswagen|eos": "compact_sedan",
     "volkswagen|routan": "family_minivan",
-    "volkswagen|touareg": "family_suv3",
     "volkswagen|rabbit": "compact_sedan",
     "volvo|c40": "luxury_crossover",
     "volvo|ex30": "compact_crossover",
@@ -1495,7 +1473,6 @@
     "mercury|cougar": "compact_sedan",
     "mercury|marauder": "compact_sedan",
     "scion|tc": "compact_sedan",
-    "scion|xb": "midsize_crossover",
     "scion|xd": "compact_sedan",
     "scion|fr-s": "compact_sedan",
     "scion|ia": "compact_sedan",
@@ -1520,7 +1497,6 @@
     "hummer|h3t": "midsize_pickup",
     "isuzu|rodeo": "midsize_crossover",
     "isuzu|trooper": "midsize_crossover",
-    "isuzu|ascender": "family_suv3",
     "isuzu|axiom": "midsize_crossover",
     "isuzu|i-series": "midsize_pickup",
     "oldsmobile|alero": "compact_sedan",
@@ -1534,6 +1510,6 @@
     "smart|fortwo": "compact_sedan",
     "fisker|ocean": "midsize_crossover"
   },
-  "count": 706
+  "count": 694
 };
 });

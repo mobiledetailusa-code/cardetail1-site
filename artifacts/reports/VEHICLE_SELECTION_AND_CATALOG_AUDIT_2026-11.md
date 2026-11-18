@@ -417,3 +417,80 @@ In the selector, the customer now sees "EQS Sedan", "EQS SUV", "EQE Sedan", "EQE
 - **Toyota** (10): bZ Woodland (2026–2027, suv2); Matrix (2003–2014, small); Yaris (2007–2020, small); Echo (2000–2005, small); Celica (1990–2005, small); Solara (1999–2008, small); FJ Cruiser (2007–2014, suv2); Previa (1991–1997, minivan/suv3); MR2 (1991–2005, small); Supra (1990–1998, small)
 - **Volkswagen** (6): Beetle (1998–2019, small); CC (2009–2017, small); Eos (2007–2016, small); Routan (2009–2014, minivan/suv3); Touareg (2004–2017, suv3); Rabbit (2006–2009, small)
 - **Volvo** (7): S40 (1995–2011, small); S80 (1999–2016, small); V50 (2005–2011, small); V70 (1998–2010, small); XC70 (2003–2016, suv2); C30 (2008–2013, small); C70 (1998–2013, small)
+
+## 14. Final corrections (owner-approved 2026-11-18)
+
+### Classifications
+
+| Vehicle | Years | Size now |
+|---|---|---|
+| Land Rover Defender 90 | 2020+ | **suv2** (was suv3) |
+| Land Rover Defender 110 | — | suv3 (the alias "Defender" still resolves here) |
+| Land Rover Defender 130 | 2023+ | suv3 |
+| Porsche Cayenne Electric | — | **suv3** (was suv2), years unchanged |
+| Porsche Cayenne | — | suv3 |
+| Hyundai Santa Fe | 1990–2012 | suv2 |
+| Hyundai Santa Fe | **2013–2018** | **suv3** (the long-wheelbase 3-row model) |
+| Hyundai Santa Fe | 2019–2023 | suv2 |
+| Hyundai Santa Fe | 2024+ | suv3 (3 rows standard) |
+| Hyundai **Santa Fe Sport** (new entry) | 2013–2018 | suv2 |
+| Hyundai **Santa Fe XL** (new entry) | 2019 | suv3 |
+
+- The Santa Fe's no-year default stays suv2, so a stored record with no year doesn't move.
+- The page's offline fallback in `assets/vehicle-class-resolver.js` mirrors the same year bands.
+
+### Customer-facing size wording (display only)
+
+| Internal tier | Customer sees |
+|---|---|
+| small | Car |
+| suv2 | SUV / Crossover |
+| suv3 | Large SUV |
+| truck | Truck |
+| minivans | Minivan |
+| vans | their existing van labels |
+
+Where it is used:
+- the vehicle card on the Vehicle step
+- the vehicle pill on the Package step
+- the Package step's sticky footer (single car)
+
+What stays unchanged:
+- **Internal data:** tier keys, `ST.displayLabel`, prices, the server, booking validation, analytics events, admin tools, saved customer vehicles and existing booking records. A test asserts that the server, summary and analytics modules don't use the wording helper.
+- **Booking display:** the cart and the review step keep their current labels.
+
+### Validation of the additions
+
+All additions were reviewed by make, model name, body, tier, years and naming. Automated checks after the corrections found:
+- 0 duplicates and 0 alias collisions
+- browser and server resolve the same class for every model
+- every class has a price row
+
+**Year corrections:**
+- Toyota MR2: 1991–1995 and 2000–2005 (not sold in the US in 1996–1999).
+- Lincoln Continental: 1990–2002 and 2017–2020.
+
+Gaps between bands are intentional.
+
+**Held back from this release (14 records).** Their size can't be settled from the evidence in hand, and the larger tier isn't automatically right. They aren't in the catalog or the selector, so customers with these vehicles get the "My vehicle isn't listed" quote form until you decide.
+
+| Vehicle | Years | Size proposed earlier | Open question |
+|---|---|---|---|
+| Buick Rendezvous | 2002–2007 | suv3 | midsize crossover with an optional 3rd row (~187 in): suv2 or suv3 |
+| Kia Rondo | 2007–2010 | suv3 | compact MPV (~180 in) with an optional 3rd row: suv2 or suv3 |
+| Mazda Mazda5 | 2006–2015 | suv3 | compact 6-seat MPV (~181 in): suv2, suv3 or minivan pricing |
+| Isuzu Ascender | 2003–2008 | suv3 | sold as 5-seat (suv2) and 7-seat EXT (suv3) under one name |
+| Volkswagen Touareg | 2004–2017 | suv3 | two-row midsize (~188–190 in), between the RAV4 and the X5/Cayenne group |
+| Chevrolet Astro | 1990–2005 | suv3 | midsize van, cargo and passenger: minivan (suv3) or midsize_van |
+| Chevrolet HHR | 2006–2011 | suv2 | tall compact wagon: small or suv2 (the catalog prices the Kia Soul as suv2) |
+| Chrysler PT Cruiser | 2001–2010 | small | tall compact wagon: small or suv2 (same question as the Soul) |
+| Scion xB | 2004–2015 | suv2 | boxy compact wagon: small or suv2 (same question as the Soul) |
+| Nissan Cube | 2009–2014 | suv2 | boxy compact wagon: small or suv2 (same question as the Soul) |
+| Audi A4 allroad | 2013–2016 | small | lifted wagon: the catalog prices the Outback and XC70 as suv2 but the V60/V90 as small |
+| Audi A6 allroad | 2020–2025 | small | lifted wagon: same question as the A4 allroad |
+| INFINITI FX35 | 2003–2012 | suv2 | two-row midsize (~191 in), just below the X5/Cayenne group |
+| INFINITI QX70 | 2014–2017 | suv2 | renamed FX (~191 in): same question as the FX35 |
+
+**Result:** 268 of the 282 additions are kept (282 − 14 held), plus the 2 new Santa Fe entries. The catalog now has **56 makes and 694 public models** (the selector lists 714 entries, because van cargo/passenger variants show separately).
+
+The kept additions use conservative tiers. They were checked against body type and known size class, but not against a dimension sheet per model. Section 12's vPIC plan is the way to tighten their year ranges.

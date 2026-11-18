@@ -32,6 +32,14 @@ function carSearchBlock() {
   return index.slice(start, end);
 }
 
+// The real customer-facing size wording helper from index.html (display only).
+function sizeWordingBlock() {
+  const start = index.indexOf('const CAR_SIZE_WORDING=');
+  const end = index.indexOf('function updateVcPriceDisplay', start);
+  assert.ok(start > 0 && end > start, 'size wording helper not found');
+  return index.slice(start, end).replace('const CAR_SIZE_WORDING=', 'var CAR_SIZE_WORDING=');
+}
+
 function vehicleStepMarkup() {
   const start = index.indexOf('<div id="make-search-wrap"');
   const end = index.indexOf('<!-- Size chips only when auto-class needs confirmation');
@@ -77,6 +85,7 @@ function makeSandbox(opts = {}) {
     },
   });
   w.eval('var ST={cat:"cars",make:"",model:"",year:"",tierKey:"",tier:null,vehicleLabel:"",classNeedsConfirm:false,basePrice:0};');
+  w.eval(sizeWordingBlock());
   w.eval(carSearchBlock().replace(/^const (makeIn|makeDd)=/gm, 'var $1=') + '\n;window.__fns={selectMake,openCarUnlisted,submitCarUnlisted,findMakeHits};');
   return { w, doc: w.document, calls, ST: () => w.ST, fns: w.__fns };
 }
@@ -270,7 +279,11 @@ describe('vehicle step behavior (index.html CAR SEARCH block)', () => {
       ['Kia', 'EV6', 2024, 'suv2'], ['Porsche', 'Cayenne', 2022, 'suv3'], ['Toyota', '4Runner', 2022, 'suv3'],
       ['Mazda', 'CX-70', 2025, 'suv3'], ['BMW', 'X5', 2023, 'suv3'], ['Mercedes-Benz', 'GLE', 2023, 'suv3'], ['Audi', 'Q8', 2023, 'suv3'],
       ['GMC', 'Hummer EV Pickup', 2023, 'truck'], ['GMC', 'Hummer EV SUV', 2024, 'suv3'],
-      ['Land Rover', 'Defender 90', 2022, 'suv3'], ['Land Rover', 'Defender 110', 2022, 'suv3'], ['Land Rover', 'Defender 130', 2024, 'suv3'],
+      ['Land Rover', 'Defender 90', 2022, 'suv2'], ['Land Rover', 'Defender 110', 2022, 'suv3'], ['Land Rover', 'Defender 130', 2024, 'suv3'],
+      ['Porsche', 'Cayenne Electric', 2026, 'suv3'],
+      ['Hyundai', 'Santa Fe', 2012, 'suv2'], ['Hyundai', 'Santa Fe', 2015, 'suv3'], ['Hyundai', 'Santa Fe', 2019, 'suv2'],
+      ['Hyundai', 'Santa Fe', 2022, 'suv2'], ['Hyundai', 'Santa Fe', 2025, 'suv3'],
+      ['Hyundai', 'Santa Fe Sport', 2016, 'suv2'], ['Hyundai', 'Santa Fe XL', 2019, 'suv3'],
       ['Pontiac', 'Grand Prix', 2007, 'small'], ['Honda', 'Prelude', 2001, 'small'], ['Ford', 'Excursion', 2004, 'suv3'],
       ['Toyota', 'bZ Woodland', 2027, 'suv2'],
     ];
@@ -332,6 +345,43 @@ describe('vehicle step behavior (index.html CAR SEARCH block)', () => {
   });
 });
 
+describe('customer-facing size wording (display only)', () => {
+  it('the vehicle card shows Car / SUV / Crossover / Large SUV / Truck / Minivan', () => {
+    const sb = makeSandbox();
+    const card = (make, model, year) => { sb.fns.selectMake(make); choose(sb, 'model-sel', model); choose(sb, 'year-sel', year); return sb.calls.vcName; };
+    assert.equal(card('Toyota', 'Camry', 2024), '2024 Toyota Camry · Car');
+    assert.equal(card('Kia', 'EV6', 2024), '2024 Kia EV6 · SUV / Crossover');
+    assert.equal(card('Porsche', 'Cayenne', 2022), '2022 Porsche Cayenne · Large SUV');
+    assert.equal(card('Ford', 'F-150', 2022), '2022 Ford F-150 · Truck');
+    assert.equal(card('Honda', 'Odyssey', 2022), '2022 Honda Odyssey · Minivan');
+  });
+
+  it('internal tier and stored label are unchanged by the wording', () => {
+    const sb = makeSandbox();
+    sb.fns.selectMake('Porsche'); choose(sb, 'model-sel', 'Cayenne'); choose(sb, 'year-sel', 2022);
+    assert.equal(sb.ST().tierKey, 'suv3');
+    assert.equal(sb.ST().displayLabel, '3-Row SUV', 'ST.displayLabel (saved/admin) keeps the catalog label');
+  });
+
+  it('the wording stays out of server, analytics and summary modules', () => {
+    for (const f of ['netlify/functions/submit-booking.js', 'netlify/lib/car-catalog-tier.js', 'assets/booking-vehicle-summary.js', 'assets/revops-booking-hooks.js']) {
+      assert.equal(fs.readFileSync(path.join(ROOT, f), 'utf8').includes('customerSizeLabel'), false, f);
+    }
+  });
+});
+
+describe('held-back additions are not in this release', () => {
+  it('uncertain models stay out of the catalog and the selector', () => {
+    const legacy = Catalog.toLegacyModelsMap();
+    for (const [make, model] of [['Volkswagen', 'Touareg'], ['Kia', 'Rondo'], ['Mazda', 'Mazda5'], ['Chevrolet', 'HHR'], ['Chrysler', 'PT Cruiser'],
+      ['Scion', 'xB'], ['Nissan', 'Cube'], ['Audi', 'A4 allroad'], ['Audi', 'A6 allroad'], ['INFINITI', 'FX35'], ['INFINITI', 'QX70'],
+      ['Buick', 'Rendezvous'], ['Isuzu', 'Ascender'], ['Chevrolet', 'Astro']]) {
+      assert.equal(Catalog.resolveVehicle({ make, model }).ok, false, model);
+      assert.equal(Boolean(legacy[make] && legacy[make].m.includes(model)), false, model + ' in selector');
+    }
+  });
+});
+
 describe('server: model year verification and tier validation (car-catalog-tier)', () => {
   const pub = { catalogTierMode: 'require_identity' };
   const check = (make, model, year, tier, opts = pub) => assertCarCatalogTier({ make, model, year }, tier, opts);
@@ -385,12 +435,20 @@ describe('server: model year verification and tier validation (car-catalog-tier)
     const cases = [
       ['Kia', 'EV6', 'suv2', 'small'], ['Porsche', 'Cayenne', 'suv3', 'suv2'], ['Toyota', '4Runner', 'suv3', 'suv2'],
       ['Mazda', 'CX-70', 'suv3', 'suv2'], ['GMC', 'Hummer EV Pickup', 'truck', 'suv3'], ['GMC', 'Hummer EV SUV', 'suv3', 'truck'],
-      ['Land Rover', 'Defender 90', 'suv3', 'suv2'], ['Land Rover', 'Defender 130', 'suv3', 'suv2'],
+      ['Land Rover', 'Defender 90', 'suv2', 'suv3'], ['Land Rover', 'Defender 130', 'suv3', 'suv2'],
+      ['Porsche', 'Cayenne Electric', 'suv3', 'suv2'], ['Hyundai', 'Santa Fe Sport', 'suv2', 'suv3'],
     ];
     for (const [make, model, right, wrong] of cases) {
       assert.deepEqual(check(make, model, 2024, right), { ok: true }, `${model} ${right}`);
       assert.deepEqual(check(make, model, 2024, wrong), { ok: false, error: 'tier_mismatch' }, `${model} ${wrong}`);
     }
+    // Santa Fe size follows the model year; the wrong size for the year is rejected.
+    assert.deepEqual(check('Hyundai', 'Santa Fe', 2015, 'suv3'), { ok: true });
+    assert.deepEqual(check('Hyundai', 'Santa Fe', 2015, 'suv2'), { ok: false, error: 'tier_mismatch' });
+    assert.deepEqual(check('Hyundai', 'Santa Fe', 2021, 'suv2'), { ok: true });
+    assert.deepEqual(check('Hyundai', 'Santa Fe', 2021, 'suv3'), { ok: false, error: 'tier_mismatch' });
+    assert.deepEqual(check('Hyundai', 'Santa Fe', 2025, 'suv3'), { ok: true });
+    assert.deepEqual(check('Hyundai', 'Santa Fe XL', 2019, 'suv3'), { ok: true });
     // Old single names keep their previous size (no silent price change for stored labels).
     assert.deepEqual(check('GMC', 'Hummer EV', 2024, 'suv3'), { ok: true });
     assert.deepEqual(check('Land Rover', 'Defender', 2022, 'suv3'), { ok: true });
@@ -447,6 +505,12 @@ describe('catalog data (single source: data/cars-vehicle-catalog.json)', () => {
     assert.equal(full('Porsche', 'Cayenne'), 310);
     assert.equal(full('Toyota', '4Runner'), 310);
     assert.equal(full('GMC', 'Hummer EV Pickup'), 300);
+    assert.equal(full('Porsche', 'Cayenne Electric'), 310);
+    assert.equal(full('Land Rover', 'Defender 90'), 285);
+    assert.equal(full('Land Rover', 'Defender 110'), 310);
+    assert.equal(row(Catalog.resolveVehicle({ make: 'Hyundai', model: 'Santa Fe', year: 2015 }).tierKey).full, 310);
+    assert.equal(row(Catalog.resolveVehicle({ make: 'Hyundai', model: 'Santa Fe', year: 2021 }).tierKey).full, 285);
+    assert.equal(row(Catalog.resolveVehicle({ make: 'Hyundai', model: 'Santa Fe XL', year: 2019 }).tierKey).full, 310);
   });
 
   it('the browser runtime carries the same verification data as the JSON', () => {

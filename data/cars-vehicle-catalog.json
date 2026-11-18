@@ -3369,6 +3369,18 @@
       "years": [
         {
           "from": 1990,
+          "to": 2012,
+          "class": "suv2",
+          "rows": 2
+        },
+        {
+          "from": 2013,
+          "to": 2018,
+          "class": "suv3",
+          "rows": 3
+        },
+        {
+          "from": 2019,
           "to": 2023,
           "class": "suv2",
           "rows": 2
@@ -5937,12 +5949,12 @@
         {
           "from": 1990,
           "to": 2027,
-          "class": "suv2",
-          "rows": null
+          "class": "suv3",
+          "rows": 2
         }
       ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
       "public": true
     },
     {
@@ -7214,12 +7226,12 @@
         {
           "from": 2020,
           "to": 2027,
-          "class": "suv3",
+          "class": "suv2",
           "rows": 2
         }
       ],
-      "pricingClass": "suv3",
-      "displayClass": "suv3",
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
       "public": true
     },
     {
@@ -7567,6 +7579,12 @@
       "years": [
         {
           "from": 1991,
+          "to": 1995,
+          "class": "small",
+          "rows": null
+        },
+        {
+          "from": 2000,
           "to": 2005,
           "class": "small",
           "rows": null
@@ -7772,22 +7790,6 @@
     },
     {
       "make": "Nissan",
-      "model": "Cube",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2009,
-          "to": 2014,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "Nissan",
       "model": "350Z",
       "aliases": [],
       "years": [
@@ -7920,25 +7922,6 @@
     },
     {
       "make": "INFINITI",
-      "model": "FX35",
-      "aliases": [
-        "FX45",
-        "FX50"
-      ],
-      "years": [
-        {
-          "from": 2003,
-          "to": 2012,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "INFINITI",
       "model": "EX35",
       "aliases": [],
       "years": [
@@ -8009,22 +7992,6 @@
         {
           "from": 2017,
           "to": 2019,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "INFINITI",
-      "model": "QX70",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2014,
-          "to": 2017,
           "class": "suv2",
           "rows": 2
         }
@@ -8117,22 +8084,6 @@
     },
     {
       "make": "Chevrolet",
-      "model": "HHR",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2006,
-          "to": 2011,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "Chevrolet",
       "model": "Sonic",
       "aliases": [],
       "years": [
@@ -8202,22 +8153,6 @@
       "years": [
         {
           "from": 1997,
-          "to": 2005,
-          "class": "suv3",
-          "rows": 3
-        }
-      ],
-      "pricingClass": "suv3",
-      "displayClass": "minivan",
-      "public": true
-    },
-    {
-      "make": "Chevrolet",
-      "model": "Astro",
-      "aliases": [],
-      "years": [
-        {
-          "from": 1990,
           "to": 2005,
           "class": "suv3",
           "rows": 3
@@ -8451,22 +8386,6 @@
       ],
       "pricingClass": "small",
       "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "Buick",
-      "model": "Rendezvous",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2002,
-          "to": 2007,
-          "class": "suv3",
-          "rows": 3
-        }
-      ],
-      "pricingClass": "suv3",
-      "displayClass": "suv3",
       "public": true
     },
     {
@@ -8956,6 +8875,12 @@
       "years": [
         {
           "from": 1990,
+          "to": 2002,
+          "class": "small",
+          "rows": null
+        },
+        {
+          "from": 2017,
           "to": 2020,
           "class": "small",
           "rows": null
@@ -9214,22 +9139,6 @@
       "years": [
         {
           "from": 1995,
-          "to": 2010,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "Chrysler",
-      "model": "PT Cruiser",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2001,
           "to": 2010,
           "class": "small",
           "rows": null
@@ -9589,38 +9498,6 @@
       ],
       "pricingClass": "suv3",
       "displayClass": "suv3",
-      "public": true
-    },
-    {
-      "make": "Kia",
-      "model": "Rondo",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2007,
-          "to": 2010,
-          "class": "suv3",
-          "rows": 3
-        }
-      ],
-      "pricingClass": "suv3",
-      "displayClass": "suv3",
-      "public": true
-    },
-    {
-      "make": "Mazda",
-      "model": "Mazda5",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2006,
-          "to": 2015,
-          "class": "suv3",
-          "rows": 3
-        }
-      ],
-      "pricingClass": "suv3",
-      "displayClass": "minivan",
       "public": true
     },
     {
@@ -10019,22 +9896,6 @@
     },
     {
       "make": "Volkswagen",
-      "model": "Touareg",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2004,
-          "to": 2017,
-          "class": "suv3",
-          "rows": 3
-        }
-      ],
-      "pricingClass": "suv3",
-      "displayClass": "suv3",
-      "public": true
-    },
-    {
-      "make": "Volkswagen",
       "model": "Rabbit",
       "aliases": [],
       "years": [
@@ -10169,38 +10030,6 @@
         {
           "from": 2008,
           "to": 2023,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "Audi",
-      "model": "A4 allroad",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2013,
-          "to": 2016,
-          "class": "small",
-          "rows": null
-        }
-      ],
-      "pricingClass": "small",
-      "displayClass": "small",
-      "public": true
-    },
-    {
-      "make": "Audi",
-      "model": "A6 allroad",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2020,
-          "to": 2025,
           "class": "small",
           "rows": null
         }
@@ -11101,22 +10930,6 @@
     },
     {
       "make": "Scion",
-      "model": "xB",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2004,
-          "to": 2015,
-          "class": "suv2",
-          "rows": 2
-        }
-      ],
-      "pricingClass": "suv2",
-      "displayClass": "suv2",
-      "public": true
-    },
-    {
-      "make": "Scion",
       "model": "xD",
       "aliases": [],
       "years": [
@@ -11503,22 +11316,6 @@
     },
     {
       "make": "Isuzu",
-      "model": "Ascender",
-      "aliases": [],
-      "years": [
-        {
-          "from": 2003,
-          "to": 2008,
-          "class": "suv3",
-          "rows": 3
-        }
-      ],
-      "pricingClass": "suv3",
-      "displayClass": "suv3",
-      "public": true
-    },
-    {
-      "make": "Isuzu",
       "model": "Axiom",
       "aliases": [],
       "years": [
@@ -11715,6 +11512,38 @@
       ],
       "pricingClass": "suv2",
       "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Hyundai",
+      "model": "Santa Fe Sport",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2013,
+          "to": 2018,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Hyundai",
+      "model": "Santa Fe XL",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2019,
+          "to": 2019,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
       "public": true
     }
   ],
