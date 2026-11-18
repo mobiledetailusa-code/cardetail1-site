@@ -11545,6 +11545,140 @@
       "pricingClass": "suv3",
       "displayClass": "suv3",
       "public": true
+    },
+    {
+      "make": "Chevrolet",
+      "model": "HHR",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2006,
+          "to": 2011,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Chrysler",
+      "model": "PT Cruiser",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2001,
+          "to": 2010,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Scion",
+      "model": "xB",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2004,
+          "to": 2006,
+          "class": "suv2",
+          "rows": 2
+        },
+        {
+          "from": 2008,
+          "to": 2015,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Nissan",
+      "model": "Cube",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2009,
+          "to": 2014,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Audi",
+      "model": "A4 allroad",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2013,
+          "to": 2025,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Volkswagen",
+      "model": "Touareg",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2004,
+          "to": 2017,
+          "class": "suv3",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
+    },
+    {
+      "make": "Isuzu",
+      "model": "Ascender",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2004,
+          "to": 2008,
+          "class": "suv2",
+          "rows": 2
+        }
+      ],
+      "pricingClass": "suv2",
+      "displayClass": "suv2",
+      "public": true
+    },
+    {
+      "make": "Isuzu",
+      "model": "Ascender EXT",
+      "aliases": [],
+      "years": [
+        {
+          "from": 2003,
+          "to": 2006,
+          "class": "suv3",
+          "rows": 3
+        }
+      ],
+      "pricingClass": "suv3",
+      "displayClass": "suv3",
+      "public": true
     }
   ],
   "vanTaxonomy": {

@@ -56,7 +56,8 @@
       "TT": "sport_coupe",
       "Q6 e-tron": "luxury_crossover",
       "e-tron GT": "luxury_crossover",
-      "R8": "supercar"
+      "R8": "supercar",
+      "A4 allroad": "executive_sedan"
     },
     "Bentley": {
       "Bentayga": "family_suv3",
@@ -172,7 +173,8 @@
       "S-10": "midsize_pickup",
       "SSR": "midsize_pickup",
       "Captiva Sport": "midsize_crossover",
-      "Tracker": "midsize_crossover"
+      "Tracker": "midsize_crossover",
+      "HHR": "midsize_crossover"
     },
     "Chrysler": {
       "200": "compact_sedan",
@@ -183,7 +185,8 @@
       "Sebring": "compact_sedan",
       "Aspen": "family_suv3",
       "Crossfire": "compact_sedan",
-      "Concorde": "compact_sedan"
+      "Concorde": "compact_sedan",
+      "PT Cruiser": "midsize_crossover"
     },
     "Dodge": {
       "Challenger": "sport_coupe",
@@ -587,7 +590,8 @@
       "350Z": "compact_sedan",
       "370Z": "compact_sedan",
       "300ZX": "compact_sedan",
-      "Rogue Select": "midsize_crossover"
+      "Rogue Select": "midsize_crossover",
+      "Cube": "midsize_crossover"
     },
     "Polestar": {
       "2": "executive_sedan",
@@ -699,7 +703,8 @@
       "CC": "compact_sedan",
       "Eos": "compact_sedan",
       "Routan": "family_minivan",
-      "Rabbit": "compact_sedan"
+      "Rabbit": "compact_sedan",
+      "Touareg": "family_suv3"
     },
     "Volvo": {
       "C40": "luxury_crossover",
@@ -765,7 +770,8 @@
       "iA": "compact_sedan",
       "iM": "compact_sedan",
       "iQ": "compact_sedan",
-      "xA": "compact_sedan"
+      "xA": "compact_sedan",
+      "xB": "midsize_crossover"
     },
     "Saab": {
       "9-3": "compact_sedan",
@@ -793,7 +799,9 @@
       "Rodeo": "midsize_crossover",
       "Trooper": "midsize_crossover",
       "Axiom": "midsize_crossover",
-      "i-Series": "midsize_pickup"
+      "i-Series": "midsize_pickup",
+      "Ascender": "midsize_crossover",
+      "Ascender EXT": "family_suv3"
     },
     "Oldsmobile": {
       "Alero": "compact_sedan",
@@ -858,6 +866,7 @@
     "audi|q6 e-tron": "luxury_crossover",
     "audi|e-tron gt": "luxury_crossover",
     "audi|r8": "supercar",
+    "audi|a4 allroad": "executive_sedan",
     "bentley|bentayga": "family_suv3",
     "bentley|continental gt": "executive_sedan",
     "bentley|flying spur": "executive_sedan",
@@ -964,6 +973,7 @@
     "chevrolet|ssr": "midsize_pickup",
     "chevrolet|captiva sport": "midsize_crossover",
     "chevrolet|tracker": "midsize_crossover",
+    "chevrolet|hhr": "midsize_crossover",
     "chrysler|200": "compact_sedan",
     "chrysler|300": "executive_sedan",
     "chrysler|pacifica": "family_minivan",
@@ -973,6 +983,7 @@
     "chrysler|aspen": "family_suv3",
     "chrysler|crossfire": "compact_sedan",
     "chrysler|concorde": "compact_sedan",
+    "chrysler|pt cruiser": "midsize_crossover",
     "dodge|challenger": "sport_coupe",
     "dodge|charger": "executive_sedan",
     "dodge|dart": "compact_sedan",
@@ -1329,6 +1340,7 @@
     "nissan|370z": "compact_sedan",
     "nissan|300zx": "compact_sedan",
     "nissan|rogue select": "midsize_crossover",
+    "nissan|cube": "midsize_crossover",
     "polestar|2": "executive_sedan",
     "polestar|3": "luxury_crossover",
     "polestar|4": "luxury_crossover",
@@ -1423,6 +1435,7 @@
     "volkswagen|eos": "compact_sedan",
     "volkswagen|routan": "family_minivan",
     "volkswagen|rabbit": "compact_sedan",
+    "volkswagen|touareg": "family_suv3",
     "volvo|c40": "luxury_crossover",
     "volvo|ex30": "compact_crossover",
     "volvo|ex90": "family_suv3",
@@ -1479,6 +1492,7 @@
     "scion|im": "compact_sedan",
     "scion|iq": "compact_sedan",
     "scion|xa": "compact_sedan",
+    "scion|xb": "midsize_crossover",
     "saab|9-3": "compact_sedan",
     "saab|9-5": "compact_sedan",
     "saab|9-7x": "midsize_crossover",
@@ -1499,6 +1513,8 @@
     "isuzu|trooper": "midsize_crossover",
     "isuzu|axiom": "midsize_crossover",
     "isuzu|i-series": "midsize_pickup",
+    "isuzu|ascender": "midsize_crossover",
+    "isuzu|ascender ext": "family_suv3",
     "oldsmobile|alero": "compact_sedan",
     "oldsmobile|aurora": "compact_sedan",
     "oldsmobile|bravada": "midsize_crossover",
@@ -1510,6 +1526,6 @@
     "smart|fortwo": "compact_sedan",
     "fisker|ocean": "midsize_crossover"
   },
-  "count": 694
+  "count": 702
 };
 });

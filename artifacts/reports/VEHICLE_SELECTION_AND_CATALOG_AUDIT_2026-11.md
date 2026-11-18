@@ -472,25 +472,31 @@ All additions were reviewed by make, model name, body, tier, years and naming. A
 
 Gaps between bands are intentional.
 
-**Held back from this release (14 records).** Their size can't be settled from the evidence in hand, and the larger tier isn't automatically right. They aren't in the catalog or the selector, so customers with these vehicles get the "My vehicle isn't listed" quote form until you decide.
+**Seven of the 14 held-back names are now priced** (eight catalog records, because the Ascender's two wheelbases are separate, the same way the Envoy and Envoy XL already are). Each one matches a vehicle this catalog already prices. No new tier and no price was created.
 
-| Vehicle | Years | Size proposed earlier | Open question |
+| Vehicle | Years | Tier | Why this tier, and not the other one |
 |---|---|---|---|
-| Buick Rendezvous | 2002–2007 | suv3 | midsize crossover with an optional 3rd row (~187 in): suv2 or suv3 |
-| Kia Rondo | 2007–2010 | suv3 | compact MPV (~180 in) with an optional 3rd row: suv2 or suv3 |
-| Mazda Mazda5 | 2006–2015 | suv3 | compact 6-seat MPV (~181 in): suv2, suv3 or minivan pricing |
-| Isuzu Ascender | 2003–2008 | suv3 | sold as 5-seat (suv2) and 7-seat EXT (suv3) under one name |
-| Volkswagen Touareg | 2004–2017 | suv3 | two-row midsize (~188–190 in), between the RAV4 and the X5/Cayenne group |
-| Chevrolet Astro | 1990–2005 | suv3 | midsize van, cargo and passenger: minivan (suv3) or midsize_van |
-| Chevrolet HHR | 2006–2011 | suv2 | tall compact wagon: small or suv2 (the catalog prices the Kia Soul as suv2) |
-| Chrysler PT Cruiser | 2001–2010 | small | tall compact wagon: small or suv2 (same question as the Soul) |
-| Scion xB | 2004–2015 | suv2 | boxy compact wagon: small or suv2 (same question as the Soul) |
-| Nissan Cube | 2009–2014 | suv2 | boxy compact wagon: small or suv2 (same question as the Soul) |
-| Audi A4 allroad | 2013–2016 | small | lifted wagon: the catalog prices the Outback and XC70 as suv2 but the V60/V90 as small |
-| Audi A6 allroad | 2020–2025 | small | lifted wagon: same question as the A4 allroad |
-| INFINITI FX35 | 2003–2012 | suv2 | two-row midsize (~191 in), just below the X5/Cayenne group |
-| INFINITI QX70 | 2014–2017 | suv2 | renamed FX (~191 in): same question as the FX35 |
+| Chevrolet HHR | 2006–2011 | suv2 | GM's 2006 spec sheet: 176.2 in long, 63.1 in tall, 5 seats, EPA class "2WD Sport Utility Vehicle". Larger than the Kia Soul, which is already suv2. |
+| Chrysler PT Cruiser | 2001–2010 | suv2 | Tall 5-seat wagon, about 168.8 in long and 63 in tall. Same body class as the Soul, and larger than it. |
+| Scion xB | 2004–2006, 2008–2015 | suv2 | Box wagon, the same class as the Soul. The Scion xD stays small because it is an ordinary hatchback. No 2007 model year. |
+| Nissan Cube | 2009–2014 | suv2 | Box wagon, about 156.7 in long and 65 in tall. Same class as the Soul and the xB. |
+| Audi A4 allroad | 2013–2025 | suv2 | Audi of America: raised ground clearance and crossover cargo, sold in the US from 2013 through the 2025 model year (media.audiusa.com). Same class as the Outback and XC70. The low V60/V90 wagons stay small. |
+| Volkswagen Touareg | 2004–2017 | suv3 | Same PL71/PL72 platform, body frame and doors as the Cayenne. US lengths 187.2 in (2004–2010) and 188.8 in (2011–2017), within 2 inches of the Cayenne of those years. The Cayenne is suv3. |
+| Isuzu Ascender | 2004–2008 | suv2 | Five-seat GMT360, 113 in wheelbase, 191.6 in long. The same truck as the GMC Envoy, which is suv2. |
+| Isuzu Ascender EXT | 2003–2006 | suv3 | Seven-seat long wheelbase, 129 in, 207.6 in long. The same truck as the GMC Envoy XL, which is suv3. The 2003 Ascender was the long one only. |
 
-**Result:** 268 of the 282 additions are kept (282 − 14 held), plus the 2 new Santa Fe entries. The catalog now has **56 makes and 694 public models** (the selector lists 714 entries, because van cargo/passenger variants show separately).
+**Still unresolved (7).** Two existing tiers still fit, so these stay on "My vehicle isn't listed". They do not block the release.
+
+| Vehicle | Years | Why it is still open |
+|---|---|---|
+| INFINITI FX35 | 2003–2012 | 189.1–191.3 in long and 75.8–75.9 in wide: the same footprint as the first Cayenne (suv3) and also the same length as the Murano (suv2). |
+| INFINITI QX70 | 2014–2017 | The FX renamed. Same open question. |
+| Buick Rendezvous | 2002–2007 | One body, about 187 in, with an optional third row. |
+| Kia Rondo | 2007–2010 | Compact MPV, about 180 in, with an optional third row. |
+| Mazda Mazda5 | 2006–2015 | Compact six-seat MPV with sliding doors, about 181 in. A full minivan such as the Odyssey is a different size, and there is no compact-minivan tier. |
+| Audi A6 allroad | 2020–2025 | Lifted like the Outback (suv2) and as long as the V90 (small). |
+| Chevrolet Astro | 1990–2005 | Sold as a minivan and as a van. Through 1994 it had two lengths, and cargo and passenger versions, under one name. |
+
+**Result:** 268 of the 282 additions are kept, plus the 2 Santa Fe entries, plus these 8 records. The catalog now has **56 makes and 702 public models** (the selector lists 722 entries, because van cargo/passenger variants show separately).
 
 The kept additions use conservative tiers. They were checked against body type and known size class, but not against a dimension sheet per model. Section 12's vPIC plan is the way to tighten their year ranges.

@@ -370,12 +370,43 @@ describe('customer-facing size wording (display only)', () => {
   });
 });
 
-describe('held-back additions are not in this release', () => {
+describe('held-back models classified from an existing tier', () => {
+  it('prices each one at the tier of the catalog vehicle it matches', () => {
+    const legacy = Catalog.toLegacyModelsMap();
+    const cases = [
+      ['Chevrolet', 'HHR', 2008, 'suv2'],
+      ['Chrysler', 'PT Cruiser', 2006, 'suv2'],
+      ['Scion', 'xB', 2005, 'suv2'],
+      ['Scion', 'xB', 2012, 'suv2'],
+      ['Nissan', 'Cube', 2011, 'suv2'],
+      ['Audi', 'A4 allroad', 2020, 'suv2'],
+      ['Volkswagen', 'Touareg', 2012, 'suv3'],
+      ['Isuzu', 'Ascender', 2006, 'suv2'],
+      ['Isuzu', 'Ascender EXT', 2005, 'suv3'],
+    ];
+    for (const [make, model, year, tier] of cases) {
+      const resolved = Catalog.resolveVehicle({ make, model, year });
+      assert.equal(resolved.ok, true, model);
+      assert.equal(resolved.tierKey, tier, model);
+      assert.equal(legacy[make].t[model], tier, model + ' selector');
+    }
+    // The wrong tier is refused. Touareg follows the Cayenne, not the smaller crossover price.
+    const pub = { catalogTierMode: 'require_identity' };
+    const server = (make, model, year, tier) => assertCarCatalogTier({ make, model, year }, tier, pub);
+    assert.deepEqual(server('Volkswagen', 'Touareg', 2012, 'suv3'), { ok: true });
+    assert.deepEqual(server('Volkswagen', 'Touareg', 2012, 'suv2'), { ok: false, error: 'tier_mismatch' });
+    assert.deepEqual(server('Chevrolet', 'HHR', 2008, 'suv2'), { ok: true });
+    assert.deepEqual(server('Chevrolet', 'HHR', 2008, 'small'), { ok: false, error: 'tier_mismatch' });
+    assert.deepEqual(server('Isuzu', 'Ascender EXT', 2005, 'suv3'), { ok: true });
+    assert.deepEqual(server('Isuzu', 'Ascender', 2006, 'suv3'), { ok: false, error: 'tier_mismatch' });
+  });
+});
+
+describe('models that still have two defensible tiers stay on the quote form', () => {
   it('uncertain models stay out of the catalog and the selector', () => {
     const legacy = Catalog.toLegacyModelsMap();
-    for (const [make, model] of [['Volkswagen', 'Touareg'], ['Kia', 'Rondo'], ['Mazda', 'Mazda5'], ['Chevrolet', 'HHR'], ['Chrysler', 'PT Cruiser'],
-      ['Scion', 'xB'], ['Nissan', 'Cube'], ['Audi', 'A4 allroad'], ['Audi', 'A6 allroad'], ['INFINITI', 'FX35'], ['INFINITI', 'QX70'],
-      ['Buick', 'Rendezvous'], ['Isuzu', 'Ascender'], ['Chevrolet', 'Astro']]) {
+    for (const [make, model] of [['Kia', 'Rondo'], ['Mazda', 'Mazda5'], ['Audi', 'A6 allroad'], ['INFINITI', 'FX35'], ['INFINITI', 'QX70'],
+      ['Buick', 'Rendezvous'], ['Chevrolet', 'Astro']]) {
       assert.equal(Catalog.resolveVehicle({ make, model }).ok, false, model);
       assert.equal(Boolean(legacy[make] && legacy[make].m.includes(model)), false, model + ' in selector');
     }
