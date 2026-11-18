@@ -318,7 +318,8 @@ test('index/hub/city MODELS hashes identical (13 pages) + shared scripts', () =>
     BOOKING_PAGES.map((p) =>
       crypto
         .createHash('sha256')
-        .update(extractAssignment(read(p), 'MODELS'))
+        // Line endings differ by checkout (CRLF on Windows); the content must not.
+        .update(extractAssignment(read(p), 'MODELS').replace(/\r\n/g, '\n'))
         .digest('hex')
     )
   );

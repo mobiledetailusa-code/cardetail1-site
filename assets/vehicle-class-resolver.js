@@ -47,7 +47,12 @@
   ]);
 
   const YEAR_OVERRIDES = {
-    'Hyundai|Santa Fe': [{ from: 2024, tierKey: 'suv3', body: 'suv3' }],
+    // Mirrors the Santa Fe year bands in data/cars-vehicle-catalog.json (fallback only).
+    'Hyundai|Santa Fe': [
+      { from: 2013, tierKey: 'suv3', body: 'suv3' },
+      { from: 2019, tierKey: 'suv2', body: 'suv2' },
+      { from: 2024, tierKey: 'suv3', body: 'suv3' },
+    ],
   };
 
   function modelKey(make, model) {
