@@ -22,7 +22,12 @@ function smsOutbox() {
   };
 }
 const { enabled } = require('../lib/twilio-runtime-policy');
-const { buildInquiryRecord, persistInquiry, vehicleSummaryLines } = require('../lib/vehicle-inquiry');
+const {
+  buildInquiryRecord,
+  persistInquiry,
+  recordNotificationOutcome,
+  vehicleSummaryLines,
+} = require('../lib/vehicle-inquiry');
 
 const json = (status, body) => ({
   statusCode: status,
@@ -116,18 +121,51 @@ exports.handler = async (event) => {
 
   // Stored before notifying so the request survives an email/SMS outage.
   // A storage failure does not block the notifications (existing behavior).
-  const persisted = await persistInquiry(q);
+  const persisted = await persistInquiry(q, { dedupeKey: built.dedupeKey });
+
+  // A retry or concurrent duplicate of a request already stored: no second
+  // record and no second email/SMS. Report what happened to the original.
+  if (persisted.duplicate) {
+    const notified = persisted.notification && persisted.notification.state === 'failed' ? false : true;
+    return notified
+      ? json(200, { ok: true, id: persisted.id, stored: true, duplicate: true })
+      : json(202, savedNotNotifiedBody(persisted.id, { duplicate: true }));
+  }
 
   const [email, sms] = await Promise.all([
     sendEmail(q).catch(e => ({ sent: false, reason: e.message })),
     sendSms(q).catch(e => ({ sent: false, reason: e.message })),
   ]);
+  const notified = Boolean(email.sent || sms.accepted);
+
+  await recordNotificationOutcome(persisted, q, {
+    state: notified ? 'sent' : 'failed',
+    email: email.sent ? 'sent' : (email.reason === 'email not configured' ? 'not_configured' : 'failed'),
+    sms: sms.accepted ? 'queued' : (sms.skipped ? 'skipped' : 'failed'),
+    at: new Date().toISOString(),
+  });
 
   // Nothing stored and nothing delivered: tell the customer to call instead of
   // showing a success message for a request nobody will ever see.
-  if (!persisted.stored && !email.sent && !sms.accepted) {
+  if (!persisted.stored && !notified) {
     return json(503, { ok: false, error: 'inquiry_not_delivered', stored: false, email, sms });
   }
 
-  return json(200, { ok: true, id: q.id, stored: persisted.stored, email, sms });
+  // Saved but neither channel reached the team: not a normal success. The
+  // request is in the admin Quote requests list; the customer must not resend.
+  if (!notified) return json(202, savedNotNotifiedBody(q.id, { email, sms }));
+
+  return json(200, { ok: true, id: q.id, stored: persisted.stored, notified: true, email, sms });
 };
+
+function savedNotNotifiedBody(id, extra = {}) {
+  return {
+    ok: true,
+    id,
+    stored: true,
+    notified: false,
+    status: 'saved_not_notified',
+    message: 'Your request is saved. Our team has not been alerted yet, so a reply may take longer. There is no need to send it again.',
+    ...extra,
+  };
+}

@@ -210,6 +210,13 @@ function buildInquiryRecord(raw, { now = Date.now() } = {}) {
 
   const zip = phoneDigits(raw.zip).slice(0, 5);
   const clientRef = cleanLine(raw.id, 40);
+  // Stable per-form identifier sent again on retries; absent for the chat widget.
+  const submissionId = typeof raw.submissionId === 'string' && SUBMISSION_ID_RE.test(raw.submissionId)
+    ? raw.submissionId
+    : '';
+  if (raw.submissionId !== undefined && raw.submissionId !== null && raw.submissionId !== '' && !submissionId) {
+    return { ok: false, error: 'invalid_fields', fields: ['submissionId'] };
+  }
   const record = {
     id: generateInquiryId(now),
     kind: structured ? 'vehicle_quote' : 'question',
@@ -223,10 +230,28 @@ function buildInquiryRecord(raw, { now = Date.now() } = {}) {
     zip: zip.length === 5 ? zip : '',
     message: cleanText(raw.message, 2000),
     vehicle,
+    // Updated after the email/SMS attempt; 'pending' if the function died in between.
+    notification: { state: 'pending' },
     retentionExpiresAt: revenueStore.retentionExpiresAt('inquiries'),
   };
   if (structured && !record.message) record.message = vehicleSummaryLines(vehicle).join('\n');
-  return { ok: true, record };
+  // Scoped to the phone number so one customer's identifier can never swallow
+  // another customer's request.
+  const dedupeKey = submissionId
+    ? crypto.createHash('sha256').update(`${submissionId}|${phoneDigits(contact.phone)}`).digest('hex').slice(0, 40)
+    : '';
+  return { ok: true, record, dedupeKey };
+}
+
+const SUBMISSION_ID_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const RECORD_PREFIX = 'rec/';
+const CLAIM_PREFIX = 'sub/';
+const MAX_TIME_MS = 9999999999999;
+
+/** Newest-first key: an inverted, zero-padded timestamp sorts recent records first. */
+function recordKeyFor(record) {
+  const inverted = String(MAX_TIME_MS - Date.parse(record.createdAt)).padStart(13, '0');
+  return `${RECORD_PREFIX}${inverted}_${record.id}`;
 }
 
 function inquiryBlobsAvailable() {
@@ -236,18 +261,107 @@ function inquiryBlobsAvailable() {
   const token = String(process.env.NETLIFY_AUTH_TOKEN || '').trim();
   return Boolean(siteID && token);
 }
-/** Create-only write; a storage failure is reported, never thrown. */
-async function persistInquiry(record) {
+/**
+ * Create-only write; a storage failure is reported, never thrown.
+ *
+ * With a dedupeKey, a create-only claim (`sub/<hash>`) is taken first. Only the
+ * request that wins the claim writes the record and sends notifications; a
+ * retry or a concurrent duplicate gets { duplicate: true } with the original id.
+ * Netlify Blobs `onlyIfNew` (If-None-Match: *) makes the claim atomic.
+ */
+async function persistInquiry(record, { dedupeKey = '' } = {}) {
   if (!inquiryBlobsAvailable()) return { stored: false, reason: 'storage_unavailable' };
+  const recordKey = recordKeyFor(record);
+  let store;
+  let claimKey = '';
   try {
-    const store = await revenueStore.getRevenueStore('inquiries');
-    const result = await revenueStore.blobCreateJson(store, record.id, record);
-    if (!result.created) return { stored: false, reason: 'id_collision' };
-    return { stored: true };
+    store = await revenueStore.getRevenueStore('inquiries');
+    if (dedupeKey) {
+      claimKey = `${CLAIM_PREFIX}${dedupeKey}`;
+      const claim = await revenueStore.blobCreateJson(store, claimKey, {
+        id: record.id, recordKey, createdAt: record.createdAt,
+      });
+      if (!claim.created) {
+        const prior = await revenueStore.blobGetJson(store, claimKey);
+        const priorRecord = prior && prior.recordKey ? await revenueStore.blobGetJson(store, prior.recordKey) : null;
+        return {
+          stored: true,
+          duplicate: true,
+          id: (prior && prior.id) || '',
+          notification: (priorRecord && priorRecord.notification) || { state: 'pending' },
+        };
+      }
+    }
+    const result = await revenueStore.blobCreateJson(store, recordKey, record);
+    if (!result.created) throw new Error('record_key_collision');
+    return { stored: true, duplicate: false, id: record.id, recordKey, store };
   } catch (e) {
     console.warn('[vehicle-inquiry] persist failed:', e && e.message);
+    // Release the claim so a retry can store the request instead of being
+    // treated as a duplicate of something that was never saved.
+    if (store && claimKey) {
+      try { await store.delete(claimKey); } catch { /* best effort */ }
+    }
     return { stored: false, reason: 'storage_error' };
   }
+}
+
+/** Record the email/SMS outcome on the stored inquiry (admin visibility). */
+async function recordNotificationOutcome(persisted, record, outcome) {
+  if (!persisted || !persisted.stored || persisted.duplicate || !persisted.store) return false;
+  try {
+    record.notification = outcome;
+    await revenueStore.blobSetJson(persisted.store, persisted.recordKey, record);
+    return true;
+  } catch (e) {
+    console.warn('[vehicle-inquiry] notification outcome not saved:', e && e.message);
+    return false;
+  }
+}
+
+/** Admin view of one stored record. */
+function adminInquiryView(rec) {
+  const v = rec.vehicle || null;
+  return {
+    id: rec.id,
+    createdAt: rec.createdAt,
+    status: rec.status || 'new',
+    kind: rec.kind,
+    source: rec.source || '',
+    contact: { name: rec.name || '', phone: rec.phone || '', email: rec.email || '', zip: rec.zip || '' },
+    vehicle: v && {
+      category: v.category,
+      categoryLabel: v.categoryLabel,
+      year: v.year ?? null,
+      make: v.make || '',
+      model: v.model || '',
+      passengerCapacity: v.passengerCapacity ?? null,
+      wheelchairSpaces: v.wheelchairSpaces ?? null,
+      lengthFt: v.lengthFt ?? null,
+      notes: v.notes || '',
+    },
+    services: v ? v.services.map((s) => SERVICES[s] || s) : [],
+    extras: v ? v.extras.map((s) => EXTRAS[s] || s) : [],
+    message: rec.message || '',
+    notification: rec.notification || { state: 'unknown' },
+  };
+}
+
+/**
+ * Newest stored inquiries for the admin view. Read-only.
+ * Keys sort newest-first (recordKeyFor), so the first page is the latest.
+ */
+async function listInquiries({ limit = 100 } = {}) {
+  const cap = Math.min(Math.max(Number(limit) || 100, 1), 200);
+  const store = await revenueStore.getRevenueStore('inquiries');
+  const keys = (await revenueStore.blobListKeys(store, { prefix: RECORD_PREFIX, limit: 2000 })).sort();
+  const page = keys.slice(0, cap);
+  const rows = await Promise.all(page.map((k) => revenueStore.blobGetJson(store, k)));
+  return {
+    inquiries: rows.filter(Boolean).map(adminInquiryView),
+    total: keys.length,
+    truncated: keys.length > cap,
+  };
 }
 
 module.exports = {
@@ -256,6 +370,9 @@ module.exports = {
   EXTRAS,
   buildInquiryRecord,
   persistInquiry,
+  recordNotificationOutcome,
+  listInquiries,
+  recordKeyFor,
   vehicleSummaryLines,
   validateVehicle,
 };

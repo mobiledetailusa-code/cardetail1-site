@@ -361,8 +361,15 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   var form=document.getElementById('fleet-quote-form');
   var statusEl=document.getElementById('fleet-quote-status');
   if(!form) return;
+  // Same id on every retry of one request, so the server keeps a single copy.
+  var submissionId='';
+  function newSubmissionId(){
+    try{ if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID(); }catch(e){}
+    return 'sub-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,12);
+  }
   form.addEventListener('submit',async function(ev){
     ev.preventDefault();
+    if(!submissionId) submissionId=newSubmissionId();
     if(statusEl) statusEl.textContent='Sending…';
     var fd=new FormData(form);
     var message=[
@@ -381,6 +388,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
+          submissionId:submissionId,
           name:fd.get('name'),
           phone:fd.get('phone'),
           email:fd.get('email')||'',
@@ -390,8 +398,11 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
       });
       var data=await res.json().catch(function(){return {};});
       if(res.ok && data.ok!==false){
-        if(statusEl) statusEl.textContent='Quote request sent — we will follow up by text or email.';
+        if(statusEl) statusEl.textContent=data.status==='saved_not_notified'
+          ? 'Your request is saved. Our team was not alerted right away, so a reply may take a little longer. No need to send it again — or call or text (551) 389-3986.'
+          : 'Quote request sent — we will follow up by text or email.';
         form.reset();
+        submissionId='';
       }else{
         if(statusEl) statusEl.textContent='Could not send online — please call or text (551) 389-3986.';
       }

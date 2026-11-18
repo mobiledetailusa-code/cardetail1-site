@@ -5715,9 +5715,19 @@ function syncCommercialFields(){
     const req=el.querySelector('[data-cs-req]'); if(req) req.hidden=!def.cap;
   });
 }
+function newInquirySubmissionId(){
+  try{ if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID(); }catch(e){}
+  return 'sub-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,12);
+}
 function openCommercialForm(){
   const ov=document.getElementById('cs-ov');
   if(!ov) return false;
+  // A form that was already sent starts fresh: a new request gets a new id.
+  const form=document.getElementById('cs-form');
+  if(form&&form.dataset.sent==='1'){
+    form.reset&&form.reset(); delete form.dataset.sent; delete form.dataset.submissionId;
+    const b=document.getElementById('cs-submit'); if(b) b.disabled=false;
+  }
   const zipIn=document.getElementById('cs-zip');
   const bkZip=(document.getElementById('bk-zip')?.value||'').replace(/\D/g,'').slice(0,5);
   if(zipIn&&!zipIn.value&&bkZip.length===5) zipIn.value=bkZip;
@@ -5767,19 +5777,27 @@ async function submitCommercialForm(e){
   if(!contact.name) return fail('Add your name.','cs-name');
   if(contact.phone.replace(/\D/g,'').length<10) return fail('Add a phone number with area code.','cs-phone');
   if(contact.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) return fail('Check the email address.','cs-email');
-  const inquiry={name:contact.name,phone:contact.phone,email:contact.email,zip:contact.zip,vehicle,
+  // Same id on every retry of this form, so the server keeps one request.
+  const form=document.getElementById('cs-form');
+  if(!form.dataset.submissionId) form.dataset.submissionId=newInquirySubmissionId();
+  const inquiry={submissionId:form.dataset.submissionId,name:contact.name,phone:contact.phone,email:contact.email,zip:contact.zip,vehicle,
     message:'Commercial / specialty vehicle quote request.'+(vehicle.notes?'\nNotes: '+vehicle.notes:''),
     source:'Booking - commercial & specialty'};
   btn.disabled=true; status.textContent='Sending…'; status.className='car-unlisted-status';
-  let ok=false;
+  let ok=false, body={};
   try{
     const res=await fetch(INQUIRY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inquiry)});
-    const body=await res.json().catch(()=>({}));
+    body=await res.json().catch(()=>({}));
     ok=res.ok&&body&&body.ok===true;
   }catch(err){ ok=false; }
   btn.disabled=false;
   if(ok){
-    status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
+    form.dataset.sent='1';
+    if(body.status==='saved_not_notified'){
+      status.innerHTML='Your request is saved'+(body.id?' (ref '+String(body.id).replace(/[^A-Z0-9-]/gi,'')+')':'')+'. Our team wasn’t alerted right away, so a reply may take a little longer. There’s no need to send it again. For faster help, call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
+    }else{
+      status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
+    }
     status.className='car-unlisted-status is-ok';
     btn.disabled=true;
   }else{
@@ -7460,19 +7478,30 @@ async function submitCarUnlisted(e){
   if(v.phone.replace(/\D/g,'').length<10) return fail('Add a phone number with area code.','cu-phone');
   if(v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return fail('Check the email address.','cu-email');
   const zip=(document.getElementById('bk-zip')?.value||'').trim();
-  const inquiry={id:'INQ-'+Date.now().toString(36).toUpperCase(),name:v.name,phone:v.phone,email:v.email,zip,
+  // Same id on every retry of this form, so the server keeps one request.
+  const form=document.getElementById('car-unlisted');
+  if(!form.dataset.submissionId){
+    let sid='';
+    try{ if(window.crypto&&typeof window.crypto.randomUUID==='function') sid=window.crypto.randomUUID(); }catch(e){}
+    form.dataset.submissionId=sid||('sub-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,12));
+  }
+  const inquiry={id:'INQ-'+Date.now().toString(36).toUpperCase(),submissionId:form.dataset.submissionId,name:v.name,phone:v.phone,email:v.email,zip,
     vehicle:{category:'car_suv',year:v.year,make:v.make,model:v.model,notes:v.notes},
     message:carUnlistedMessage(v),createdAt:new Date().toISOString(),status:'New',source:'Booking - vehicle not listed'};
   btn.disabled=true; status.textContent='Sending…'; status.className='car-unlisted-status';
-  let ok=false;
+  let ok=false, body={};
   try{
     const res=await fetch(INQUIRY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inquiry)});
-    const body=await res.json().catch(()=>({}));
+    body=await res.json().catch(()=>({}));
     ok=res.ok&&body&&body.ok===true;
   }catch(err){ ok=false; }
   btn.disabled=false;
   if(ok){
-    status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
+    if(body.status==='saved_not_notified'){
+      status.innerHTML='Your request is saved'+(body.id?' (ref '+String(body.id).replace(/[^A-Z0-9-]/gi,'')+')':'')+'. Our team wasn’t alerted right away, so a reply may take a little longer. There’s no need to send it again. For faster help, call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a>.';
+    }else{
+      status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
+    }
     status.className='car-unlisted-status is-ok';
     btn.disabled=true;
   }else{
