@@ -896,6 +896,26 @@ body.rv-overlay-lock{overflow:hidden}
 .srch-item:hover{background:var(--bg3);color:var(--white)}
 .srch-item mark{background:transparent;color:var(--blue);font-weight:600}
 .srch-empty{padding:12px 14px;font-size:13px;color:var(--mu);text-align:center}
+.srch-item.is-active{background:var(--bg3);color:var(--white)}
+.srch-item-note{font-size:12px;color:var(--mu);margin-left:6px}
+.srch-empty-btn{display:block;margin:6px auto 0;background:transparent;border:0;padding:4px;color:var(--blue);font-family:inherit;font-weight:600;font-size:13px;line-height:1.4;cursor:pointer;text-decoration:underline}
+.car-unlisted-btn{margin-top:8px;background:transparent;border:0;padding:6px 0;color:var(--blue);font-family:inherit;font-weight:600;font-size:13px;line-height:1.4;cursor:pointer;text-decoration:underline;min-height:32px}
+.car-unlisted{margin-top:10px;padding:12px;border:1px solid var(--bbr);border-radius:var(--rs)}
+.car-unlisted[hidden]{display:none}
+.car-unlisted-lead{font-size:13px;line-height:1.45;margin:0 0 10px;color:var(--tx)}
+.car-unlisted-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.car-unlisted-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.car-unlisted-f--wide{margin-top:10px}
+.car-unlisted-f .fi{width:100%;box-sizing:border-box;font-size:16px}
+.car-unlisted-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:12px}
+.car-unlisted-cancel{background:transparent;border:0;padding:6px 0;color:var(--mu);font-family:inherit;font-weight:600;font-size:13px;line-height:1.4;cursor:pointer;text-decoration:underline}
+.car-unlisted-status{font-size:13px;line-height:1.45;margin:10px 0 0;min-height:1em}
+.car-unlisted-status.is-error{color:var(--rd)}
+.car-unlisted-status.is-ok{color:var(--gr)}
+@media(max-width:420px){.car-unlisted-grid{grid-template-columns:1fr}}
+.car-year-note{margin:10px 0 0;padding:10px 12px;font-size:13px;line-height:1.45;color:var(--tx);border:1px solid var(--bbr);border-radius:var(--rs)}
+.car-year-note[hidden]{display:none}
+.car-year-note-btn{display:inline;margin:0 0 0 4px;padding:0}
 .srch-dd::-webkit-scrollbar{width:3px}
 .srch-dd::-webkit-scrollbar-thumb{background:var(--bg3)}
 
@@ -1924,6 +1944,7 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
 <script src="assets/generated/cars-vehicle-catalog.generated.js"></script>
 <script src="assets/vehicle-catalog.js"></script>
 <script src="assets/vehicle-class-resolver.js"></script>
+<script src="assets/vehicle-make-search.js"></script>
 <script src="assets/generated/brand-model-visuals.generated.js"></script>
 <script src="assets/generated/specialty-brand-model-visuals.generated.js"></script>
 <script src="assets/vehicle-brand-visuals.js"></script>
@@ -3459,13 +3480,34 @@ body.luxury-surface .hero h1{
         <div id="make-search-wrap" style="display:none">
           <div class="srch-wrap">
             <span class="srch-ico">🔍</span>
-            <input class="srch-in" id="make-in" type="text" placeholder="Search make — Toyota, BMW, Ford…" autocomplete="off">
-            <div class="srch-dd" id="make-dd"></div>
+            <input class="srch-in" id="make-in" type="text" placeholder="Search make — Toyota, BMW, Ford…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="make-dd" aria-expanded="false" aria-label="Vehicle make">
+            <div class="srch-dd" id="make-dd" role="listbox" aria-label="Matching makes"></div>
           </div>
           <div class="sel-row">
             <div class="sel-g"><div class="sel-l">Model</div><select class="sel-s" id="model-sel" disabled><option value="">— select make first —</option></select></div>
             <div class="sel-g"><div class="sel-l">Year</div><select class="sel-s" id="year-sel" disabled><option value="">— select model —</option></select></div>
           </div>
+          <p id="car-year-note" class="car-year-note" role="status" hidden>We haven’t confirmed the <span data-year></span> version of this model yet, so we can’t price it online. <button type="button" class="srch-empty-btn car-year-note-btn" onclick="openCarUnlisted()">Request a quote →</button></p>
+          <button type="button" id="car-unlisted-btn" class="car-unlisted-btn" aria-expanded="false" aria-controls="car-unlisted" onclick="openCarUnlisted()">My vehicle isn’t listed</button>
+          <!-- Vehicle not in the catalog: quote request only. The server prices only
+               catalog vehicles (require_identity), so no size, price or booking is set here. -->
+          <form id="car-unlisted" class="car-unlisted" hidden novalidate onsubmit="submitCarUnlisted(event)">
+            <p class="car-unlisted-lead">Tell us your vehicle and we’ll text or call you with a quote. Nothing is booked or charged yet.</p>
+            <div class="car-unlisted-grid">
+              <label class="car-unlisted-f"><span class="sel-l">Make *</span><input class="fi" id="cu-make" type="text" maxlength="40" autocomplete="off"></label>
+              <label class="car-unlisted-f"><span class="sel-l">Model *</span><input class="fi" id="cu-model" type="text" maxlength="60" autocomplete="off"></label>
+              <label class="car-unlisted-f"><span class="sel-l">Year</span><input class="fi" id="cu-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+              <label class="car-unlisted-f"><span class="sel-l">Name *</span><input class="fi" id="cu-name" type="text" maxlength="80" autocomplete="name"></label>
+              <label class="car-unlisted-f"><span class="sel-l">Phone *</span><input class="fi" id="cu-phone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel"></label>
+              <label class="car-unlisted-f"><span class="sel-l">Email</span><input class="fi" id="cu-email" type="email" maxlength="120" autocomplete="email"></label>
+            </div>
+            <label class="car-unlisted-f car-unlisted-f--wide"><span class="sel-l">Notes</span><textarea class="fi" id="cu-notes" rows="2" maxlength="500" placeholder="Size, condition, what you’d like done"></textarea></label>
+            <div class="car-unlisted-actions">
+              <button type="submit" class="btn-n" id="cu-submit">Request a quote</button>
+              <button type="button" class="car-unlisted-cancel" onclick="closeCarUnlisted()">Back to search</button>
+            </div>
+            <p id="cu-status" class="car-unlisted-status" role="status" aria-live="polite"></p>
+          </form>
         </div>
 
         <!-- Size chips only when auto-class needs confirmation (cars / powersports) -->
@@ -6540,6 +6582,14 @@ function resetVehicleEntryFields(cat){
   const yearSel=document.getElementById('year-sel');
   if(makeIn) makeIn.value='';
   if(makeDd) makeDd.classList.remove('open');
+  const yearNote=document.getElementById('car-year-note');
+  if(yearNote) yearNote.hidden=true;
+  const unlisted=document.getElementById('car-unlisted');
+  if(unlisted && unlisted.hidden===false){
+    unlisted.hidden=true;
+    const unlistedBtn=document.getElementById('car-unlisted-btn');
+    if(unlistedBtn && typeof unlistedBtn.setAttribute==='function') unlistedBtn.setAttribute('aria-expanded','false');
+  }
   if(modelSel){
     modelSel.innerHTML='<option value="">— select make first —</option>';
     modelSel.disabled=true;
@@ -7077,21 +7127,171 @@ function updateVcPriceDisplay(){
 // ── CAR SEARCH ────────────────────────────────────────────────────────────────
 const makeIn=document.getElementById('make-in');
 const makeDd=document.getElementById('make-dd');
+// Matching lives in assets/vehicle-make-search.js (nicknames such as Chevy, VW,
+// Benz and Range Rover resolve to catalog makes). Plain substring search is the
+// fallback if that asset did not load.
+function findMakeHits(q){
+  if(window.CD1MakeSearch) return CD1MakeSearch.searchMakes(q, MAKES);
+  const s=q.trim().toLowerCase();
+  return MAKES.filter(m=>m.toLowerCase().includes(s)).map(m=>({make:m,note:''}));
+}
+function findExactMake(q){
+  if(window.CD1MakeSearch) return CD1MakeSearch.exactMake(q, MAKES);
+  const s=q.trim().toLowerCase();
+  return MAKES.find(m=>m.toLowerCase()===s)||null;
+}
+function escMakeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+let makeHits=[]; let makeActive=-1;
+function closeMakeDd(){makeDd.classList.remove('open');makeIn.setAttribute('aria-expanded','false');makeIn.removeAttribute('aria-activedescendant');makeActive=-1;}
+function setMakeActive(i){
+  const items=makeDd.querySelectorAll('.srch-item');
+  if(!items.length){makeActive=-1;return;}
+  makeActive=(i+items.length)%items.length;
+  items.forEach((el,k)=>{const on=k===makeActive;el.classList.toggle('is-active',on);el.setAttribute('aria-selected',on?'true':'false');});
+  makeIn.setAttribute('aria-activedescendant',items[makeActive].id);
+  items[makeActive].scrollIntoView&&items[makeActive].scrollIntoView({block:'nearest'});
+}
+// Typing a different make invalidates the model/year picked for the old one.
+function clearMakeDependents(){
+  if(!ST.make) return;
+  hideCarYearNote();
+  ST.make='';
+  const ms=document.getElementById('model-sel');
+  const ys=document.getElementById('year-sel');
+  ms.innerHTML='<option value="">— select make first —</option>'; ms.disabled=true;
+  ys.innerHTML='<option value="">— select model —</option>'; ys.disabled=true;
+  ST.model=''; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
+  document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
+  typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
+}
 makeIn.addEventListener('input',()=>{
-  const q=makeIn.value.trim().toLowerCase();
-  if(!q){makeDd.classList.remove('open');return;}
-  const hits=MAKES.filter(m=>m.toLowerCase().includes(q));
-  if(!hits.length){makeDd.innerHTML='<div class="srch-empty">No make found</div>';makeDd.classList.add('open');return;}
-  makeDd.innerHTML=hits.map(m=>{
-    const hl=m.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark>$1</mark>');
-    return `<div class="srch-item" onclick="selectMake('${m}')">${hl}</div>`;
+  const raw=makeIn.value;
+  if(ST.make && raw.trim().toLowerCase()!==String(ST.make).toLowerCase()) clearMakeDependents();
+  const q=raw.trim();
+  if(!q){closeMakeDd();return;}
+  makeHits=findMakeHits(q);
+  makeActive=-1;
+  if(!makeHits.length){
+    makeDd.innerHTML='<div class="srch-empty">No make found<button type="button" class="srch-empty-btn" onclick="openCarUnlisted()">My vehicle isn’t listed →</button></div>';
+    makeDd.classList.add('open');makeIn.setAttribute('aria-expanded','true');makeIn.removeAttribute('aria-activedescendant');
+    return;
+  }
+  const re=new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`,'gi');
+  makeDd.innerHTML=makeHits.map((h,i)=>{
+    const hl=escMakeHtml(h.make).replace(re,'<mark>$1</mark>');
+    const note=h.note?`<span class="srch-item-note">${escMakeHtml(h.note)}</span>`:'';
+    return `<div class="srch-item" id="make-opt-${i}" role="option" aria-selected="false" data-make="${escMakeHtml(h.make)}">${hl}${note}</div>`;
   }).join('');
-  makeDd.classList.add('open');
+  makeDd.classList.add('open');makeIn.setAttribute('aria-expanded','true');
 });
-document.addEventListener('click',e=>{if(!e.target.closest('#make-in')&&!e.target.closest('#make-dd'))makeDd.classList.remove('open');});
+// One delegated handler (pointerdown keeps the input from blurring first on touch).
+makeDd.addEventListener('mousedown',e=>{if(e.target.closest('.srch-item'))e.preventDefault();});
+makeDd.addEventListener('click',e=>{
+  const item=e.target.closest('.srch-item');
+  if(item&&item.dataset.make) selectMake(item.dataset.make);
+});
+makeIn.addEventListener('keydown',e=>{
+  const open=makeDd.classList.contains('open')&&makeHits.length;
+  if(e.key==='ArrowDown'){if(open){e.preventDefault();setMakeActive(makeActive+1);}return;}
+  if(e.key==='ArrowUp'){if(open){e.preventDefault();setMakeActive(makeActive-1);}return;}
+  if(e.key==='Escape'){closeMakeDd();return;}
+  if(e.key==='Enter'){
+    const pick=(open&&makeActive>=0&&makeHits[makeActive])?makeHits[makeActive].make
+      :(findExactMake(makeIn.value)||(makeHits.length===1?makeHits[0].make:null));
+    if(pick){e.preventDefault();selectMake(pick);}
+  }
+});
+// Exact make or nickname typed and the field left: accept it without a tap.
+makeIn.addEventListener('change',()=>{
+  if(ST.make) return;
+  const exact=findExactMake(makeIn.value);
+  if(exact) selectMake(exact);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('#make-in')&&!e.target.closest('#make-dd'))closeMakeDd();});
+
+// ── VEHICLE NOT LISTED (quote request, never a priced booking) ────────────────
+function openCarUnlisted(){
+  const form=document.getElementById('car-unlisted');
+  if(!form) return;
+  closeMakeDd();
+  const typed=makeIn.value.trim();
+  const mk=document.getElementById('cu-make');
+  if(mk&&!mk.value&&typed) mk.value=ST.make||typed;
+  const ms=document.getElementById('model-sel');
+  const md=document.getElementById('cu-model');
+  if(md&&!md.value&&ms&&ms.value) md.value=ms.value;
+  const ysel=document.getElementById('year-sel');
+  const yr=document.getElementById('cu-year');
+  if(yr&&!yr.value&&ysel&&ysel.value) yr.value=ysel.value;
+  form.hidden=false;
+  document.getElementById('car-unlisted-btn')?.setAttribute('aria-expanded','true');
+  const status=document.getElementById('cu-status'); if(status){status.textContent='';status.className='car-unlisted-status';}
+  const first=(mk&&!mk.value)?mk:(md&&!md.value?md:document.getElementById('cu-name'));
+  first&&first.focus&&first.focus();
+  form.scrollIntoView&&form.scrollIntoView({block:'nearest'});
+}
+function closeCarUnlisted(){
+  const form=document.getElementById('car-unlisted');
+  if(form) form.hidden=true;
+  document.getElementById('car-unlisted-btn')?.setAttribute('aria-expanded','false');
+  makeIn.focus&&makeIn.focus();
+}
+function carUnlistedMessage(v){
+  const zip=(document.getElementById('bk-zip')?.value||'').trim();
+  return [
+    'Vehicle not listed in online booking - quote request.',
+    'Vehicle: '+[v.year,v.make,v.model].filter(Boolean).join(' '),
+    'Category: Cars & SUVs',
+    zip?'ZIP: '+zip:'',
+    v.notes?'Notes: '+v.notes:'',
+    'No price or size was set. Confirm the vehicle size and send a quote.',
+  ].filter(Boolean).join('\n');
+}
+async function submitCarUnlisted(e){
+  e&&e.preventDefault&&e.preventDefault();
+  const val=id=>(document.getElementById(id)?.value||'').trim();
+  const v={make:val('cu-make'),model:val('cu-model'),year:val('cu-year'),name:val('cu-name'),phone:val('cu-phone'),email:val('cu-email'),notes:val('cu-notes')};
+  const status=document.getElementById('cu-status');
+  const btn=document.getElementById('cu-submit');
+  const fail=(msg,field)=>{status.textContent=msg;status.className='car-unlisted-status is-error';field&&document.getElementById(field)?.focus();};
+  if(!v.make) return fail('Add the vehicle make.','cu-make');
+  if(!v.model) return fail('Add the vehicle model.','cu-model');
+  if(v.year && !/^(19|20)\d{2}$/.test(v.year)) return fail('Year should look like 2016.','cu-year');
+  if(!v.name) return fail('Add your name.','cu-name');
+  if(v.phone.replace(/\D/g,'').length<10) return fail('Add a phone number with area code.','cu-phone');
+  if(v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return fail('Check the email address.','cu-email');
+  const inquiry={id:'INQ-'+Date.now().toString(36).toUpperCase(),name:v.name,phone:v.phone,email:v.email,
+    message:carUnlistedMessage(v),createdAt:new Date().toISOString(),status:'New',source:'Booking - vehicle not listed'};
+  btn.disabled=true; status.textContent='Sending…'; status.className='car-unlisted-status';
+  let ok=false;
+  try{
+    const res=await fetch(INQUIRY_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(inquiry)});
+    const body=await res.json().catch(()=>({}));
+    ok=res.ok&&body&&body.ok===true;
+  }catch(err){ ok=false; }
+  btn.disabled=false;
+  if(ok){
+    status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
+    status.className='car-unlisted-status is-ok';
+    btn.disabled=true;
+  }else{
+    status.innerHTML='We couldn’t send that right now. Please call or text <a href="tel:'+ADMIN_SMS+'">(551) 389-3986</a> for a quote.';
+    status.className='car-unlisted-status is-error';
+  }
+}
+
+function showCarYearNote(year){
+  const el=document.getElementById('car-year-note'); if(!el) return;
+  el.querySelector('[data-year]').textContent=String(year);
+  el.hidden=false;
+}
+function hideCarYearNote(){
+  const el=document.getElementById('car-year-note'); if(el) el.hidden=true;
+}
 
 function selectMake(make){
-  ST.make=make; makeIn.value=make; makeDd.classList.remove('open');
+  hideCarYearNote();
+  ST.make=make; makeIn.value=make; closeMakeDd();
   const ms=document.getElementById('model-sel');
   const ys=document.getElementById('year-sel');
   const data=MODELS[make];
@@ -7106,10 +7306,14 @@ function selectMake(make){
 document.getElementById('model-sel').addEventListener('change',function(){
   ST.model=this.value;
   const ys=document.getElementById('year-sel');
+  hideCarYearNote();
   if(!ST.model){ys.disabled=true;return;}
-  const cur=new Date().getFullYear();
+  // Year range comes from the catalog policy (selectableMax covers next model year).
+  const policy=(window.CD1VehicleCatalog&&CD1VehicleCatalog.getYearPolicy)?CD1VehicleCatalog.getYearPolicy():{};
+  const cur=Math.max(new Date().getFullYear(), Number(policy.selectableMax)||0);
+  const minY=Number(policy.selectableMin)||1990;
   ys.innerHTML='<option value="">— select year —</option>';
-  for(let y=cur;y>=1990;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
+  for(let y=cur;y>=minY;y--){const o=document.createElement('option');o.value=y;o.textContent=y;ys.appendChild(o);}
   ys.disabled=false; ST.year=''; ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.vehicleLabel='';
   document.getElementById('vc').classList.remove('show'); document.getElementById('next3').disabled=true;
   typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
@@ -7126,6 +7330,24 @@ document.getElementById('year-sel').addEventListener('change',function(){
     ST.make=hit || makeInVal;
   }
   if(!ST.model && modelVal) ST.model=modelVal;
+  hideCarYearNote();
+  // A model year the manufacturer has not confirmed yet (e.g. most 2027s) gets
+  // no size and no price: the server would refuse it, so offer a quote instead.
+  const yearStatus=(window.CD1VehicleCatalog&&CD1VehicleCatalog.modelYearStatus)
+    ? CD1VehicleCatalog.modelYearStatus(ST.make, ST.model, ST.year) : {verified:true};
+  if(!yearStatus.verified){
+    ST.vehicleLabel=`${ST.year} ${ST.make} ${ST.model}`.replace(/\s+/g,' ').trim();
+    ST.tierKey=''; ST.tier=null; ST.displayLabel=''; ST.body=null; ST.classNeedsConfirm=false; ST.basePrice=0; ST._priceResolveFailed=false;
+    document.querySelectorAll('.tchip').forEach(c=>c.classList.remove('sel'));
+    setVehicleVisual();
+    setVcName(ST.vehicleLabel+' · Model year not confirmed yet');
+    document.getElementById('vc').classList.add('show');
+    showCarYearNote(ST.year);
+    typeof syncTierChipsVisibility==='function'&&syncTierChipsVisibility();
+    syncContinueGate();
+    renderAddons();
+    return;
+  }
   const catalogTierKey=MODELS[ST.make]?.t[ST.model];
   const resolved=(window.CD1VehicleClass&&CD1VehicleClass.resolveVehicleClassification)
     ? CD1VehicleClass.resolveVehicleClassification({make:ST.make,model:ST.model,year:ST.year,catalogTierKey})

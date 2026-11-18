@@ -9,6 +9,52 @@
     "strictValidation": false,
     "notes": "Strict year rejection deferred to Phase 2/3. Data is year-aware; runtime keeps Production over-acceptance for public models."
   },
+  "modelYearVerification": {
+    "verifiedThrough": 2026,
+    "notes": "Model years after verifiedThrough are priced online only for the make|model listed under years[year], each confirmed by the manufacturer. Anything else is a quote request, never a priced booking. Add a vehicle here only with a manufacturer source.",
+    "years": {
+      "2027": {
+        "vehicles": [
+          "Toyota|Camry",
+          "Toyota|Corolla",
+          "Toyota|Corolla Cross",
+          "Toyota|Crown",
+          "Toyota|Crown Signia",
+          "Toyota|C-HR",
+          "Toyota|Prius",
+          "Toyota|bZ4X",
+          "Toyota|Grand Highlander",
+          "Toyota|Highlander",
+          "Toyota|Land Cruiser",
+          "Toyota|RAV4",
+          "Toyota|Sequoia",
+          "Toyota|Tundra",
+          "Toyota|GR86",
+          "Nissan|Altima",
+          "Nissan|Armada",
+          "Nissan|Kicks",
+          "Nissan|Frontier",
+          "Nissan|Murano",
+          "Nissan|Pathfinder",
+          "Nissan|Rogue",
+          "Nissan|Sentra",
+          "Nissan|Z",
+          "Chevrolet|Silverado 1500",
+          "Hyundai|Tucson",
+          "Subaru|Outback",
+          "Subaru|BRZ"
+        ],
+        "sources": {
+          "Toyota": "https://pressroom.toyota.com/whats-new-for-2027/ (bZ4X is sold as bZ for 2027); Highlander: https://pressroom.toyota.com/elevated-style-meets-modern-power-in-the-next-generation-2027-toyota-highlander/",
+          "Nissan": "https://usa.nissannews.com/en-US/releases/nissan-whats-new",
+          "Chevrolet": "https://news.gm.com/home.detail.html/Pages/news/us/en/2026/jun/0516-chevrolet-next-generation-2027-silverado.html",
+          "Hyundai": "https://www.hyundainews.com/releases/hyundai-announces-2027-model-year-changes",
+          "Subaru": "https://media.subaru.com/pressrelease/2509/1/2027-subaru-outback-press-kit ; https://media.subaru.com/pressrelease/2450/1/subaru-america-announces-pricing-2027-subaru-brz"
+        },
+        "checkedAt": "2026-11-17"
+      }
+    }
+  },
   "pricingClasses": [
     "small",
     "suv2",

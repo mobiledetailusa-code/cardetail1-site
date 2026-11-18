@@ -119,6 +119,13 @@ function assertCarCatalogTier(vehicle, claimedTierKey, opts) {
     return { ok: true };
   }
 
+  // A model year after the verified range (e.g. 2027) is priced only when the
+  // manufacturer confirmed that vehicle for that year. Otherwise it is a quote.
+  if (mode === 'require_identity' && identity.year != null
+      && !Catalog.modelYearStatus(record.make, record.model, identity.year).verified) {
+    return { ok: false, error: 'vehicle_unresolved' };
+  }
+
   const classes = distinctBandClasses(record);
   if (classes.size > 1 && !yearInBand(record, identity.year)) {
     return { ok: false, error: 'vehicle_unresolved' };
