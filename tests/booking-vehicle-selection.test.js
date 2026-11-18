@@ -328,6 +328,8 @@ describe('vehicle step behavior (index.html CAR SEARCH block)', () => {
     assert.equal(body.name, 'Test Person');
     assert.match(body.message, /2007 Pontiac Grand Prix/);
     assert.match(body.message, /ZIP: 07650/);
+    assert.equal(body.zip, '07650');
+    assert.deepEqual(body.vehicle, { category: 'car_suv', year: '2007', make: 'Pontiac', model: 'Grand Prix', notes: '' });
     assert.doesNotMatch(body.message, /\$\s?\d/, 'no price in the request');
     for (const k of ['price', 'tierKey', 'basePrice', 'total', 'amount']) assert.equal(body[k], undefined, k);
     assert.equal(sb.ST().tierKey, '');
