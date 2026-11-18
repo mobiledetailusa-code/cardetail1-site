@@ -338,3 +338,82 @@ All of the following are covered by tests that run the real `index.html` code in
 - Hyundai Motor Group, 2027 Telluride — https://www.hyundaimotorgroup.com/en/news/introducing-the-all-new-2027-kia-telluride-first-ever-hybrid-increased-x-pro-capability-elevate-the-three-row-suv
 
 Third-party spec sites were used where the manufacturer page publishes dimensions only as images. Figures vary by trim and model year by up to about 1 inch. No recommendation depends on a difference that small.
+
+## 13. Owner decision implemented (2026-11-18)
+
+The quote-only approach for recognizable variants is withdrawn. Recognized vehicles are now classified and priced automatically, from `data/cars-vehicle-catalog.json` only. The `quoteOnlyModels` block and its booking code were removed. No service price changed.
+
+### Classifications
+
+| Vehicle | Before | Now | Note |
+|---|---|---|---|
+| Mercedes-Benz EQS Sedan | "EQS", small | **EQS Sedan**, small | old name "EQS" kept as an alias, so stored bookings still resolve to the sedan |
+| Mercedes-Benz EQS SUV | not in catalog | **EQS SUV**, suv3 (2023–2027) | new record |
+| Mercedes-Benz EQE Sedan | "EQE", small | **EQE Sedan**, small | alias "EQE" kept |
+| Mercedes-Benz EQE SUV | not in catalog | **EQE SUV**, suv2 (2023–2027) | new record |
+| Kia EV6 | small | **suv2** | approved |
+| Porsche Cayenne | suv2 | **suv3** | approved |
+| Toyota 4Runner | suv2 | **suv3** | approved |
+| Mazda CX-70, BMW X5, Mercedes GLE, Audi Q8 | suv3 | suv3 | kept |
+| GMC Hummer EV | one record, suv3 | **Hummer EV SUV**, suv3 (2024–2027) + **Hummer EV Pickup**, truck (2022–2027) | old name "Hummer EV" is an alias of the SUV (same price as before) |
+| Land Rover Defender | one record, suv3 | **Defender 90**, **Defender 110**, **Defender 130**, all suv3 | old name "Defender" is an alias of the 110 |
+
+In the selector, the customer now sees "EQS Sedan", "EQS SUV", "EQE Sedan", "EQE SUV", "Hummer EV Pickup", "Hummer EV SUV" and "Defender 90/110/130". There are no bare ambiguous names and no extra steps.
+
+### Exceptions (reported, not applied)
+
+1. **Defender 90 kept at suv3.** At about 180 in it is RAV4-sized, and suv2 would fit. That would lower its price, which was not approved, so it stays at the current size.
+2. **Porsche Cayenne Electric stays suv2.** It is the same size class as the Cayenne, so suv3 is recommended for consistency.
+3. **The card label shows the price tier.** It reads "Porsche Cayenne · 3-Row SUV" and "Toyota 4Runner · 3-Row SUV". A test requires the display class to equal the pricing class, so the label follows the tier. The `rows` field keeps the real count (2). Changing the label wording would be a separate UI decision.
+4. **Hyundai Santa Fe 2013–2018 naming.** In those years "Santa Fe" was the 3-row long-wheelbase model and the 2-row was "Santa Fe Sport". In 2019 the 3-row was "Santa Fe XL". The catalog prices every 2013–2023 "Santa Fe" as suv2, so 3-row owners are underpriced by $25 / $75. The fix (Santa Fe 2013–2018 → suv3, plus "Santa Fe Sport" suv2 and "Santa Fe XL" suv3) raises a price and needs approval.
+
+### Catalog expansion
+
+- **282 records added.** Old: 44 makes, 424 public records. New: **56 makes, 706 public records**.
+- **New makes:** Pontiac, Saturn, Mercury, Scion, Saab, Suzuki, Hummer, Isuzu, Oldsmobile, Plymouth, smart, Fisker.
+- **Rule for in-between bodies:** the larger tier is used, so nothing is silently placed in a cheaper tier. Minivans use display "Minivan" with suv3 pricing, like the existing ones.
+- **Year ranges on added records are approximate US model years.** Years don't change the price for these models: there's one size per model, and the runtime isn't strict about years. They only decide that none of them gets a 2027 price. A vPIC pass (section 12) should refine them.
+- **2027:** Toyota bZ Woodland and Subaru Uncharted joined the manufacturer-confirmed list (31 models). The bZ4X also answers to "bZ".
+- **The "My vehicle isn't listed" quote form stays** for genuinely unknown vehicles only. It never sets a size or price.
+
+### Added models by make
+- **Acura** (7): ADX (2025–2027, suv2); TL (1996–2014, small); TSX (2004–2014, small); RSX (2002–2006, small); RL (1996–2012, small); CL (1997–2003, small); Legend (1990–1995, small)
+- **Audi** (5): Q6 e-tron (2025–2027, suv2); e-tron GT (2022–2027, small); R8 (2008–2023, small); A4 allroad (2013–2016, small); A6 allroad (2020–2025, small)
+- **BMW** (3): 1 Series (2008–2013, small); i8 (2014–2020, small); Z3 (1996–2002, small)
+- **Buick** (10): Envista (2024–2027, suv2); LeSabre (1990–2005, small); Century (1990–2005, small); Lucerne (2006–2011, small); Park Avenue (1991–2005, small); Rendezvous (2002–2007, suv3); Rainier (2004–2007, suv2); Terraza (2005–2007, minivan/suv3); Verano (2012–2017, small); Cascada (2016–2019, small)
+- **Cadillac** (11): Optiq (2025–2027, suv2); Vistiq (2026–2027, suv3); Escalade IQ (2025–2027, suv3); CTS (2003–2019, small); ATS (2013–2019, small); DTS (2006–2011, small); STS (2005–2011, small); XTS (2013–2019, small); CT6 (2016–2020, small); DeVille (1990–2005, small); Escalade EXT (2002–2013, truck)
+- **Chevrolet** (16): Avalanche (2002–2013, truck); Cavalier (1990–2005, small); Cobalt (2005–2010, small); HHR (2006–2011, suv2); Sonic (2012–2020, small); Aveo (2004–2011, small); Volt (2011–2019, small); Uplander (2005–2008, minivan/suv3); Venture (1997–2005, minivan/suv3); Astro (1990–2005, minivan/suv3); Monte Carlo (1995–2007, small); Lumina (1990–2001, small); S-10 (1990–2004, truck); SSR (2003–2006, truck); Captiva Sport (2012–2015, suv2); Tracker (1999–2004, suv2)
+- **Chrysler** (6): 200 (2011–2017, small); Sebring (1995–2010, small); PT Cruiser (2001–2010, small); Aspen (2007–2009, suv3); Crossfire (2004–2008, small); Concorde (1993–2004, small)
+- **Dodge** (12): Neon (1995–2005, small); Caliber (2007–2012, small); Avenger (2008–2014, small); Stratus (1995–2006, small); Intrepid (1993–2004, small); Nitro (2007–2012, suv2); Dakota (1990–2011, truck); Caravan (1990–2007, minivan/suv3); Viper (1992–2017, small); Ram 1500 (1994–2010, truck); Ram 2500 (1994–2010, truck); Ram 3500 (1994–2010, truck)
+- **Fisker** (1): Ocean (2023–2024, suv2)
+- **Ford** (14): Five Hundred (2005–2007, small); Freestyle (2005–2007, suv3); Taurus X (2008–2009, suv3); Crown Victoria (1992–2011, small); Excursion (2000–2005, suv3); Windstar (1995–2003, minivan/suv3); Freestar (2004–2007, minivan/suv3); Contour (1995–2000, small); Escort (1990–2003, small); Thunderbird (1990–2005, small); Probe (1990–1997, small); Explorer Sport Trac (2001–2010, truck); EcoSport (2018–2022, suv2); C-Max (2013–2018, small)
+- **GMC** (5): Hummer EV Pickup (2022–2027, truck); Envoy (1998–2009, suv2); Envoy XL (2002–2006, suv3); Jimmy (1990–2005, suv2); Sonoma (1991–2004, truck)
+- **Honda** (3): Prelude (1990–2001, small); S2000 (2000–2009, small); Crosstour (2010–2015, suv2)
+- **Hummer** (4): H1 (1992–2006, suv3); H2 (2003–2009, suv3); H3 (2006–2010, suv2); H3T (2009–2010, truck)
+- **Hyundai** (11): IONIQ 9 (2026–2027, suv3); Accent (1995–2022, small); Veloster (2012–2022, small); Azera (2006–2017, small); Genesis (2009–2016, small); Genesis Coupe (2010–2016, small); Equus (2011–2016, small); Tiburon (1997–2008, small); Entourage (2007–2009, minivan/suv3); Veracruz (2007–2012, suv3); Nexo (2019–2025, suv2)
+- **INFINITI** (13): G35 (2003–2008, small); G37 (2008–2013, small); M35 (2006–2010, small); M37 (2011–2013, small); FX35 (2003–2012, suv2); EX35 (2008–2012, suv2); JX35 (2013–2013, suv3); QX56 (2004–2013, suv3); QX4 (1997–2003, suv2); QX30 (2017–2019, suv2); QX70 (2014–2017, suv2); Q70 (2014–2019, small); I35 (1996–2004, small)
+- **Isuzu** (5): Rodeo (1991–2004, suv2); Trooper (1992–2002, suv2); Ascender (2003–2008, suv3); Axiom (2002–2004, suv2); i-Series (2006–2008, truck)
+- **Jaguar** (4): S-Type (2000–2008, small); X-Type (2002–2008, small); XJ (1990–2019, small); XK (1997–2015, small)
+- **Jeep** (3): Liberty (2002–2012, suv2); Commander (2006–2010, suv3); Patriot (2007–2017, suv2)
+- **Kia** (8): K4 (2025–2027, small); Rio (2001–2023, small); Spectra (2000–2009, small); Cadenza (2014–2020, small); K900 (2015–2020, small); Amanti (2004–2009, small); Borrego (2009–2009, suv3); Rondo (2007–2010, suv3)
+- **Land Rover** (5): Defender 90 (2020–2027, suv3); Defender 130 (2023–2027, suv3); LR2 (2008–2015, suv2); LR3 (2005–2009, suv3); LR4 (2010–2016, suv3)
+- **Lexus** (4): RC (2015–2027, small); CT (2011–2017, small); HS (2010–2012, small); SC (1992–2010, small)
+- **Lincoln** (7): MKC (2015–2019, suv2); MKT (2010–2019, suv3); MKS (2009–2016, small); Town Car (1990–2011, small); Continental (1990–2020, small); LS (2000–2006, small); Mark LT (2006–2008, truck)
+- **Mazda** (10): Mazda5 (2006–2015, minivan/suv3); CX-7 (2007–2012, suv2); Tribute (2001–2011, suv2); RX-8 (2004–2011, small); RX-7 (1990–1995, small); Protege (1990–2003, small); MPV (1990–2006, minivan/suv3); Mazda2 (2011–2014, small); Millenia (1995–2002, small); B-Series (1994–2009, truck)
+- **Mercedes-Benz** (10): EQS SUV (2023–2027, suv3); EQE SUV (2023–2027, suv2); CLE (2024–2027, small); M-Class (1998–2015, suv3); GL-Class (2007–2016, suv3); GLK (2010–2015, suv2); R-Class (2006–2013, suv3); SLK (1998–2016, small); SLC (2017–2020, small); CLK (1998–2009, small)
+- **Mercury** (10): Grand Marquis (1992–2011, small); Mountaineer (1997–2010, suv3); Milan (2006–2011, small); Sable (1990–2009, small); Mariner (2005–2011, suv2); Montego (2005–2007, small); Monterey (2004–2007, minivan/suv3); Villager (1993–2002, minivan/suv3); Cougar (1999–2002, small); Marauder (2003–2004, small)
+- **Mitsubishi** (9): Lancer (2002–2017, small); Galant (1990–2012, small); Eclipse (1990–2012, small); Endeavor (2004–2011, suv2); Montero (1990–2006, suv3); Montero Sport (1997–2004, suv2); Raider (2006–2009, truck); Diamante (1992–2004, small); i-MiEV (2012–2017, small)
+- **Nissan** (7): Xterra (2000–2015, suv2); Juke (2011–2017, suv2); Cube (2009–2014, suv2); 350Z (2003–2009, small); 370Z (2009–2020, small); 300ZX (1990–1996, small); Rogue Select (2014–2015, suv2)
+- **Oldsmobile** (6): Alero (1999–2004, small); Aurora (1995–2003, small); Bravada (1991–2004, suv2); Intrigue (1998–2002, small); Silhouette (1990–2004, minivan/suv3); Cutlass (1990–1999, small)
+- **Plymouth** (2): Voyager (1990–2000, minivan/suv3); Neon (1995–2001, small)
+- **Pontiac** (13): G6 (2005–2010, small); Grand Prix (1990–2008, small); Vibe (2003–2010, small); Torrent (2006–2009, suv2); Aztek (2001–2005, suv2); Grand Am (1990–2005, small); Bonneville (1990–2005, small); Sunfire (1995–2005, small); Solstice (2006–2009, small); G8 (2008–2009, small); G5 (2007–2009, small); Montana (1999–2009, minivan/suv3); Firebird (1990–2002, small)
+- **Porsche** (2): Boxster (1997–2016, small); Cayman (2006–2016, small)
+- **Saab** (3): 9-3 (1999–2011, small); 9-5 (1999–2011, small); 9-7X (2005–2009, suv2)
+- **Saturn** (9): Ion (2003–2007, small); Vue (2002–2010, suv2); Aura (2007–2009, small); Outlook (2007–2010, suv3); Sky (2007–2009, small); L-Series (2000–2005, small); S-Series (1991–2002, small); Relay (2005–2007, minivan/suv3); Astra (2008–2009, small)
+- **Scion** (8): tC (2005–2016, small); xB (2004–2015, suv2); xD (2008–2014, small); FR-S (2013–2016, small); iA (2016–2016, small); iM (2016–2016, small); iQ (2012–2015, small); xA (2004–2006, small)
+- **smart** (1): fortwo (2008–2019, small)
+- **Subaru** (3): Uncharted (2027–2027, suv2); Baja (2003–2006, truck); Tribeca (2006–2014, suv3)
+- **Suzuki** (9): SX4 (2007–2013, small); Grand Vitara (1999–2013, suv2); Kizashi (2010–2013, small); XL-7 (2002–2009, suv3); Aerio (2002–2007, small); Forenza (2004–2008, small); Reno (2005–2008, small); Equator (2009–2012, truck); Vitara (1999–2004, suv2)
+- **Toyota** (10): bZ Woodland (2026–2027, suv2); Matrix (2003–2014, small); Yaris (2007–2020, small); Echo (2000–2005, small); Celica (1990–2005, small); Solara (1999–2008, small); FJ Cruiser (2007–2014, suv2); Previa (1991–1997, minivan/suv3); MR2 (1991–2005, small); Supra (1990–1998, small)
+- **Volkswagen** (6): Beetle (1998–2019, small); CC (2009–2017, small); Eos (2007–2016, small); Routan (2009–2014, minivan/suv3); Touareg (2004–2017, suv3); Rabbit (2006–2009, small)
+- **Volvo** (7): S40 (1995–2011, small); S80 (1999–2016, small); V50 (2005–2011, small); V70 (1998–2010, small); XC70 (2003–2016, suv2); C30 (2008–2013, small); C70 (1998–2013, small)

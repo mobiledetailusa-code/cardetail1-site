@@ -118,8 +118,11 @@ describe('make search matching (assets/vehicle-make-search.js)', () => {
     }
   });
 
-  it('finds all 44 makes by their own name, exact match first', () => {
-    assert.equal(MAKES.length, 44);
+  it('finds every catalog make (56) by its own name, exact match first', () => {
+    assert.equal(MAKES.length, 56);
+    for (const m of ['Pontiac', 'Saturn', 'Mercury', 'Scion', 'Saab', 'Suzuki', 'Hummer', 'Isuzu', 'Oldsmobile', 'Plymouth', 'smart', 'Fisker']) {
+      assert.ok(MAKES.includes(m), m);
+    }
     for (const m of MAKES) {
       assert.equal(first(m), m, m);
       assert.equal(MakeSearch.exactMake(m.toLowerCase(), MAKES), m);
@@ -135,8 +138,8 @@ describe('make search matching (assets/vehicle-make-search.js)', () => {
   });
 
   it('a make that is not in the catalog finds nothing (fallback path)', () => {
-    assert.deepEqual(MakeSearch.searchMakes('pontiac', MAKES), []);
-    assert.equal(MakeSearch.exactMake('pontiac', MAKES), null);
+    assert.deepEqual(MakeSearch.searchMakes('studebaker', MAKES), []);
+    assert.equal(MakeSearch.exactMake('studebaker', MAKES), null);
     assert.equal(MakeSearch.exactMake('chev', MAKES), 'Chevrolet');
     assert.equal(MakeSearch.exactMake('che', MAKES), null, 'partial text is not an exact make');
   });
@@ -243,41 +246,50 @@ describe('vehicle step behavior (index.html CAR SEARCH block)', () => {
     assert.equal(sb.doc.getElementById('car-year-note').hidden, true);
   });
 
-  it('EQS/EQE: sedans are labelled as sedans and the SUVs go to a quote, never a sedan price', () => {
+  it('EQS/EQE: sedan and SUV are separate choices, each priced automatically at its own size', () => {
     const sb = makeSandbox();
     sb.fns.selectMake('Mercedes-Benz');
-    const opts = [...sb.doc.getElementById('model-sel').options];
-    const byValue = (v) => opts.find((o) => o.value === v);
-    assert.equal(byValue('EQS').textContent, 'EQS Sedan');
-    assert.equal(byValue('EQE').textContent, 'EQE Sedan');
-    assert.equal(byValue('EQS SUV').dataset.quoteOnly, '1');
-    assert.equal(byValue('EQE SUV').dataset.quoteOnly, '1');
-    assert.equal(opts.indexOf(byValue('EQS SUV')), opts.indexOf(byValue('EQS')) + 1, 'SUV sits next to the sedan');
+    const values = [...sb.doc.getElementById('model-sel').options].map((o) => o.value);
+    for (const m of ['EQS Sedan', 'EQS SUV', 'EQE Sedan', 'EQE SUV']) assert.ok(values.includes(m), m);
+    assert.equal(values.includes('EQS'), false, 'no ambiguous bare name in the selector');
+    assert.equal(values.includes('EQE'), false, 'no ambiguous bare name in the selector');
 
-    choose(sb, 'model-sel', 'EQS SUV');
-    assert.equal(sb.ST().tierKey, '');
-    assert.equal(sb.ST().basePrice, 0);
-    assert.equal(sb.doc.getElementById('year-sel').disabled, true);
-    assert.equal(sb.doc.getElementById('next3').disabled, true);
-    assert.equal(sb.doc.getElementById('car-year-note').hidden, false);
-    sb.fns.openCarUnlisted();
-    assert.equal(sb.doc.getElementById('cu-model').value, 'EQS SUV');
-    assert.equal(sb.doc.getElementById('cu-make').value, 'Mercedes-Benz');
-
-    // The sedan keeps its existing class.
-    choose(sb, 'model-sel', 'EQS'); choose(sb, 'year-sel', 2024);
-    assert.equal(sb.ST().tierKey, 'small');
+    const pick = (model, year) => { choose(sb, 'model-sel', model); choose(sb, 'year-sel', year); return sb.ST().tierKey; };
+    assert.equal(pick('EQS Sedan', 2024), 'small');
+    assert.equal(pick('EQS SUV', 2024), 'suv3');
+    assert.equal(sb.doc.getElementById('next3').disabled, false, 'recognized SUV reaches packages with no extra step');
     assert.equal(sb.doc.getElementById('car-year-note').hidden, true);
+    assert.equal(pick('EQE Sedan', 2024), 'small');
+    assert.equal(pick('EQE SUV', 2024), 'suv2');
+    assert.equal(sb.doc.getElementById('next3').disabled, false);
+  });
+
+  it('owner-approved sizes reach the package step priced automatically', () => {
+    const sb = makeSandbox();
+    const cases = [
+      ['Kia', 'EV6', 2024, 'suv2'], ['Porsche', 'Cayenne', 2022, 'suv3'], ['Toyota', '4Runner', 2022, 'suv3'],
+      ['Mazda', 'CX-70', 2025, 'suv3'], ['BMW', 'X5', 2023, 'suv3'], ['Mercedes-Benz', 'GLE', 2023, 'suv3'], ['Audi', 'Q8', 2023, 'suv3'],
+      ['GMC', 'Hummer EV Pickup', 2023, 'truck'], ['GMC', 'Hummer EV SUV', 2024, 'suv3'],
+      ['Land Rover', 'Defender 90', 2022, 'suv3'], ['Land Rover', 'Defender 110', 2022, 'suv3'], ['Land Rover', 'Defender 130', 2024, 'suv3'],
+      ['Pontiac', 'Grand Prix', 2007, 'small'], ['Honda', 'Prelude', 2001, 'small'], ['Ford', 'Excursion', 2004, 'suv3'],
+      ['Toyota', 'bZ Woodland', 2027, 'suv2'],
+    ];
+    for (const [make, model, year, tier] of cases) {
+      sb.fns.selectMake(make); choose(sb, 'model-sel', model); choose(sb, 'year-sel', year);
+      assert.equal(sb.ST().tierKey, tier, `${year} ${make} ${model}`);
+      assert.equal(sb.doc.getElementById('next3').disabled, false, `${make} ${model} can continue`);
+      assert.equal(sb.doc.getElementById('car-year-note').hidden, true, `${make} ${model} has no quote note`);
+    }
   });
 
   it('"No make found" offers the not-listed form, prefilled with what was typed', () => {
     const sb = makeSandbox();
-    type(sb, 'pontiac');
+    type(sb, 'studebaker');
     const btn = sb.doc.querySelector('#make-dd .srch-empty-btn');
     assert.ok(btn, 'not-listed button inside the empty dropdown');
     sb.fns.openCarUnlisted();
     assert.equal(sb.doc.getElementById('car-unlisted').hidden, false);
-    assert.equal(sb.doc.getElementById('cu-make').value, 'pontiac');
+    assert.equal(sb.doc.getElementById('cu-make').value, 'studebaker');
   });
 
   it('the not-listed form validates, sends a quote request with no price, and never sets a size', async () => {
@@ -352,17 +364,36 @@ describe('server: model year verification and tier validation (car-catalog-tier)
   });
 
   it('a vehicle outside the catalog is never priced on a public booking', () => {
-    assert.deepEqual(check('Pontiac', 'Grand Prix', 2007, 'small'), { ok: false, error: 'vehicle_unresolved' });
-    assert.deepEqual(check('Honda', 'Prelude', 2001, 'small'), { ok: false, error: 'vehicle_unresolved' });
+    assert.deepEqual(check('Studebaker', 'Champion', 1990, 'small'), { ok: false, error: 'vehicle_unresolved' });
+    assert.deepEqual(check('Honda', 'Accord Crossroad Concept', 2001, 'small'), { ok: false, error: 'vehicle_unresolved' });
   });
 
-  it('EQS SUV / EQE SUV are never priced as the sedan on the server', () => {
-    for (const tier of ['small', 'suv2', 'suv3']) {
-      assert.deepEqual(check('Mercedes-Benz', 'EQS SUV', 2024, tier), { ok: false, error: 'vehicle_unresolved' }, tier);
-      assert.deepEqual(check('Mercedes-Benz', 'EQE SUV', 2024, tier), { ok: false, error: 'vehicle_unresolved' }, tier);
-    }
+  it('EQS/EQE: the server prices each variant at its own size and rejects the sedan size for the SUV', () => {
+    assert.deepEqual(check('Mercedes-Benz', 'EQS SUV', 2024, 'suv3'), { ok: true });
+    assert.deepEqual(check('Mercedes-Benz', 'EQS SUV', 2024, 'small'), { ok: false, error: 'tier_mismatch' });
+    assert.deepEqual(check('Mercedes-Benz', 'EQE SUV', 2024, 'suv2'), { ok: true });
+    assert.deepEqual(check('Mercedes-Benz', 'EQE SUV', 2024, 'small'), { ok: false, error: 'tier_mismatch' });
+    assert.deepEqual(check('Mercedes-Benz', 'EQS Sedan', 2024, 'small'), { ok: true });
+    assert.deepEqual(check('Mercedes-Benz', 'EQE Sedan', 2024, 'small'), { ok: true });
+    // Bookings stored before the split ("EQS", "EQE") still resolve to the sedan.
     assert.deepEqual(check('Mercedes-Benz', 'EQS', 2024, 'small'), { ok: true });
     assert.deepEqual(check('Mercedes-Benz', 'EQE', 2024, 'small'), { ok: true });
+    assert.deepEqual(check('Mercedes-Benz', 'EQS', 2024, 'suv3'), { ok: false, error: 'tier_mismatch' });
+  });
+
+  it('reclassified and split models are enforced on the server', () => {
+    const cases = [
+      ['Kia', 'EV6', 'suv2', 'small'], ['Porsche', 'Cayenne', 'suv3', 'suv2'], ['Toyota', '4Runner', 'suv3', 'suv2'],
+      ['Mazda', 'CX-70', 'suv3', 'suv2'], ['GMC', 'Hummer EV Pickup', 'truck', 'suv3'], ['GMC', 'Hummer EV SUV', 'suv3', 'truck'],
+      ['Land Rover', 'Defender 90', 'suv3', 'suv2'], ['Land Rover', 'Defender 130', 'suv3', 'suv2'],
+    ];
+    for (const [make, model, right, wrong] of cases) {
+      assert.deepEqual(check(make, model, 2024, right), { ok: true }, `${model} ${right}`);
+      assert.deepEqual(check(make, model, 2024, wrong), { ok: false, error: 'tier_mismatch' }, `${model} ${wrong}`);
+    }
+    // Old single names keep their previous size (no silent price change for stored labels).
+    assert.deepEqual(check('GMC', 'Hummer EV', 2024, 'suv3'), { ok: true });
+    assert.deepEqual(check('Land Rover', 'Defender', 2022, 'suv3'), { ok: true });
   });
 
   it('discontinued models get no 2027 price', () => {
@@ -390,21 +421,36 @@ describe('catalog data (single source: data/cars-vehicle-catalog.json)', () => {
     }
   });
 
-  it('quote-only body variants are not catalog vehicles and point at an existing sedan', () => {
-    const keys = new Set(catalogJson.vehicles.map((v) => v.make + '|' + v.model));
-    const q = catalogJson.quoteOnlyModels.models;
-    assert.deepEqual(q.map((m) => m.model).sort(), ['EQE SUV', 'EQS SUV']);
-    for (const m of q) {
-      assert.equal(keys.has(m.make + '|' + m.model), false, m.model + ' must not be priced');
-      assert.ok(keys.has(m.make + '|' + m.sameNameAs), m.sameNameAs);
-      assert.equal(Catalog.resolveVehicle({ make: m.make, model: m.model }).ok, false);
+  it('no quote-only list remains; recognized variants are catalog vehicles', () => {
+    assert.equal(catalogJson.quoteOnlyModels, undefined);
+    for (const [model, tier] of [['EQS Sedan', 'small'], ['EQS SUV', 'suv3'], ['EQE Sedan', 'small'], ['EQE SUV', 'suv2']]) {
+      assert.equal(Catalog.resolveVehicle({ make: 'Mercedes-Benz', model }).tierKey, tier, model);
     }
-    assert.equal(Catalog.resolveVehicle({ make: 'Mercedes-Benz', model: 'EQS' }).tierKey, 'small');
+  });
+
+  it('package prices follow the catalog size for the changed models (prices themselves unchanged)', () => {
+    const row = (tier) => {
+      const m = index.match(new RegExp(`\\n\\s*${tier}:\\s*\\{label:[^}]*\\}`));
+      assert.ok(m, tier);
+      const num = (k) => Number(m[0].match(new RegExp(`\\b${k}:(\\d+)`))[1]);
+      return { wash: num('wash'), full: num('full'), premium: num('premium') };
+    };
+    assert.deepEqual(row('small'), { wash: 125, full: 250, premium: 400 });
+    assert.deepEqual(row('suv2'), { wash: 145, full: 285, premium: 495 });
+    assert.deepEqual(row('suv3'), { wash: 165, full: 310, premium: 570 });
+    assert.deepEqual(row('truck'), { wash: 165, full: 300, premium: 555 });
+    const full = (make, model) => row(Catalog.resolveVehicle({ make, model, year: 2024 }).tierKey).full;
+    assert.equal(full('Mercedes-Benz', 'EQS SUV'), 310);
+    assert.equal(full('Mercedes-Benz', 'EQS Sedan'), 250);
+    assert.equal(full('Mercedes-Benz', 'EQE SUV'), 285);
+    assert.equal(full('Kia', 'EV6'), 285);
+    assert.equal(full('Porsche', 'Cayenne'), 310);
+    assert.equal(full('Toyota', '4Runner'), 310);
+    assert.equal(full('GMC', 'Hummer EV Pickup'), 300);
   });
 
   it('the browser runtime carries the same verification data as the JSON', () => {
     const generated = require('../assets/generated/cars-vehicle-catalog.generated.js');
-    assert.deepEqual(generated.quoteOnlyModels, catalogJson.quoteOnlyModels);
     assert.deepEqual(generated.modelYearVerification, mv);
     assert.deepEqual(generated.vehicles, catalogJson.vehicles);
   });

@@ -42,7 +42,7 @@ function extractModels(html) {
   const start = html.indexOf('const MODELS = ');
   assert.ok(start >= 0, 'MODELS missing');
   const from = html.slice(start + 'const MODELS = '.length);
-  const end = from.indexOf(';\n');
+  const end = from.search(/;\r?\n/); // CRLF on Windows checkouts
   assert.ok(end > 0, 'MODELS terminator missing');
   return vm.runInNewContext(`(${from.slice(0, end)})`);
 }
@@ -134,7 +134,7 @@ test('P0 compact/midsize vans are not SUVs and not full_size_van', () => {
   }
 });
 
-test('P0 Mach-E → suv2; ID.Buzz → Minivan/suv3; 4Runner → suv2', () => {
+test('P0 Mach-E → suv2; ID.Buzz → Minivan/suv3; 4Runner → suv3 (owner-approved size, PR #408)', () => {
   const models = extractModels(read('index.html'));
 
   const machE = resolve(models, 'Ford', 'Mustang Mach-E', 2024);
@@ -148,8 +148,8 @@ test('P0 Mach-E → suv2; ID.Buzz → Minivan/suv3; 4Runner → suv2', () => {
   assert.ok(MINIVAN_KEYS.has('Volkswagen|ID.Buzz'));
 
   const runner = resolve(models, 'Toyota', '4Runner', 2022);
-  assert.equal(runner.tierKey, 'suv2');
-  assert.equal(runner.displayLabel, '2-Row SUV');
+  assert.equal(runner.tierKey, 'suv3');
+  assert.equal(runner.displayLabel, '3-Row SUV');
 });
 
 test('P1 EV makes and high-impact models are present', () => {
