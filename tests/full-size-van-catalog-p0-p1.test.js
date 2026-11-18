@@ -51,7 +51,7 @@ function extractMakes(html) {
   const start = html.indexOf('const MAKES = ');
   assert.ok(start >= 0, 'MAKES missing');
   const from = html.slice(start + 'const MAKES = '.length);
-  const end = from.indexOf(';\n');
+  const end = from.search(/;\r?\n/); // CRLF on Windows checkouts
   return vm.runInNewContext(`(${from.slice(0, end)})`);
 }
 
