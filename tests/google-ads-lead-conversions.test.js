@@ -18,8 +18,11 @@ const BOOKING_SEND_TO = 'AW-11321647982/AAOmCJW9roAdEO7GypYq';
 const CALL_SEND_TO = 'AW-11321647982/TestCallLabel1';
 const QUOTE_SEND_TO = 'AW-11321647982/TestQuoteLabel1';
 
-function harness({ host = 'cardetail1.com', labels = true, sessionStore, localStore } = {}) {
+function harness({ host = 'cardetail1.com', labels = true, sessionStore, localStore, marketing = false } = {}) {
   const conversions = [];
+  const calls = [];
+  const consent = { analytics: marketing, marketing };
+  let gtagHook = null;
   const tracked = [];
   const ss = sessionStore || Object.create(null);
   const ls = localStore || Object.create(null);
@@ -52,7 +55,7 @@ function harness({ host = 'cardetail1.com', labels = true, sessionStore, localSt
     sessionStorage: store(ss),
     localStorage: store(ls),
     dataLayer: [],
-    Cardetail1Consent: { getConsent() { return { analytics: false, marketing: false }; }, onChange() {} },
+    Cardetail1Consent: { getConsent() { return Object.assign({}, consent); }, onChange() {} },
     innerWidth: 390,
   };
   if (labels) {
@@ -63,6 +66,8 @@ function harness({ host = 'cardetail1.com', labels = true, sessionStore, localSt
   ctx.globalThis = ctx;
   ctx.gtag = function () {
     const a = Array.prototype.slice.call(arguments);
+    if (gtagHook) gtagHook(a);
+    calls.push(a);
     if (a[0] === 'event' && a[1] === 'conversion') conversions.push(a[2] || {});
   };
   vm.createContext(ctx);
@@ -72,7 +77,10 @@ function harness({ host = 'cardetail1.com', labels = true, sessionStore, localSt
     const link = { getAttribute: () => href, closest: (sel) => (sel === 'a[href]' ? link : null) };
     clickHandler({ target: link });
   };
-  return { ctx, leads, tapPhone, ss, ls, tracked };
+  const quoteEvents = () => Object.values(JSON.parse(ctx.sessionStorage.getItem('cd1_rev_delivery_v2') || '{"events":{}}').events)
+    .filter((e) => e.eventName === 'quote_requested');
+  const setGtagHook = (fn) => { gtagHook = fn; };
+  return { ctx, leads, tapPhone, ss, ls, tracked, calls, consent, setGtagHook, quoteEvents };
 }
 
 const saved = (o = {}) => Object.assign({ ok: true, status: 'sent', submissionId: 'sub-1', source: 'vehicle_not_listed' }, o);
@@ -99,7 +107,7 @@ test('non-phone links do not send a call conversion', () => {
 test('a saved quote request sends the quote conversion with its submission id', () => {
   for (const status of ['sent', 'saved_not_notified', 'saved_alert_unconfirmed']) {
     const h = harness();
-    assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved({ status, submissionId: 'sub-' + status })), true);
+    assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved({ status, submissionId: 'sub-' + status })), 'cookieless');
     const q = h.leads();
     assert.equal(q.length, 1);
     assert.equal(q[0].send_to, QUOTE_SEND_TO);
@@ -166,4 +174,155 @@ test('both homepage quote forms report only after the server saved the request',
     assert.match(before, /const saved=ok&&\(body\.status==='saved_not_notified'\|\|body\.status==='saved_alert_unconfirmed'\);/);
     assert.match(before, /trackQuoteRequested\(\{ok,status:body\.status,submissionId:form\.dataset\.submissionId/);
   }
+});
+
+// ── Consent Mode ───────────────────────────────────────────────────────────
+
+const lastConsentUpdateBefore = (h, sendTo) => {
+  const at = h.calls.findIndex((c) => c[1] === 'conversion' && c[2] && c[2].send_to === sendTo);
+  assert.ok(at >= 0, 'conversion sent');
+  const updates = h.calls.slice(0, at).filter((c) => c[0] === 'consent' && c[1] === 'update');
+  assert.ok(updates.length > 0, 'consent update pushed before the conversion');
+  return updates[updates.length - 1][2];
+};
+
+test('marketing consent granted: conversions are attributable (ad_storage granted first)', () => {
+  const h = harness({ marketing: true });
+  h.tapPhone();
+  assert.equal(h.ctx.__cd1GoogleAdsLeadConversions.call, 'attributable');
+  assert.equal(lastConsentUpdateBefore(h, CALL_SEND_TO).ad_storage, 'granted');
+  assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved()), 'attributable');
+  assert.equal(lastConsentUpdateBefore(h, QUOTE_SEND_TO).ad_user_data, 'granted');
+});
+
+test('marketing consent denied: only a cookieless ping (ad_storage denied first)', () => {
+  const h = harness({ marketing: false });
+  h.tapPhone();
+  assert.equal(h.ctx.__cd1GoogleAdsLeadConversions.call, 'cookieless');
+  const update = lastConsentUpdateBefore(h, CALL_SEND_TO);
+  assert.equal(update.ad_storage, 'denied');
+  assert.equal(update.ad_user_data, 'denied');
+  assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved()), 'cookieless');
+  assert.equal(lastConsentUpdateBefore(h, QUOTE_SEND_TO).ad_storage, 'denied');
+});
+
+test('granting consent later never re-sends a cookieless conversion', () => {
+  const h = harness({ marketing: false });
+  h.tapPhone();
+  h.ctx.Cardetail1Revenue.trackQuoteRequested(saved());
+  h.consent.marketing = true;
+  h.consent.analytics = true;
+  h.ctx.Cardetail1Revenue.trackGoogleAdsCallConversion();
+  h.ctx.Cardetail1Revenue.trackQuoteRequested(saved());
+  assert.equal(h.leads().filter((c) => c.send_to === CALL_SEND_TO).length, 1);
+  assert.equal(h.leads().filter((c) => c.send_to === QUOTE_SEND_TO).length, 1);
+});
+
+// ── gtag exceptions ────────────────────────────────────────────────────────
+
+const throwOnConversion = (sendTo) => (a) => {
+  if (a[0] === 'event' && a[1] === 'conversion' && a[2] && a[2].send_to === sendTo) throw new Error('gtag broke');
+};
+
+test('a gtag exception on a quote remembers nothing, so a later retry still counts', () => {
+  const h = harness();
+  h.setGtagHook(throwOnConversion(QUOTE_SEND_TO));
+  assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved()), false);
+  assert.equal(h.ls.cd1_ads_quote_tx_ids, undefined, 'submissionId not persisted');
+  h.setGtagHook(null);
+  assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved()), 'cookieless');
+  assert.equal(h.leads().filter((c) => c.send_to === QUOTE_SEND_TO).length, 1);
+  assert.deepEqual(JSON.parse(h.ls.cd1_ads_quote_tx_ids), ['sub-1']);
+});
+
+test('a gtag exception on a phone tap leaves the session flag unset', () => {
+  const h = harness();
+  h.setGtagHook(throwOnConversion(CALL_SEND_TO));
+  h.tapPhone();
+  assert.equal(h.ss.cd1_ads_call_fired, undefined);
+  h.setGtagHook(null);
+  assert.equal(h.ctx.Cardetail1Revenue.trackGoogleAdsCallConversion(), 'cookieless');
+  assert.equal(h.ss.cd1_ads_call_fired, '1');
+});
+
+test('a gtag exception never throws into the form', () => {
+  const h = harness();
+  h.setGtagHook(() => { throw new Error('gtag broke'); });
+  assert.doesNotThrow(() => h.ctx.Cardetail1Revenue.trackQuoteRequested(saved()));
+  assert.doesNotThrow(() => h.tapPhone());
+});
+
+// ── Deduplication ──────────────────────────────────────────────────────────
+
+test('a re-entrant call while the quote conversion is in flight is dropped', () => {
+  const h = harness();
+  let inner;
+  h.setGtagHook((a) => {
+    if (a[1] === 'conversion' && a[2].send_to === QUOTE_SEND_TO && inner === undefined) {
+      inner = h.ctx.Cardetail1Revenue.trackQuoteRequested(saved());
+    }
+  });
+  assert.equal(h.ctx.Cardetail1Revenue.trackQuoteRequested(saved()), 'cookieless');
+  assert.equal(inner, false);
+  assert.equal(h.leads().filter((c) => c.send_to === QUOTE_SEND_TO).length, 1);
+});
+
+test('off production or without a valid label, the quote id is not remembered for Ads', () => {
+  const preview = harness({ host: 'deploy-preview-9--cardetail1.netlify.app' });
+  preview.ctx.Cardetail1Revenue.trackQuoteRequested(saved());
+  assert.equal(preview.ls.cd1_ads_quote_tx_ids, undefined);
+
+  const badLabel = harness({ labels: false });
+  badLabel.ctx.CD1_GOOGLE_ADS_QUOTE_SEND_TO = PAGE_VIEW_SEND_TO;
+  badLabel.ctx.Cardetail1Revenue.trackQuoteRequested(saved());
+  assert.equal(badLabel.ls.cd1_ads_quote_tx_ids, undefined);
+});
+
+test('different quote forms count separately; the first-party event is once per form', () => {
+  const h = harness();
+  const R = h.ctx.Cardetail1Revenue;
+  R.trackQuoteRequested(saved({ submissionId: 'sub-a' }));
+  R.trackQuoteRequested(saved({ submissionId: 'sub-a' }));
+  R.trackQuoteRequested(saved({ submissionId: 'sub-b', source: 'commercial_specialty' }));
+  assert.deepEqual(h.leads().map((c) => c.transaction_id), ['sub-a', 'sub-b']);
+  assert.equal(h.quoteEvents().length, 2);
+});
+
+// ── Server confirmation ────────────────────────────────────────────────────
+
+test('quotes count only with server confirmation of a saved request', () => {
+  const h = harness();
+  const R = h.ctx.Cardetail1Revenue;
+  for (const bad of [
+    { ok: true, status: 'error' },
+    { ok: true, status: 'rate_limited' },
+    { ok: false, status: 'sent' },
+    { ok: 'true', status: 'sent' },
+    { status: 'sent' },
+  ]) {
+    assert.equal(R.trackQuoteRequested(Object.assign({ submissionId: 'sub-x' }, bad)), false, JSON.stringify(bad));
+  }
+  assert.equal(h.leads().length, 0);
+  assert.equal(h.quoteEvents().length, 0);
+});
+
+test('Fleet and chat forms stay outside this integration (documented)', () => {
+  const src = read('assets/revenue-events.js');
+  assert.match(src, /fleet-services\.html: its quote form does not load this script/);
+  assert.match(src, /chat "leave your details" form/);
+  assert.doesNotMatch(read('fleet-services.html'), /trackQuoteRequested/);
+});
+
+test('a re-entrant phone tap while the call conversion is in flight is dropped', () => {
+  const h = harness();
+  let inner;
+  h.setGtagHook((a) => {
+    if (a[1] === 'conversion' && a[2].send_to === CALL_SEND_TO && inner === undefined) {
+      inner = h.ctx.Cardetail1Revenue.trackGoogleAdsCallConversion();
+    }
+  });
+  h.tapPhone();
+  assert.equal(inner, false);
+  assert.equal(h.ctx.__cd1GoogleAdsCallInFlight, false);
+  assert.equal(h.leads().filter((c) => c.send_to === CALL_SEND_TO).length, 1);
 });
