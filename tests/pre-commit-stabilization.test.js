@@ -424,6 +424,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/welcome-lead-store.js',
     // Commercial & specialty quote requests: validation + inquiry storage (no pricing or payment imports).
     'netlify/lib/vehicle-inquiry.js',
+    // Commercial pricing foundation: structure only, every amount null, checkout off (no payment imports).
+    'netlify/lib/commercial-pricing.js',
     // Read-only admin list of stored quote requests (existing admin session auth).
     'netlify/functions/admin-inquiries.js',
     'netlify/lib/welcome-offer-redemption.js',
