@@ -338,7 +338,8 @@
     if (model.roofs.length && !cfg.roof) return null;
     if (model.lengths.length && !cfg.length) return null;
     const tall = cfg.roof === 'high' || cfg.roof === 'super_high';
-    const long = ['extended', 'wb170ext', 'wb159ext', 'wb170', 'wb159', 'wb155'].includes(cfg.length);
+    // Full-size lengths above the base wheelbase. Ford Transit 'long' (148 in.) counts.
+    const long = ['long', 'extended', 'wb170ext', 'wb159ext', 'wb170', 'wb159', 'wb155'].includes(cfg.length);
     if (tall && long) return 'cv_van_full_xl';
     if (tall || long) return 'cv_van_full_large';
     return 'cv_van_full';

@@ -99,6 +99,33 @@ describe('commercial catalog: classification', () => {
     assert.equal(sizeOf({ modelId: 'nissan_nv', body: 'cargo_van', roof: 'high' }), 'cv_van_full_large');
   });
 
+  it('Ford Transit long wheelbase counts as long (regression)', () => {
+    const transit = (roof, length, modelId = 'ford_transit', body = 'cargo_van') => sizeOf({ modelId, body, roof, length });
+    assert.equal(transit('low', 'regular'), 'cv_van_full');
+    assert.equal(transit('medium', 'regular'), 'cv_van_full');
+    assert.equal(transit('low', 'long'), 'cv_van_full_large');
+    assert.equal(transit('medium', 'long'), 'cv_van_full_large');
+    assert.equal(transit('high', 'long'), 'cv_van_full_xl');
+    assert.equal(transit('high', 'regular'), 'cv_van_full_large');
+    // Extended configurations are unchanged.
+    assert.equal(transit('low', 'extended'), 'cv_van_full_large');
+    assert.equal(transit('high', 'extended'), 'cv_van_full_xl');
+    // The Transit entry under shuttle / passenger buses classifies the same way.
+    assert.equal(sizeOf({ modelId: 'ford_transit_shuttle', body: 'passenger_van', roof: 'low', length: 'long', passengerCapacity: 12 }), 'cv_van_full_large');
+    assert.equal(sizeOf({ modelId: 'ford_transit_shuttle', body: 'passenger_van', roof: 'high', length: 'long', passengerCapacity: 15 }), 'cv_van_full_xl');
+  });
+
+  it('other models keep their classification', () => {
+    assert.equal(sizeOf({ modelId: 'mercedes_sprinter', body: 'cargo_van', roof: 'standard', length: 'wb144' }), 'cv_van_full');
+    assert.equal(sizeOf({ modelId: 'mercedes_sprinter', body: 'cargo_van', roof: 'standard', length: 'wb170' }), 'cv_van_full_large');
+    assert.equal(sizeOf({ modelId: 'ram_promaster', body: 'cargo_van', roof: 'standard', length: 'wb136' }), 'cv_van_full');
+    assert.equal(sizeOf({ modelId: 'ram_promaster', body: 'cargo_van', roof: 'high', length: 'wb159' }), 'cv_van_full_xl');
+    assert.equal(sizeOf({ modelId: 'chevrolet_express', body: 'cargo_van', length: 'wb135' }), 'cv_van_full');
+    assert.equal(sizeOf({ modelId: 'gmc_savana', body: 'cargo_van', length: 'wb155' }), 'cv_van_full_large');
+    assert.equal(sizeOf({ modelId: 'nissan_nv', body: 'cargo_van', roof: 'standard' }), 'cv_van_full');
+    assert.equal(sizeOf({ modelId: 'ford_transit_connect', body: 'cargo_van', length: 'lwb' }), 'cv_van_compact');
+  });
+
   it('compact and midsize vans have one size each', () => {
     assert.equal(sizeOf({ modelId: 'ford_transit_connect', body: 'cargo_van', length: 'lwb' }), 'cv_van_compact');
     assert.equal(sizeOf({ modelId: 'ram_promaster_city', body: 'passenger_van', passengerCapacity: 5 }), 'cv_van_compact');
