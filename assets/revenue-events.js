@@ -858,6 +858,180 @@
     }
   }
 
+  /**
+   * Google Ads lead conversions: a tap on a phone link, and a quote request the
+   * server confirmed it saved. Without these, a paid visitor who calls or asks
+   * for a quote is invisible to Google Ads (only finished bookings were sent).
+   *
+   * Each kind has its own Google-provided label. An empty label means the
+   * conversion action does not exist yet, and nothing is sent. Booking and
+   * Page view labels are never reused here.
+   *
+   * Out of scope (not wired to these conversions):
+   * - fleet-services.html: its quote form does not load this script.
+   * - the chat "leave your details" form: it posts without waiting for the
+   *   server, so there is no confirmation that the request was saved.
+   */
+  var ADS_LEAD_SEND_TO_DEFAULTS = {
+    // "Website phone tap" (Contact goal), created 2026-11-19.
+    call: 'AW-11321647982/q7pICLzVtrsdEO7GypYq',
+    // "Quote request (website)" (Submit lead form goal), created 2026-11-19.
+    quote: 'AW-11321647982/P6WWCLnVtrsdEO7GypYq',
+  };
+  var ADS_LEAD_SEND_TO_OVERRIDES = {
+    call: 'CD1_GOOGLE_ADS_CALL_SEND_TO',
+    quote: 'CD1_GOOGLE_ADS_QUOTE_SEND_TO',
+  };
+  var ADS_QUOTE_TX_STORAGE_KEY = 'cd1_ads_quote_tx_ids';
+  var ADS_CALL_SESSION_KEY = 'cd1_ads_call_fired';
+
+  function adsLeadSendTo(kind) {
+    var override = global[ADS_LEAD_SEND_TO_OVERRIDES[kind]];
+    var sendTo = String(override || ADS_LEAD_SEND_TO_DEFAULTS[kind] || '').trim();
+    if (!/^AW-\d+\/[A-Za-z0-9_-]+$/.test(sendTo)) return '';
+    var reserved = [
+      global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq',
+      global.CD1_GOOGLE_ADS_BOOKING_SEND_TO || global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO
+        || 'AW-11321647982/AAOmCJW9roAdEO7GypYq',
+    ];
+    return reserved.indexOf(sendTo) >= 0 ? '' : sendTo;
+  }
+
+  /**
+   * Sends one lead conversion under the current Consent Mode state, the same
+   * way the booking conversion does: initGoogleAds() pushes the consent update
+   * before the event. With marketing consent the conversion is attributable
+   * (ad cookies allowed). Without it, ad_storage stays denied and Google only
+   * receives a cookieless ping it may model. The ping is never re-sent later
+   * if consent is granted, so one action is never counted twice.
+   * Returns 'attributable' or 'cookieless'; throws if gtag is unusable.
+   */
+  function sendAdsLeadConversion(kind, sendTo, params) {
+    var consent = global.Cardetail1Consent
+      ? global.Cardetail1Consent.getConsent()
+      : { analytics: false, marketing: false };
+    initGoogleAds(consent);
+    ensureGtag();
+    if (typeof global.gtag !== 'function') throw new Error('gtag_unavailable');
+    global.gtag('event', 'conversion', Object.assign({ send_to: sendTo }, params || {}));
+    var mode = consent && consent.marketing === true ? 'attributable' : 'cookieless';
+    if (!global.__cd1GoogleAdsLeadConversions) global.__cd1GoogleAdsLeadConversions = {};
+    global.__cd1GoogleAdsLeadConversions[kind] = mode;
+    return mode;
+  }
+
+  /**
+   * Phone link tap. Counted once per browser session; never delays the dialer.
+   * Returns 'attributable' / 'cookieless' when sent, false otherwise. The
+   * session flag is written only after gtag accepted the event.
+   */
+  function trackGoogleAdsCallConversion() {
+    var ownsFlight = false;
+    try {
+      if (!isProductionAdsHost()) return false;
+      var sendTo = adsLeadSendTo('call');
+      if (!sendTo) return false;
+      try {
+        if (global.sessionStorage && global.sessionStorage.getItem(ADS_CALL_SESSION_KEY)) return false;
+      } catch (eRead) { /* storage blocked: fall through to the in-page flag */ }
+      if (global.__cd1GoogleAdsCallConversionFired || global.__cd1GoogleAdsCallInFlight) return false;
+      global.__cd1GoogleAdsCallInFlight = true;
+      ownsFlight = true;
+      var mode = sendAdsLeadConversion('call', sendTo, {});
+      global.__cd1GoogleAdsCallConversionFired = true;
+      try {
+        if (global.sessionStorage) global.sessionStorage.setItem(ADS_CALL_SESSION_KEY, '1');
+      } catch (eWrite) { /* ignore */ }
+      return mode;
+    } catch (e) {
+      return false;
+    } finally {
+      if (ownsFlight) global.__cd1GoogleAdsCallInFlight = false;
+    }
+  }
+
+  /**
+   * Quote request. Counts only when the server answered ok:true and saved it
+   * (status sent, saved_not_notified or saved_alert_unconfirmed). The form's
+   * submissionId is the transaction_id.
+   *
+   * Two independent records, so one can never block the other:
+   * - the first-party quote_requested event, once per submissionId;
+   * - the Google Ads conversion. Its submissionId is remembered only after
+   *   host, label and gtag checks pass and gtag accepted the event. A
+   *   re-entrant call while one is in flight is dropped; an exception leaves
+   *   nothing remembered.
+   * Returns 'attributable' / 'cookieless' when the Ads conversion was sent,
+   * false otherwise.
+   */
+  var QUOTE_SAVED_STATUSES = { sent: 1, saved_not_notified: 1, saved_alert_unconfirmed: 1 };
+  var QUOTE_EVENT_STORAGE_KEY = 'cd1_quote_requested_ids';
+
+  function storedIdSeen(key, id) {
+    try {
+      var raw = global.localStorage && global.localStorage.getItem(key);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) && arr.indexOf(id) >= 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function storedIdMark(key, id) {
+    try {
+      if (!global.localStorage) return;
+      var raw = global.localStorage.getItem(key);
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) arr = [];
+      if (arr.indexOf(id) < 0) arr.push(id);
+      global.localStorage.setItem(key, JSON.stringify(arr.slice(-40)));
+    } catch (e) { /* ignore storage */ }
+  }
+
+  function trackQuoteRequested(opts) {
+    opts = opts || {};
+    if (opts.ok !== true || !QUOTE_SAVED_STATUSES[opts.status]) return false;
+    var txId = String(opts.submissionId || opts.id || '').trim();
+    if (!txId) return false;
+
+    // First-party record (independent of Ads, consent and host).
+    try {
+      if (!global.__cd1QuoteEventIds) global.__cd1QuoteEventIds = Object.create(null);
+      if (!global.__cd1QuoteEventIds[txId] && !storedIdSeen(QUOTE_EVENT_STORAGE_KEY, txId)) {
+        global.__cd1QuoteEventIds[txId] = true;
+        storedIdMark(QUOTE_EVENT_STORAGE_KEY, txId);
+        track('quote_requested', {
+          funnel_step: String(opts.source || 'quote_form').slice(0, 64),
+          service_category: opts.category ? String(opts.category).slice(0, 64) : undefined,
+        });
+      }
+    } catch (eTrack) { /* never block the form */ }
+
+    // Google Ads conversion.
+    if (!global.__cd1GoogleAdsQuoteInFlight) global.__cd1GoogleAdsQuoteInFlight = Object.create(null);
+    var inFlight = false;
+    try {
+      if (!isProductionAdsHost()) return false;
+      var sendTo = adsLeadSendTo('quote');
+      if (!sendTo) return false;
+      if (storedIdSeen(ADS_QUOTE_TX_STORAGE_KEY, txId)) return false;
+      if (global.__cd1GoogleAdsQuoteSent && global.__cd1GoogleAdsQuoteSent[txId]) return false;
+      if (global.__cd1GoogleAdsQuoteInFlight[txId]) return false;
+      global.__cd1GoogleAdsQuoteInFlight[txId] = true;
+      inFlight = true;
+      var mode = sendAdsLeadConversion('quote', sendTo, { transaction_id: txId });
+      // Remember only after gtag accepted the event.
+      if (!global.__cd1GoogleAdsQuoteSent) global.__cd1GoogleAdsQuoteSent = Object.create(null);
+      global.__cd1GoogleAdsQuoteSent[txId] = true;
+      storedIdMark(ADS_QUOTE_TX_STORAGE_KEY, txId);
+      return mode;
+    } catch (e) {
+      return false;
+    } finally {
+      if (inFlight) delete global.__cd1GoogleAdsQuoteInFlight[txId];
+    }
+  }
+
   function initTagAdapters(consent) {
     var gtmId = global.CD1_GTM_CONTAINER_ID || '';
     var gaId = global.CD1_GA4_MEASUREMENT_ID || '';
@@ -1046,6 +1220,7 @@
       if (now - lastPhoneClickAt < PHONE_CLICK_DEDUP_MS) return;
       lastPhoneClickAt = now;
       track('click_call', { funnel_step: phoneLinkPlacement(link) });
+      trackGoogleAdsCallConversion();
     } catch (e) { /* never block the dialer */ }
   }
 
@@ -1067,6 +1242,8 @@
     getDeliveryStatus: deliveryStatus,
     getDeliverySnapshot: deliverySnapshot,
     trackGoogleAdsBookingConversion: trackGoogleAdsBookingConversion,
+    trackGoogleAdsCallConversion: trackGoogleAdsCallConversion,
+    trackQuoteRequested: trackQuoteRequested,
     getContract: function () {
       return {
         events: Object.keys(APPROVED_EVENTS).sort(),

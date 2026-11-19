@@ -2,7 +2,10 @@
 
 // click_call was approved on client and server but nothing emitted it, so
 // tel: link clicks were invisible in GA4. It is an informational phone-link
-// click: never a call, booking, revenue or Google Ads conversion, never PII.
+// click: never a call, booking or revenue event, never PII.
+// Since PR #411 a tap also sends the separate Google Ads "Website phone tap"
+// conversion (once per session). click_call itself is never a conversion, and
+// the Page view conversion stays a separate label.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -107,10 +110,38 @@ test('no third-party delivery without analytics consent', () => {
   assert.equal(h.window.dataLayer.filter((d) => d.cardetail1_event === 'click_call').length, 0);
 });
 
-test('never sends a Google Ads conversion', () => {
+const PHONE_TAP_SEND_TO = 'AW-11321647982/q7pICLzVtrsdEO7GypYq';
+const PAGE_VIEW_SEND_TO = 'AW-11321647982/r6SRCJeL998YEO7GypYq';
+const conversionsTo = (h, sendTo) => h.gtagCalls.filter((c) => c[0] === 'event' && c[1] === 'conversion' && c[2] && c[2].send_to === sendTo);
+
+test('a tap sends exactly one Website phone tap conversion, with no phone number', () => {
   const h = load({ analytics: true, marketing: true });
   h.click(telLink());
-  assert.equal(h.gtagCalls.filter((c) => c[1] === 'conversion').length, 0);
+  const taps = conversionsTo(h, PHONE_TAP_SEND_TO);
+  assert.equal(taps.length, 1);
+  assert.doesNotMatch(JSON.stringify(taps[0][2]), /5513893986|tel:/);
+  // Every conversion sent is either the phone tap or the page view: click_call is never one.
+  const other = h.gtagCalls.filter((c) => c[1] === 'conversion'
+    && ![PHONE_TAP_SEND_TO, PAGE_VIEW_SEND_TO].includes(c[2] && c[2].send_to));
+  assert.equal(other.length, 0);
+});
+
+test('page_view conversion stays separate: at most once per page, never the phone tap label', () => {
+  const h = load({ analytics: true, marketing: true });
+  h.click(telLink());
+  h.window.Cardetail1Revenue.trackGoogleAdsCallConversion();
+  const pageViews = conversionsTo(h, PAGE_VIEW_SEND_TO);
+  assert.ok(pageViews.length <= 1, 'page view conversion fires at most once per page');
+  pageViews.forEach((c) => assert.equal(c[2].transaction_id, undefined));
+  assert.equal(conversionsTo(h, PHONE_TAP_SEND_TO).length, 1);
+});
+
+test('later phone taps in the same session send no second phone tap conversion', () => {
+  const h = load({ analytics: true, marketing: true });
+  h.click(telLink());
+  assert.equal(h.window.Cardetail1Revenue.trackGoogleAdsCallConversion(), false);
+  assert.equal(h.window.Cardetail1Revenue.trackGoogleAdsCallConversion(), false);
+  assert.equal(conversionsTo(h, PHONE_TAP_SEND_TO).length, 1);
 });
 
 test('a single tap that fires twice counts once; non-tel links count zero', () => {
