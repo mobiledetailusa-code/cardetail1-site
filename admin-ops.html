@@ -4764,6 +4764,12 @@ async function loadTechs(fetchOpts, loadOpts) {
       v.wheelchairSpaces != null ? 'Wheelchair spaces: ' + esc(v.wheelchairSpaces) : '',
       v.lengthFt != null ? 'Length: ~' + esc(v.lengthFt) + ' ft' : '',
     ].filter(Boolean).join(' · ') : '';
+    // Phase 2A catalog selection: configuration and the server-derived size class (no price).
+    const cat = v && v.catalog;
+    const catalogLine = cat ? 'Configuration: ' + esc(cat.configuration) + ' · Size class: ' +
+      (cat.sizeClass ? esc(cat.sizeClass) : 'needs manual review') +
+      (cat.reviewReasons && cat.reviewReasons.length ? ' (' + cat.reviewReasons.map(esc).join(', ') + ')' : '') +
+      ' · Commercial pricing not active' : '';
     const services = (q.services || []).concat(q.extras || []).map(esc).join(', ');
     return '<div class="inq-row" data-inquiry-id="' + esc(q.id) + '" style="border-bottom:1px solid var(--line);padding:12px 0">' +
       '<h5 style="margin:0 0 4px">' + vehicleLine + '</h5>' +
@@ -4771,6 +4777,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       '<p style="margin:0 0 4px">' + esc(c.name) + ' · <a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + '</a>' +
         (c.email ? ' · <a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '') + (c.zip ? ' · ZIP ' + esc(c.zip) : '') + '</p>' +
       (details ? '<p class="hint" style="margin:0 0 4px">' + details + '</p>' : '') +
+      (catalogLine ? '<p class="hint" style="margin:0 0 4px">' + catalogLine + '</p>' : '') +
       (services ? '<p style="margin:0 0 4px">Services: ' + services + '</p>' : '') +
       (q.message ? '<p class="hint" style="margin:0;white-space:pre-wrap">' + esc(q.message) + '</p>' : '') +
       '</div>';

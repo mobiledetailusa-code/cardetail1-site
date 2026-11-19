@@ -10,6 +10,7 @@
 
 const crypto = require('crypto');
 const revenueStore = require('./revenue-store');
+const CommercialCatalog = require('../../assets/commercial-vehicle-catalog');
 
 const nativeGetRevenueStore = revenueStore.getRevenueStore;
 
@@ -107,7 +108,17 @@ function validateVehicle(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { errors: ['vehicle'], vehicle: null };
   }
-  const category = cleanLine(raw.category, 40);
+  // Phase 2A: a catalog selection is re-resolved here. The stored category,
+  // make, model and configuration come from the catalog, not from the browser.
+  let catalog = null;
+  if (raw.catalog !== undefined && raw.catalog !== null) {
+    const sel = raw.catalog;
+    if (typeof sel !== 'object' || Array.isArray(sel)) return { errors: ['catalog'], vehicle: null };
+    const resolved = CommercialCatalog.resolveSelection({ ...sel, year: raw.year });
+    if (!resolved.ok) return { errors: resolved.errors.map((f) => (f === 'year' ? 'year' : `catalog.${f}`)), vehicle: null };
+    catalog = resolved.resolution;
+  }
+  const category = catalog ? catalog.inquiryCategory : cleanLine(raw.category, 40);
   const def = Object.prototype.hasOwnProperty.call(VEHICLE_CATEGORIES, category)
     ? VEHICLE_CATEGORIES[category]
     : null;
@@ -124,13 +135,37 @@ function validateVehicle(raw) {
 
   vehicle.make = cleanLine(raw.make, 40);
   vehicle.model = cleanLine(raw.model, 60);
+  if (catalog && catalog.make) {
+    // Listed model: the catalog name wins over whatever the browser typed.
+    vehicle.make = catalog.make;
+    vehicle.model = catalog.model;
+  }
   if (def.requireMakeModel) {
     if (!vehicle.make) errors.push('make');
     if (!vehicle.model) errors.push('model');
   }
 
-  // Numeric details are kept only for categories where they apply.
-  for (const field of def.fields) {
+  if (catalog) {
+    const cfg = catalog.configuration;
+    if (cfg.passengerCapacity !== undefined) vehicle.passengerCapacity = cfg.passengerCapacity;
+    if (cfg.wheelchairPositions !== undefined) vehicle.wheelchairSpaces = cfg.wheelchairPositions;
+    vehicle.catalog = {
+      modelId: catalog.modelId,
+      group: catalog.group,
+      body: catalog.body,
+      bodyLabel: catalog.bodyLabel,
+      configuration: { ...cfg },
+      yearStatus: catalog.yearStatus,
+      // Server-derived; null means a person sizes it (manual quote).
+      sizeClass: catalog.sizeClass,
+      status: catalog.status,
+      reviewReasons: catalog.reviewReasons.slice(),
+    };
+  }
+
+  // Numeric details are kept only for categories where they apply. A catalog
+  // selection already carries its own validated counts.
+  for (const field of catalog ? [] : def.fields) {
     const parsed = parseWholeNumber(raw[field]);
     const range = RANGES[field];
     if (!parsed.present) continue;
@@ -170,6 +205,11 @@ function validateVehicle(raw) {
   return { errors, vehicle };
 }
 
+function catalogConfigText(c) {
+  const line = CommercialCatalog.describeResolution({ ...c, make: '', model: '' })[1] || '';
+  return line.replace(/^Configuration: /, '');
+}
+
 function vehicleSummaryLines(v) {
   if (!v) return [];
   const lines = [`Category: ${v.categoryLabel}`];
@@ -178,6 +218,10 @@ function vehicleSummaryLines(v) {
   if (v.passengerCapacity !== undefined) lines.push(`Passenger capacity: ${v.passengerCapacity}`);
   if (v.wheelchairSpaces !== undefined) lines.push(`Wheelchair spaces: ${v.wheelchairSpaces}`);
   if (v.lengthFt !== undefined) lines.push(`Approx. length: ${v.lengthFt} ft`);
+  if (v.catalog) {
+    lines.push(`Configuration: ${catalogConfigText(v.catalog)}`);
+    lines.push(v.catalog.sizeClass ? `Size class: ${v.catalog.sizeClass}` : 'Size class: needs manual review');
+  }
   if (v.services.length) lines.push(`Services: ${v.services.map((s) => SERVICES[s]).join(', ')}`);
   if (v.extras.length) lines.push(`Extras: ${v.extras.map((s) => EXTRAS[s]).join(', ')}`);
   if (v.notes) lines.push(`Notes: ${v.notes}`);
@@ -537,6 +581,14 @@ function adminInquiryView(rec) {
       wheelchairSpaces: v.wheelchairSpaces ?? null,
       lengthFt: v.lengthFt ?? null,
       notes: v.notes || '',
+      catalog: v.catalog ? {
+        modelId: v.catalog.modelId,
+        configuration: catalogConfigText(v.catalog),
+        sizeClass: v.catalog.sizeClass || null,
+        status: v.catalog.status,
+        reviewReasons: v.catalog.reviewReasons || [],
+        yearStatus: v.catalog.yearStatus,
+      } : null,
     },
     services: v ? v.services.map((s) => SERVICES[s] || s) : [],
     extras: v ? v.extras.map((s) => EXTRAS[s] || s) : [],

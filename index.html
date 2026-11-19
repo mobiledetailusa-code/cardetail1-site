@@ -1954,6 +1954,7 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
 <link rel="stylesheet" href="assets/booking-review.css">
 <script src="assets/generated/cars-vehicle-catalog.generated.js"></script>
 <script src="assets/vehicle-catalog.js"></script>
+<script src="assets/commercial-vehicle-catalog.js"></script>
 <script src="assets/vehicle-class-resolver.js"></script>
 <script src="assets/vehicle-make-search.js"></script>
 <script src="assets/generated/brand-model-visuals.generated.js"></script>
@@ -4014,7 +4015,27 @@ body.luxury-surface .hero h1{
     <h2 id="cs-title">Commercial &amp; specialty vehicles</h2>
     <form id="cs-form" class="car-unlisted" novalidate onsubmit="submitCommercialForm(event)">
       <p class="car-unlisted-lead">Tell us about the vehicle and we’ll text or call you with a quote. Nothing is booked or charged yet.</p>
-      <label class="car-unlisted-f"><span class="sel-l">Vehicle type *</span>
+      <!-- Phase 2A: identify the vehicle from the commercial catalog (assets/commercial-vehicle-catalog.js). Hidden when the catalog is not loaded. -->
+      <div id="cs-identify" hidden>
+        <label class="car-unlisted-f"><span class="sel-l">What kind of vehicle? *</span>
+          <select class="fi" id="cs-group" onchange="csGroupChanged()">
+            <option value="">— choose —</option>
+            <option value="commercial_van">Commercial van</option>
+            <option value="shuttle_bus">Shuttle or passenger bus</option>
+            <option value="box_truck">Box truck</option>
+            <option value="other">Something else (school bus, motorcoach, limo…)</option>
+          </select>
+        </label>
+        <div class="car-unlisted-grid" style="margin-top:10px">
+          <label class="car-unlisted-f" data-cs-cat="model" hidden><span class="sel-l">Model *</span><select class="fi" id="cs-model-id" onchange="csModelChanged()"></select></label>
+          <label class="car-unlisted-f" data-cs-cat="body" hidden><span class="sel-l">Configuration *</span><select class="fi" id="cs-body" onchange="csBodyChanged()"></select></label>
+          <label class="car-unlisted-f" data-cs-cat="roof" hidden><span class="sel-l">Roof height</span><select class="fi" id="cs-roof"></select></label>
+          <label class="car-unlisted-f" data-cs-cat="length" hidden><span class="sel-l">Length</span><select class="fi" id="cs-vlength"></select></label>
+          <label class="car-unlisted-f" data-cs-cat="busLength" hidden><span class="sel-l">Bus length *</span><select class="fi" id="cs-buslength"></select></label>
+          <label class="car-unlisted-f" data-cs-cat="boxLength" hidden><span class="sel-l">Box length *</span><select class="fi" id="cs-boxlength"></select></label>
+        </div>
+      </div>
+      <label class="car-unlisted-f" id="cs-category-wrap"><span class="sel-l">Vehicle type *</span>
         <select class="fi" id="cs-category" onchange="syncCommercialFields()">
           <option value="">— choose —</option>
           <option value="passenger_van">Passenger van</option>
@@ -4030,8 +4051,8 @@ body.luxury-surface .hero h1{
       </label>
       <div class="car-unlisted-grid" style="margin-top:10px">
         <label class="car-unlisted-f"><span class="sel-l">Year</span><input class="fi" id="cs-year" type="text" inputmode="numeric" maxlength="4" autocomplete="off"></label>
-        <label class="car-unlisted-f"><span class="sel-l">Make</span><input class="fi" id="cs-make" type="text" maxlength="40" autocomplete="off" placeholder="Ford, Mercedes…"></label>
-        <label class="car-unlisted-f"><span class="sel-l">Model</span><input class="fi" id="cs-model" type="text" maxlength="60" autocomplete="off" placeholder="Transit 350, Sprinter…"></label>
+        <label class="car-unlisted-f" data-cs-text="make"><span class="sel-l">Make</span><input class="fi" id="cs-make" type="text" maxlength="40" autocomplete="off" placeholder="Ford, Mercedes…"></label>
+        <label class="car-unlisted-f" data-cs-text="model"><span class="sel-l">Model</span><input class="fi" id="cs-model" type="text" maxlength="60" autocomplete="off" placeholder="Transit 350, Sprinter…"></label>
         <label class="car-unlisted-f" data-cs-field="passengerCapacity" hidden><span class="sel-l">Passenger seats <span data-cs-req>*</span></span><input class="fi" id="cs-capacity" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></label>
         <label class="car-unlisted-f" data-cs-field="wheelchairSpaces" hidden><span class="sel-l">Wheelchair spaces</span><input class="fi" id="cs-wheelchair" type="text" inputmode="numeric" maxlength="2" autocomplete="off"></label>
         <label class="car-unlisted-f" data-cs-field="lengthFt" hidden><span class="sel-l">Approx. length (ft)</span><input class="fi" id="cs-length" type="text" inputmode="numeric" maxlength="2" autocomplete="off"></label>
@@ -5706,13 +5727,81 @@ const CS_FIELDS={
   box_truck:{fields:['lengthFt']},
   other:{fields:['passengerCapacity','wheelchairSpaces','lengthFt']}
 };
+// Phase 2A catalog step. Without the catalog script the form is the Phase 1
+// manual form. The server re-resolves every selection; nothing here prices.
+const CS_GROUP_FALLBACK={commercial_van:'cargo_van',shuttle_bus:'shuttle_bus',box_truck:'box_truck'};
+const CS_CAT_SELECTS={roof:'cs-roof',length:'cs-vlength',busLength:'cs-buslength',boxLength:'cs-boxlength'};
+function csCatalog(){ const c=window.CD1CommercialCatalog; return c&&typeof c.resolveSelection==='function'?c:null; }
+function csVal(id){ return (document.getElementById(id)||{}).value||''; }
+function csFillSelect(id,options,placeholder){
+  const sel=document.getElementById(id); if(!sel) return;
+  sel.innerHTML='';
+  const first=document.createElement('option'); first.value=''; first.textContent=placeholder; sel.appendChild(first);
+  options.forEach(o=>{ const opt=document.createElement('option'); opt.value=o.key; opt.textContent=o.label; sel.appendChild(opt); });
+}
+/** 'catalog' when a listed model is chosen; 'manual' for the Phase 1 form; '' while choosing. */
+function csMode(){
+  const C=csCatalog(); if(!C) return 'manual';
+  const g=csVal('cs-group');
+  if(!g) return '';
+  if(g==='other') return 'manual';
+  const m=csVal('cs-model-id');
+  if(m==='unlisted') return 'manual';
+  return C.getModel(m)?'catalog':'';
+}
+function csGroupChanged(){
+  const C=csCatalog(); if(!C) return;
+  const g=csVal('cs-group');
+  const models=g&&g!=='other'?C.modelsForGroup(g).map(m=>({key:m.id,label:m.make&&m.model.indexOf(m.make)!==0?(m.make+' '+m.model):m.model})):[];
+  if(models.length) models.push({key:'unlisted',label:'My model isn’t listed'});
+  csFillSelect('cs-model-id',models,'— choose —');
+  csFillSelect('cs-body',[],'— choose —');
+  if(CS_GROUP_FALLBACK[g]) document.getElementById('cs-category').value=CS_GROUP_FALLBACK[g];
+  syncCommercialFields();
+}
+function csModelChanged(){
+  const C=csCatalog(); if(!C) return;
+  const m=C.getModel(csVal('cs-model-id'));
+  const bodies=m?m.bodies.map(b=>({key:b,label:C.BODIES[b].label})):[];
+  csFillSelect('cs-body',bodies,'— choose —');
+  if(bodies.length===1) document.getElementById('cs-body').value=bodies[0].key;
+  const yr=m?C.yearRange(m):null;
+  const yIn=document.getElementById('cs-year'); if(yIn) yIn.placeholder=yr?(yr.from+'–'+yr.to):'';
+  csBodyChanged();
+}
+function csBodyChanged(){
+  const C=csCatalog(); if(!C) return;
+  const m=C.getModel(csVal('cs-model-id'));
+  Object.keys(CS_CAT_SELECTS).forEach(f=>csFillSelect(CS_CAT_SELECTS[f],m?C.optionsFor(m,f):[],f==='roof'||f==='length'?'Not sure':'— choose —'));
+  syncCommercialFields();
+}
 function syncCommercialFields(){
-  const cat=(document.getElementById('cs-category')||{}).value||'';
-  const def=CS_FIELDS[cat]||{fields:[]};
+  const C=csCatalog();
+  const mode=csMode();
+  const idWrap=document.getElementById('cs-identify'); if(idWrap) idWrap.hidden=!C;
+  const catWrap=document.getElementById('cs-category-wrap'); if(catWrap) catWrap.hidden=(mode!=='manual');
+  const model=C&&mode==='catalog'?C.getModel(csVal('cs-model-id')):null;
+  const body=model?csVal('cs-body'):'';
+  const catFields=model&&body?C.fieldsFor(model,body):[];
+  const g=C?csVal('cs-group'):'';
+  document.querySelectorAll('#cs-form [data-cs-cat]').forEach(el=>{
+    const k=el.getAttribute('data-cs-cat');
+    el.hidden=k==='model'?!(g&&g!=='other'):k==='body'?!model:catFields.indexOf(k)<0;
+  });
+  // Typed make / model only when the vehicle is not a listed catalog model.
+  document.querySelectorAll('#cs-form [data-cs-text]').forEach(el=>{ el.hidden=!(mode==='manual'||(model&&model.needsReview)); });
+  let fields, cap;
+  if(mode==='catalog'){
+    fields=catFields.map(f=>f==='wheelchairPositions'?'wheelchairSpaces':f).filter(f=>f==='passengerCapacity'||f==='wheelchairSpaces');
+    cap=!!(body&&C.BODIES[body].requireCapacity);
+  }else{
+    const def=mode==='manual'?(CS_FIELDS[csVal('cs-category')]||{fields:[]}):{fields:[]};
+    fields=def.fields; cap=!!def.cap;
+  }
   document.querySelectorAll('#cs-form [data-cs-field]').forEach(el=>{
-    const on=def.fields.indexOf(el.getAttribute('data-cs-field'))>=0;
+    const on=fields.indexOf(el.getAttribute('data-cs-field'))>=0;
     el.hidden=!on;
-    const req=el.querySelector('[data-cs-req]'); if(req) req.hidden=!def.cap;
+    const req=el.querySelector('[data-cs-req]'); if(req) req.hidden=!cap;
   });
 }
 function newInquirySubmissionId(){
@@ -5749,13 +5838,48 @@ async function submitCommercialForm(e){
   const status=document.getElementById('cs-status');
   const btn=document.getElementById('cs-submit');
   const fail=(msg,field)=>{status.textContent=msg;status.className='car-unlisted-status is-error';field&&document.getElementById(field)?.focus();};
-  const cat=val('cs-category');
-  const def=CS_FIELDS[cat];
-  if(!def) return fail('Choose the vehicle type.','cs-category');
+  const mode=csMode();
+  const C=csCatalog();
+  if(mode===''){
+    if(!csVal('cs-group')) return fail('Choose the vehicle type.','cs-group');
+    return fail('Choose the model, or “My model isn’t listed”.','cs-model-id');
+  }
   const year=val('cs-year');
   if(year && !/^(19[5-9]\d|20\d{2})$/.test(year)) return fail('Year should look like 2019.','cs-year');
   const num=(id,lo,hi)=>{const v=val(id); if(!v) return {v:undefined}; if(!/^\d+$/.test(v)||+v<lo||+v>hi) return {bad:true}; return {v:+v};};
-  const vehicle={category:cat,year,make:val('cs-make'),model:val('cs-model'),services:checked('cs-services'),extras:checked('cs-extras'),notes:val('cs-notes')};
+  let vehicle;
+  if(mode==='catalog'){
+    // Listed model: send the catalog selection. The server resolves the category,
+    // name and size from it and ignores anything else.
+    const m=C.getModel(val('cs-model-id'));
+    const body=val('cs-body');
+    if(!body||!C.BODIES[body]) return fail('Choose the configuration.','cs-body');
+    const fields=C.fieldsFor(m,body);
+    const sel={modelId:m.id,body};
+    for(const f of ['roof','length','busLength','boxLength']){
+      if(fields.indexOf(f)<0) continue;
+      const v=val(CS_CAT_SELECTS[f]); if(v) sel[f]=v;
+      else if(C.BODIES[body].requireLength===f) return fail(f==='boxLength'?'Choose the box length.':'Choose the bus length.',CS_CAT_SELECTS[f]);
+    }
+    if(fields.indexOf('passengerCapacity')>=0){
+      const max=Math.min(m.maxPassengers[body]||C.COUNT_LIMITS.passengerCapacity.max,C.COUNT_LIMITS.passengerCapacity.max);
+      const c=num('cs-capacity',1,max);
+      if(c.bad) return fail('Passenger seats should be a number from 1 to '+max+'.','cs-capacity');
+      if(c.v===undefined&&C.BODIES[body].requireCapacity) return fail('Add the number of passenger seats.','cs-capacity');
+      if(c.v!==undefined) sel.passengerCapacity=c.v;
+    }
+    if(fields.indexOf('wheelchairPositions')>=0){
+      const w=num('cs-wheelchair',0,C.COUNT_LIMITS.wheelchairPositions.max);
+      if(w.bad||(w.v!==undefined&&sel.passengerCapacity!==undefined&&w.v>sel.passengerCapacity)) return fail('Check the number of wheelchair positions.','cs-wheelchair');
+      if(w.v!==undefined) sel.wheelchairPositions=w.v;
+    }
+    vehicle={category:C.BODIES[body].inquiryCategory,year,make:m.needsReview?val('cs-make'):m.make,model:m.needsReview?val('cs-model'):m.model,
+      catalog:sel,services:checked('cs-services'),extras:checked('cs-extras'),notes:val('cs-notes')};
+  }
+  const cat=mode==='catalog'?vehicle.category:val('cs-category');
+  const def=mode==='catalog'?{fields:[]}:CS_FIELDS[cat];
+  if(!def) return fail('Choose the vehicle type.','cs-category');
+  if(!vehicle) vehicle={category:cat,year,make:val('cs-make'),model:val('cs-model'),services:checked('cs-services'),extras:checked('cs-extras'),notes:val('cs-notes')};
   if(def.fields.indexOf('passengerCapacity')>=0){
     const c=num('cs-capacity',1,100);
     if(c.bad) return fail('Passenger seats should be a number from 1 to 100.','cs-capacity');
