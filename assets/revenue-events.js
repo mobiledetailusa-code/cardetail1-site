@@ -858,6 +858,120 @@
     }
   }
 
+  /**
+   * Google Ads lead conversions: a tap on a phone link, and a quote request the
+   * server confirmed it saved. Without these, a paid visitor who calls or asks
+   * for a quote is invisible to Google Ads (only finished bookings were sent).
+   *
+   * Each kind has its own Google-provided label. An empty label means the
+   * conversion action does not exist yet, and nothing is sent. Booking and
+   * Page view labels are never reused here.
+   */
+  var ADS_LEAD_SEND_TO_DEFAULTS = {
+    // "Website phone tap" (Contact goal), created 2026-11-19.
+    call: 'AW-11321647982/q7pICLzVtrsdEO7GypYq',
+    // "Quote request (website)" (Submit lead form goal), created 2026-11-19.
+    quote: 'AW-11321647982/P6WWCLnVtrsdEO7GypYq',
+  };
+  var ADS_LEAD_SEND_TO_OVERRIDES = {
+    call: 'CD1_GOOGLE_ADS_CALL_SEND_TO',
+    quote: 'CD1_GOOGLE_ADS_QUOTE_SEND_TO',
+  };
+  var ADS_QUOTE_TX_STORAGE_KEY = 'cd1_ads_quote_tx_ids';
+  var ADS_CALL_SESSION_KEY = 'cd1_ads_call_fired';
+
+  function adsLeadSendTo(kind) {
+    var override = global[ADS_LEAD_SEND_TO_OVERRIDES[kind]];
+    var sendTo = String(override || ADS_LEAD_SEND_TO_DEFAULTS[kind] || '').trim();
+    if (!/^AW-\d+\/[A-Za-z0-9_-]+$/.test(sendTo)) return '';
+    var reserved = [
+      global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq',
+      global.CD1_GOOGLE_ADS_BOOKING_SEND_TO || global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO
+        || 'AW-11321647982/AAOmCJW9roAdEO7GypYq',
+    ];
+    return reserved.indexOf(sendTo) >= 0 ? '' : sendTo;
+  }
+
+  function adsQuoteSeen(txId) {
+    try {
+      var raw = global.localStorage && global.localStorage.getItem(ADS_QUOTE_TX_STORAGE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) && arr.indexOf(txId) >= 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function adsQuoteMark(txId) {
+    try {
+      if (!global.localStorage) return;
+      var raw = global.localStorage.getItem(ADS_QUOTE_TX_STORAGE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr)) arr = [];
+      arr.push(txId);
+      global.localStorage.setItem(ADS_QUOTE_TX_STORAGE_KEY, JSON.stringify(arr.slice(-40)));
+    } catch (e) { /* ignore storage */ }
+  }
+
+  function sendAdsLeadConversion(sendTo, params) {
+    var consent = global.Cardetail1Consent
+      ? global.Cardetail1Consent.getConsent()
+      : { analytics: false, marketing: false };
+    initGoogleAds(consent);
+    ensureGtag();
+    global.gtag('event', 'conversion', Object.assign({ send_to: sendTo }, params || {}));
+  }
+
+  /** Phone link tap. Counted once per browser session; never delays the dialer. */
+  function trackGoogleAdsCallConversion() {
+    try {
+      if (!isProductionAdsHost()) return false;
+      var sendTo = adsLeadSendTo('call');
+      if (!sendTo) return false;
+      try {
+        if (global.sessionStorage && global.sessionStorage.getItem(ADS_CALL_SESSION_KEY)) return false;
+      } catch (eRead) { /* storage blocked: fall through to the in-page flag */ }
+      if (global.__cd1GoogleAdsCallConversionFired) return false;
+      sendAdsLeadConversion(sendTo, {});
+      global.__cd1GoogleAdsCallConversionFired = true;
+      try {
+        if (global.sessionStorage) global.sessionStorage.setItem(ADS_CALL_SESSION_KEY, '1');
+      } catch (eWrite) { /* ignore */ }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Quote request. Fires only when the server answered ok:true and saved it
+   * (status sent, saved_not_notified or saved_alert_unconfirmed). The form's
+   * submissionId is the transaction_id, so a retry of the same form counts once.
+   */
+  var QUOTE_SAVED_STATUSES = { sent: 1, saved_not_notified: 1, saved_alert_unconfirmed: 1 };
+
+  function trackQuoteRequested(opts) {
+    opts = opts || {};
+    try {
+      if (opts.ok !== true || !QUOTE_SAVED_STATUSES[opts.status]) return false;
+      var txId = String(opts.submissionId || opts.id || '').trim();
+      if (!txId) return false;
+      if (adsQuoteSeen(txId)) return false;
+      adsQuoteMark(txId);
+      track('quote_requested', {
+        funnel_step: String(opts.source || 'quote_form').slice(0, 64),
+        service_category: opts.category ? String(opts.category).slice(0, 64) : undefined,
+      });
+      if (!isProductionAdsHost()) return false;
+      var sendTo = adsLeadSendTo('quote');
+      if (!sendTo) return false;
+      sendAdsLeadConversion(sendTo, { transaction_id: txId });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function initTagAdapters(consent) {
     var gtmId = global.CD1_GTM_CONTAINER_ID || '';
     var gaId = global.CD1_GA4_MEASUREMENT_ID || '';
@@ -1046,6 +1160,7 @@
       if (now - lastPhoneClickAt < PHONE_CLICK_DEDUP_MS) return;
       lastPhoneClickAt = now;
       track('click_call', { funnel_step: phoneLinkPlacement(link) });
+      trackGoogleAdsCallConversion();
     } catch (e) { /* never block the dialer */ }
   }
 
@@ -1067,6 +1182,8 @@
     getDeliveryStatus: deliveryStatus,
     getDeliverySnapshot: deliverySnapshot,
     trackGoogleAdsBookingConversion: trackGoogleAdsBookingConversion,
+    trackGoogleAdsCallConversion: trackGoogleAdsCallConversion,
+    trackQuoteRequested: trackQuoteRequested,
     getContract: function () {
       return {
         events: Object.keys(APPROVED_EVENTS).sort(),

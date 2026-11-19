@@ -5793,6 +5793,7 @@ async function submitCommercialForm(e){
   btn.disabled=false;
   // "Request sent" only with server evidence that the team was alerted.
   const saved=ok&&(body.status==='saved_not_notified'||body.status==='saved_alert_unconfirmed');
+  try{ if(window.Cardetail1Revenue&&window.Cardetail1Revenue.trackQuoteRequested) window.Cardetail1Revenue.trackQuoteRequested({ok,status:body.status,submissionId:form.dataset.submissionId,source:'commercial_specialty'}); }catch(eTrack){}
   if(ok&&body.status==='sent'){
     form.dataset.sent='1';
     status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
@@ -7505,6 +7506,7 @@ async function submitCarUnlisted(e){
   btn.disabled=false;
   // "Request sent" only with server evidence that the team was alerted.
   const saved=ok&&(body.status==='saved_not_notified'||body.status==='saved_alert_unconfirmed');
+  try{ if(window.Cardetail1Revenue&&window.Cardetail1Revenue.trackQuoteRequested) window.Cardetail1Revenue.trackQuoteRequested({ok,status:body.status,submissionId:form.dataset.submissionId,source:'vehicle_not_listed'}); }catch(eTrack){}
   if(ok&&body.status==='sent'){
     status.textContent='Request sent. We’ll text or call you with a quote. Nothing has been booked or charged.';
     status.className='car-unlisted-status is-ok';
