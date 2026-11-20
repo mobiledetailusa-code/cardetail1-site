@@ -1,36 +1,42 @@
 // Serve endpoint for job before/after photos (uploaded via tech-job-photos.js).
 //
-// Two photo generations, decided by the stored meta:
+// Every photo, legacy or new, requires authorization on every request:
+//   * a valid Admin session (x-admin-key header or the HttpOnly admin cookie), or
+//   * a technician session (x-tech-token) that passes the same server-side
+//     policy as customer PII for the photo's booking: assigned by id (or a
+//     unique legacy name), not cancelled/completed in any status field, and
+//     inside the 12-hour America/New_York pre-arrival window.
+// Ownership is resolved from the photo's stored meta (bookingId, written by
+// the only uploader since the feature shipped) and must be confirmed by that
+// booking listing the photo in photosBefore/photosAfter. Anything that cannot
+// be resolved fails closed. Anonymous requests get 401 and no image bytes.
+// Responses are `private, no-store`. Admin and technician pages fetch photos
+// with their auth header and display them as blob: URLs.
 //
-// * Protected (meta.cachePolicy === 'private-v1', every upload from QuickOps
-//   Daily Dispatch onward): every request must carry either a valid Admin
-//   session (x-admin-key) or a technician session (x-tech-token) that passes
-//   the same server-side policy as customer PII for the photo's booking:
-//   assigned by id (or unique legacy name), not cancelled/completed in any
-//   status field, and inside the 12-hour America/New_York pre-arrival window.
-//   The check runs on each request, so cancellation, completion, reassignment
-//   or rescheduling stops further fetches. Responses are `private, no-store`.
-//   Admin and technician pages fetch these with their auth header and display
-//   them as blob: URLs.
-//
-// * Legacy (no cachePolicy): uploaded before this change and already served as
-//   `public, max-age=31536000, immutable` with wildcard CORS. Those responses
-//   may sit in browser or intermediary caches for up to a year and their URLs
-//   may already be stored on devices. They are left public so existing links
-//   keep working; requiring auth now could not recall copies already cached.
-const { ID_RE, openJobPhotoStore, PRIVATE_CACHE_POLICY } = require('../lib/job-photo-storage');
+// Not revocable: legacy photos were previously served `public, max-age=31536000,
+// immutable` with wildcard CORS. Copies already cached by a browser (or by any
+// intermediary) or downloaded/saved before this change cannot be recalled;
+// this only governs new requests that reach the function.
+const { ID_RE, openJobPhotoStore } = require('../lib/job-photo-storage');
 
 const ALLOWED_SERVE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-function isProtected(meta) {
-  return !!(meta && meta.cachePolicy === PRIVATE_CACHE_POLICY);
+// Same headers for every photo generation (meta.cachePolicy no longer matters).
+function cacheHeadersFor() {
+  return { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', Vary: 'x-admin-key, x-tech-token, cookie' };
 }
 
-function cacheHeadersFor(meta) {
-  if (isProtected(meta)) {
-    return { 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', Vary: 'x-admin-key, x-tech-token' };
+/** Does the booking list this photo id in its before/after photo arrays? */
+function bookingReferencesPhoto(booking, id) {
+  const lists = [booking && booking.photosBefore, booking && booking.photosAfter];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const entry of list) {
+      const m = /[?&]id=([^&#]+)/.exec(String(entry || ''));
+      if (m && decodeURIComponent(m[1]) === id) return true;
+    }
   }
-  return { 'Cache-Control': 'public, max-age=31536000, immutable', 'Access-Control-Allow-Origin': '*' };
+  return false;
 }
 
 const jsonErr = (status, msg) => ({
@@ -47,10 +53,10 @@ function header(event, name) {
 }
 
 /**
- * Authorization for a protected photo, re-evaluated on every request.
+ * Authorization for any job photo, re-evaluated on every request.
  * @returns {Promise<{ ok: true, via: 'admin'|'technician' } | { ok: false, status: number, error: string }>}
  */
-async function authorizeProtectedPhoto(event, meta) {
+async function authorizePhoto(event, meta, id) {
   // Admin session arrives as x-admin-key or the HttpOnly admin cookie.
   if (header(event, 'x-admin-key') || /(?:^|;\s*)cd1_admin_session=/.test(header(event, 'cookie'))) {
     const { verifyAdminRequest } = require('../lib/admin-security');
@@ -74,6 +80,9 @@ async function authorizeProtectedPhoto(event, meta) {
     }
     if (!booking) booking = await store.get(bookingId, { type: 'json' }).catch(() => null);
     if (!booking) return { ok: false, status: 403, error: 'forbidden' };
+    // Ownership must agree in both directions: meta names the booking and the
+    // booking lists the photo. A mismatch fails closed.
+    if (!bookingReferencesPhoto(booking, id)) return { ok: false, status: 403, error: 'forbidden' };
     const roster = createRosterLoader(async () => {
       const ts = await blobsStore('cd1-tech-accounts');
       const blobs = await listAllBlobs(ts, 'cd1-tech-accounts');
@@ -95,6 +104,13 @@ exports.handler = async (event) => {
   const id = ((event.queryStringParameters || {}).id || '').trim();
   if (!ID_RE.test(id)) return jsonErr(400, 'invalid_id');
 
+  // No credentials at all: refuse before any storage lookup, so an anonymous
+  // caller learns nothing (not even whether the id exists).
+  if (!header(event, 'x-admin-key') && !header(event, 'x-tech-token')
+    && !/(?:^|;\s*)cd1_admin_session=/.test(header(event, 'cookie'))) {
+    return jsonErr(401, 'unauthorized');
+  }
+
   try {
     const store = await openJobPhotoStore();
     const meta = await store.get(`meta_${id}`, { type: 'json' }).catch(() => null);
@@ -102,10 +118,8 @@ exports.handler = async (event) => {
       return jsonErr(404, 'not_found');
     }
 
-    if (isProtected(meta)) {
-      const auth = await authorizeProtectedPhoto(event, meta);
-      if (!auth.ok) return jsonErr(auth.status, auth.error);
-    }
+    const auth = await authorizePhoto(event, meta, id);
+    if (!auth.ok) return jsonErr(auth.status, auth.error);
 
     const buf = await store.get(id, { type: 'arrayBuffer' }).catch(() => null);
     if (!buf || buf.byteLength === 0) return jsonErr(404, 'not_found');
@@ -114,7 +128,7 @@ exports.handler = async (event) => {
       statusCode: 200,
       headers: {
         'Content-Type': meta.contentType,
-        ...cacheHeadersFor(meta),
+        ...cacheHeadersFor(),
         'X-Content-Type-Options': 'nosniff',
       },
       body: Buffer.from(buf).toString('base64'),

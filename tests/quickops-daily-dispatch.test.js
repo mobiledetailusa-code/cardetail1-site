@@ -526,14 +526,15 @@ test('tech-job-photos: locked before window, open inside it, closed after cancel
   assert.equal(res.statusCode, 403);
 });
 
-test('job-photo-image: legacy photos keep public immutable caching, protected photos are private no-store', () => {
+test('job-photo-image: one private no-store policy for every photo generation', () => {
   const { _cacheHeadersFor } = freshRequire('../netlify/functions/job-photo-image');
-  assert.equal(_cacheHeadersFor({ contentType: 'image/jpeg' })['Cache-Control'], 'public, max-age=31536000, immutable');
-  const next = _cacheHeadersFor({ contentType: 'image/jpeg', cachePolicy: 'private-v1' });
-  assert.equal(next['Cache-Control'], 'private, no-store');
-  assert.equal(next['Access-Control-Allow-Origin'], undefined);
-  const storage = fs.readFileSync(path.join(__dirname, '../netlify/lib/job-photo-storage.js'), 'utf8');
-  assert.match(storage, /cachePolicy: PRIVATE_CACHE_POLICY/);
+  for (const meta of [{ contentType: 'image/jpeg' }, { contentType: 'image/jpeg', cachePolicy: 'private-v1' }]) {
+    const h = _cacheHeadersFor(meta);
+    assert.equal(h['Cache-Control'], 'private, no-store');
+    assert.equal(h['Access-Control-Allow-Origin'], undefined);
+  }
+  const src = fs.readFileSync(path.join(__dirname, '../netlify/functions/job-photo-image.js'), 'utf8');
+  assert.doesNotMatch(src, /'Cache-Control': 'public|isProtected|cachePolicy ===/);
 });
 
 test('tech-auctions never returns customer notes', async () => {
@@ -732,10 +733,15 @@ test('admin Schedule tab lists unscheduled bookings and withdrawal requests via 
 });
 
 // ---------------------------------------------------------------------------
-// job-photo-image: real authorization for protected photos
+// job-photo-image: authorization for legacy AND new photos
 // ---------------------------------------------------------------------------
 
-test('job-photo-image enforces per-request authorization for protected photos; legacy stay public', async (t) => {
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
+const NEW_ID = 'jobph_1_aaaa';
+const OLD_ID = 'jobph_2_bbbb';
+const photoUrl = (id) => '/.netlify/functions/job-photo-image?id=' + id;
+
+async function setupPhotoFixture(t) {
   resetStores();
   const prevSecret = process.env.ADMIN_SESSION_SECRET;
   const prevPw = process.env.ADMIN_DASH_PASSWORD;
@@ -745,72 +751,114 @@ test('job-photo-image enforces per-request authorization for protected photos; l
     if (prevSecret == null) delete process.env.ADMIN_SESSION_SECRET; else process.env.ADMIN_SESSION_SECRET = prevSecret;
     if (prevPw == null) delete process.env.ADMIN_DASH_PASSWORD; else process.env.ADMIN_DASH_PASSWORD = prevPw;
   });
-
   const { setJobPhotoStoreOverride } = require('../netlify/lib/job-photo-storage');
   const photos = store('cd1-job-photos');
   setJobPhotoStoreOverride(photos);
   t.after(() => setJobPhotoStoreOverride(null));
-  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
-  const NEW_ID = 'jobph_1_aaaa';
-  const OLD_ID = 'jobph_2_bbbb';
-  await photos.set(NEW_ID, jpeg);
-  await photos.setJSON(`meta_${NEW_ID}`, { contentType: 'image/jpeg', bookingId: 'bk_img', cachePolicy: 'private-v1' });
-  await photos.set(OLD_ID, jpeg);
-  await photos.setJSON(`meta_${OLD_ID}`, { contentType: 'image/jpeg', bookingId: 'bk_img' });
-
+  // New-generation photo (cachePolicy) and legacy photo (meta exactly as the
+  // pre-branch uploader wrote it: no cachePolicy).
+  await photos.set(NEW_ID, JPEG);
+  await photos.setJSON('meta_' + NEW_ID, { contentType: 'image/jpeg', bookingId: 'bk_img', phase: 'before', techId: TECH_A.techId, cachePolicy: 'private-v1' });
+  await photos.set(OLD_ID, JPEG);
+  await photos.setJSON('meta_' + OLD_ID, { contentType: 'image/jpeg', bookingId: 'bk_img', phase: 'after', techId: TECH_A.techId, originalFilename: 'a.jpg', size: 12, uploadedAt: '2026-07-01T00:00:00Z' });
   const tokenA = seedTech(TECH_A);
   const tokenB = seedTech(TECH_B);
-  const b = seedBooking(booking({ id: 'bk_img' }));
+  const b = seedBooking(booking({ id: 'bk_img', photosBefore: [photoUrl(NEW_ID)], photosAfter: [photoUrl(OLD_ID)] }));
   const { handler } = freshRequire('../netlify/functions/job-photo-image');
   const get = (id, headers = {}) => handler({ httpMethod: 'GET', headers, queryStringParameters: { id } });
-  const nowMock = t.mock.method(Date, 'now', () => START_8AM - HOUR);
-
-  // Legacy: unchanged public behaviour.
-  let res = await get(OLD_ID);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.headers['Cache-Control'], 'public, max-age=31536000, immutable');
-
-  // Protected: anonymous and bad credentials refused, no bytes.
-  res = await get(NEW_ID);
-  assert.equal(res.statusCode, 401);
-  assert.equal(res.isBase64Encoded, undefined);
-  res = await get(NEW_ID, { 'x-admin-key': 'not-a-real-admin-token-xxxxxxxx' });
-  assert.equal(res.statusCode, 401);
-  res = await get(NEW_ID, { 'x-tech-token': 'f'.repeat(64) });
-  assert.equal(res.statusCode, 401);
-
-  // Assigned technician inside the window.
-  res = await get(NEW_ID, { 'x-tech-token': tokenA });
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.headers['Cache-Control'], 'private, no-store');
-  assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
-
-  // Another technician.
-  res = await get(NEW_ID, { 'x-tech-token': tokenB });
-  assert.equal(res.statusCode, 403);
-
-  // Same technician before the 12h window.
-  nowMock.mock.mockImplementation(() => START_8AM - 13 * HOUR);
-  assert.equal((await get(NEW_ID, { 'x-tech-token': tokenA })).statusCode, 403);
-  nowMock.mock.mockImplementation(() => START_8AM - HOUR);
-
-  // Cancellation via a stale legacy field, then completion, then reassignment.
-  for (const patch of [
-    { status: 'Cancelled' },
-    { completedAt: '2026-11-24T15:00:00Z' },
-    { assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName },
-    { confirmedDate: '2026-11-30', preferredDate: '2026-11-30' },
-  ]) {
-    seedBooking({ ...b, ...patch });
-    assert.equal((await get(NEW_ID, { 'x-tech-token': tokenA })).statusCode, 403, JSON.stringify(patch));
-  }
-
-  // Admin session (header and cookie) can always view.
-  nowMock.mock.restore();
   const { createAdminSession } = require('../netlify/lib/admin-security');
-  const { token: adminToken } = await createAdminSession('admin');
-  assert.equal((await get(NEW_ID, { 'x-admin-key': adminToken })).statusCode, 200);
-  assert.equal((await get(NEW_ID, { cookie: 'cd1_admin_session=' + adminToken })).statusCode, 200);
+  return { photos, tokenA, tokenB, b, get, createAdminSession };
+}
+
+for (const [label, ID] of [['legacy', OLD_ID], ['new', NEW_ID]]) {
+  test(`job-photo-image (${label} photo): anonymous and bad credentials get no bytes`, async (t) => {
+    const fx = await setupPhotoFixture(t);
+    for (const headers of [{}, { 'x-admin-key': 'not-a-real-admin-token-xxxxxxxx' }, { 'x-tech-token': 'f'.repeat(64) }, { cookie: 'cd1_admin_session=forged-token-value-123456' }]) {
+      const res = await fx.get(ID, headers);
+      assert.ok(res.statusCode === 401, JSON.stringify(headers) + ' -> ' + res.statusCode);
+      assert.notEqual(res.isBase64Encoded, true);
+      assert.doesNotMatch(String(res.body), /^\/9j|ÿØ/);
+    }
+    // Anonymous: refused before any lookup, so an unknown id looks the same.
+    assert.equal((await fx.get('jobph_9_ffff')).statusCode, 401);
+  });
+
+  test(`job-photo-image (${label} photo): technician access follows assignment, terminal state and the 12h window`, async (t) => {
+    const fx = await setupPhotoFixture(t);
+    const nowMock = t.mock.method(Date, 'now', () => START_8AM - HOUR);
+
+    let res = await fx.get(ID, { 'x-tech-token': fx.tokenA });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.isBase64Encoded, true);
+    assert.equal(res.headers['Cache-Control'], 'private, no-store');
+    assert.equal(res.headers['Access-Control-Allow-Origin'], undefined);
+
+    assert.equal((await fx.get(ID, { 'x-tech-token': fx.tokenB })).statusCode, 403, 'other technician');
+
+    nowMock.mock.mockImplementation(() => START_8AM - 13 * HOUR);
+    assert.equal((await fx.get(ID, { 'x-tech-token': fx.tokenA })).statusCode, 403, 'before the 12h window');
+    nowMock.mock.mockImplementation(() => START_8AM - HOUR);
+
+    for (const patch of [
+      { status: 'Cancelled' },
+      { serviceStatus: 'closed', jobStatus: 'in_progress' },
+      { completedAt: '2026-11-24T15:00:00Z' },
+      { assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName },
+      { confirmedDate: '2026-11-30', preferredDate: '2026-11-30' },
+      { confirmedTime: 'Morning', confirmedTimeWindow: '' },
+    ]) {
+      seedBooking({ ...fx.b, ...patch });
+      const r = await fx.get(ID, { 'x-tech-token': fx.tokenA });
+      assert.equal(r.statusCode, 403, JSON.stringify(patch));
+      assert.notEqual(r.isBase64Encoded, true);
+    }
+  });
+
+  test(`job-photo-image (${label} photo): admin session by header or cookie`, async (t) => {
+    const fx = await setupPhotoFixture(t);
+    const { token } = await fx.createAdminSession('admin');
+    assert.equal((await fx.get(ID, { 'x-admin-key': token })).statusCode, 200);
+    assert.equal((await fx.get(ID, { cookie: 'cd1_admin_session=' + token })).statusCode, 200);
+    // Admin can view even after the job is completed (office records).
+    seedBooking({ ...fx.b, completedAt: '2026-11-24T15:00:00Z', status: 'Completed' });
+    assert.equal((await fx.get(ID, { 'x-admin-key': token })).statusCode, 200);
+  });
+}
+
+test('job-photo-image ownership: fails closed when meta and booking disagree or meta lacks a booking', async (t) => {
+  const fx = await setupPhotoFixture(t);
+  t.mock.method(Date, 'now', () => START_8AM - HOUR);
+  // Booking no longer lists the legacy photo -> technician refused.
+  seedBooking({ ...fx.b, photosAfter: [] });
+  assert.equal((await fx.get(OLD_ID, { 'x-tech-token': fx.tokenA })).statusCode, 403);
+  // Meta names a booking the technician can see, but that booking does not list the photo.
+  seedBooking(booking({ id: 'bk_other_mine', photosBefore: [], photosAfter: [] }));
+  await fx.photos.setJSON('meta_' + OLD_ID, { contentType: 'image/jpeg', bookingId: 'bk_other_mine' });
+  assert.equal((await fx.get(OLD_ID, { 'x-tech-token': fx.tokenA })).statusCode, 403);
+  // Meta without bookingId -> technician refused, admin still allowed.
+  await fx.photos.setJSON('meta_' + OLD_ID, { contentType: 'image/jpeg' });
+  assert.equal((await fx.get(OLD_ID, { 'x-tech-token': fx.tokenA })).statusCode, 403);
+  // Meta pointing at a booking that does not exist -> refused.
+  await fx.photos.setJSON('meta_' + OLD_ID, { contentType: 'image/jpeg', bookingId: 'bk_missing' });
+  assert.equal((await fx.get(OLD_ID, { 'x-tech-token': fx.tokenA })).statusCode, 403);
+  const { token } = await fx.createAdminSession('admin');
+  assert.equal((await fx.get(OLD_ID, { 'x-admin-key': token })).statusCode, 200);
+});
+
+test('job-photo-image never deletes or rewrites stored photos or meta', async (t) => {
+  const fx = await setupPhotoFixture(t);
+  t.mock.method(Date, 'now', () => START_8AM - HOUR);
+  const before = new Map([...fx.photos._data.entries()].map(([k, v]) => [k, v.value]));
+  const writes = fx.photos.writes;
+  const { token } = await fx.createAdminSession('admin');
+  for (const id of [OLD_ID, NEW_ID]) {
+    await fx.get(id);
+    await fx.get(id, { 'x-tech-token': fx.tokenA });
+    await fx.get(id, { 'x-tech-token': fx.tokenB });
+    await fx.get(id, { 'x-admin-key': token });
+  }
+  assert.equal(fx.photos.writes, writes);
+  assert.deepEqual(new Map([...fx.photos._data.entries()].map(([k, v]) => [k, v.value])), before);
 });
 
 test('Admin and technician pages fetch photos with their auth header (no bare <img src>)', () => {

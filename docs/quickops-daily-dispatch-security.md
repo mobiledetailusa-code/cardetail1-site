@@ -71,47 +71,45 @@ All three must hold:
 | `POST tech-jobs` `request_withdrawal` | `resolveTechAssignment` | reason ≥ 10 chars; arrival start resolves and is ≥ 12 h away |
 | `tech-job-photos` GET/POST | `resolveTechAssignment` | `technicianAccess.piiAllowed` |
 | `tech-complete-job` | `resolveTechAssignment` | cancelled in any field → 403 (completion retries unchanged) |
-| `job-photo-image` protected photos | admin session, or tech session + `technicianAccess` per request | `private, no-store` |
-| `job-photo-image` legacy photos | none (public, unchanged) | public immutable, see below |
+| `job-photo-image`, every photo (legacy and new) | admin session (header or cookie), or tech session + ownership check + `technicianAccess`, per request; no credentials → 401 before any lookup | `private, no-store` |
 | `tech-quick-ops` signed SMS link | link session = booking id + assignee phone + live token hash (unassign/reassign revokes) | `quickOpsPiiDecision` on every GET and every POST response view |
 | `tech-auctions` | any onboarded tech (unchanged) | customer notes never sent |
 
 ## 4. What is not revoked
 
 * JSON already delivered to a device stays in that page's memory until it reloads.
-* Legacy photos (uploaded before this change) were served `public, max-age=31536000, immutable` with wildcard CORS.
-  * They stay public so existing links keep working.
-  * Copies already in browser or intermediary caches can't be recalled.
-* A protected photo already fetched into a page stays visible as a `blob:` URL until that page reloads.
+* Legacy photos (uploaded before this change) were served `public, max-age=31536000, immutable` with wildcard CORS. They now require authorization on every new request, but these can't be recalled:
+  * copies already in a browser cache
+  * any copy an intermediary or CDN stored, until it is purged
+  * images already downloaded, saved or screenshotted
+* A photo already fetched into a page stays visible as a `blob:` URL until that page reloads.
 
-## 5. Remaining legacy photo exposure
+## 5. Legacy photos: authorization and remaining exposure
 
-"Legacy" means every photo whose stored meta has no `cachePolicy`, which is every photo uploaded before this branch is deployed. How many exist is unknown: counting them needs production access, which this work did not use.
+"Legacy" means every photo whose stored meta has no `cachePolicy`, which is every photo uploaded before this branch. The owner approved requiring authorization for them on 2026-11-20. No photo or meta record is deleted, migrated or rewritten.
 
-**How exposed they are.** A legacy URL is `/.netlify/functions/job-photo-image?id=jobph_<upload ms>_<16 hex>`.
-* The 16 hex characters are 64 random bits, so the URL can't be guessed or enumerated.
-* Anyone who holds the URL can fetch the image, with no session, from any site (`Access-Control-Allow-Origin: *`).
+**Behavior now.** Legacy and new photos follow the same rules in `job-photo-image.js`:
+* No credentials → `401` before any storage lookup, so an anonymous caller can't tell whether an id exists.
+* Admin session (x-admin-key or the HttpOnly admin cookie) → allowed.
+* Technician session → allowed only when all of these hold:
+  * the photo's meta names a booking (`meta.bookingId`)
+  * that booking exists (strong read)
+  * that booking lists the photo in `photosBefore` or `photosAfter`
+  * `technicianAccess` passes: assigned, not terminal in any status field, inside the 12-hour window
+* Anything else gets `401` or `403` with no image bytes. Every success is `private, no-store` with no wildcard CORS.
 
-**Who can hold a legacy URL:**
-* Admins: the old drawer rendered it as a link that opened in a new tab, so it could be copied, bookmarked or forwarded.
-* Every technician who was ever assigned to the job, including ones later unassigned. Before this branch, `tech-job-photos` returned URLs with no window or terminal-state check.
-* Anyone those people shared it with.
+**Ownership resolution.** The only writer of the photo store has always recorded `bookingId`, `phase` and `techId` in the meta, since the feature shipped in `925e9839` (2026-06-23).
+* This was verified from git history; the stored records themselves were not inspected, because that needs production access.
+* A legacy record without `bookingId`, pointing at a missing booking, or not listed by its booking is refused to technicians (fail closed). An admin can still view it.
+* A photo the uploader stored but never linked to its booking (the booking write lost a race) is therefore technician-invisible. It was already invisible in every UI, since no booking listed its URL.
 
-**Cached copies.** Responses were `public, max-age=31536000, immutable`, so a browser that loaded a photo may keep it for up to a year.
-* Whether Netlify's CDN also stored these function responses is not verified.
-* If it did, a request served from that cache never reaches the function, so even an origin auth check would not apply until the cache is purged. Netlify normally purges its CDN cache on a new deploy; that is not verified here.
+**Rendering.** The Admin drawer and the technician photo grid fetch every photo with their session header and display it as a `blob:` URL, so both keep working for legacy photos. No SMS or email template, receipt, customer page, review flow, Admin snapshot cache or Prisma table carries photo URLs.
 
-**Can legacy photos require authorization on future requests without breaking anything?**
-
-| Question | Finding |
-|---|---|
-| In-repo viewers | Only the Admin drawer and the technician photo grid. Both now fetch with their session header (`blob:` URLs), so both keep working. |
-| Other in-repo routes for photo URLs | None. No SMS or email template, receipt, customer page (`my-garage`, `customer`, `receipt`), review flow, Admin snapshot cache or Prisma table carries them. `tech-complete-job` only copies the arrays within the booking record. |
-| What would stop working | Only URLs used outside the app: a link an admin texted to a customer, a bookmark, a pasted link. Whether any exist can't be determined without production logs. |
-| What it could not do | Recall copies already in a browser cache, or in the CDN until a purge. |
-| Size of the change | One condition in `job-photo-image.js`: apply the protected check to every photo, not only `private-v1`. |
-
-**Status:** not implemented. It changes existing behavior, and the approved scope protects new photos only. It is listed as an owner decision.
+**Remaining exposure (cannot be revoked):**
+* Responses served before deploy were `public, max-age=31536000, immutable`. A browser that loaded a photo may keep serving it from its own cache for up to a year without contacting the server.
+* Whether Netlify's CDN stored those function responses is not verified. If it did, cached URLs bypass the function until that cache is purged. Netlify normally purges on a new deploy; that is not verified here.
+* Images already downloaded, saved, screenshotted or forwarded are outside the system's control.
+* Links that were shared outside the app (an admin texting a photo link, a bookmark) stop working for new requests. That is the intended effect, and their number can't be determined without production logs.
 
 ## 6. Technician job list scalability
 
@@ -143,13 +141,14 @@ time ≈ ceil(N / 1000) × L_list            (paginated listing, N = all booking
 
 **Limitation.** Wall time grows linearly with the total store size N, not with the technician's own jobs. At about 20 ms per read, N ≈ 5,000 reaches Netlify's 10 s synchronous function limit. The Admin Jobs list scales the same way, because it uses the same read pattern.
 
-**Proposed acceptance criterion (measurable, before release):**
+**Synthetic performance acceptance test (required before release):**
 
 1. Get N, the current production booking count, read-only, for example from the `blobCount` timing the Admin list already records.
 2. On a deploy preview with a synthetic booking store of **2 × N** (and never fewer than 2,000), call `GET tech-jobs` 20 times for a technician with at least 20 assigned jobs.
 3. **Pass** when all of these hold:
-   * p95 server time ≤ 4 s and maximum ≤ 6 s, which leaves at least 40 % headroom under the 10 s limit
-   * zero 502/504/timeout responses
-   * every assigned job is returned (count equals the seeded count)
+   * p95 server time ≤ 4 s
+   * maximum ≤ 6 s, which leaves at least 40 % headroom under the 10 s limit
+   * zero timeouts (no 502/504 or client timeout)
+   * complete assigned-job results: the returned count equals the seeded count for that technician
 4. **Fail:** release is blocked. The options then are a technician-assignment lookup or a higher read concurrency. Both need separate approval: the first is a new index, the second exceeds the tested ceiling.
 5. Re-run the check whenever N doubles.
