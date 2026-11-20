@@ -38,8 +38,10 @@ function smsOpts(opts = {}) {
   };
 }
 
-async function loadProjectedBooking(bookingId) {
-  const rec = await getBookingRecord(bookingId);
+// requireStrong: used by the technician SMS link, whose access decision must
+// never rest on an eventual fallback read. Admin callers keep the default.
+async function loadProjectedBooking(bookingId, { requireStrong = false } = {}) {
+  const rec = await getBookingRecord(bookingId, requireStrong ? { requireStrong: true } : undefined);
   if (!rec.exists || !rec.booking) return { ok: false, error: 'not_found', statusCode: 404, reads: 1 };
   let shared = null;
   try {

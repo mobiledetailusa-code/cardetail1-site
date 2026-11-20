@@ -65,7 +65,7 @@ async function authorizePhoto(event, meta, id) {
   }
   if (header(event, 'x-tech-token')) {
     const {
-      validateTechSession, blobsStore, listAllBlobs, fetchBlobRecords,
+      validateTechSession, blobsStore, listAllBlobs, fetchBlobRecords, readJsonStrong,
     } = require('../lib/tech-security');
     const { technicianAccess, createRosterLoader } = require('../lib/tech-dispatch-privacy');
     const session = await validateTechSession(event.headers || {}).catch(() => null);
@@ -73,12 +73,14 @@ async function authorizePhoto(event, meta, id) {
     const bookingId = String(meta.bookingId || '').trim();
     if (!bookingId) return { ok: false, status: 403, error: 'forbidden' };
     const store = await blobsStore('cd1-bookings');
+    // Strong read only. If it fails, deny with a retryable 503 and no bytes;
+    // never decide on an eventually consistent (possibly stale) copy.
     let booking = null;
-    if (typeof store.getWithMetadata === 'function') {
-      const r = await store.getWithMetadata(bookingId, { type: 'json', consistency: 'strong' }).catch(() => null);
-      booking = r && r.data;
+    try {
+      booking = (await readJsonStrong(store, bookingId)).data;
+    } catch {
+      return { ok: false, status: 503, error: 'temporarily_unavailable' };
     }
-    if (!booking) booking = await store.get(bookingId, { type: 'json' }).catch(() => null);
     if (!booking) return { ok: false, status: 403, error: 'forbidden' };
     // Ownership must agree in both directions: meta names the booking and the
     // booking lists the photo. A mismatch fails closed.
@@ -86,7 +88,7 @@ async function authorizePhoto(event, meta, id) {
     const roster = createRosterLoader(async () => {
       const ts = await blobsStore('cd1-tech-accounts');
       const blobs = await listAllBlobs(ts, 'cd1-tech-accounts');
-      return fetchBlobRecords(ts, blobs.filter((b) => String(b.key || '').startsWith('tech-')), 15);
+      return fetchBlobRecords(ts, blobs.filter((b) => String(b.key || '').startsWith('tech-')), 15, { strict: true });
     });
     const access = await technicianAccess(booking, session, { loadRoster: roster });
     if (access.piiAllowed) return { ok: true, via: 'technician' };

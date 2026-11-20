@@ -339,7 +339,7 @@ async function defaultRosterRecords() {
   const store = await blobsStore('cd1-tech-accounts');
   const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
   const techBlobs = blobs.filter((b) => String(b.key || '').startsWith('tech-'));
-  return fetchBlobRecords(store, techBlobs, 15);
+  return fetchBlobRecords(store, techBlobs, 15, { strict: true });
 }
 
 /**

@@ -889,3 +889,246 @@ test('tech-jobs: a stale eventual read never releases PII; the strong re-read de
   assert.deepEqual(JSON.parse(res.body).jobs, []);
   assert.doesNotMatch(res.body, /Harbor View|5550123|Gate code/);
 });
+
+// ---------------------------------------------------------------------------
+// Strong-read failure: authorization never falls back to an eventual read
+// ---------------------------------------------------------------------------
+
+const PII_RE = /Harbor View|5550123|Gate code|visitor lot|jordan@example|Jordan/;
+
+/**
+ * Split-brain store: strong reads (getWithMetadata) of the matching keys throw,
+ * while eventual reads (get) return `stale` (for example a replica that still
+ * shows the previous technician). Restored after the test.
+ */
+function breakStrongReads(t, storeName, match, stale = null) {
+  const s = store(storeName);
+  const realStrong = s.getWithMetadata;
+  const realGet = s.get;
+  s.getWithMetadata = async (key, opts) => {
+    if (match(key)) throw new Error('simulated strong read failure');
+    return realStrong(key, opts);
+  };
+  if (stale) {
+    s.get = async (key, opts) => (stale[key] ? JSON.parse(JSON.stringify(stale[key])) : realGet(key, opts));
+  }
+  const restore = () => { s.getWithMetadata = realStrong; s.get = realGet; };
+  t.after(restore);
+  return restore;
+}
+
+/** Current state: reassigned to B. Eventual replica: still assigned to A, inside A's PII window. */
+function seedReassignedWithStaleReplica(t, id) {
+  const stale = booking({ id });
+  const current = seedBooking({ ...stale, assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName, assignedAt: '2026-11-23T20:00:00.000Z' });
+  const restore = breakStrongReads(t, 'cd1-bookings', (k) => k === id, { [id]: stale });
+  return { stale, current, restore };
+}
+
+test('strong read fails: tech-jobs GET returns 503 with no PII; previous tech never sees the job', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - HOUR);
+  const tokenA = seedTech(TECH_A);
+  const tokenB = seedTech(TECH_B);
+  const { restore } = seedReassignedWithStaleReplica(t, 'bk_sr_list');
+  const handler = freshRequire('../netlify/functions/tech-jobs').handler;
+  const get = (token) => handler({ httpMethod: 'GET', headers: { 'x-tech-token': token }, queryStringParameters: {} });
+
+  let res = await get(tokenA);
+  assert.equal(res.statusCode, 503);
+  assert.equal(JSON.parse(res.body).error, 'temporarily_unavailable');
+  assert.doesNotMatch(res.body, PII_RE);
+  assert.doesNotMatch(res.body, /bk_sr_list/);
+
+  restore();
+  // Valid flow once strong reads recover: B (current) sees it, A does not.
+  res = await get(tokenA);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(JSON.parse(res.body).jobs, []);
+  res = await get(tokenB);
+  assert.equal(res.statusCode, 200);
+  const jobs = JSON.parse(res.body).jobs;
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].piiLocked, false);
+  assert.equal(jobs[0].phone, '+12015550123');
+});
+
+test('strong read fails: tech-job-photos GET and POST deny with 503, no photo URLs, nothing stored', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - HOUR);
+  const tokenA = seedTech(TECH_A);
+  const tokenB = seedTech(TECH_B);
+  const { restore } = seedReassignedWithStaleReplica(t, 'bk_sr_ph');
+  const handler = freshRequire('../netlify/functions/tech-job-photos').handler;
+  const before = store('cd1-bookings')._data.get('bk_sr_ph').value;
+
+  let res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': tokenA }, queryStringParameters: { bookingId: 'bk_sr_ph' } });
+  assert.equal(res.statusCode, 503);
+  assert.doesNotMatch(res.body, /jobph_/);
+  res = await handler({
+    httpMethod: 'POST', headers: { 'x-tech-token': tokenA },
+    body: JSON.stringify({ bookingId: 'bk_sr_ph', phase: 'after', data: 'AAAA', contentType: 'image/jpeg', filename: 'a.jpg' }),
+  });
+  assert.equal(res.statusCode, 503);
+  assert.equal(store('cd1-bookings')._data.get('bk_sr_ph').value, before);
+  assert.equal(store('cd1-job-photos').writes, 0);
+
+  restore();
+  res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': tokenA }, queryStringParameters: { bookingId: 'bk_sr_ph' } });
+  assert.equal(res.statusCode, 403);
+  res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': tokenB }, queryStringParameters: { bookingId: 'bk_sr_ph' } });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body, /jobph_1_ab/);
+});
+
+for (const [label, ID] of [['legacy', OLD_ID], ['new', NEW_ID]]) {
+  test(`strong read fails: job-photo-image (${label}) gives the previous tech no bytes; admin unaffected`, async (t) => {
+    const fx = await setupPhotoFixture(t);
+    t.mock.method(Date, 'now', () => START_8AM - HOUR);
+    const stale = { ...fx.b };
+    seedBooking({ ...fx.b, assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName });
+    const restore = breakStrongReads(t, 'cd1-bookings', (k) => k === fx.b.id, { [fx.b.id]: stale });
+
+    let res = await fx.get(ID, { 'x-tech-token': fx.tokenA });
+    assert.equal(res.statusCode, 503);
+    assert.notEqual(res.isBase64Encoded, true);
+    assert.equal(JSON.parse(res.body).error, 'temporarily_unavailable');
+
+    // Admin access does not depend on the booking read.
+    const { token } = await fx.createAdminSession('admin');
+    res = await fx.get(ID, { 'x-admin-key': token });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.isBase64Encoded, true);
+
+    restore();
+    assert.equal((await fx.get(ID, { 'x-tech-token': fx.tokenA })).statusCode, 403);
+    assert.equal((await fx.get(ID, { 'x-tech-token': fx.tokenB })).statusCode, 200);
+  });
+}
+
+test('strong read fails: withdrawal request and status update are refused; nothing is written', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - 30 * HOUR);
+  const tokenA = seedTech(TECH_A);
+  const tokenB = seedTech(TECH_B);
+  const { restore } = seedReassignedWithStaleReplica(t, 'bk_sr_wd');
+  const handler = freshRequire('../netlify/functions/tech-jobs').handler;
+  const before = store('cd1-bookings')._data.get('bk_sr_wd').value;
+
+  let r = await postWithdrawal(handler, tokenA, 'bk_sr_wd', 'Truck in the shop this week');
+  assert.equal(r.status, 503);
+  assert.equal(r.body.error, 'temporarily_unavailable');
+  assert.equal(store('cd1-tech-withdrawal-requests')._data.size, 0, 'no request filed on stale authorization');
+
+  const res = await handler({ httpMethod: 'POST', headers: { 'x-tech-token': tokenA }, body: JSON.stringify({ bookingId: 'bk_sr_wd', status: 'en_route' }) });
+  assert.equal(res.statusCode, 503);
+  assert.doesNotMatch(res.body, PII_RE);
+  assert.equal(store('cd1-bookings')._data.get('bk_sr_wd').value, before);
+
+  restore();
+  r = await postWithdrawal(handler, tokenA, 'bk_sr_wd', 'Truck in the shop this week');
+  assert.equal(r.status, 403, 'previous technician is refused on the fresh read');
+  r = await postWithdrawal(handler, tokenB, 'bk_sr_wd', 'Truck in the shop this week');
+  assert.equal(r.status, 200, 'current technician can still file');
+});
+
+test('strong read fails: tech-complete-job is refused with 503 and the booking is untouched', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM + HOUR);
+  const tokenA = seedTech(TECH_A);
+  seedTech(TECH_B);
+  seedReassignedWithStaleReplica(t, 'bk_sr_done');
+  const before = store('cd1-bookings')._data.get('bk_sr_done').value;
+  const { handler } = freshRequire('../netlify/functions/tech-complete-job');
+  const res = await handler({
+    httpMethod: 'POST', headers: { 'x-tech-token': tokenA },
+    body: JSON.stringify({ bookingId: 'bk_sr_done', requestId: 'req_sr_1' }),
+  });
+  assert.equal(res.statusCode, 503);
+  assert.equal(JSON.parse(res.body).error, 'temporarily_unavailable');
+  assert.doesNotMatch(res.body, PII_RE);
+  assert.equal(store('cd1-bookings')._data.get('bk_sr_done').value, before);
+});
+
+test('strong read fails: admin approval never unassigns on a stale booking copy', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - 30 * HOUR);
+  const tokenA = seedTech(TECH_A);
+  seedTech(TECH_B);
+  const b = seedBooking(booking({ id: 'bk_sr_appr' }));
+  const jobs = freshRequire('../netlify/functions/tech-jobs').handler;
+  assert.equal((await postWithdrawal(jobs, tokenA, b.id, 'Vehicle broke down today')).status, 200);
+  // Admin reassigns to B; the eventual replica still shows A (matching the request).
+  seedBooking({ ...b, assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName, assignedAt: '2026-11-23T20:00:00.000Z' });
+  const restore = breakStrongReads(t, 'cd1-bookings', (k) => k === b.id, { [b.id]: b });
+  const before = store('cd1-bookings')._data.get(b.id).value;
+
+  const W = freshRequire('../netlify/lib/tech-withdrawal');
+  const [req] = await W.listWithdrawalRequests({ status: 'pending' });
+  let result = await W.decideWithdrawalRequest({ id: req.id, decision: 'approve' });
+  assert.equal(result.ok, false);
+  assert.equal(result.statusCode, 503);
+  assert.equal(store('cd1-bookings')._data.get(b.id).value, before, 'B stays assigned');
+  assert.equal(readBooking(b.id).assignedTechId, TECH_B.techId);
+  const [still] = await W.listWithdrawalRequests({ status: 'pending' });
+  assert.equal(still.id, req.id, 'request returns to pending');
+
+  // A failing strong read of the withdrawal store also refuses without acting.
+  restore();
+  const restoreW = breakStrongReads(t, 'cd1-tech-withdrawal-requests', () => true);
+  result = await W.decideWithdrawalRequest({ id: req.id, decision: 'approve' });
+  assert.equal(result.statusCode, 503);
+  assert.equal(readBooking(b.id).assignedTechId, TECH_B.techId);
+  restoreW();
+
+  // Recovered: the stale guard sees the real assignment and refuses.
+  result = await W.decideWithdrawalRequest({ id: req.id, decision: 'approve' });
+  assert.equal(result.error, 'stale_request');
+  assert.equal(readBooking(b.id).assignedTechId, TECH_B.techId);
+});
+
+test('strong read fails on the roster: legacy name-only assignment is denied, id assignment unaffected', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - HOUR);
+  const tokenA = seedTech(TECH_A);
+  seedTech(TECH_B);
+  seedBooking(booking({ id: 'bk_sr_name', assignedTechId: '', assignedTech: '', assignedTechName: TECH_A.fullName }));
+  seedBooking(booking({ id: 'bk_sr_id' }));
+  const restore = breakStrongReads(t, 'cd1-tech-accounts', (k) => k.startsWith('tech-'));
+  const photos = freshRequire('../netlify/functions/tech-job-photos').handler;
+  const get = (id) => photos({ httpMethod: 'GET', headers: { 'x-tech-token': tokenA }, queryStringParameters: { bookingId: id } });
+
+  let res = await get('bk_sr_name');
+  assert.equal(res.statusCode, 403);
+  assert.equal(JSON.parse(res.body).error, 'not_assigned_to_you');
+  res = await get('bk_sr_id');
+  assert.equal(res.statusCode, 200, 'id assignment needs no roster');
+
+  restore();
+  res = await get('bk_sr_name');
+  assert.equal(res.statusCode, 200, 'unique legacy name works once the roster reads strongly');
+});
+
+test('getBookingRecord: requireStrong throws on failure; default callers keep their existing fallback', async (t) => {
+  resetStores();
+  const b = seedBooking(booking({ id: 'bk_sr_repo' }));
+  breakStrongReads(t, 'cd1-bookings', () => true, { [b.id]: { ...b, assignedTechId: 'TECH-OLD' } });
+  const repo = freshRequire('../netlify/lib/booking-repository');
+  const s = store('cd1-bookings');
+  await assert.rejects(repo.getBookingRecord(b.id, { storeOverride: s, requireStrong: true }), (e) => e.code === 'strong_read_failed');
+  const legacy = await repo.getBookingRecord(b.id, { storeOverride: s });
+  assert.equal(legacy.exists, true, 'unrelated callers are unchanged by this fix');
+  const { fetchBlobRecords } = freshRequire('../netlify/lib/tech-security');
+  await assert.rejects(fetchBlobRecords(s, [{ key: b.id }], 5, { strict: true }), (e) => e.code === 'strong_read_failed');
+  assert.equal((await fetchBlobRecords(s, [{ key: b.id }], 5)).length, 1, 'default fetchBlobRecords unchanged');
+});
+
+test('no authorization path keeps an eventual fallback after a strong read', () => {
+  const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  for (const rel of ['netlify/functions/job-photo-image.js', 'netlify/functions/tech-job-photos.js', 'netlify/functions/tech-jobs.js', 'netlify/lib/tech-withdrawal.js']) {
+    assert.doesNotMatch(read(rel), /consistency: 'strong' \}\)\.catch\(\(\) => null\)/, rel);
+  }
+  assert.match(read('netlify/functions/tech-complete-job.js'), /requireStrong: true/);
+  assert.match(read('netlify/functions/tech-quick-ops.js'), /requireStrong: true/);
+  assert.match(read('netlify/lib/tech-dispatch-privacy.js'), /strict: true/);
+});

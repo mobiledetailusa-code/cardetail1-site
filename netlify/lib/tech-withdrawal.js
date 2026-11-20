@@ -46,13 +46,11 @@ function writeWasApplied(result) {
   return result.modified !== false;
 }
 
+// Strong read only; a failed read throws (StrongReadError). An eventual copy
+// could carry a stale status or etag and must never drive a decision.
 async function readWithEtag(store, key) {
-  if (typeof store.getWithMetadata === 'function') {
-    const r = await store.getWithMetadata(key, { type: 'json', consistency: 'strong' }).catch(() => null);
-    if (r && r.data) return { data: r.data, etag: r.etag || null };
-  }
-  const data = await store.get(key, { type: 'json' }).catch(() => null);
-  return { data: data || null, etag: null };
+  const { readJsonStrong } = require('./tech-security');
+  return readJsonStrong(store, key);
 }
 
 async function casWrite(store, key, value, etag) {
@@ -231,13 +229,18 @@ async function decideWithdrawalRequest(input = {}, deps = {}) {
 
   const loadBooking = deps.loadBooking || (async (bookingId) => {
     const { getBookingRecord } = require('./booking-repository');
-    const rec = await getBookingRecord(bookingId);
+    const rec = await getBookingRecord(bookingId, { requireStrong: true });
     return rec && rec.exists ? rec.booking : null;
   });
   const unassign = deps.unassign || ((booking, opts) => require('./quick-ops-assign').unassignQuickOpsTech(booking, opts));
 
   const store = await withdrawalStore();
-  const read = await readWithEtag(store, id);
+  let read;
+  try {
+    read = await readWithEtag(store, id);
+  } catch {
+    return { ok: false, statusCode: 503, error: 'temporarily_unavailable' };
+  }
   const request = read.data;
   if (!request) return { ok: false, statusCode: 404, error: 'request_not_found' };
   if (!isOpen(request)) {
@@ -258,7 +261,14 @@ async function decideWithdrawalRequest(input = {}, deps = {}) {
   if (!(await casWrite(store, id, claimed, read.etag))) {
     return { ok: false, statusCode: 409, error: 'concurrent_decision' };
   }
-  const reread = await readWithEtag(store, id);
+  let reread;
+  try {
+    reread = await readWithEtag(store, id);
+  } catch {
+    // Claim stays until CLAIM_STALE_MS, then the request is open again.
+    // Nothing is unassigned without a fresh strong read.
+    return { ok: false, statusCode: 503, error: 'temporarily_unavailable' };
+  }
   let etag = reread.etag;
 
   const finish = async (patch) => {

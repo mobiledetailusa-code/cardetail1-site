@@ -9,7 +9,7 @@ const {
 async function rosterRecords() {
   const store = await blobsStore('cd1-tech-accounts');
   const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
-  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15);
+  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15, { strict: true });
 }
 const { appendEventLog } = require('../lib/ops-workflow');
 const {
@@ -41,7 +41,16 @@ exports.handler = async (event) => {
   const store = await blobsStore('cd1-bookings');
   setBookingStoreOverride(store);
   try {
-    const current = await getBookingRecord(bookingId, { storeOverride: store });
+    let current;
+    try {
+      // Authorization read: strong only, never an eventual fallback.
+      current = await getBookingRecord(bookingId, { storeOverride: store, requireStrong: true });
+    } catch (e) {
+      if (e && e.code === 'strong_read_failed') {
+        return jsonCors(503, { ok: false, error: 'temporarily_unavailable' }, { 'Retry-After': '5' });
+      }
+      throw e;
+    }
     if (!current.exists || !current.booking) {
       return jsonCors(404, { ok: false, error: 'booking_not_found' });
     }

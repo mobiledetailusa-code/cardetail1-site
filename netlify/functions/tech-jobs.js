@@ -1,7 +1,10 @@
 // Technician: list assigned jobs + post status updates (not completion).
 const {
-  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText,
+  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText, readJsonStrong,
 } = require('../lib/tech-security');
+
+const unavailable = () => jsonCors(503, { ok: false, error: 'temporarily_unavailable' }, { 'Retry-After': '5' });
+const isStrongReadError = (e) => !!(e && e.code === 'strong_read_failed');
 const {
   technicianAccess, technicianTerminalState, redactTechJob, createRosterLoader, resolveTechAssignment, bookingServiceDate,
 } = require('../lib/tech-dispatch-privacy');
@@ -28,16 +31,14 @@ async function readEventual(store, blobs, concurrency) {
   return out;
 }
 
+// Strong re-read for the disclosure decision. A failed strong read throws
+// (StrongReadError) and the whole request fails closed with 503; it never
+// falls back to the eventual copy from phase 1.
 async function readStrong(store, keys, concurrency) {
   const out = [];
   for (let i = 0; i < keys.length; i += concurrency) {
-    const rows = await Promise.all(keys.slice(i, i + concurrency).map(async (key) => {
-      if (typeof store.getWithMetadata === 'function') {
-        const r = await store.getWithMetadata(key, { type: 'json', consistency: 'strong' }).catch(() => null);
-        return r && r.data ? r.data : null;
-      }
-      return store.get(key, { type: 'json' }).catch(() => null);
-    }));
+    const rows = await Promise.all(keys.slice(i, i + concurrency)
+      .map(async (key) => (await readJsonStrong(store, key)).data));
     for (const r of rows) if (r) out.push(r);
   }
   return out;
@@ -46,7 +47,7 @@ async function readStrong(store, keys, concurrency) {
 async function rosterRecords() {
   const store = await blobsStore('cd1-tech-accounts');
   const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
-  return fetchBlobRecords(store, blobs.filter((b) => String(b.key || '').startsWith('tech-')), 15);
+  return fetchBlobRecords(store, blobs.filter((b) => String(b.key || '').startsWith('tech-')), 15, { strict: true });
 }
 const {
   projectJobForTech,
@@ -135,7 +136,8 @@ exports.handler = async (event) => {
         withdrawals,
         serverNow: new Date(nowMs).toISOString(),
       });
-    } catch {
+    } catch (e) {
+      if (isStrongReadError(e)) return unavailable();
       return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
     }
   }
@@ -150,7 +152,13 @@ exports.handler = async (event) => {
   if (String(body.action || '') === 'request_withdrawal') {
     if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
     const store = await blobsStore('cd1-bookings');
-    const rec = await getBookingRecord(bookingId, { storeOverride: store });
+    let rec;
+    try {
+      rec = await getBookingRecord(bookingId, { storeOverride: store, requireStrong: true });
+    } catch (e) {
+      if (isStrongReadError(e)) return unavailable();
+      throw e;
+    }
     if (!rec.exists || !rec.booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
     // Files a pending request only. The booking is not written here.
     const created = await createWithdrawalRequest({
@@ -176,7 +184,13 @@ exports.handler = async (event) => {
   const store = await blobsStore('cd1-bookings');
   setBookingStoreOverride(store);
   try {
-    const current = await getBookingRecord(bookingId, { storeOverride: store });
+    let current;
+    try {
+      current = await getBookingRecord(bookingId, { storeOverride: store, requireStrong: true });
+    } catch (e) {
+      if (isStrongReadError(e)) return unavailable();
+      throw e;
+    }
     if (!current.exists || !current.booking) {
       return jsonCors(404, { ok: false, error: 'booking_not_found' });
     }

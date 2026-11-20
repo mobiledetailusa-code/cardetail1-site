@@ -75,6 +75,19 @@ All three must hold:
 | `tech-quick-ops` signed SMS link | link session = booking id + assignee phone + live token hash (unassign/reassign revokes) | `quickOpsPiiDecision` on every GET and every POST response view |
 | `tech-auctions` | any onboarded tech (unchanged) | customer notes never sent |
 
+### Read consistency for authorization
+
+Every technician authorization decision reads the booking (and, for legacy name-only assignments, the technician roster) with a strong read. There is no eventual fallback.
+
+* `readJsonStrong` (in `tech-security.js`) throws `StrongReadError` when the strong read fails. A missing key is not a failure; it returns no data.
+* Every path in the table above that reads a booking for a technician (portal list phase 2, status update, withdrawal request, photos, photo bytes, completion, signed SMS link) uses it, through `getBookingRecord(id, { requireStrong: true })` where the repository is used.
+* A failed strong read gives a retryable `503 temporarily_unavailable` (the SMS link's HTML view shows the neutral page). No PII, photo URLs or image bytes are returned, and nothing is written.
+* The roster is read with `fetchBlobRecords(..., { strict: true })`. Any failed account read makes the roster unavailable, which denies the legacy name path (`roster_unavailable`). Id assignments don't need the roster.
+* Admin withdrawal approval reads the request and the booking strongly. On failure it returns 503 and unassigns nobody; a claimed request becomes open again after the claim timeout.
+* Admin photo access doesn't read the booking, so it is unaffected.
+* Unchanged: `getBookingRecord` and `fetchBlobRecords` without the new options behave as before for every other caller. Phase 1 of the portal list still uses eventual reads, but only to shortlist candidates; it never decides disclosure.
+* Not changed (pre-existing, outside this fix): `validateTechSession` reads the session and account with the default read, so a just-revoked session or deactivated account may still authenticate briefly. Assignment, schedule and status are still checked on the strong booking read.
+
 ## 4. What is not revoked
 
 * JSON already delivered to a device stays in that page's memory until it reloads.
@@ -152,3 +165,43 @@ time ≈ ceil(N / 1000) × L_list            (paginated listing, N = all booking
    * complete assigned-job results: the returned count equals the seeded count for that technician
 4. **Fail:** release is blocked. The options then are a technician-assignment lookup or a higher read concurrency. Both need separate approval: the first is a new index, the second exceeds the tested ceiling.
 5. Re-run the check whenever N doubles.
+
+**Synthetic run, 2026-11-20 (local, not a deploy preview).** This was not run on a deploy preview.
+* Deployed functions open Blobs stores through the site runtime context. Site-wide stores are shared by production and every deploy preview, so a preview would read the real `cd1-bookings`, and seeding it would write synthetic bookings into production.
+* The run therefore used the task's fallback: a local Node process with an in-memory Blobs fake and injected latency. The production count was unavailable, so the formal 2 × N criterion remains **unverified**.
+
+**Method:**
+* Synthetic bookings only, with 1,000-key list pages.
+* One technician with 40 assigned jobs (half inside the 12 h window), everyone else's bookings marked so leakage is detectable.
+* 2 warm-up requests, then 20 measured sequential requests.
+* Timeout at 10 s.
+* Each response is checked for: status 200, the exact assigned-job set, and PII redaction.
+* On Windows, timer granularity rounds a 20 ms injected wait up to about 31 ms.
+
+| Latency profile | Bookings | p50 | p95 | Max | Timeouts | Complete | PII violations | Result |
+|---|---|---|---|---|---|---|---|---|
+| Fixed: list 60 ms, read 20 ms, strong 20 ms | 2,000 | 3.58 s | 3.68 s | 3.70 s | 0 | 20/20 | 0 | PASS |
+| Fixed: list 60 ms, read 20 ms, strong 20 ms | 5,000 | 8.52 s | 8.54 s | 8.54 s | 0 | 20/20 | 0 | **FAIL** |
+| Fixed: list 60 ms, read 20 ms, strong 40 ms | 2,000 | 3.65 s | 3.65 s | 3.66 s | 0 | 20/20 | 0 | PASS |
+| Fixed: list 60 ms, read 20 ms, strong 40 ms | 5,000 | 8.61 s | 8.63 s | 8.63 s | 0 | 20/20 | 0 | **FAIL** |
+| Jitter: list 40–120 ms, read 10–40 ms (+200 ms on 2 %), strong 2× | 2,000 | 11.7 s | 13.8 s | 13.8 s | 20 | 20/20 | 0 | **FAIL** |
+| Jitter: same | 5,000 | — | 15 s (client cut-off) | 15 s | 20 | 0/20 | 0 | **FAIL** |
+
+These are simulated latencies, not production measurements.
+
+**Bottleneck.**
+* Phase 1 reads every booking (`N` eventual reads) in sequential batches of 20. Each batch waits for its slowest read.
+* With a 2 % slow tail, about a third of batches take the slow path, so tail latency is multiplied by `N / 20`.
+* Phase 2 (strong reads of 40 candidates) costs 2–3 batches and isn't the bottleneck.
+
+**Negative control.**
+* Setup: list page 2 throws.
+* The handler returns `200` with 20 of 40 jobs, because `listAllBlobs` falls back to a single unpaginated page.
+* The harness counts this as incomplete, not as a success.
+* In production a technician would see a silently partial list. This is not a PII exposure, but it is an open defect.
+
+**Minimal correction options (not implemented; each needs approval):**
+1. Replace the batch barrier with a sliding pool at the same concurrency of 20. This is not an architecture change. It removes most tail amplification, but the fixed-latency ceiling stays at about `N × read / 20`.
+2. Raise phase-1 concurrency above 20. This exceeds the documented tested ceiling and needs load testing against Blobs rate limits.
+3. Add a technician-to-booking assignment lookup, so only the technician's own bookings are read. This is a new index: an architecture change.
+4. Separately, make the technician list fail with `503` when pagination fails, instead of returning a partial `200`.

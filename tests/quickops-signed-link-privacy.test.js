@@ -248,3 +248,52 @@ async function openLinkWith(patch) {
   setBookingStoreOverride(bookingStore);
   return openLink();
 }
+
+describe('signed SMS link: a failed strong read never falls back to a stale booking', () => {
+  it('returns 503 / neutral page with no PII when the strong read fails, even though the stale copy still matches the link', async () => {
+    nowMock.mock.mockImplementation(() => START - HOUR); // inside the PII window
+    const cookie = await openLink();
+    const staleRec = await getBookingRecord(ID);
+    const stale = JSON.parse(JSON.stringify(staleRec.raw));
+    // Current state: the booking moved to another phone (session not yet revoked).
+    await patchBooking({ techLinkPhone: '+12015550999', freelancePhone: '+12015550999' });
+
+    const realStrong = bookingStore.getWithMetadata;
+    const realGet = bookingStore.get;
+    bookingStore.getWithMetadata = async () => { throw new Error('simulated strong read failure'); };
+    bookingStore.get = async () => JSON.parse(JSON.stringify(stale));
+    try {
+      let res = await view(cookie);
+      assert.equal(res.statusCode, 503);
+      assert.doesNotMatch(res.body, PII);
+      res = await view(cookie, 'text/html');
+      assert.doesNotMatch(res.body, PII);
+      const csrf = 'x';
+      res = await techHandler.handler({
+        httpMethod: 'POST',
+        path: '/ops/t',
+        headers: { cookie, host: 'cardetail1.com', accept: 'application/json', 'content-type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ action: 'arrive' }),
+      });
+      assert.doesNotMatch(res.body, PII);
+      assert.notEqual(res.statusCode, 200);
+    } finally {
+      bookingStore.getWithMetadata = realStrong;
+      bookingStore.get = realGet;
+    }
+
+    // Recovered: the fresh read shows the link no longer matches.
+    const res = await view(cookie);
+    assert.equal(res.statusCode, 401);
+    assert.doesNotMatch(res.body, PII);
+  });
+
+  it('a valid link still works when strong reads succeed', async () => {
+    nowMock.mock.mockImplementation(() => START - HOUR);
+    const cookie = await openLink();
+    const res = await view(cookie);
+    assert.equal(res.statusCode, 200);
+    assert.equal(JSON.parse(res.body).view.piiLocked, false);
+    assert.match(res.body, /Harbor View/);
+  });
+});

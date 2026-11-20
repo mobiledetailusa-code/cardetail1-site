@@ -1,23 +1,23 @@
 // Technician job photo upload — before/after, assigned jobs only.
 const {
-  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText,
+  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText, readJsonStrong,
 } = require('../lib/tech-security');
 const { technicianAccess, createRosterLoader } = require('../lib/tech-dispatch-privacy');
 
 async function rosterRecords() {
   const store = await blobsStore('cd1-tech-accounts');
   const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
-  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15);
+  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15, { strict: true });
 }
 
-/** Strong read: the access decision must see the latest assignment and status. */
+/**
+ * Strong read: the access decision must see the latest assignment and status.
+ * A failed strong read throws (StrongReadError); there is no eventual fallback.
+ */
 async function readBookingStrong(store, id) {
-  if (typeof store.getWithMetadata === 'function') {
-    const r = await store.getWithMetadata(id, { type: 'json', consistency: 'strong' }).catch(() => null);
-    if (r && r.data) return r.data;
-  }
-  return store.get(id, { type: 'json' }).catch(() => null);
+  return (await readJsonStrong(store, id)).data;
 }
+const unavailable = () => jsonCors(503, { ok: false, error: 'temporarily_unavailable' }, { 'Retry-After': '5' });
 
 /**
  * Photos follow the same gate as customer PII: assigned by id (or a unique
@@ -59,7 +59,8 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'GET') {
     if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
     const store = await blobsStore('cd1-bookings');
-    const booking = await readBookingStrong(store, bookingId);
+    let booking;
+    try { booking = await readBookingStrong(store, bookingId); } catch { return unavailable(); }
     if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
     const denied = await photoAccessError(booking, session);
     if (denied) return denied;
@@ -85,7 +86,8 @@ exports.handler = async (event) => {
   }
 
   const bookStore = await blobsStore('cd1-bookings');
-  const booking = await readBookingStrong(bookStore, bid);
+  let booking;
+  try { booking = await readBookingStrong(bookStore, bid); } catch { return unavailable(); }
   if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
   const denied = await photoAccessError(booking, session);
   if (denied) return denied;
