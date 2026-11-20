@@ -1114,13 +1114,43 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     if (elA) elA.textContent = a + (!issue && a < 1 ? ' (min 1)' : '');
   }
 
+
+  // Protected job photos need the session header on every request, which an
+  // <img src> cannot send. Fetch them with the header and display blob: URLs.
+  // Legacy public photos load the same way (the server ignores the header).
+  var _photoObjectUrls = [];
+  function hydratePhotos(root) {
+    (root || document).querySelectorAll('img[data-photo-src]:not([data-photo-loaded])').forEach(function (img) {
+      img.setAttribute('data-photo-loaded', '1');
+      var url = img.getAttribute('data-photo-src');
+      fetch(url, { headers: { 'x-tech-token': getToken() }, cache: 'no-store', credentials: 'same-origin' })
+        .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.blob(); })
+        .then(function (blob) {
+          var obj = URL.createObjectURL(blob);
+          _photoObjectUrls.push(obj);
+          img.src = obj;
+          var link = img.closest('a[data-photo-link]');
+          if (link) link.href = obj;
+        })
+        .catch(function () {
+          img.alt = 'Photo not available';
+          img.style.opacity = '0.35';
+        });
+    });
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function () { hydratePhotos(document); })
+      .observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   function renderPhotoGrid(phase) {
     var grid = document.getElementById('grid-' + phase);
     if (!grid) return;
     var urls = _jobPhotos[phase] || [];
     grid.innerHTML = urls.map(function (url) {
-      return '<div class="photo-thumb"><img src="' + esc(url) + '" alt="' + phase + '"></div>';
+      return '<div class="photo-thumb"><img data-photo-src="' + esc(url) + '" alt="' + phase + '"></div>';
     }).join('');
+    hydratePhotos(grid);
     updatePhotoCounts();
   }
 

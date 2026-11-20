@@ -226,21 +226,10 @@ async function validateTechSession(headersOrToken) {
   return { ...s, tech };
 }
 
-/**
- * Synchronous id-only assignment check. Name matching was removed: two
- * technicians with the same display name could both pass it. Technician
- * endpoints use resolveTechAssignment (lib/tech-dispatch-privacy), which keeps
- * legacy name-only assignments working when the name is unique on the roster.
- * techName is accepted for signature compatibility and ignored.
- */
-function bookingAssignedToTech(booking, techId, _techName) {
-  if (!booking) return false;
-  const tid = String(techId || '').trim().toLowerCase();
-  if (!tid) return false;
-  if (String(booking.assignmentKind || '').toLowerCase() === 'freelance') return false;
-  const at = String(booking.assignedTechId || booking.assignedTech || '').trim().toLowerCase();
-  return at === tid;
-}
+// Technician assignment is decided only by resolveTechAssignment in
+// lib/tech-dispatch-privacy.js (id-first; legacy names only when unique).
+// The old synchronous bookingAssignedToTech helper was removed so no caller
+// can fall back to a weaker, name-based rule.
 
 module.exports = {
   blobsStore,
@@ -259,7 +248,6 @@ module.exports = {
   findTechByInviteToken,
   createTechSession,
   validateTechSession,
-  bookingAssignedToTech,
   INVITE_TTL_MS,
   SESSION_TTL_MS,
 };

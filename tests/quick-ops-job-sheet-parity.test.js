@@ -1,6 +1,6 @@
 'use strict';
 
-const { describe, it } = require('node:test');
+const { describe, it, before, after, mock } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { projectJobSheet } = require('../netlify/lib/quick-ops-job-sheet');
@@ -26,7 +26,7 @@ function multiVehicleBooking(overrides = {}) {
     appointmentStatus: 'confirmed',
     jobStatus: 'confirmed',
     confirmedDate: '2026-11-20',
-    confirmedTimeWindow: '9-11',
+    confirmedTimeWindow: '9:00 AM - 11:00 AM',
     totalPrice: 487.5,
     approvedFinalAmount: 487.5,
     techPayoutAmount: 140,
@@ -54,6 +54,13 @@ function multiVehicleBooking(overrides = {}) {
     ...overrides,
   };
 }
+
+// The technician job sheet carries customer notes only inside the 12-hour
+// pre-arrival window (QuickOps Daily Dispatch). Freeze the clock at 9:00 AM ET
+// on the fixture day so parity is checked while the technician may see them.
+const FIXED_NOW = Date.parse('2026-11-20T14:00:00.000Z');
+before(() => { mock.method(Date, 'now', () => FIXED_NOW); });
+after(() => { mock.restoreAll(); });
 
 // Every dollar figure that belongs to the customer price on the fixture.
 const CUSTOMER_PRICE_STRINGS = ['487.5', '487.50', '289.25', '61.75', '33.5', '33.50', '69.5', '69.50'];

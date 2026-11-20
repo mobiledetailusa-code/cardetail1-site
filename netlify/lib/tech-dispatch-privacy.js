@@ -151,8 +151,16 @@ function parseArrivalText(raw) {
     return t == null ? { invalid: true } : { start: t, end: t };
   }
   if (parts.length === 2) {
-    const a = parseClock(parts[0]);
     const b = parseClock(parts[1]);
+    let a = parseClock(parts[0]);
+    // Admin reschedule accepts "2:00-4:00 PM" (meridiem only on the end) and
+    // books the start in that same half of the day. Mirror that reading
+    // instead of treating "2:00" as 2 AM.
+    const endMeridiem = /([ap])\.?\s*m\.?$/i.exec(parts[1]);
+    const startHasMeridiem = /[ap]\.?\s*m\.?$/i.test(parts[0]);
+    if (endMeridiem && !startHasMeridiem && /^\d{1,2}(?::\d{2})?$/.test(parts[0].trim())) {
+      a = parseClock(`${parts[0].trim()} ${endMeridiem[1]}m`);
+    }
     if (a == null || b == null || b < a) return { invalid: true };
     return { start: a, end: b };
   }
@@ -430,6 +438,41 @@ function redactTechJob(job, access) {
   return out;
 }
 
+/**
+ * PII decision for the signed SMS job link (tech-quick-ops). Assignment there
+ * is proven by the link session (booking id + assignee phone + current token
+ * hash), so only the terminal-state and time/schedule checks apply here.
+ * @returns {{ allowed: boolean, reason: string, unlocksAt: string, message: string }}
+ */
+function quickOpsPiiDecision(booking, nowMs = Date.now()) {
+  const term = technicianTerminalState(booking);
+  if (term.terminal) {
+    return { allowed: false, reason: term.reason, unlocksAt: '', message: 'This job is closed. Customer details are no longer shown.' };
+  }
+  const schedule = resolveArrivalStart(booking);
+  if (!schedule.ok) {
+    return {
+      allowed: false,
+      reason: schedule.reason,
+      unlocksAt: '',
+      message: 'Customer details stay hidden until the office confirms the arrival time.',
+    };
+  }
+  const unlocksAt = new Date(schedule.unlockMs).toISOString();
+  if (nowMs < schedule.unlockMs) {
+    const label = new Date(schedule.unlockMs).toLocaleString('en-US', {
+      timeZone: TIME_ZONE, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+    return {
+      allowed: false,
+      reason: 'before_unlock_window',
+      unlocksAt,
+      message: `Customer name, address and notes appear ${label} ET (12 hours before the arrival window).`,
+    };
+  }
+  return { allowed: true, reason: '', unlocksAt, message: '' };
+}
+
 /** Withdrawal notice: arrival start must resolve and be ≥ 12h away. */
 function withdrawalNoticeCheck(booking, nowMs = Date.now()) {
   const schedule = resolveArrivalStart(booking);
@@ -455,5 +498,6 @@ module.exports = {
   resolveTechAssignment,
   technicianAccess,
   redactTechJob,
+  quickOpsPiiDecision,
   withdrawalNoticeCheck,
 };

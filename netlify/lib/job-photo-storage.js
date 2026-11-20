@@ -40,7 +40,12 @@ function photoServeUrl(id) {
   return `/.netlify/functions/job-photo-image?id=${id}`;
 }
 
+let storeOverride = null;
+/** Test hook: inject an in-memory photo store. */
+function setJobPhotoStoreOverride(store) { storeOverride = store || null; }
+
 async function openJobPhotoStore() {
+  if (storeOverride) return storeOverride;
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
@@ -98,6 +103,7 @@ module.exports = {
   PRIVATE_CACHE_POLICY,
   photoServeUrl,
   openJobPhotoStore,
+  setJobPhotoStoreOverride,
   decodeAndValidateImage,
   storeJobPhoto,
 };

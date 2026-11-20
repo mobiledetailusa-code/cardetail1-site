@@ -12,6 +12,37 @@ const { isInternalBookingStoreKey } = require('../lib/booking-visibility');
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+const LIST_READ_CONCURRENCY = 20;
+const STRONG_READ_CONCURRENCY = 20;
+
+async function readEventual(store, blobs, concurrency) {
+  const out = [];
+  for (let i = 0; i < blobs.length; i += concurrency) {
+    const rows = await Promise.all(blobs.slice(i, i + concurrency).map(async (blob) => {
+      const raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
+      if (raw && typeof raw === 'object') raw.__blobKey = blob.key;
+      return raw;
+    }));
+    for (const r of rows) if (r) out.push(r);
+  }
+  return out;
+}
+
+async function readStrong(store, keys, concurrency) {
+  const out = [];
+  for (let i = 0; i < keys.length; i += concurrency) {
+    const rows = await Promise.all(keys.slice(i, i + concurrency).map(async (key) => {
+      if (typeof store.getWithMetadata === 'function') {
+        const r = await store.getWithMetadata(key, { type: 'json', consistency: 'strong' }).catch(() => null);
+        return r && r.data ? r.data : null;
+      }
+      return store.get(key, { type: 'json' }).catch(() => null);
+    }));
+    for (const r of rows) if (r) out.push(r);
+  }
+  return out;
+}
+
 async function rosterRecords() {
   const store = await blobsStore('cd1-tech-accounts');
   const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
@@ -55,23 +86,34 @@ exports.handler = async (event) => {
     if (date && !DATE_RE.test(date)) return jsonCors(400, { ok: false, error: 'invalid_date' });
     try {
       const store = await blobsStore('cd1-bookings');
-      // Paginated listing + strong per-record reads (same helpers Admin uses).
+      // Phase 1 — every page of the store (listAllBlobs paginates), read with
+      // eventual consistency in bounded batches, exactly like the Admin list
+      // (ADMIN_LIST_BLOB_READ_CONCURRENCY = 20). Used only to find candidates.
       const blobs = (await listAllBlobs(store, 'cd1-bookings'))
         .filter((b) => !isInternalBookingStoreKey(b.key));
-      const all = await fetchBlobRecords(store, blobs, 20);
+      const all = await readEventual(store, blobs, LIST_READ_CONCURRENCY);
       const loadRoster = createRosterLoader(rosterRecords);
       const nowMs = Date.now();
 
-      const candidates = all
-        .filter(b => b && !b.isDraft && !b.isTest && !b.archived)
-        .filter(isTechEligibleBooking)
-        .filter(b => !date || bookingServiceDate(b) === date);
+      const shortlist = [];
+      for (const b of all) {
+        if (!b || b.isDraft || b.isTest || b.archived || !isTechEligibleBooking(b)) continue;
+        if (date && bookingServiceDate(b) !== date) continue;
+        if ((await resolveTechAssignment(b, session, { loadRoster })).assigned) shortlist.push(b.__blobKey);
+      }
 
-      // Server-side privacy gate: assignment by id (or a unique legacy name),
-      // non-terminal in every status field, and within 12 hours of the
-      // Eastern arrival start. Everything else is redacted before it leaves.
+      // Phase 2 — strong re-read of the shortlist only. Every disclosure
+      // decision is made on this fresh copy, so a stale eventual read can hide
+      // a job for one refresh but can never release PII after cancellation,
+      // completion, reassignment or rescheduling.
+      const fresh = await readStrong(store, shortlist, STRONG_READ_CONCURRENCY);
       const jobs = [];
-      for (const b of candidates) {
+      for (const b of fresh) {
+        if (!b || b.isDraft || b.isTest || b.archived || !isTechEligibleBooking(b)) continue;
+        if (date && bookingServiceDate(b) !== date) continue;
+        // Server-side privacy gate: assignment by id (or a unique legacy name),
+        // non-terminal in every status field, and within 12 hours of the
+        // Eastern arrival start. Everything else is redacted before it leaves.
         const access = await technicianAccess(b, session, { nowMs, loadRoster });
         if (!access.assigned || access.terminal) continue;
         jobs.push(redactTechJob(projectJobForTech(b), access));

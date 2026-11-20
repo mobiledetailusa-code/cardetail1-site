@@ -1545,7 +1545,9 @@ describe('technician payment, arrival, and contact', () => {
     assert.equal(paidView.money, undefined);
     const html = techQuickOpsPage(paidView, 'csrf-token');
     assert.doesNotMatch(html.body, /Harbor|201-555-0177|Call customer|Open map|tel:|maps\.google|localStorage/);
-    assert.match(html.body, /Customer contact is hidden after the job is complete and paid/);
+    // QuickOps Daily Dispatch: a completed job is terminal for technician PII.
+    assert.equal(paidView.piiLocked, true);
+    assert.match(html.body, /This job is closed. Customer details are no longer shown./);
     assert.match(html.body, /status === 401/);
     const earlyHtml = techQuickOpsPage(earlyView, 'csrf-token');
     assert.match(earlyHtml.body, /Harbor/);
@@ -1560,7 +1562,14 @@ describe('technician payment, arrival, and contact', () => {
       paymentStatus: 'due',
     });
     assert.equal(projectTechQuickOpsBooking(doneUnpaid).contactRestricted, false);
-    assert.equal(projectTechQuickOpsBooking(doneUnpaid).service.address, '12 Harbor View, Fort Lee, NJ');
+    // Behaviour change (QuickOps Daily Dispatch, approved scope item 7): no new
+    // customer PII after completion, even while a balance is still due. The
+    // payment link actions stay available; they never expose contact details.
+    const doneUnpaidView = projectTechQuickOpsBooking(doneUnpaid);
+    assert.equal(doneUnpaidView.piiLocked, true);
+    assert.equal(doneUnpaidView.service.address, '');
+    assert.equal(doneUnpaidView.actions.call, false);
+    assert.equal(doneUnpaidView.telUrl, '');
 
     const safeNote = booking({
       ledger: { approvedCents: 19000, settledCents: 19000, creditedCents: 0, entries: [] },
@@ -1569,7 +1578,7 @@ describe('technician payment, arrival, and contact', () => {
       completedAt: '2026-09-20T18:00:00.000Z',
       notes: 'Gate code 12',
     });
-    assert.equal(projectTechQuickOpsBooking(safeNote).service.note, 'Gate code 12');
+    assert.equal(projectTechQuickOpsBooking(safeNote).service.note, '');
     assert.equal(projectTechQuickOpsBooking(safeNote).service.address, '');
 
     const unset = projectTechQuickOpsBooking(booking({ techPayoutAmount: null }));

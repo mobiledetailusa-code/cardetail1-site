@@ -4027,11 +4027,11 @@ async function loadTechs(fetchOpts, loadOpts) {
         html += '<div style="margin-top:10px"><h4 style="font-size:11px;color:var(--mu);margin-bottom:6px">JOB PHOTOS</h4>';
         if ((j.photosBefore||[]).length) {
           html += '<div style="font-size:11px;color:var(--mu);margin-bottom:4px">Before</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
-            j.photosBefore.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
+            j.photosBefore.map(u=>'<a data-photo-link href="#" target="_blank" rel="noopener"><img data-admin-photo="'+esc(u)+'" alt="Before photo" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
         }
         if ((j.photosAfter||[]).length) {
           html += '<div style="font-size:11px;color:var(--mu);margin-bottom:4px">After</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
-            j.photosAfter.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
+            j.photosAfter.map(u=>'<a data-photo-link href="#" target="_blank" rel="noopener"><img data-admin-photo="'+esc(u)+'" alt="After photo" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
         }
         html += '</div>';
       }
@@ -5165,6 +5165,35 @@ async function loadTechs(fetchOpts, loadOpts) {
     opsRefresh.bindLifecycle();
   }
 
+
+  // Protected job photos need the session header on every request, which an
+  // <img src> cannot send. Fetch them with the header and display blob: URLs.
+  // Legacy public photos load the same way (the server ignores the header).
+  var _photoObjectUrls = [];
+  function hydratePhotos(root) {
+    (root || document).querySelectorAll('img[data-admin-photo]:not([data-photo-loaded])').forEach(function (img) {
+      img.setAttribute('data-photo-loaded', '1');
+      var url = img.getAttribute('data-admin-photo');
+      fetch(url, { headers: { 'x-admin-key': CD1AdminSession.getToken() }, cache: 'no-store', credentials: 'same-origin' })
+        .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.blob(); })
+        .then(function (blob) {
+          var obj = URL.createObjectURL(blob);
+          _photoObjectUrls.push(obj);
+          img.src = obj;
+          var link = img.closest('a[data-photo-link]');
+          if (link) link.href = obj;
+        })
+        .catch(function () {
+          img.alt = 'Photo not available';
+          img.style.opacity = '0.35';
+        });
+    });
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function () { hydratePhotos(document); })
+      .observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   // Technician withdrawal requests. Approve = take that technician off the job
   // (same unassign as the drawer). It never cancels the customer booking.
   async function loadWithdrawals() {
@@ -5219,7 +5248,16 @@ async function loadTechs(fetchOpts, loadOpts) {
         toast((res && (res.message || res.error)) || 'Could not update the request.', 'error');
       }
     } catch (err) {
-      toast((err && err.message) || 'Could not update the request.', 'error');
+      const code = String((err && err.message) || '');
+      const friendly = {
+        stale_request: 'Not changed: this job is no longer assigned to that technician.',
+        job_not_active: 'Not changed: the job is already cancelled or completed.',
+        already_decided: 'This request was already decided.',
+        concurrent_decision: 'Someone else is deciding this request. Refresh and try again.',
+        booking_unavailable: 'The booking could not be loaded. Nothing was changed.',
+        version_conflict: 'The job changed while approving. Nothing was changed; try again.',
+      };
+      toast(friendly[code] || code || 'Could not update the request.', 'error');
     }
     loadWithdrawals();
   });
