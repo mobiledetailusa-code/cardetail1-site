@@ -424,8 +424,11 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/welcome-lead-store.js',
     // Commercial & specialty quote requests: validation + inquiry storage (no pricing or payment imports).
     'netlify/lib/vehicle-inquiry.js',
-    // Commercial pricing foundation: structure only, every amount null, checkout off (no payment imports).
+    // Commercial pricing engine (rate card v2): draft card, every amount null, no public price,
+    // checkout off (no payment imports), and the shared vehicle classifier it uses. Neither is
+    // required by any function or booking path yet.
     'netlify/lib/commercial-pricing.js',
+    'netlify/lib/vehicle-pricing-channel.js',
     // Read-only admin list of stored quote requests (existing admin session auth).
     'netlify/functions/admin-inquiries.js',
     'netlify/lib/welcome-offer-redemption.js',

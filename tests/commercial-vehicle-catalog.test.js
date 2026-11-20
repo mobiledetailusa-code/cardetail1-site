@@ -292,93 +292,39 @@ describe('server: catalog selections in quote requests', () => {
   });
 });
 
-/** Test-only rate card with synthetic amounts. Not a price proposal. */
-function fixtureCard(overrides = {}) {
-  const card = Pricing.draftRateCard();
-  let n = 1000;
-  for (const row of Object.values(card.sizeClasses)) {
-    for (const k of [...Pricing.PRICED_SERVICES, ...Pricing.PRICED_EXTRAS]) { row[k] = n; n += 100; }
-    row.estimatedMinutes = 60;
-  }
-  for (const k of Object.keys(card.labor)) card.labor[k] = 500;
-  card.safeguards.minimumTicketCents = 100;
-  card.safeguards.minimumRevenuePerHourCents = 100;
-  return Object.assign(card, { status: 'approved', approvedBy: 'test', approvedAt: '2026-11-19T00:00:00Z' }, overrides);
-}
-
+// Engine behaviour (base services, add-ons, configuration, travel, manual quotes) is
+// covered in tests/commercial-pricing-engine.test.js. Here: the live card stays inactive.
 describe('pricing foundation: inactive until approved', () => {
-  const TRANSIT = { modelId: 'ford_transit', body: 'cargo_van', roof: 'high', length: 'extended' };
-
   it('the live rate card is a draft with no amounts', () => {
     const card = Pricing.ACTIVE_RATE_CARD;
     assert.equal(card.status, 'draft');
     assert.equal(card.approvedBy, null);
+    assert.equal(card.approvedAt, null);
     assert.deepEqual(Object.keys(card.sizeClasses).sort(), [...CC.SIZE_CLASSES].sort());
     const amounts = JSON.stringify(card).match(/":\s*\d+/g) || [];
-    assert.deepEqual(amounts, ['":1'], 'only the version number is numeric');
+    assert.deepEqual(amounts, ['":2'], 'only the version number is numeric');
     assert.equal(Pricing.validateRateCard(card).approved, false);
+    assert.ok(Object.isFrozen(card) && Object.isFrozen(card.sizeClasses.cv_van_full.services.full_detail));
   });
 
-  it('no commercial checkout: constant off, and every configuration is refused a price', () => {
+  it('no commercial checkout or public price: constants off, and every configuration is refused a price', () => {
     assert.equal(Pricing.COMMERCIAL_CHECKOUT_ENABLED, false);
+    assert.equal(Pricing.COMMERCIAL_PUBLIC_PRICING_ENABLED, false);
     assert.equal(Pricing.commercialCheckoutEnabled(), false);
     for (const m of CC.MODELS) {
       for (const body of m.bodies) {
         const sel = { modelId: m.id, body, roof: m.roofs[0], length: m.lengths[0], busLength: m.busLengths[0], boxLength: m.boxLengths[0], passengerCapacity: 4, wheelchairPositions: 1 };
-        const q = Pricing.quoteCommercial({ selection: sel, services: ['interior_cleaning'] });
-        assert.equal(q.ok, false, `${m.id}/${body}`);
-        assert.ok(['pricing_not_approved', 'manual_quote'].includes(q.reason), `${m.id}/${body}: ${q.reason}`);
-        assert.equal(q.totalCents, undefined);
+        for (const service of Pricing.SERVICES) {
+          const q = Pricing.quoteCommercial({ selection: sel, service, zip: '07601' });
+          assert.equal(q.ok, false, `${m.id}/${body}/${service}`);
+          assert.ok(['pricing_not_approved', 'manual_quote'].includes(q.reason), `${m.id}/${body}: ${q.reason}`);
+          assert.equal(q.totalCents, undefined);
+          const pub = Pricing.publicCommercialQuote({ selection: sel, service, zip: '07601' });
+          assert.equal(pub.ok, false);
+          assert.equal(JSON.stringify(pub).match(/cents/i), null, 'public result carries no amount');
+        }
       }
     }
-  });
-
-  it('a complete card that is not marked approved still prices nothing', () => {
-    const q = Pricing.quoteCommercial({ selection: TRANSIT, services: ['full_detail'] }, { rateCard: fixtureCard({ status: 'draft' }) });
-    assert.equal(q.reason, 'pricing_not_approved');
-    const missing = fixtureCard(); missing.sizeClasses.cv_box_xl.full_detail = null;
-    assert.ok(Pricing.validateRateCard(missing).problems.includes('cv_box_xl.full_detail'));
-    assert.equal(Pricing.quoteCommercial({ selection: TRANSIT, services: ['full_detail'] }, { rateCard: missing }).reason, 'pricing_not_approved');
-  });
-
-  it('with an approved card the server prices from its own size class, never the client’s', () => {
-    const card = fixtureCard();
-    const q = Pricing.quoteCommercial({
-      selection: { ...TRANSIT, sizeClass: 'cv_van_compact', tierKey: 'small', price: 1 },
-      services: ['interior_cleaning', 'exterior_wash', 'full_detail'], extras: ['roof_cleaning'],
-      sizeClass: 'cv_van_compact', totalCents: 1,
-    }, { rateCard: card });
-    assert.equal(q.ok, true);
-    assert.equal(q.sizeClass, 'cv_van_full_xl');
-    const row = card.sizeClasses.cv_van_full_xl;
-    assert.deepEqual(q.lines.map((l) => l.code), ['full_detail', 'roof_cleaning'], 'full detail is not billed twice');
-    assert.equal(q.totalCents, row.full_detail + row.roof_cleaning);
-  });
-
-  it('adds labor for unusual configurations and applies the minimum safeguards', () => {
-    const card = fixtureCard();
-    const bus = { modelId: 'ford_eseries_cutaway_bus', body: 'shuttle_bus', busLength: '25_to_29', passengerCapacity: 24, wheelchairPositions: 2 };
-    const q = Pricing.quoteCommercial({ selection: bus, services: ['interior_cleaning'] }, { rateCard: card });
-    assert.deepEqual(q.lines.map((l) => l.code), ['interior_cleaning', 'wheelchair_position', 'high_seat_count']);
-    assert.equal(q.lines[1].cents, 2 * card.labor.wheelchair_position);
-
-    card.safeguards.minimumTicketCents = 999999;
-    const floored = Pricing.quoteCommercial({ selection: bus, services: ['interior_cleaning'] }, { rateCard: card });
-    assert.equal(floored.totalCents, 999999);
-    assert.equal(floored.lines.at(-1).code, 'minimum_job_adjustment');
-
-    card.safeguards.minimumTicketCents = 100;
-    card.sizeClasses.cv_shuttle_medium.estimatedMinutes = 600;
-    card.safeguards.minimumRevenuePerHourCents = 50000;
-    assert.equal(Pricing.quoteCommercial({ selection: bus, services: ['interior_cleaning'] }, { rateCard: card }).totalCents, 500000);
-  });
-
-  it('unsized vehicles and quote-only services stay manual quotes even when approved', () => {
-    const card = fixtureCard();
-    assert.equal(Pricing.quoteCommercial({ selection: { modelId: 'other_box_truck', body: 'box_truck', boxLength: '14_to_16' }, services: ['exterior_wash'] }, { rateCard: card }).reason, 'manual_quote');
-    assert.equal(Pricing.quoteCommercial({ selection: TRANSIT, services: ['sanitizing'] }, { rateCard: card }).reason, 'manual_quote');
-    assert.equal(Pricing.quoteCommercial({ selection: TRANSIT, services: ['full_detail', 'windows'] }, { rateCard: card }).reason, 'manual_quote');
-    assert.equal(Pricing.quoteCommercial({ selection: { modelId: 'x' }, services: ['full_detail'] }, { rateCard: card }).reason, 'invalid_vehicle');
   });
 });
 
@@ -418,7 +364,16 @@ describe('no commercial vehicle receives passenger-car or pickup pricing', () =>
 
   it('the pricing foundation is not wired into any function, checkout or payment code', () => {
     const src = fs.readFileSync(path.join(ROOT, 'netlify/lib/commercial-pricing.js'), 'utf8');
-    assert.doesNotMatch(src, /require\([^)]*(stripe|square|payment|checkout|booking)/i);
+    // Only read-only libraries: the catalogs, travel-fee and the Cars price table. No payment or booking functions.
+    assert.doesNotMatch(src, /require\([^)]*(stripe|square|payment|checkout|submit-booking|create-payment)/i);
+    for (const lib of ['commercial-pricing', 'vehicle-pricing-channel']) {
+      for (const dir of ['netlify/functions', 'netlify/lib']) {
+        for (const f of fs.readdirSync(path.join(ROOT, dir)).filter((x) => x.endsWith('.js'))) {
+          if (f === 'commercial-pricing.js' || f === `${lib}.js`) continue;
+          assert.doesNotMatch(fs.readFileSync(path.join(ROOT, dir, f), 'utf8'), new RegExp(`require\\([^)]*${lib}`), `${dir}/${f} must not use ${lib} yet`);
+        }
+      }
+    }
     const fnDir = path.join(ROOT, 'netlify/functions');
     for (const f of fs.readdirSync(fnDir).filter((x) => x.endsWith('.js'))) {
       assert.doesNotMatch(fs.readFileSync(path.join(fnDir, f), 'utf8'), /commercial-pricing/, f);
