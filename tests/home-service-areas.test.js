@@ -193,6 +193,9 @@ test('no Netlify Function files changed in this scope', () => {
     'netlify/functions/customer-portal-vehicles.js',
     'netlify/functions/tech-complete-job.js',
     'netlify/functions/tech-jobs.js',
+    'netlify/functions/job-photo-image.js',
+    'netlify/functions/tech-job-photos.js',
+    'netlify/functions/tech-auctions.js',
     'netlify/functions/customer-portal-action.js',
     // Release B — post-service review / 48h service-issue window
     'netlify/functions/submit-review.js',

@@ -1,7 +1,16 @@
 // Technician job completion — no mandatory signatures; payment channel paths.
 const {
-  blobsStore, jsonCors, validateTechSession, bookingAssignedToTech, sanitizeText,
+  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText,
 } = require('../lib/tech-security');
+const {
+  resolveTechAssignment, createRosterLoader, technicianTerminalState,
+} = require('../lib/tech-dispatch-privacy');
+
+async function rosterRecords() {
+  const store = await blobsStore('cd1-tech-accounts');
+  const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
+  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15);
+}
 const { appendEventLog } = require('../lib/ops-workflow');
 const {
   syncLegacyFields, evaluateTechAdjustment, getApprovedAmountCents, makeRequestId,
@@ -37,8 +46,15 @@ exports.handler = async (event) => {
       return jsonCors(404, { ok: false, error: 'booking_not_found' });
     }
     const booking = current.booking;
-    if (!bookingAssignedToTech(booking, session.techId, session.techName)) {
+    const assignment = await resolveTechAssignment(booking, session, {
+      loadRoster: createRosterLoader(rosterRecords),
+    });
+    if (!assignment.assigned) {
       return jsonCors(403, { ok: false, error: 'not_assigned_to_you' });
+    }
+    // A cancelled appointment (in any status field) can never be completed.
+    if (technicianTerminalState(booking).reason === 'cancelled') {
+      return jsonCors(403, { ok: false, error: 'not_confirmed_eligible' });
     }
     const { isTechEligibleBooking } = require('../lib/ops-workflow');
     if (!isTechEligibleBooking(booking) && !booking.completionSubmitted) {

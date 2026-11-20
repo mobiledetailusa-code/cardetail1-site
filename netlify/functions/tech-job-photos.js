@@ -1,7 +1,43 @@
 // Technician job photo upload — before/after, assigned jobs only.
 const {
-  blobsStore, jsonCors, validateTechSession, bookingAssignedToTech, sanitizeText,
+  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText,
 } = require('../lib/tech-security');
+const { technicianAccess, createRosterLoader } = require('../lib/tech-dispatch-privacy');
+
+async function rosterRecords() {
+  const store = await blobsStore('cd1-tech-accounts');
+  const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
+  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15);
+}
+
+/** Strong read: the access decision must see the latest assignment and status. */
+async function readBookingStrong(store, id) {
+  if (typeof store.getWithMetadata === 'function') {
+    const r = await store.getWithMetadata(id, { type: 'json', consistency: 'strong' }).catch(() => null);
+    if (r && r.data) return r.data;
+  }
+  return store.get(id, { type: 'json' }).catch(() => null);
+}
+
+/**
+ * Photos follow the same gate as customer PII: assigned by id (or a unique
+ * legacy name), not completed/cancelled in any status field, and within
+ * 12 hours of the Eastern arrival start. URLs already issued earlier stay
+ * reachable; this only stops new ones being issued or accepted.
+ */
+async function photoAccessError(booking, session) {
+  const access = await technicianAccess(booking, session, { loadRoster: createRosterLoader(rosterRecords) });
+  if (!access.assigned) return jsonCors(403, { ok: false, error: 'not_assigned_to_you' });
+  if (!access.piiAllowed) {
+    return jsonCors(403, {
+      ok: false,
+      error: 'photo_access_locked',
+      reason: access.reason,
+      unlocksAt: access.unlocksAt || null,
+    });
+  }
+  return null;
+}
 const { appendEventLog } = require('../lib/ops-workflow');
 const {
   decodeAndValidateImage, storeJobPhoto, MAX_PHOTOS_PER_PHASE,
@@ -23,11 +59,10 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'GET') {
     if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
     const store = await blobsStore('cd1-bookings');
-    const booking = await store.get(bookingId, { type: 'json' }).catch(() => null);
+    const booking = await readBookingStrong(store, bookingId);
     if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
-    if (!bookingAssignedToTech(booking, session.techId, session.techName)) {
-      return jsonCors(403, { ok: false, error: 'not_assigned_to_you' });
-    }
+    const denied = await photoAccessError(booking, session);
+    if (denied) return denied;
     return jsonCors(200, {
       ok: true,
       bookingId,
@@ -50,11 +85,10 @@ exports.handler = async (event) => {
   }
 
   const bookStore = await blobsStore('cd1-bookings');
-  const booking = await bookStore.get(bid, { type: 'json' }).catch(() => null);
+  const booking = await readBookingStrong(bookStore, bid);
   if (!booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
-  if (!bookingAssignedToTech(booking, session.techId, session.techName)) {
-    return jsonCors(403, { ok: false, error: 'not_assigned_to_you' });
-  }
+  const denied = await photoAccessError(booking, session);
+  if (denied) return denied;
 
   const field = phase === 'before' ? 'photosBefore' : 'photosAfter';
   const existing = Array.isArray(booking[field]) ? booking[field] : [];

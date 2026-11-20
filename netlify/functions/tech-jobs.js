@@ -1,7 +1,22 @@
 // Technician: list assigned jobs + post status updates (not completion).
 const {
-  blobsStore, jsonCors, validateTechSession, bookingAssignedToTech, sanitizeText,
+  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText,
 } = require('../lib/tech-security');
+const {
+  technicianAccess, technicianTerminalState, redactTechJob, createRosterLoader, resolveTechAssignment, bookingServiceDate,
+} = require('../lib/tech-dispatch-privacy');
+const {
+  createWithdrawalRequest, listWithdrawalRequests, projectWithdrawalForTech,
+} = require('../lib/tech-withdrawal');
+const { isInternalBookingStoreKey } = require('../lib/booking-visibility');
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+async function rosterRecords() {
+  const store = await blobsStore('cd1-tech-accounts');
+  const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
+  return fetchBlobRecords(store, blobs.filter((b) => String(b.key || '').startsWith('tech-')), 15);
+}
 const {
   projectJobForTech,
   TECH_STATUS_UPDATES,
@@ -35,21 +50,49 @@ exports.handler = async (event) => {
   if (!session) return jsonCors(401, { ok: false, error: 'unauthorized' });
 
   if (event.httpMethod === 'GET') {
+    const qs = event.queryStringParameters || {};
+    const date = String(qs.date || '').trim();
+    if (date && !DATE_RE.test(date)) return jsonCors(400, { ok: false, error: 'invalid_date' });
     try {
       const store = await blobsStore('cd1-bookings');
-      const listing = await store.list();
-      const all = (await Promise.all(
-        ((listing && listing.blobs) || []).map(b => store.get(b.key, { type: 'json' }).catch(() => null))
-      )).filter(Boolean);
+      // Paginated listing + strong per-record reads (same helpers Admin uses).
+      const blobs = (await listAllBlobs(store, 'cd1-bookings'))
+        .filter((b) => !isInternalBookingStoreKey(b.key));
+      const all = await fetchBlobRecords(store, blobs, 20);
+      const loadRoster = createRosterLoader(rosterRecords);
+      const nowMs = Date.now();
 
-      const jobs = all
-        .filter(b => !b.isDraft && !b.isTest && !b.archived)
-        .filter(b => bookingAssignedToTech(b, session.techId, session.techName))
+      const candidates = all
+        .filter(b => b && !b.isDraft && !b.isTest && !b.archived)
         .filter(isTechEligibleBooking)
-        .map(projectJobForTech)
-        .sort((a, b) => String(a.preferredDate || '').localeCompare(String(b.preferredDate || '')));
+        .filter(b => !date || bookingServiceDate(b) === date);
 
-      return jsonCors(200, { ok: true, count: jobs.length, jobs });
+      // Server-side privacy gate: assignment by id (or a unique legacy name),
+      // non-terminal in every status field, and within 12 hours of the
+      // Eastern arrival start. Everything else is redacted before it leaves.
+      const jobs = [];
+      for (const b of candidates) {
+        const access = await technicianAccess(b, session, { nowMs, loadRoster });
+        if (!access.assigned || access.terminal) continue;
+        jobs.push(redactTechJob(projectJobForTech(b), access));
+      }
+      jobs.sort((a, b) => String(a.confirmedDate || a.preferredDate || '')
+        .localeCompare(String(b.confirmedDate || b.preferredDate || '')));
+
+      let withdrawals = [];
+      try {
+        withdrawals = (await listWithdrawalRequests({ status: 'all', techId: session.techId }))
+          .map(projectWithdrawalForTech);
+      } catch { withdrawals = []; }
+
+      return jsonCors(200, {
+        ok: true,
+        count: jobs.length,
+        jobs,
+        date: date || null,
+        withdrawals,
+        serverNow: new Date(nowMs).toISOString(),
+      });
     } catch {
       return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
     }
@@ -62,6 +105,24 @@ exports.handler = async (event) => {
   catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
   const bookingId = sanitizeText(body.bookingId, 48);
+  if (String(body.action || '') === 'request_withdrawal') {
+    if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
+    const store = await blobsStore('cd1-bookings');
+    const rec = await getBookingRecord(bookingId, { storeOverride: store });
+    if (!rec.exists || !rec.booking) return jsonCors(404, { ok: false, error: 'booking_not_found' });
+    // Files a pending request only. The booking is not written here.
+    const created = await createWithdrawalRequest({
+      booking: rec.booking,
+      session,
+      reason: body.reason,
+      loadRoster: createRosterLoader(rosterRecords),
+    });
+    if (!created.ok) {
+      const { statusCode, ok, ...rest } = created;
+      return jsonCors(statusCode || 400, { ...rest, ok: false });
+    }
+    return jsonCors(200, { ok: true, request: projectWithdrawalForTech(created.request) });
+  }
   const newStatus = sanitizeText(body.status, 40).toLowerCase();
   const note = sanitizeText(body.note, 500);
 
@@ -78,10 +139,15 @@ exports.handler = async (event) => {
       return jsonCors(404, { ok: false, error: 'booking_not_found' });
     }
     const booking = current.booking;
-    if (!bookingAssignedToTech(booking, session.techId, session.techName)) {
+    const assignment = await resolveTechAssignment(booking, session, {
+      loadRoster: createRosterLoader(rosterRecords),
+    });
+    if (!assignment.assigned) {
       return jsonCors(403, { ok: false, error: 'not_assigned_to_you' });
     }
-    if (!isTechEligibleBooking(booking)) {
+    // Terminal in any status field (legacy status, jobStatus, serviceStatus)
+    // blocks field updates even when jobStatus alone looks active.
+    if (!isTechEligibleBooking(booking) || technicianTerminalState(booking).terminal) {
       return jsonCors(403, { ok: false, error: 'not_confirmed_eligible' });
     }
     const fromStatus = normalizeTechJobStatus(booking);

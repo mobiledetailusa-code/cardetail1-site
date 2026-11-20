@@ -11,6 +11,7 @@ const ALLOWED = {
 };
 const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_PHOTOS_PER_PHASE = 8;
+const PRIVATE_CACHE_POLICY = 'private-v1';
 
 function checkMagicBytes(buf, contentType) {
   if (buf.length < 12) return false;
@@ -80,6 +81,10 @@ async function storeJobPhoto({ bookingId, phase, techId, buf, contentType, filen
     originalFilename: sanitizeFilename(filename),
     size: buf.length,
     uploadedAt: new Date().toISOString(),
+    // Photos uploaded from QuickOps Daily Dispatch onward are served with a
+    // private, short-lived cache policy (see job-photo-image.js). Photos
+    // stored before this flag keep their original public immutable policy.
+    cachePolicy: PRIVATE_CACHE_POLICY,
   });
   return { id, url: photoServeUrl(id), size: buf.length, contentType };
 }
@@ -90,6 +95,7 @@ module.exports = {
   ALLOWED,
   MAX_BYTES,
   MAX_PHOTOS_PER_PHASE,
+  PRIVATE_CACHE_POLICY,
   photoServeUrl,
   openJobPhotoStore,
   decodeAndValidateImage,
