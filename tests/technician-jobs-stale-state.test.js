@@ -65,7 +65,13 @@ function deferred() {
  */
 async function bootPage(t, jobs) {
   const posts = [];
-  const state = { jobs };
+  const state = {
+    jobs,
+    // tech-auth by action; default: every call succeeds.
+    auth: (body) => response(200, { ok: true, techId: 'TECH-AAAAAA111111', name: 'Alex Rivera', token: body.action === 'login' ? 'b'.repeat(64) : undefined }),
+    photoPost: () => response(200, { ok: true, photosBefore: ['/.netlify/functions/job-photo-image?id=jobph_1_aaaa'], photosAfter: [] }),
+    jobGets: 0,
+  };
   // Script errors while the page is open fail the test; errors after
   // window.close() (observers firing on a torn-down document) are ignored.
   const scriptErrors = [];
@@ -86,11 +92,13 @@ async function bootPage(t, jobs) {
         const u = String(url);
         const method = String(opts.method || 'GET').toUpperCase();
         if (method === 'POST' && !/tech-auth|tech-profile/.test(u)) posts.push({ url: u, body: JSON.parse(opts.body || '{}') });
-        if (u.includes('tech-auth')) return response(200, { ok: true, techId: 'TECH-AAAAAA111111', name: 'Alex Rivera' });
+        if (u.includes('tech-auth')) return state.auth(JSON.parse(opts.body || '{}'));
         if (u.includes('tech-profile')) return response(200, { ok: true, profile: { onboardingComplete: true } });
-        if (u.includes('tech-jobs') && method === 'GET') return state.jobs();
+        if (u.includes('tech-jobs') && method === 'GET') { state.jobGets += 1; return state.jobs(); }
         if (u.includes('tech-jobs')) return response(200, { ok: true });
+        if (u.includes('tech-job-photos') && method === 'POST') return state.photoPost();
         if (u.includes('tech-job-photos')) return response(200, { ok: true, photosBefore: [], photosAfter: [] });
+        if (u.includes('job-photo-image')) return response(404, { ok: false });
         if (u.includes('tech-complete-job')) return response(200, { ok: true });
         return response(404, { ok: false });
       };
@@ -106,6 +114,7 @@ async function bootPage(t, jobs) {
   const page = {
     w,
     posts,
+    state,
     setJobs(fn) { state.jobs = fn; },
     list: () => w.document.getElementById('jobs-list'),
     cards: () => w.document.querySelectorAll('#jobs-list .jc').length,
@@ -319,4 +328,236 @@ test('mobile layout: the unavailable panel reuses the existing responsive empty-
   assert.doesNotMatch(m[0], /width\s*:/);
   assert.match(HTML, /\.empty\{text-align:center;padding:44px 14px/);
   assert.match(HTML, /<meta name="viewport" content="width=device-width/);
+});
+
+// ---------------------------------------------------------------------------
+// Residual races: completion dialog, photo upload, logout
+// ---------------------------------------------------------------------------
+
+/** Replace FileReader so the test decides when a file read finishes. */
+function controlFileReader(w) {
+  const pending = [];
+  w.FileReader = class {
+    readAsDataURL() {
+      pending.push(() => { this.result = 'data:image/jpeg;base64,QUJD'; this.onload(); });
+    }
+  };
+  return {
+    get pending() { return pending.length; },
+    finishAll() { while (pending.length) pending.shift()(); },
+  };
+}
+const photoFile = () => ({ files: [{ size: 1000, type: 'image/jpeg', name: 'a.jpg' }], value: 'C:\\fakepath\\a.jpg' });
+const photoPosts = (page) => page.posts.filter((p) => p.url.includes('tech-job-photos'));
+const modalOpen = (page) => page.w.document.getElementById('complete-modal').classList.contains('open');
+
+test('completion dialog: invalidation closes it and clears customer details (failure and refresh start)', async (t) => {
+  const page = await loadedPage(t);
+  page.w.openComplete('bk_job_one');
+  await page.settle();
+  assert.ok(modalOpen(page));
+  assert.match(page.w.document.getElementById('cmp-summary').textContent, /Jordan Stale/);
+  assert.match(page.w.document.getElementById('cmp-summary').innerHTML, /Harbor View/);
+  page.w.document.getElementById('cust-name').value = 'Jordan Stale';
+
+  // The moment a refresh starts, the dialog is gone (response still pending).
+  const pending = deferred();
+  page.setJobs(() => pending.promise);
+  const p = page.w.loadJobs();
+  assert.equal(modalOpen(page), false, 'closed as soon as the list is invalidated');
+  const modal = page.w.document.getElementById('complete-modal');
+  assert.doesNotMatch(modal.innerHTML, STALE);
+  assert.equal(page.w.document.getElementById('cmp-summary').innerHTML, '');
+  assert.equal(page.w.document.getElementById('cust-name').value, '');
+  assert.equal(page.w.document.getElementById('cmp-sub').textContent, '—');
+  pending.resolve(response(503, { ok: false, error: 'temporarily_unavailable' }));
+  await p;
+  await page.settle();
+  assert.equal(modalOpen(page), false);
+  assert.doesNotMatch(modal.innerHTML, STALE);
+
+  page.posts.length = 0;
+  await page.w.submitComplete();
+  assert.equal(page.posts.filter((x) => x.url.includes('tech-complete-job')).length, 0, 'no stale completion');
+});
+
+test('completion dialog: a photo list arriving after the dialog was discarded is ignored', async (t) => {
+  const page = await loadedPage(t);
+  const photosGet = deferred();
+  const realFetch = page.w.fetch;
+  page.w.fetch = (url, opts) => (String(url).includes('tech-job-photos') && !(opts && opts.method)
+    ? photosGet.promise : realFetch(url, opts));
+  page.w.openComplete('bk_job_one');
+  page.setJobs(() => response(503, { ok: false }));
+  await page.w.loadJobs();
+  photosGet.resolve(response(200, { ok: true, photosBefore: ['/.netlify/functions/job-photo-image?id=jobph_9_ffff'], photosAfter: [] }));
+  await page.settle();
+  assert.equal(page.w.document.getElementById('grid-before').innerHTML, '');
+});
+
+test('normal completion still submits on a current list', async (t) => {
+  const page = await loadedPage(t);
+  const reader = controlFileReader(page.w);
+  page.state.photoPost = () => response(200, {
+    ok: true,
+    photosBefore: ['/.netlify/functions/job-photo-image?id=jobph_1_aaaa'],
+    photosAfter: ['/.netlify/functions/job-photo-image?id=jobph_2_bbbb'],
+  });
+  page.w.openComplete('bk_job_one');
+  await page.settle();
+  const up = page.w.onPhotoPick('before', photoFile());
+  reader.finishAll();
+  await up;
+  await page.settle();
+  const d = page.w.document;
+  d.getElementById('chk-service').checked = true;
+  d.getElementById('chk-work-doc').checked = true;
+  d.getElementById('chk-tech-confirm').checked = true;
+  page.posts.length = 0;
+  await page.w.submitComplete();
+  await page.settle();
+  const sent = page.posts.filter((x) => x.url.includes('tech-complete-job'));
+  assert.equal(sent.length, 1, d.getElementById('cmperr').textContent);
+  assert.equal(sent[0].body.bookingId, 'bk_job_one');
+  assert.equal(modalOpen(page), false);
+});
+
+test('photo upload: normal upload sends once and shows the returned photos', async (t) => {
+  const page = await loadedPage(t);
+  const reader = controlFileReader(page.w);
+  page.w.openComplete('bk_job_one');
+  await page.settle();
+  page.posts.length = 0;
+  const up = page.w.onPhotoPick('before', photoFile());
+  assert.equal(reader.pending, 1);
+  reader.finishAll();
+  await up;
+  await page.settle();
+  const sent = photoPosts(page);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body.bookingId, 'bk_job_one');
+  assert.match(page.w.document.getElementById('grid-before').innerHTML, /jobph_1_aaaa/);
+});
+
+for (const [label, invalidate] of [
+  ['the list fails (503)', async (page) => { page.setJobs(() => response(503, { ok: false })); await page.w.loadJobs(); }],
+  ['the list is refreshed successfully', async (page) => { await page.w.loadJobs(); }],
+  ['the technician signs out', async (page) => { await page.w.doLogout(); }],
+  ['a network failure empties the list', async (page) => { page.setJobs(() => Promise.reject(new TypeError('Failed to fetch'))); await page.w.loadJobs(); }],
+]) {
+  test(`photo upload: nothing is sent when ${label} while the file is being read`, async (t) => {
+    const page = await loadedPage(t);
+    const reader = controlFileReader(page.w);
+    page.w.openComplete('bk_job_one');
+    await page.settle();
+    page.posts.length = 0;
+    const up = page.w.onPhotoPick('after', photoFile());
+    assert.equal(reader.pending, 1, 'file read in progress');
+    await invalidate(page);
+    reader.finishAll();
+    await up;
+    await page.settle();
+    assert.deepEqual(photoPosts(page), [], 'no upload request');
+    assert.equal(page.w.document.getElementById('grid-after').innerHTML, '');
+  });
+}
+
+test('photo upload: a response that arrives after invalidation is not shown', async (t) => {
+  const page = await loadedPage(t);
+  const reader = controlFileReader(page.w);
+  const upload = deferred();
+  page.state.photoPost = () => upload.promise;
+  page.w.openComplete('bk_job_one');
+  await page.settle();
+  const up = page.w.onPhotoPick('before', photoFile());
+  reader.finishAll();
+  await page.settle();
+  assert.equal(photoPosts(page).length, 1, 'upload in flight');
+  page.setJobs(() => response(503, { ok: false }));
+  await page.w.loadJobs();
+  upload.resolve(response(200, { ok: true, photosBefore: ['/.netlify/functions/job-photo-image?id=jobph_1_aaaa'], photosAfter: [] }));
+  await up;
+  await page.settle();
+  assert.equal(page.w.document.getElementById('grid-before').innerHTML, '');
+  assert.equal(modalOpen(page), false);
+});
+
+test('logout: the list is cleared when logout starts; an in-flight list response cannot restore it', async (t) => {
+  const page = await loadedPage(t);
+  page.w.openComplete('bk_job_one');
+  await page.settle();
+  const jobsPending = deferred();
+  page.setJobs(() => jobsPending.promise);
+  // A refresh is in flight…
+  const listing = page.w.loadJobs();
+  // …then put it back to "loaded" so logout must clear it itself.
+  jobsPending.resolve(response(200, { ok: true, jobs: [job()], withdrawals: [] }));
+  await listing;
+  assert.equal(page.cards(), 1);
+
+  const inflight = deferred();
+  page.setJobs(() => inflight.promise);
+  const listing2 = page.w.loadJobs();
+  page.w.openComplete('bk_job_one');
+  const logoutResp = deferred();
+  page.state.auth = (body) => (body.action === 'logout' ? logoutResp.promise : response(200, { ok: true }));
+  const out = page.w.doLogout();
+  // Synchronously cleared, before the server answers.
+  assert.equal(page.cards(), 0);
+  assert.doesNotMatch(page.visibleText(), STALE);
+  assert.equal(modalOpen(page), false);
+
+  inflight.resolve(response(200, { ok: true, jobs: [job()], withdrawals: [] }));
+  await listing2;
+  await page.settle();
+  assert.equal(page.cards(), 0, 'in-flight response during logout is ignored');
+  assert.doesNotMatch(page.visibleText(), STALE);
+
+  logoutResp.resolve(response(200, { ok: true }));
+  await out;
+  await page.settle();
+  assert.equal(page.cards(), 0);
+  assert.equal(page.w.sessionStorage.getItem('cd1_tech_token'), null);
+  assert.ok(page.w.document.getElementById('s-land').classList.contains('active'));
+});
+
+for (const [label, fail] of [
+  ['a network error', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ['a server error', () => response(500, { ok: false })],
+]) {
+  test(`logout: ${label} from the server logout still leaves no customer data`, async (t) => {
+    const page = await loadedPage(t);
+    page.w.openComplete('bk_job_one');
+    await page.settle();
+    const logoutResp = deferred();
+    page.state.auth = (body) => (body.action === 'logout' ? logoutResp.promise : response(200, { ok: true }));
+    const out = page.w.doLogout();
+    const before = page.state.jobGets;
+    await page.w.loadJobs(); // a refresh attempted while logging out sends nothing
+    assert.equal(page.state.jobGets, before, 'no list request during logout');
+    logoutResp.resolve(fail());
+    await out;
+    await page.settle();
+    assert.equal(page.cards(), 0);
+    assert.doesNotMatch(page.visibleText(), STALE);
+    assert.equal(page.w.sessionStorage.getItem('cd1_tech_token'), null);
+    assert.ok(page.w.document.getElementById('s-land').classList.contains('active'));
+  });
+}
+
+test('login after logout loads the job list normally', async (t) => {
+  const page = await loadedPage(t);
+  await page.w.doLogout();
+  assert.equal(page.cards(), 0);
+  page.setJobs(ok([job({ id: 'bk_after_login', customerName: 'Casey Current' })]));
+  const d = page.w.document;
+  page.w.showLogin();
+  d.getElementById('l-email').value = 'tech@example.com';
+  d.getElementById('l-pass').value = 'not-a-real-password';
+  await page.w.doLogin();
+  await page.settle();
+  assert.equal(page.w.sessionStorage.getItem('cd1_tech_token'), 'b'.repeat(64));
+  assert.ok(d.getElementById('s-dash').classList.contains('active'));
+  assert.equal(page.cards(), 1);
+  assert.match(page.list().textContent, /Casey Current/);
 });

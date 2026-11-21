@@ -478,6 +478,27 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     WITHDRAWALS = [];
     JOBS_STATE = state;
     JOBS_ERROR = message || '';
+    discardCompletionDialog();
+  }
+  // A completion dialog belongs to one job in one successful list. When that
+  // list is invalidated the dialog is closed and its customer summary, photos
+  // and customer name are cleared, so nothing stale stays on screen or can be
+  // submitted. (Server-side completion rules are unchanged.)
+  function discardCompletionDialog() {
+    var modal = document.getElementById('complete-modal');
+    if (modal) modal.classList.remove('open');
+    _completeJobId = '';
+    _jobPhotos = { before: [], after: [] };
+    ['cmp-summary', 'grid-before', 'grid-after'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    var sub = document.getElementById('cmp-sub');
+    if (sub) sub.textContent = '—';
+    var eq = document.getElementById('cmp-equipment');
+    if (eq) eq.textContent = '';
+    var cust = document.getElementById('cust-name');
+    if (cust) cust.value = '';
   }
   function validJobsPayload(data) {
     if (!data || data.ok !== true || !Array.isArray(data.jobs)) return false;
@@ -815,15 +836,28 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     return false;
   };
 
+  let LOGGING_OUT = false;
   window.doLogout = async function () {
-    var token = getToken();
-    if (token) {
-      try { await authApi({ action: 'logout', token: token }); } catch (_) {}
-    }
-    clearToken();
-    TECH = null;
-    JOBS_SEQ += 1; // any in-flight list response is now stale
+    // Invalidate before anything asynchronous: in-flight list responses become
+    // stale, the list and any completion dialog are cleared, and no new list
+    // request starts while the server-side logout is pending or if it fails.
+    LOGGING_OUT = true;
+    JOBS_SEQ += 1;
     invalidateJobs('loading');
+    renderJobs();
+    var token = getToken();
+    try {
+      if (token) {
+        try { await authApi({ action: 'logout', token: token }); } catch (_) {}
+      }
+    } finally {
+      clearToken();
+      TECH = null;
+      JOBS_SEQ += 1;
+      invalidateJobs('loading');
+      renderJobs();
+      LOGGING_OUT = false;
+    }
     showScreen('land');
     toast('Signed out');
   };
@@ -864,6 +898,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.loadJobs = async function () {
+    if (LOGGING_OUT) return;
     var seq = ++JOBS_SEQ;
     // Drop the previous list before asking again: nothing old stays visible
     // or actionable while loading, and a failure leaves nothing behind.
@@ -877,7 +912,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     } catch (_) {
       failure = 'network';
     }
-    if (seq !== JOBS_SEQ) return; // a newer request (or logout) superseded this one
+    if (seq !== JOBS_SEQ || LOGGING_OUT || !getToken()) return; // superseded, or signed out
     if (!failure && r.res.status === 401) {
       invalidateJobs('unavailable', 'Session expired.');
       renderJobs();
@@ -1249,12 +1284,26 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       if (errEl) { errEl.textContent = 'Photo must be 4 MB or smaller.'; errEl.classList.add('show'); }
       return;
     }
+    var jobId = _completeJobId;
+    var seq = JOBS_SEQ;
+    // Still the same successful list, the same open job, and that job is in it?
+    function stillCurrent() {
+      return JOBS_STATE === 'ready' && JOBS_SEQ === seq && _completeJobId === jobId
+        && JOBS.some(function (j) { return j.id === jobId; });
+    }
     try {
       var data = await fileToBase64(file);
+      // Reading the file is asynchronous: the list may have been refreshed,
+      // failed, or the technician signed out meanwhile. Re-check right before
+      // sending; if anything changed, nothing is uploaded.
+      if (!stillCurrent()) {
+        if (errEl && _completeJobId === jobId) { errEl.textContent = 'Your job list changed. Upload again.'; errEl.classList.add('show'); }
+        return;
+      }
       var r = await techFetch(PHOTOS_URL, {
         method: 'POST',
         body: JSON.stringify({
-          bookingId: _completeJobId,
+          bookingId: jobId,
           phase: phase,
           data: data,
           contentType: file.type,
@@ -1267,6 +1316,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         if (errEl) { errEl.textContent = msg; errEl.classList.add('show'); }
         return;
       }
+      if (!stillCurrent()) return; // dialog was discarded while uploading
       _jobPhotos.before = r.data.photosBefore || _jobPhotos.before;
       _jobPhotos.after = r.data.photosAfter || _jobPhotos.after;
       renderPhotoGrid('before');
@@ -1280,6 +1330,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   async function loadJobPhotos(bookingId) {
     try {
       var r = await techFetch(PHOTOS_URL + '?bookingId=' + encodeURIComponent(bookingId));
+      if (_completeJobId !== bookingId) return; // dialog closed or discarded meanwhile
       if (r.data.ok) {
         _jobPhotos.before = r.data.photosBefore || [];
         _jobPhotos.after = r.data.photosAfter || [];
@@ -1287,6 +1338,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         _jobPhotos = { before: [], after: [] };
       }
     } catch (_) {
+      if (_completeJobId !== bookingId) return;
       _jobPhotos = { before: [], after: [] };
     }
     renderPhotoGrid('before');
