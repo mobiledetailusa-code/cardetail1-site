@@ -5,6 +5,7 @@ const {
 
 const unavailable = () => jsonCors(503, { ok: false, error: 'temporarily_unavailable' }, { 'Retry-After': '5' });
 const isStrongReadError = (e) => !!(e && e.code === 'strong_read_failed');
+const isIncompleteListing = (e) => !!(e && e.code === 'listing_incomplete');
 const {
   technicianAccess, technicianTerminalState, redactTechJob, createRosterLoader, resolveTechAssignment, bookingServiceDate,
 } = require('../lib/tech-dispatch-privacy');
@@ -18,30 +19,63 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const LIST_READ_CONCURRENCY = 20;
 const STRONG_READ_CONCURRENCY = 20;
 
-async function readEventual(store, blobs, concurrency) {
-  const out = [];
-  for (let i = 0; i < blobs.length; i += concurrency) {
-    const rows = await Promise.all(blobs.slice(i, i + concurrency).map(async (blob) => {
-      const raw = await store.get(blob.key, { type: 'json' }).catch(() => null);
-      if (raw && typeof raw === 'object') raw.__blobKey = blob.key;
-      return raw;
-    }));
-    for (const r of rows) if (r) out.push(r);
+class IncompleteListingError extends Error {
+  constructor(cause) {
+    super('listing_incomplete');
+    this.code = 'listing_incomplete';
+    this.cause = cause;
   }
-  return out;
 }
 
-// Strong re-read for the disclosure decision. A failed strong read throws
-// (StrongReadError) and the whole request fails closed with 503; it never
-// falls back to the eventual copy from phase 1.
-async function readStrong(store, keys, concurrency) {
-  const out = [];
-  for (let i = 0; i < keys.length; i += concurrency) {
-    const rows = await Promise.all(keys.slice(i, i + concurrency)
-      .map(async (key) => (await readJsonStrong(store, key)).data));
-    for (const r of rows) if (r) out.push(r);
+/**
+ * Every booking key, from every list page. Unlike the shared listAllBlobs,
+ * this never falls back to a single unpaginated page: any page failure throws
+ * IncompleteListingError so the technician list answers 503 instead of a
+ * silently partial 200. Scoped to the technician list only.
+ */
+async function listBookingKeysComplete(store) {
+  if (!store || typeof store.list !== 'function') throw new IncompleteListingError(new Error('invalid_store'));
+  const keys = [];
+  try {
+    const paged = store.list({ paginate: true });
+    if (!paged || typeof paged[Symbol.asyncIterator] !== 'function') throw new Error('pagination_unsupported');
+    for await (const page of paged) {
+      if (!page || !Array.isArray(page.blobs)) throw new Error('malformed_page');
+      for (const b of page.blobs) {
+        const key = b && b.key;
+        if (key && !isInternalBookingStoreKey(key)) keys.push(key);
+      }
+    }
+  } catch (e) {
+    throw new IncompleteListingError(e);
   }
-  return out;
+  return keys;
+}
+
+/**
+ * Rolling pool: at most `limit` calls in flight; the next item starts as soon
+ * as any call finishes (no batch barrier). Only `limit` worker promises exist
+ * at any time. The first error stops new work, waits for in-flight calls to
+ * settle, then rethrows.
+ */
+async function forEachPooled(items, limit, fn) {
+  let next = 0;
+  let failure = null;
+  const worker = async () => {
+    while (failure === null && next < items.length) {
+      const i = next;
+      next += 1;
+      try {
+        await fn(items[i], i);
+      } catch (e) {
+        if (failure === null) failure = e;
+      }
+    }
+  };
+  const workers = [];
+  for (let w = 0; w < Math.min(limit, items.length); w += 1) workers.push(worker());
+  await Promise.all(workers);
+  if (failure) throw failure;
 }
 
 async function rosterRecords() {
@@ -87,29 +121,45 @@ exports.handler = async (event) => {
     if (date && !DATE_RE.test(date)) return jsonCors(400, { ok: false, error: 'invalid_date' });
     try {
       const store = await blobsStore('cd1-bookings');
-      // Phase 1 — every page of the store (listAllBlobs paginates), read with
-      // eventual consistency in bounded batches, exactly like the Admin list
-      // (ADMIN_LIST_BLOB_READ_CONCURRENCY = 20). Used only to find candidates.
-      const blobs = (await listAllBlobs(store, 'cd1-bookings'))
-        .filter((b) => !isInternalBookingStoreKey(b.key));
-      const all = await readEventual(store, blobs, LIST_READ_CONCURRENCY);
-      const loadRoster = createRosterLoader(rosterRecords);
+      // Phase 1 — every key from every list page (incomplete listing → 503),
+      // read with eventual consistency through a rolling pool of at most 20
+      // reads in flight (the Admin list's tested ceiling). Used only to find
+      // candidates: only matching keys are kept, never the records or PII.
+      const keys = await listBookingKeysComplete(store);
+      const rosterLoader = createRosterLoader(rosterRecords);
+      let rosterOnce = null;
+      const loadRoster = () => {
+        if (!rosterOnce) rosterOnce = rosterLoader();
+        return rosterOnce;
+      };
       const nowMs = Date.now();
 
-      const shortlist = [];
-      for (const b of all) {
-        if (!b || b.isDraft || b.isTest || b.archived || !isTechEligibleBooking(b)) continue;
-        if (date && bookingServiceDate(b) !== date) continue;
-        if ((await resolveTechAssignment(b, session, { loadRoster })).assigned) shortlist.push(b.__blobKey);
-      }
+      const candidate = new Array(keys.length).fill(false);
+      await forEachPooled(keys, LIST_READ_CONCURRENCY, async (key, i) => {
+        let b;
+        try {
+          b = await store.get(key, { type: 'json' });
+        } catch (e) {
+          throw new IncompleteListingError(e); // an unread booking = incomplete list
+        }
+        if (!b || typeof b !== 'object') return; // deleted after listing
+        if (b.isDraft || b.isTest || b.archived || !isTechEligibleBooking(b)) return;
+        if (date && bookingServiceDate(b) !== date) return;
+        if ((await resolveTechAssignment(b, session, { loadRoster })).assigned) candidate[i] = true;
+      });
+      const shortlist = keys.filter((_, i) => candidate[i]);
 
-      // Phase 2 — strong re-read of the shortlist only. Every disclosure
-      // decision is made on this fresh copy, so a stale eventual read can hide
-      // a job for one refresh but can never release PII after cancellation,
-      // completion, reassignment or rescheduling.
-      const fresh = await readStrong(store, shortlist, STRONG_READ_CONCURRENCY);
+      // Phase 2 — strong re-read of the shortlist only, same rolling pool.
+      // Every disclosure decision is made on this fresh copy, so a stale
+      // eventual read can hide a job for one refresh but can never release PII
+      // after cancellation, completion, reassignment or rescheduling. A failed
+      // strong read throws and the request fails closed with 503.
+      const freshRows = new Array(shortlist.length).fill(null);
+      await forEachPooled(shortlist, STRONG_READ_CONCURRENCY, async (key, i) => {
+        freshRows[i] = (await readJsonStrong(store, key)).data;
+      });
       const jobs = [];
-      for (const b of fresh) {
+      for (const b of freshRows) {
         if (!b || b.isDraft || b.isTest || b.archived || !isTechEligibleBooking(b)) continue;
         if (date && bookingServiceDate(b) !== date) continue;
         // Server-side privacy gate: assignment by id (or a unique legacy name),
@@ -137,7 +187,7 @@ exports.handler = async (event) => {
         serverNow: new Date(nowMs).toISOString(),
       });
     } catch (e) {
-      if (isStrongReadError(e)) return unavailable();
+      if (isStrongReadError(e) || isIncompleteListing(e)) return unavailable();
       return jsonCors(500, { ok: false, error: 'failed_to_load_jobs' });
     }
   }
@@ -278,3 +328,6 @@ exports.handler = async (event) => {
     setBookingStoreOverride(null);
   }
 };
+
+// Exposed for tests only.
+exports._forEachPooled = forEachPooled;

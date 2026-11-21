@@ -1132,3 +1132,148 @@ test('no authorization path keeps an eventual fallback after a strong read', () 
   assert.match(read('netlify/functions/tech-quick-ops.js'), /requireStrong: true/);
   assert.match(read('netlify/lib/tech-dispatch-privacy.js'), /strict: true/);
 });
+
+// ---------------------------------------------------------------------------
+// Technician list: incomplete listing → 503, rolling pool bounds
+// ---------------------------------------------------------------------------
+
+/** Make page `failAt` of the paginated booking listing throw (0-based). */
+function failListPage(t, failAt) {
+  const s = store('cd1-bookings');
+  const realList = s.list;
+  s.list = (opts = {}) => {
+    const inner = realList(opts);
+    if (!opts.paginate) return inner;
+    return {
+      async* [Symbol.asyncIterator]() {
+        let i = 0;
+        for await (const page of inner) {
+          if (i === failAt) throw new Error('simulated list page failure');
+          i += 1;
+          yield page;
+        }
+      },
+    };
+  };
+  t.after(() => { s.list = realList; });
+}
+
+function seedSevenAcrossFourPages() {
+  // PAGE_SIZE = 2 → 7 bookings span 4 list pages; 5 are assigned to A and unlocked.
+  for (let i = 0; i < 5; i++) seedBooking(booking({ id: `bk_pg${i}` }));
+  seedBooking(booking({ id: 'bk_pgb0', assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName }));
+  seedBooking(booking({ id: 'bk_pgb1', assignedTechId: TECH_B.techId, assignedTechName: TECH_B.fullName }));
+}
+
+for (const [label, failAt] of [['first', 0], ['middle', 2], ['final', 3]]) {
+  test(`tech-jobs GET: a failed ${label} list page returns 503, never a partial 200`, async (t) => {
+    resetStores();
+    freezeNow(t, START_8AM - HOUR);
+    const token = seedTech(TECH_A);
+    seedTech(TECH_B);
+    seedSevenAcrossFourPages();
+    const before = [...store('cd1-bookings')._data.entries()].map(([k, v]) => [k, v.value]);
+    failListPage(t, failAt);
+    const handler = freshRequire('../netlify/functions/tech-jobs').handler;
+    const res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': token }, queryStringParameters: {} });
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.headers['Retry-After'], '5');
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, false);
+    assert.equal(body.error, 'temporarily_unavailable');
+    assert.equal(body.jobs, undefined, 'no job list at all');
+    assert.doesNotMatch(res.body, /bk_pg|Harbor View|5550123|Gate code|Jordan/);
+    assert.deepEqual([...store('cd1-bookings')._data.entries()].map(([k, v]) => [k, v.value]), before, 'no booking written');
+  });
+}
+
+test('tech-jobs GET: complete pagination still returns every assigned job (control)', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - HOUR);
+  const token = seedTech(TECH_A);
+  seedTech(TECH_B);
+  seedSevenAcrossFourPages();
+  const handler = freshRequire('../netlify/functions/tech-jobs').handler;
+  const res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': token }, queryStringParameters: {} });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(JSON.parse(res.body).jobs.map((j) => j.id).sort(), ['bk_pg0', 'bk_pg1', 'bk_pg2', 'bk_pg3', 'bk_pg4']);
+});
+
+test('tech-jobs GET: a failed eventual booking read is an incomplete list → 503', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - HOUR);
+  const token = seedTech(TECH_A);
+  seedSevenAcrossFourPages();
+  const s = store('cd1-bookings');
+  const realGet = s.get;
+  s.get = async (key, opts) => {
+    if (key === 'bk_pg3') throw new Error('simulated read failure');
+    return realGet(key, opts);
+  };
+  t.after(() => { s.get = realGet; });
+  const handler = freshRequire('../netlify/functions/tech-jobs').handler;
+  const res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': token }, queryStringParameters: {} });
+  assert.equal(res.statusCode, 503);
+  assert.doesNotMatch(res.body, /bk_pg|Harbor View|5550123/);
+});
+
+test('tech-jobs GET: a listing without pagination support is refused, not read as one page', async (t) => {
+  resetStores();
+  freezeNow(t, START_8AM - HOUR);
+  const token = seedTech(TECH_A);
+  seedSevenAcrossFourPages();
+  const s = store('cd1-bookings');
+  const realList = s.list;
+  s.list = () => realList({}); // first page only, no async iterator
+  t.after(() => { s.list = realList; });
+  const handler = freshRequire('../netlify/functions/tech-jobs').handler;
+  const res = await handler({ httpMethod: 'GET', headers: { 'x-tech-token': token }, queryStringParameters: {} });
+  assert.equal(res.statusCode, 503);
+});
+
+test('rolling pool: never more than the limit in flight, next starts as soon as one finishes', async () => {
+  const { _forEachPooled } = freshRequire('../netlify/functions/tech-jobs');
+  let inflight = 0;
+  let peak = 0;
+  const started = [];
+  const finished = [];
+  const items = Array.from({ length: 60 }, (_, i) => i);
+  // Item 0 is slow; everything else is fast. With batches, item 20 would wait for item 0.
+  await _forEachPooled(items, 20, async (i) => {
+    inflight += 1;
+    peak = Math.max(peak, inflight);
+    started.push(i);
+    await new Promise((r) => setTimeout(r, i === 0 ? 80 : 2));
+    inflight -= 1;
+    finished.push(i);
+  });
+  assert.equal(peak, 20);
+  assert.equal(started.length, 60);
+  assert.ok(finished.indexOf(59) < finished.indexOf(0), 'later items finish while the slow one is still in flight');
+});
+
+test('rolling pool: first error stops new work, lets in-flight calls settle, then rethrows', async () => {
+  const { _forEachPooled } = freshRequire('../netlify/functions/tech-jobs');
+  let inflight = 0;
+  let started = 0;
+  const err = await _forEachPooled(Array.from({ length: 200 }, (_, i) => i), 5, async (i) => {
+    started += 1;
+    inflight += 1;
+    await new Promise((r) => setTimeout(r, 1));
+    inflight -= 1;
+    if (i === 7) throw new Error('boom');
+  }).then(() => null, (e) => e);
+  assert.equal(err && err.message, 'boom');
+  assert.equal(inflight, 0, 'nothing left running after the rejection');
+  assert.ok(started < 20, `stopped early (started ${started})`);
+});
+
+test('technician list fix is scoped: shared listAllBlobs and the Admin list keep their behaviour', () => {
+  const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  // The shared lister still falls back to one page for its other callers.
+  assert.match(read('netlify/lib/tech-security.js'), /paginated list failed[\s\S]*store\.list\(\)/);
+  for (const rel of ['netlify/functions/admin-ops-jobs.js', 'netlify/lib/tech-security.js']) {
+    assert.doesNotMatch(read(rel), /listBookingKeysComplete|forEachPooled/, rel);
+  }
+  assert.match(read('netlify/functions/tech-jobs.js'), /listBookingKeysComplete\(store\)/);
+});

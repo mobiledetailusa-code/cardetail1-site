@@ -200,8 +200,49 @@ These are simulated latencies, not production measurements.
 * The harness counts this as incomplete, not as a success.
 * In production a technician would see a silently partial list. This is not a PII exposure, but it is an open defect.
 
-**Minimal correction options (not implemented; each needs approval):**
-1. Replace the batch barrier with a sliding pool at the same concurrency of 20. This is not an architecture change. It removes most tail amplification, but the fixed-latency ceiling stays at about `N × read / 20`.
-2. Raise phase-1 concurrency above 20. This exceeds the documented tested ceiling and needs load testing against Blobs rate limits.
-3. Add a technician-to-booking assignment lookup, so only the technician's own bookings are read. This is a new index: an architecture change.
-4. Separately, make the technician list fail with `503` when pagination fails, instead of returning a partial `200`.
+**Correction options identified in that run:**
+1. Sliding pool at the same concurrency of 20 (implemented, see below).
+2. Raise phase-1 concurrency above 20. This exceeds the documented tested ceiling and needs load testing against Blobs rate limits. Not implemented; needs approval.
+3. Add a technician-to-booking assignment lookup. This is a new index (an architecture change). Not implemented; needs approval.
+4. Make the technician list fail with `503` when the listing is incomplete (implemented, see below).
+
+### Rolling pool and incomplete-listing protection (approved 2026-11-20)
+
+`GET tech-jobs` only. The Admin list, the shared `listAllBlobs`, booking records and every POST path are unchanged.
+
+* **Rolling pool (`forEachPooled`):** at most 20 reads in flight, and the next read starts as soon as one finishes. Exactly 20 worker promises exist, with no promise per booking created up front. Both phases use it. On the first error, the pool stops starting new reads, waits for in-flight reads to settle, then rethrows.
+* **Phase 1 keeps only matching keys,** never the booking records, so memory holds one booking per worker plus the key list.
+* **Two-phase design unchanged:** the eventual read only shortlists; disclosure is decided on the strong re-read (`readJsonStrong`, failure → 503).
+* **Complete listing (`listBookingKeysComplete`):** every page must be read. Any of these is an incomplete listing and returns `503 temporarily_unavailable` with no job list:
+  * a page that throws (first, middle or final)
+  * a malformed page
+  * a store without pagination support
+  * a booking read that throws during phase 1
+
+  A key deleted between listing and read is skipped; that is not incomplete.
+* **Roster loading:** shared within a request, so concurrent workers trigger at most one roster read.
+
+**Before/after, same harness, datasets and profiles** (local, synthetic, injected latency; 2 warm-ups + 20 measured requests per row; 40 assigned jobs).
+
+| Profile | Bookings | Before p95 / max | After p95 / max | After timeouts | After complete | PII violations | After result |
+|---|---|---|---|---|---|---|---|
+| Fixed: read 20 ms, strong 20 ms | 2,000 | 3.62 / 3.65 s | 3.61 / 3.62 s | 0 | 20/20 | 0 | PASS |
+| Fixed: read 20 ms, strong 20 ms | 5,000 | 8.62 / 8.82 s | 8.59 / 8.61 s | 0 | 20/20 | 0 | **FAIL** |
+| Fixed: read 20 ms, strong 40 ms | 2,000 | 3.66 / 3.66 s | 3.66 / 3.66 s | 0 | 20/20 | 0 | PASS |
+| Fixed: read 20 ms, strong 40 ms | 5,000 | 8.64 / 8.64 s | 8.64 / 8.64 s | 0 | 20/20 | 0 | **FAIL** |
+| Jitter: read 10–40 ms (+200 ms on 2 %), strong 2× | 2,000 | 13.26 / 13.39 s (19 timeouts) | 4.67 / 4.71 s | 0 | 20/20 | 0 | **FAIL** (p95 > 4 s) |
+| Jitter: same | 5,000 | 15 s cut-off (20 timeouts, 0 complete) | 10.28 / 10.41 s | 17 | 20/20 | 0 | **FAIL** |
+
+* **Negative control** (list page 2 throws): before, `200` with 20 of 40 jobs; after, `503` with no job list.
+* **Interpretation:**
+  * The pool removes the tail amplification from slow reads: jitter at 2,000 drops from 13.3 s to 4.7 s.
+  * With uniform latency it can't beat the throughput floor, so fixed-latency rows are unchanged.
+  * These are simulated latencies, not production measurements. Windows timer granularity rounds each 20 ms wait up to about 31 ms, so the fixed rows overstate a true 20 ms read by about 1.5×.
+
+**Remaining scalability limit.**
+* With 20 reads in flight, phase 1 costs about `N × mean_read / 20`. To stay under p95 4 s (about 3.5 s for reads after list pages and phase 2), N must stay below about `70 / mean_read_seconds`:
+  * about 3,500 bookings at a 20 ms mean read
+  * about 2,300 bookings at a 30 ms mean read
+* 5,000 bookings fails under every profile.
+* Going further needs one of the unapproved options: higher concurrency, or an assignment lookup.
+* The formal 2 × production-count criterion is still **unverified**: the production count is unknown, and a deploy preview would use production Blobs.
