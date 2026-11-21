@@ -466,6 +466,30 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   // The server decides which customer details are sent; nothing here unlocks them.
   let DISPATCH_DATE = '';
   let WITHDRAWALS = [];
+  // Job-list state. JOBS/WITHDRAWALS are only ever shown or acted on while
+  // JOBS_STATE is 'ready' (the latest request succeeded with a valid payload).
+  // Every request gets a sequence number; a response that is not the latest
+  // is ignored, so a slow or overlapping request can never restore old data.
+  let JOBS_STATE = 'loading'; // 'loading' | 'ready' | 'unavailable'
+  let JOBS_ERROR = '';
+  let JOBS_SEQ = 0;
+  function invalidateJobs(state, message) {
+    JOBS = [];
+    WITHDRAWALS = [];
+    JOBS_STATE = state;
+    JOBS_ERROR = message || '';
+  }
+  function validJobsPayload(data) {
+    if (!data || data.ok !== true || !Array.isArray(data.jobs)) return false;
+    if (data.withdrawals != null && !Array.isArray(data.withdrawals)) return false;
+    return data.jobs.every(function (j) { return j && typeof j === 'object' && typeof j.id === 'string' && j.id; });
+  }
+  /** The job object from the latest successful list, or null (with a message). */
+  function currentJob(id) {
+    var job = JOBS_STATE === 'ready' ? JOBS.find(function (j) { return j.id === id; }) : null;
+    if (!job) toast('Your job list is out of date. Refresh it before continuing.', 'err');
+    return job || null;
+  }
   window.todayIso = function () {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -497,10 +521,12 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     setTimeout(function () { el.classList.remove('flash'); }, 1600);
   };
   window.requestWithdrawal = async function (id) {
+    if (!currentJob(id)) return;
     var reason = window.prompt('Why do you need to withdraw from this job? (required, at least 10 characters)\n\nRequests need at least 12 hours notice before the arrival window. The office approves each request; until then the job stays yours.');
     if (reason == null) return;
     reason = String(reason).trim();
     if (reason.length < 10) { toast('Please give a reason (at least 10 characters).', 'err'); return; }
+    if (!currentJob(id)) return; // list may have failed while the prompt was open
     try {
       var r = await techFetch(JOBS_URL, {
         method: 'POST',
@@ -796,7 +822,8 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     }
     clearToken();
     TECH = null;
-    JOBS = [];
+    JOBS_SEQ += 1; // any in-flight list response is now stale
+    invalidateJobs('loading');
     showScreen('land');
     toast('Signed out');
   };
@@ -837,27 +864,45 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.loadJobs = async function () {
-    var el = document.getElementById('jobs-list');
+    var seq = ++JOBS_SEQ;
+    // Drop the previous list before asking again: nothing old stays visible
+    // or actionable while loading, and a failure leaves nothing behind.
+    invalidateJobs('loading');
+    renderJobs();
     if (!getToken()) { showScreen('land'); return; }
-    el.innerHTML = '<div class="loading">Loading jobs…</div>';
+    var r = null;
+    var failure = '';
     try {
-      var r = await techFetch(JOBS_URL);
-      if (r.res.status === 401) {
-        clearToken();
-        showScreen('login');
-        showErr('lerr', 'Session expired. Please sign in again.');
-        return;
-      }
-      if (!r.data.ok) {
-        el.innerHTML = '<div class="empty"><div class="ei">⚠️</div><div class="et">Could not load jobs.</div></div>';
-        return;
-      }
-      JOBS = r.data.jobs || [];
-      WITHDRAWALS = r.data.withdrawals || [];
-      renderJobs();
+      r = await techFetch(JOBS_URL);
     } catch (_) {
-      el.innerHTML = '<div class="empty"><div class="ei">📡</div><div class="et">Network error loading jobs.</div></div>';
+      failure = 'network';
     }
+    if (seq !== JOBS_SEQ) return; // a newer request (or logout) superseded this one
+    if (!failure && r.res.status === 401) {
+      invalidateJobs('unavailable', 'Session expired.');
+      renderJobs();
+      clearToken();
+      showScreen('login');
+      showErr('lerr', 'Session expired. Please sign in again.');
+      return;
+    }
+    if (!failure && !(r.res.ok && validJobsPayload(r.data))) {
+      failure = r.res.status === 503 ? 'unavailable' : 'error';
+    }
+    if (failure) {
+      invalidateJobs('unavailable', {
+        network: 'Could not reach the server. Check your connection.',
+        unavailable: 'Your jobs are temporarily unavailable.',
+        error: 'Could not load your jobs.',
+      }[failure]);
+      renderJobs();
+      return;
+    }
+    JOBS = r.data.jobs;
+    WITHDRAWALS = r.data.withdrawals || [];
+    JOBS_STATE = 'ready';
+    JOBS_ERROR = '';
+    renderJobs();
   };
 
   function renderDaySummary(list) {
@@ -878,6 +923,23 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 
   function renderJobs() {
     var el = document.getElementById('jobs-list');
+    if (JOBS_STATE !== 'ready') {
+      // No list: clear summary cards and count, never draw JOBS.
+      var sum = document.getElementById('dd-summary');
+      var count = document.getElementById('dd-count');
+      if (sum) sum.innerHTML = '';
+      if (count) count.textContent = '';
+      if (!el) return;
+      if (JOBS_STATE === 'loading') {
+        el.innerHTML = '<div class="loading">Loading jobs…</div>';
+        return;
+      }
+      el.innerHTML = '<div class="empty" id="jobs-unavailable" role="alert"><div class="ei">⚠️</div>' +
+        '<div class="et">' + esc(JOBS_ERROR || 'Your jobs are temporarily unavailable.') + '</div>' +
+        '<div class="et" style="margin-top:4px">No job details are shown until the list loads again.</div>' +
+        '<button class="btn btn-p btn-sm" type="button" style="margin-top:12px" onclick="loadJobs()">Try again</button></div>';
+      return;
+    }
     var list = DISPATCH_DATE ? JOBS.filter(function (j) { return jobDay(j) === DISPATCH_DATE; }) : JOBS;
     renderDaySummary(list);
     if (!list.length) {
@@ -982,6 +1044,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.updStatus = async function (bookingId, status) {
+    if (!currentJob(bookingId)) return;
     try {
       var r = await techFetch(JOBS_URL, {
         method: 'POST',
@@ -999,6 +1062,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   };
 
   window.openIssue = function (id) {
+    if (!currentJob(id)) return;
     _issueJobId = id;
     document.getElementById('issue-type').value = '';
     document.getElementById('issue-desc').value = '';
@@ -1017,6 +1081,10 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     if (!type) { showErr('isserr', 'Select an issue type.'); return; }
     if (!desc) { showErr('isserr', 'Describe the issue.'); return; }
     clearErr('isserr');
+    if (JOBS_STATE !== 'ready' || !JOBS.some(function (j) { return j.id === _issueJobId; })) {
+      showErr('isserr', 'Your job list is out of date. Refresh it, then submit again.');
+      return;
+    }
     var note = type + ': ' + desc;
     try {
       var r = await techFetch(JOBS_URL, {
@@ -1173,6 +1241,10 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     if (!file || !_completeJobId) return;
     var errEl = document.getElementById('err-' + phase);
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+    if (JOBS_STATE !== 'ready' || !JOBS.some(function (j) { return j.id === _completeJobId; })) {
+      if (errEl) { errEl.textContent = 'Your job list is out of date. Refresh it, then upload again.'; errEl.classList.add('show'); }
+      return;
+    }
     if (file.size > 4 * 1024 * 1024) {
       if (errEl) { errEl.textContent = 'Photo must be 4 MB or smaller.'; errEl.classList.add('show'); }
       return;
@@ -1222,7 +1294,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.openComplete = function (id) {
-    var job = JOBS.find(function (j) { return j.id === id; });
+    var job = currentJob(id);
     if (!job) return;
     _completeJobId = id;
     clearErr('cmperr');
@@ -1286,6 +1358,12 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 
   window.submitComplete = async function () {
     clearErr('cmperr');
+    // The form stays filled in, but nothing is submitted against a job that
+    // is not in the latest successful list.
+    if (JOBS_STATE !== 'ready' || !JOBS.some(function (j) { return j.id === _completeJobId; })) {
+      showErr('cmperr', 'Your job list is out of date. Refresh it, then submit again.');
+      return;
+    }
     var issuePath = document.getElementById('chk-issue').checked;
     var checklist = {};
 
