@@ -1191,7 +1191,8 @@
   /**
    * Informational "phone link clicked" signal (approved event click_call).
    * It records intent to call from a tel: link only — not a completed call, a
-   * booking, or revenue — and never sends a Google Ads conversion. The phone
+   * booking, or revenue. The separate Google Ads "Website phone tap" conversion is
+   * sent by trackGoogleAdsCallConversion() (once per session). The phone
    * number is never sent: the only property is where on the page the link was.
    * Third-party delivery stays behind analytics consent inside track().
    */

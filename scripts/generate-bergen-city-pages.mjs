@@ -743,6 +743,9 @@ ${CITIES.map((c) => `        <a href="/${pagePath(c)}">${esc(c.city)}</a>`).join
     </div>
   </div>
 </footer>
+<script src="assets/consent-manager.js"></script>
+<script src="assets/revenue-events.js"></script>
+<script src="assets/revops-init.js"></script>
 <script src="assets/back-to-top.js" defer></script>
 <script src="assets/county-hub-booking-attribution.js" defer></script>
 </body>

@@ -195,7 +195,11 @@ describe('ceramic coating landing page', () => {
     assert.match(page, /deploy-preview-\\d\+/);
     assert.match(page, /noindex, nofollow/);
     assert.doesNotMatch(page, /<meta name="robots" content="noindex/);
-    assert.doesNotMatch(page, /googletagmanager|googleadservices|gtag\(|AW-|revenue-events\.js/i);
+    // No hardcoded Google tag. The shared tracking script is the only way in,
+    // and it loads Google Ads on the production host only (cardetail1.com).
+    assert.doesNotMatch(page, /googletagmanager|googleadservices|gtag\(|AW-/i);
+    assert.match(page, /<script src="assets\/revenue-events\.js"><\/script>/);
+    assert.match(read('assets/revenue-events.js'), /return host === 'cardetail1\.com' \|\| host === 'www\.cardetail1\.com';/);
     assert.match(page, /href="\/"/);
   });
 
