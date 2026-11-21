@@ -82,8 +82,21 @@ function sessionMatchesBooking(session, booking) {
   return false;
 }
 
+// Strong read for the signed link. A failed strong read is reported as
+// { ok: false, unavailable: true } and the caller fails closed (503 / neutral
+// page); there is no eventual fallback.
+async function loadBookingForLink(bookingId) {
+  try {
+    return await loadProjectedBooking(bookingId, { requireStrong: true });
+  } catch (e) {
+    if (e && e.code === 'strong_read_failed') return { ok: false, unavailable: true };
+    throw e;
+  }
+}
+
 async function present(session, event) {
-  const projected = await loadProjectedBooking(session.bookingId);
+  const projected = await loadBookingForLink(session.bookingId);
+  if (projected.unavailable && wantsJson(event)) return json(503, { ok: false, error: 'temporarily_unavailable' });
   if (!projected.ok || !sessionMatchesBooking(session, projected.booking)) {
     return wantsJson(event)
       ? json(401, { ok: false, error: 'invalid' })
@@ -105,7 +118,8 @@ async function handleGet(event) {
         ? json(loaded.statusCode || 400, { ok: false, error: 'invalid' })
         : neutralExpiredPage('ops');
     }
-    const projected = await loadProjectedBooking(loaded.bookingId);
+    const projected = await loadBookingForLink(loaded.bookingId);
+    if (projected.unavailable && wantsJson(event)) return json(503, { ok: false, error: 'temporarily_unavailable' });
     if (!projected.ok || !sessionMatchesBooking(loaded, projected.booking)) {
       return wantsJson(event)
         ? json(401, { ok: false, error: 'invalid' })
@@ -156,7 +170,8 @@ async function handlePost(event) {
   }
   const body = parseBody(event);
   const action = String(body.action || '').trim();
-  const loaded = await loadProjectedBooking(session.bookingId);
+  const loaded = await loadBookingForLink(session.bookingId);
+  if (loaded.unavailable) return json(503, { ok: false, error: 'temporarily_unavailable' });
   if (!loaded.ok || !sessionMatchesBooking(session, loaded.booking)) {
     return json(401, { ok: false, error: 'invalid' });
   }

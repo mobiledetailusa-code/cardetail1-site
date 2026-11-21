@@ -376,9 +376,11 @@ function techQuickOpsPage(view, csrfToken) {
     a.collectCard ? '<label for="tq-card-ref">Card receipt reference</label><input id="tq-card-ref" maxlength="40" placeholder="Terminal reference" autocomplete="off"><button type="button" data-action="record_card" data-performed="1">Card received and finish</button><button type="button" class="secondary" data-action="record_card">Card received</button>' : '',
     !a.payment ? '<p class="sub">No payment link to send.</p>' : '',
   ].filter(Boolean).join('');
-  const contact = view.contactRestricted
-    ? '<p class="sub">Customer contact is hidden after the job is complete and paid.</p>'
-    : `${view.service.address ? field('Address', view.service.address) : ''}`;
+  const contact = view.piiLocked
+    ? `<p class="sub" data-pii-lock>${escapeHtml(view.piiLockMessage || 'Customer details are not available yet.')}</p>`
+    : view.contactRestricted
+      ? '<p class="sub">Customer contact is hidden after the job is complete and paid.</p>'
+      : `${view.service.address ? field('Address', view.service.address) : ''}`;
   return chrome({
     title: 'Technician job',
     extraHeaders: { 'X-Tq-Csrf': csrfToken },
@@ -437,7 +439,8 @@ ${a.increase ? `<section class="card">
     if (!view) return;
     var payEl = document.getElementById('tq-pay');
     if (payEl) payEl.textContent = (view.yourPay && view.yourPay.set) ? view.yourPay.label : 'Not set yet';
-    if (view.contactRestricted) clearContact();
+    if (view.piiLocked) clearContact(view.piiLockMessage);
+    else if (view.contactRestricted) clearContact();
     var arrive = document.getElementById('tq-arrive');
     if (arrive && view.actions && view.actions.arrive === false) arrive.hidden = true;
   }

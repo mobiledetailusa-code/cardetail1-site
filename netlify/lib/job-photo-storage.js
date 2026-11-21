@@ -11,6 +11,7 @@ const ALLOWED = {
 };
 const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_PHOTOS_PER_PHASE = 8;
+const PRIVATE_CACHE_POLICY = 'private-v1';
 
 function checkMagicBytes(buf, contentType) {
   if (buf.length < 12) return false;
@@ -39,7 +40,12 @@ function photoServeUrl(id) {
   return `/.netlify/functions/job-photo-image?id=${id}`;
 }
 
+let storeOverride = null;
+/** Test hook: inject an in-memory photo store. */
+function setJobPhotoStoreOverride(store) { storeOverride = store || null; }
+
 async function openJobPhotoStore() {
+  if (storeOverride) return storeOverride;
   const { getStore } = await import('@netlify/blobs');
   const siteID = process.env.NETLIFY_SITE_ID;
   const token = process.env.NETLIFY_AUTH_TOKEN;
@@ -80,6 +86,10 @@ async function storeJobPhoto({ bookingId, phase, techId, buf, contentType, filen
     originalFilename: sanitizeFilename(filename),
     size: buf.length,
     uploadedAt: new Date().toISOString(),
+    // Photos uploaded from QuickOps Daily Dispatch onward are served with a
+    // private, short-lived cache policy (see job-photo-image.js). Photos
+    // stored before this flag keep their original public immutable policy.
+    cachePolicy: PRIVATE_CACHE_POLICY,
   });
   return { id, url: photoServeUrl(id), size: buf.length, contentType };
 }
@@ -90,8 +100,10 @@ module.exports = {
   ALLOWED,
   MAX_BYTES,
   MAX_PHOTOS_PER_PHASE,
+  PRIVATE_CACHE_POLICY,
   photoServeUrl,
   openJobPhotoStore,
+  setJobPhotoStoreOverride,
   decodeAndValidateImage,
   storeJobPhoto,
 };

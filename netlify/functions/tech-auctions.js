@@ -19,7 +19,8 @@ function techAuctionView(a, techId) {
       time: j.time,
       area: j.area,
       addons: j.addons || [],
-      serviceNotes: j.serviceNotes || '',
+      // Customer notes (serviceNotes) are never sent to bidders: any onboarded
+      // technician can read this list before assignment.
     },
     bidMax: a.bidMax,
     closesAt: a.closesAt,
