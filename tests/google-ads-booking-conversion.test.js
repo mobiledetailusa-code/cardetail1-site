@@ -315,11 +315,28 @@ describe('Google Ads booking conversion fire gates', () => {
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
   });
 
-  it('page load alone does not fire booking conversion', () => {
+  it('page load alone fires no conversion (removed Page view label is not sent)', () => {
     const { ctx, conversions } = harness;
     ctx.Cardetail1Revenue.initAdapters();
     assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
-    assert.ok(conversions.filter((c) => c.send_to === PAGE_VIEW_SEND_TO).length >= 1);
+    assert.equal(conversions.filter((c) => c.send_to === PAGE_VIEW_SEND_TO).length, 0);
+    assert.equal(conversions.length, 0);
+  });
+
+  it('a configured active Page view label fires once per page load', () => {
+    const { ctx, conversions } = harness;
+    ctx.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO = 'AW-11321647982/NEWPAGEVIEW1';
+    ctx.Cardetail1Revenue.initAdapters();
+    ctx.Cardetail1Revenue.initAdapters();
+    assert.equal(conversions.filter((c) => c.send_to === 'AW-11321647982/NEWPAGEVIEW1').length, 1);
+    assert.equal(conversions.filter((c) => c.send_to === BOOKING_SEND_TO).length, 0);
+  });
+
+  it('a malformed Page view override is ignored', () => {
+    const { ctx, conversions } = harness;
+    ctx.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO = 'not-a-label';
+    ctx.Cardetail1Revenue.initAdapters();
+    assert.equal(conversions.length, 0);
   });
 
   it('conversion payload never includes PII fields', () => {
