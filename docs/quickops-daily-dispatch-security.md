@@ -245,4 +245,38 @@ These are simulated latencies, not production measurements.
   * about 2,300 bookings at a 30 ms mean read
 * 5,000 bookings fails under every profile.
 * Going further needs one of the unapproved options: higher concurrency, or an assignment lookup.
-* The formal 2 × production-count criterion is still **unverified**: the production count is unknown, and a deploy preview would use production Blobs.
+* At the time of this run the formal 2 × production-count criterion was unverified, because the production count was unknown. It was established afterwards; see §7.
+
+## 7. Capacity acceptance and owner performance exception (2026-11-20)
+
+**Production count** (owner-authorized, read-only; key names only, no records read):
+* `cd1-bookings` held 507 keys, 8 of them internal `occupancy-claim/` keys, so **N = 499**.
+* Listing finished in one complete page.
+* The required benchmark size is `max(2 × N, 2000)` = **2,000 bookings**.
+
+**Final run at HEAD `6fac0ba1`.** Same harness as §6: local, in-memory storage, synthetic data, injected latency; 40 assigned jobs, 2 warm-ups + 20 measured requests per profile, at most 20 reads in flight.
+
+| Profile | p50 | p95 | Max | Timeouts | Complete | PII leaks | Result |
+|---|---|---|---|---|---|---|---|
+| Fixed: read 20 ms, strong 20 ms | 3.77 s | 3.84 s | 3.84 s | 0 | 20/20 | 0 | PASS |
+| Fixed: read 20 ms, strong 40 ms | 3.80 s | 3.86 s | 3.88 s | 0 | 20/20 | 0 | PASS |
+| Variable: read 10–40 ms (+200 ms on 2 %), strong 2× | 4.37 s | **4.50 s** | 4.53 s | 0 | 20/20 | 0 | p95 over target |
+
+A failed list page returned `503` with no job list.
+
+**Owner decision: CONDITIONAL GO, with a documented exception.** The owner accepted the variable-latency p95 of 4.50 s against the 4.00 s target, on the basis of:
+* N = 499 in production against 2,000 tested
+* maximum 4.53 s and zero timeouts
+* complete results, zero unauthorized PII, and `503` on pagination failure
+
+**Conditions and limits of the exception:**
+1. It covers only the measured p95 deviation (4.50 s vs 4.00 s, variable-latency profile, 2,000 bookings).
+2. The maximum-latency threshold of 6 s remains mandatory. Any measured request over 6 s voids the exception.
+3. There is no exception for security, incomplete results or unauthorized access. These remain release-blocking without qualification.
+4. Capacity must be reassessed before production approaches 1,000 effective bookings, by re-running this section at `max(2 × N, 2000)`.
+5. The architecture and the 20-read concurrency limit are unchanged. No further optimization is part of this release.
+
+**Known limits of the evidence:**
+* All timings are simulated on a Windows workstation. They are not production measurements, and timer granularity inflates short waits.
+* No deploy-preview measurement exists, because previews share the production Blobs stores.
+* Real Netlify Blobs latency, including cold starts, has not been measured for this endpoint.
