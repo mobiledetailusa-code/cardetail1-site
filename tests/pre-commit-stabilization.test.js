@@ -431,10 +431,13 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Commercial & specialty quote requests: validation + inquiry storage (no pricing or payment imports).
     'netlify/lib/vehicle-inquiry.js',
     // Commercial pricing engine (rate card v2): draft card, every amount null, no public price,
-    // checkout off (no payment imports), and the shared vehicle classifier it uses. Neither is
-    // required by any function or booking path yet.
+    // checkout off (no payment imports), and the shared vehicle classifier it uses. No function
+    // requires either; the classifier is read only by the engine and the B1 shadow module.
     'netlify/lib/commercial-pricing.js',
     'netlify/lib/vehicle-pricing-channel.js',
+    // B1 observe-only classification of Cars & SUVs booking vehicles (called by submit-booking,
+    // never changes price, tier, routing or checkout; no pricing or payment imports).
+    'netlify/lib/vehicle-classification-shadow.js',
     // Read-only admin list of stored quote requests (existing admin session auth).
     'netlify/functions/admin-inquiries.js',
     'netlify/lib/welcome-offer-redemption.js',
