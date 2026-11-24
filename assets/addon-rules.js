@@ -318,6 +318,9 @@
 
   var STYLE = [
     '.cd1-addon-unavailable{display:none!important}',
+    // Pages force 16px on every button under 768px (iOS input zoom guard); the
+    // compact details link keeps its desktop size so mobile cards stay short.
+    '#addon-grid .cd1-addon-more{font-size:12px!important}',
     '.cd1-addon-more{grid-column:1/-1;justify-self:start;margin:4px 0 0;padding:2px 0;border:0;background:none;color:var(--blue,#2563eb);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}',
     '.cd1-addon-more:focus-visible,.cd1-addon-dialog button:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:4px}',
     '.cd1-addon-dialog{margin:auto;inset:0;border:0;padding:0;background:#fff;color:#0f172a;width:calc(100% - 32px);max-width:460px;max-height:min(85vh,640px);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left;font-size:14px;line-height:1.55}',
