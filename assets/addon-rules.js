@@ -83,6 +83,11 @@
       // Residential trash cans are not a vehicle detailing add-on. Other
       // categories keep their own catalog line; history keeps its price.
       trashcans: 'Trash Can Cleaning is not offered as a car detailing add-on.',
+      // SUSPENDED, not retired: equipment, water use, wastewater handling and
+      // winter safety are not confirmed (docs/undercarriage-pricing-review.md).
+      // The catalog line and its size-band prices stay for stored bookings.
+      // Remove this line to reinstate the service once the owner approves.
+      undercarriage: 'Accessible Undercarriage Cleaning is paused for new bookings.',
     },
   };
 

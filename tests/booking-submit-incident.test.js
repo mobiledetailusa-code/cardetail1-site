@@ -415,7 +415,7 @@ test('ceramic cash and card at service stay unpaid with the full balance and no 
   }
 });
 
-test('ceramic undercarriage does not add a water fee when water access is no, unsure, or blank', async () => {
+test('ceramic exterior add-on does not add a water fee when water access is no, unsure, or blank', async () => {
   for (const [waterAvailable, phone] of [['no', '2015550181'], ['unsure', '2015550182'], ['', '2015550183']]) {
     useStores();
     const payload = ceramicBody({
@@ -431,31 +431,51 @@ test('ceramic undercarriage does not add a water fee when water access is no, un
         year: 2006,
         vehicleLabel: '2006 Toyota Sequoia',
         basePrice: 1275,
-        subtotal: 1705,
+        subtotal: 1605,
         companionInterior: true,
         companionInteriorPrice: 255,
         addons: [
-          { id: 'undercarriage', name: 'Accessible Undercarriage Cleaning', price: 175, qty: 1 },
+          { id: 'heavymud', name: 'Heavy Mud Removal', price: 75, qty: 1 },
           { id: 'mobile_water', name: 'Mobile Water Supply', price: 50, qty: 1 },
         ],
-        addonTotal: 175,
+        addonTotal: 75,
       }],
-      totalPrice: 1705,
+      totalPrice: 1605,
     });
     const draft = await post(payload, `203.0.113.${phone.slice(-2)}`);
     assert.equal(draft.status, 200, `${waterAvailable} ${JSON.stringify(draft.body)}`);
     const fin = await finalize(payload, draft.body);
     assert.equal(fin.status, 200, `${waterAvailable} ${JSON.stringify(fin.body)}`);
     const saved = bookings.records().find((item) => item.id === fin.body.id);
-    assert.equal(saved.approvedFinalAmount, 1705);
-    assert.equal(saved.balanceDue, 1705);
+    assert.equal(saved.approvedFinalAmount, 1605);
+    assert.equal(saved.balanceDue, 1605);
     assert.equal(saved.paymentStatus, 'unpaid');
     assert.equal(saved.amountPaid, 0);
     assert.equal(saved.waterAvailable, waterAvailable);
     assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'mobile_water'), false);
-    assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'undercarriage'), true);
+    assert.equal(saved.vehicles[0].addons.some((addon) => addon.id === 'heavymud'), true);
     assert.equal(saved.appointmentSchedule.multiDay, true);
   }
+});
+
+test('a new booking with Accessible Undercarriage Cleaning is refused while the service is suspended', async () => {
+  useStores();
+  const payload = ceramicBody({
+    phone: '2015550184',
+    email: 'ceramic-undercarriage@example.com',
+    vehicles: [{
+      cat: 'cars', pkgId: 'ceramic_3yr', tierKey: 'suv3', make: 'Toyota', model: 'Sequoia', year: 2006,
+      vehicleLabel: '2006 Toyota Sequoia', basePrice: 1275, subtotal: 1705,
+      companionInterior: true, companionInteriorPrice: 255,
+      addons: [{ id: 'undercarriage', name: 'Accessible Undercarriage Cleaning', price: 175, qty: 1 }],
+      addonTotal: 175,
+    }],
+    totalPrice: 1705,
+  });
+  const draft = await post(payload, '203.0.113.84');
+  assert.equal(draft.status, 400, JSON.stringify(draft.body));
+  assert.equal(draft.body.error, 'addon_not_available');
+  assert.equal(draft.body.addonId, 'undercarriage');
 });
 
 test('a new ceramic booking can choose card online without a charge or deposit', async () => {
