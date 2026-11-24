@@ -28,6 +28,25 @@ function soldLegacyFullDetail(createdAt) {
   return created < Date.parse(FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT);
 }
 
+// Maintenance Detail gained hand-applied premium paste wax. Same rule as the
+// Full Detail change: bookings created before this instant keep showing the
+// composition they were sold. Set to the production release time.
+const MAINTENANCE_PASTE_WAX_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+
+// Composition sold before MAINTENANCE_PASTE_WAX_EFFECTIVE_AT. Display only.
+const LEGACY_MAINTENANCE_DETAIL = Object.freeze({
+  id: 'maint',
+  name: 'Maintenance Detail',
+  description: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
+  feats: Object.freeze(['Exterior hand wash & rinse', 'Wheels & tires cleaned + dressed', 'Interior vacuum', 'Dashboard & console wipe', 'UV protectant']),
+});
+
+function soldLegacyMaintenanceDetail(createdAt) {
+  const created = Date.parse(String(createdAt || ''));
+  if (!Number.isFinite(created)) return true;
+  return created < Date.parse(MAINTENANCE_PASTE_WAX_EFFECTIVE_AT);
+}
+
 const CAR_PACKAGES = [
   {
     id: 'wash',
@@ -44,8 +63,8 @@ const CAR_PACKAGES = [
     basePrice: 175,
     tag: 'Best for regularly maintained vehicles',
     duration: '~1.5–2h',
-    description: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
-    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned + dressed', 'Interior vacuum', 'Dashboard & console wipe', 'UV protectant'],
+    description: 'Exterior hand wash with hand-applied premium paste wax for enhanced gloss and protection, plus a light interior refresh.',
+    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned + dressed', 'Hand-applied premium paste wax', 'Interior vacuum', 'Dashboard & console wipe', 'UV protectant'],
   },
   {
     id: 'interior',
@@ -250,6 +269,9 @@ module.exports = {
   FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT,
   LEGACY_FULL_DETAIL_SPRAY_SEALANT,
   soldLegacyFullDetail,
+  MAINTENANCE_PASTE_WAX_EFFECTIVE_AT,
+  LEGACY_MAINTENANCE_DETAIL,
+  soldLegacyMaintenanceDetail,
   ADDONS,
   FLEET_PLANS,
   MAINTENANCE_PERIODS,

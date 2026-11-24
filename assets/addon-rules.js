@@ -1,0 +1,486 @@
+/* Car add-on rules for NEW bookings + "What's included" details on add-on cards.
+ *
+ * Shared by the booking pages (browser) and the server (submit-booking and the
+ * price catalog), so what the customer can pick and what the server accepts
+ * come from one table.
+ *
+ * Scope is deliberately narrow:
+ *   - two car add-ons retired from new bookings (Engine Bay Detail $125,
+ *     Mobile Water Supply $50); the $45 Engine Bay Top Clean is untouched;
+ *   - car package blocks for Maintenance Detail and Super Interior placement;
+ *   - Super Interior bundles pet hair, odor and floor mats for cars.
+ * The existing exterior matrix in ceramic-booking.js is not changed, and other
+ * vehicle categories keep their own rules.
+ *
+ * Historical bookings: nothing here rewrites stored bookings. The bundle only
+ * prices bookings created at or after RULES_EFFECTIVE_AT; eligibility is
+ * enforced only when a new booking is submitted.
+ */
+(function (root, factory) {
+  var api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) root.CD1AddonRules = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  // Set to the production release time of these rules.
+  var RULES_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+
+  var RETIRED_FOR_NEW_BOOKINGS = {
+    cars: {
+      engine_bay: 'Engine Bay Detail is no longer offered on new bookings.',
+      mobile_water: 'Mobile Water Supply is no longer sold as an add-on; we bring our own water and power.',
+    },
+  };
+
+  // Retired lines that older pages may still send without the customer having
+  // chosen them (ceramic payloads carry mobile_water). They are dropped from a
+  // new booking instead of refusing it, matching the existing ceramic strip.
+  var DROPPED_FROM_NEW_BOOKINGS = {
+    cars: ['mobile_water'],
+  };
+
+  var PACKAGE_BLOCKED = {
+    cars: {
+      // Maintenance stays a maintenance service: no deep interior work, and the
+      // paste wax it includes is not sold again as a wax add-on.
+      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr'],
+      wash: ['superint'],
+      refresh: ['superint'],
+      // Premium Full Detail includes hand-applied premium paste wax.
+      full: ['wax1yr'],
+    },
+  };
+
+  var SUPERINT_BUNDLE = {
+    cars: ['pethair', 'odor', 'floormats'],
+  };
+
+  var DETAILS = {
+    cars: {
+      superint: {
+        items: [
+          'Double shampoo for heavy stains: up to two total shampoo/extraction passes on upholstery and carpet where needed, as the material and its condition allow.',
+          'Moderate pet hair removal.',
+          'Targeted odor treatment to neutralize common interior odors.',
+          'Extra floor mats cleaning: an additional, detailed cleaning of the vehicle’s existing mats.',
+          'Additional attention to high-use interior areas.',
+        ],
+        limits: 'Stains and odors are reduced, not guaranteed to be removed. Severe pet hair, smoke, mold, biological contamination or deeply embedded odors may require inspection and separate pricing.',
+      },
+    },
+  };
+
+  function str(v) {
+    return String(v == null ? '' : v).trim();
+  }
+
+  function list(map, cat) {
+    return (map[str(cat)] || {});
+  }
+
+  function isRetired(cat, id) {
+    return Object.prototype.hasOwnProperty.call(list(RETIRED_FOR_NEW_BOOKINGS, cat), str(id));
+  }
+
+  function isBlockedForPackage(cat, pkgId, id) {
+    var blocked = list(PACKAGE_BLOCKED, cat)[str(pkgId)] || [];
+    return blocked.indexOf(str(id)) >= 0;
+  }
+
+  function isOfferable(cat, pkgId, id) {
+    return !isRetired(cat, id) && !isBlockedForPackage(cat, pkgId, id);
+  }
+
+  function bundledIds(cat) {
+    return (SUPERINT_BUNDLE[str(cat)] || []).slice();
+  }
+
+  /** Ids priced at $0 because Super Interior is on the same vehicle. */
+  function includedBySuperint(cat, selectedIds) {
+    var ids = (selectedIds || []).map(str);
+    return ids.indexOf('superint') >= 0 ? bundledIds(cat) : [];
+  }
+
+  /**
+   * The bundle prices a new booking submission (opts.newBooking) and bookings
+   * created at or after RULES_EFFECTIVE_AT. A booking with no creation time is
+   * treated as stored history, so repricing an older booking never drops lines.
+   */
+  function bundleActiveFor(booking, opts) {
+    if (opts && opts.newBooking === true) return true;
+    var created = Date.parse(str(booking && booking.createdAt));
+    if (!Number.isFinite(created)) return false;
+    return created >= Date.parse(RULES_EFFECTIVE_AT);
+  }
+
+  function vehicleAddonIds(vehicle) {
+    var ids = [];
+    (Array.isArray(vehicle && vehicle.addons) ? vehicle.addons : []).forEach(function (a) {
+      var id = str(a && (a.id || a.addonId));
+      if (id) ids.push(id);
+    });
+    (Array.isArray(vehicle && vehicle.addOnIds) ? vehicle.addOnIds : []).forEach(function (id) {
+      if (str(id)) ids.push(str(id));
+    });
+    return ids;
+  }
+
+  function isDropped(cat, id) {
+    return (DROPPED_FROM_NEW_BOOKINGS[str(cat)] || []).indexOf(str(id)) >= 0;
+  }
+
+  /** Server, NEW booking only: remove dropped lines (never charged). */
+  function stripDroppedFromNewBooking(booking) {
+    var vehicles = Array.isArray(booking && booking.vehicles) ? booking.vehicles : [];
+    vehicles.forEach(function (v) {
+      if (!v) return;
+      var cat = str(v.cat || v.category || (booking && booking.vehicleCategory)).toLowerCase();
+      if (Array.isArray(v.addons)) {
+        v.addons = v.addons.filter(function (a) { return !isDropped(cat, a && (a.id || a.addonId)); });
+      }
+      if (Array.isArray(v.addOnIds)) {
+        v.addOnIds = v.addOnIds.filter(function (id) { return !isDropped(cat, id); });
+      }
+    });
+    return booking;
+  }
+
+  /** Server check for a NEW booking submission (after stripDroppedFromNewBooking). */
+  function validateNewBookingAddons(booking) {
+    var vehicles = Array.isArray(booking && booking.vehicles) && booking.vehicles.length
+      ? booking.vehicles
+      : [{
+        cat: booking && (booking.vehicleCategory || booking.category),
+        pkgId: booking && (booking.packageId || booking.pkgId),
+        addons: booking && booking.addons,
+      }];
+    for (var i = 0; i < vehicles.length; i += 1) {
+      var v = vehicles[i] || {};
+      var cat = str(v.cat || v.category || (booking && booking.vehicleCategory)).toLowerCase();
+      var pkgId = str(v.packageId || v.pkgId);
+      var ids = vehicleAddonIds(v);
+      for (var j = 0; j < ids.length; j += 1) {
+        if (isDropped(cat, ids[j])) continue;
+        if (!isOfferable(cat, pkgId, ids[j])) {
+          return { ok: false, error: 'addon_not_available', addonId: ids[j], packageId: pkgId, category: cat };
+        }
+      }
+    }
+    return { ok: true };
+  }
+
+  function detailsFor(cat, addon) {
+    var d = list(DETAILS, cat)[str(addon && addon.id)];
+    return {
+      description: str(addon && addon.desc),
+      items: d ? d.items.slice() : [],
+      limits: d ? d.limits : '',
+    };
+  }
+
+  var api = {
+    RULES_EFFECTIVE_AT: RULES_EFFECTIVE_AT,
+    RETIRED_FOR_NEW_BOOKINGS: RETIRED_FOR_NEW_BOOKINGS,
+    PACKAGE_BLOCKED: PACKAGE_BLOCKED,
+    SUPERINT_BUNDLE: SUPERINT_BUNDLE,
+    DETAILS: DETAILS,
+    isRetired: isRetired,
+    isBlockedForPackage: isBlockedForPackage,
+    isOfferable: isOfferable,
+    bundledIds: bundledIds,
+    includedBySuperint: includedBySuperint,
+    bundleActiveFor: bundleActiveFor,
+    DROPPED_FROM_NEW_BOOKINGS: DROPPED_FROM_NEW_BOOKINGS,
+    stripDroppedFromNewBooking: stripDroppedFromNewBooking,
+    validateNewBookingAddons: validateNewBookingAddons,
+    detailsFor: detailsFor,
+  };
+
+  if (typeof window === 'undefined' || typeof document === 'undefined') return api;
+
+  /* ── Browser: booking add-on grid ─────────────────────────────────────── */
+
+  var STYLE = [
+    '.cd1-addon-unavailable{display:none!important}',
+    '.cd1-addon-more{grid-column:1/-1;justify-self:start;margin:4px 0 0;padding:2px 0;border:0;background:none;color:var(--blue,#2563eb);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}',
+    '.cd1-addon-more:focus-visible,.cd1-addon-dialog button:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:4px}',
+    '.cd1-addon-dialog{margin:auto;inset:0;border:0;padding:0;background:#fff;color:#0f172a;width:calc(100% - 32px);max-width:460px;max-height:min(85vh,640px);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left;font-size:14px;line-height:1.55}',
+    '.cd1-addon-dialog::backdrop{background:rgba(15,23,42,.55)}',
+    '.cd1-addon-dialog[open]:not(:modal){position:fixed;inset:0;margin:auto;z-index:2147483000}',
+    '.cd1-addon-dialog-inner{padding:18px 18px 16px}',
+    '.cd1-addon-dialog-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;margin:0 0 8px}',
+    '.cd1-addon-dialog h3{margin:0;font-size:17px;line-height:1.3}',
+    '.cd1-addon-dialog .cd1-addon-dialog-price{font-weight:700;white-space:nowrap;margin:2px 0 0;color:#2563eb}',
+    '.cd1-addon-dialog-close{flex-shrink:0;width:32px;height:32px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#0f172a;font-size:18px;line-height:1;cursor:pointer}',
+    '.cd1-addon-dialog p{margin:0 0 10px}',
+    '.cd1-addon-dialog ul{margin:0 0 10px;padding-left:20px}',
+    '.cd1-addon-dialog li{margin:0 0 6px}',
+    '.cd1-addon-dialog .cd1-addon-limits{font-size:12.5px;color:#475569;border-top:1px solid #e2e8f0;padding-top:10px;margin:4px 0 0}',
+    '.cd1-addon-included{opacity:.6;cursor:default}',
+    '.cd1-addon-included-note{grid-column:1/-1;font-size:11.5px;font-weight:600;margin-top:2px}',
+  ].join('');
+
+  function page(name) {
+    try {
+      // Page scripts declare these at top level; window[name] is the same binding.
+      if (typeof window[name] !== 'undefined') return window[name];
+    } catch (e) { /* ignore */ }
+    return undefined;
+  }
+
+  function state() {
+    var st = page('ST');
+    try { if (!st && typeof ST !== 'undefined') st = ST; } catch (e) { /* ignore */ } // eslint-disable-line no-undef
+    return st || null;
+  }
+
+  function pricing() {
+    var p = page('PRICING');
+    try { if (!p && typeof PRICING !== 'undefined') p = PRICING; } catch (e) { /* ignore */ } // eslint-disable-line no-undef
+    return p || null;
+  }
+
+  function call(name) {
+    var fn = page(name);
+    if (typeof fn === 'function') {
+      try { fn(); } catch (e) { /* display only */ }
+    }
+  }
+
+  function refreshTotals() {
+    call('recalcAddonTotal');
+    call('updateTotal');
+    call('updateAddonSummary');
+    call('syncActiveConfigIntoEditingCartSlot');
+    if (typeof page('renderVehicleCart') === 'function') call('renderVehicleCart');
+    else call('syncBs2StickyBar');
+  }
+
+  function catalogAddon(cat, id) {
+    var p = pricing();
+    var rows = (p && p[cat] && p[cat].addons) || [];
+    for (var i = 0; i < rows.length; i += 1) if (rows[i] && rows[i].id === id) return rows[i];
+    return null;
+  }
+
+  function cards() {
+    return Array.prototype.slice.call(document.querySelectorAll('#addon-grid .addon[data-id]'));
+  }
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function stop(e) {
+    e.stopPropagation();
+  }
+
+  // One shared native <dialog>. showModal() puts it on the top layer, above the
+  // booking modal, and gives Escape-to-close and focus containment for free. It
+  // is never inside a card, so it cannot change card or grid layout.
+  var dialog = null;
+  var returnFocus = null;
+
+  function closeDialog() {
+    if (!dialog) return;
+    var box = dialog.box;
+    if (typeof box.close === 'function' && box.open) box.close();
+    else box.removeAttribute('open');
+  }
+
+  function onDialogClosed() {
+    if (returnFocus) {
+      returnFocus.setAttribute('aria-expanded', 'false');
+      try { returnFocus.focus(); } catch (e) { /* ignore */ }
+    }
+    returnFocus = null;
+  }
+
+  function ensureDialog() {
+    if (dialog) return dialog;
+    var box = el('dialog', 'cd1-addon-dialog');
+    box.id = 'cd1-addon-dialog';
+    box.setAttribute('aria-labelledby', 'cd1-addon-dialog-title');
+    box.addEventListener('close', onDialogClosed);
+    // A click on the dialog's own box outside its content (the backdrop) closes it.
+    box.addEventListener('click', function (e) { if (e.target === box) closeDialog(); });
+    var head = el('div', 'cd1-addon-dialog-head');
+    var titles = el('div');
+    var title = el('h3');
+    title.id = 'cd1-addon-dialog-title';
+    var price = el('div', 'cd1-addon-dialog-price');
+    titles.appendChild(title);
+    titles.appendChild(price);
+    var close = el('button', 'cd1-addon-dialog-close', '×');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Close details');
+    close.addEventListener('click', closeDialog);
+    head.appendChild(titles);
+    head.appendChild(close);
+    var body = el('div', 'cd1-addon-dialog-body');
+    var inner = el('div', 'cd1-addon-dialog-inner');
+    inner.appendChild(head);
+    inner.appendChild(body);
+    box.appendChild(inner);
+    document.body.appendChild(box);
+    dialog = { box: box, title: title, price: price, body: body, close: close };
+    return dialog;
+  }
+
+  function openDialog(btn, addon, info) {
+    var d = ensureDialog();
+    d.title.textContent = addon.name || 'Add-on';
+    d.price.textContent = '+$' + addon.price + (addon.qty ? ' each' : '');
+    d.body.textContent = '';
+    if (info.description) d.body.appendChild(el('p', '', info.description));
+    if (info.items.length) {
+      var ul = el('ul');
+      info.items.forEach(function (item) { ul.appendChild(el('li', '', item)); });
+      d.body.appendChild(ul);
+    }
+    if (info.limits) d.body.appendChild(el('p', 'cd1-addon-limits', info.limits));
+    returnFocus = btn;
+    btn.setAttribute('aria-expanded', 'true');
+    if (typeof d.box.showModal === 'function') {
+      if (!d.box.open) d.box.showModal();
+    } else {
+      d.box.setAttribute('open', '');
+    }
+    d.close.focus();
+  }
+
+  function decorate(card, cat) {
+    if (card.querySelector('.cd1-addon-more')) return;
+    var addon = catalogAddon(cat, card.getAttribute('data-id'));
+    if (!addon) return;
+    var info = detailsFor(cat, addon);
+    if (!info.description && !info.items.length) return;
+    var btn = el('button', 'cd1-addon-more', "What's included");
+    btn.type = 'button';
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', 'cd1-addon-dialog');
+    btn.setAttribute('aria-label', "What's included: " + (addon.name || 'add-on'));
+    // The button never toggles the card's selection.
+    ['click', 'keydown', 'keyup', 'mousedown', 'touchstart'].forEach(function (type) {
+      btn.addEventListener(type, stop);
+    });
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      openDialog(btn, addon, detailsFor(cat, catalogAddon(cat, addon.id) || addon));
+    });
+    card.appendChild(btn);
+  }
+
+  function selectedIds(st) {
+    return ((st && st.addons) || []).map(function (a) { return a && a.id; });
+  }
+
+  function applyBundle() {
+    var st = state();
+    if (!st) return false;
+    var cat = str(st.cat);
+    var included = includedBySuperint(cat, selectedIds(st));
+    var changed = false;
+    if (included.length) {
+      var before = st.addons.length;
+      st.addons = st.addons.filter(function (a) { return included.indexOf(a && a.id) < 0; });
+      changed = st.addons.length !== before;
+    }
+    bundledIds(cat).forEach(function (id) {
+      var card = document.querySelector('#addon-grid .addon[data-id="' + id + '"]');
+      if (!card) return;
+      var on = included.indexOf(id) >= 0;
+      card.classList.toggle('cd1-addon-included', on);
+      if (on) {
+        card.classList.remove('sel');
+        if (card.getAttribute('role') === 'checkbox') card.setAttribute('aria-checked', 'false');
+        card.setAttribute('aria-disabled', 'true');
+        var qty = document.getElementById('aq-' + id);
+        if (qty) qty.textContent = '0';
+        if (!card.querySelector('.cd1-addon-included-note')) {
+          card.appendChild(el('div', 'cd1-addon-included-note', 'Included with Super Interior'));
+        }
+      } else {
+        card.removeAttribute('aria-disabled');
+        var note = card.querySelector('.cd1-addon-included-note');
+        if (note) note.remove();
+      }
+    });
+    return changed;
+  }
+
+  function applyEligibility() {
+    var st = state();
+    if (!st) return false;
+    var cat = str(st.cat);
+    var pkg = str(st.pkgId);
+    cards().forEach(function (card) {
+      var ok = isOfferable(cat, pkg, card.getAttribute('data-id'));
+      card.classList.toggle('cd1-addon-unavailable', !ok);
+      if (ok) decorate(card, cat);
+    });
+    var before = (st.addons || []).length;
+    st.addons = (st.addons || []).filter(function (a) { return a && isOfferable(cat, pkg, a.id); });
+    return st.addons.length !== before;
+  }
+
+  function afterRender() {
+    var changed = applyEligibility();
+    if (applyBundle() || changed) refreshTotals();
+  }
+
+  function bundleBlocks(id) {
+    var st = state();
+    return !!st && includedBySuperint(str(st.cat), selectedIds(st)).indexOf(str(id)) >= 0;
+  }
+
+  function wrap(name, wrapper) {
+    var fn = page(name);
+    if (typeof fn !== 'function' || fn._cd1AddonRules) return;
+    var wrapped = wrapper(fn);
+    wrapped._cd1AddonRules = true;
+    if (fn._ceramicWrapped) wrapped._ceramicWrapped = true;
+    window[name] = wrapped;
+  }
+
+  function boot() {
+    if (!document.getElementById('cd1-addon-rules-style')) {
+      var style = el('style');
+      style.id = 'cd1-addon-rules-style';
+      style.textContent = STYLE;
+      document.head.appendChild(style);
+    }
+    wrap('renderAddons', function (fn) {
+      return function () {
+        var result = fn.apply(this, arguments);
+        try { afterRender(); } catch (e) { /* display only */ }
+        return result;
+      };
+    });
+    wrap('toggleAddon', function (fn) {
+      return function (card) {
+        if (card && bundleBlocks(card.getAttribute && card.getAttribute('data-id'))) return undefined;
+        var result = fn.apply(this, arguments);
+        try { if (applyBundle()) refreshTotals(); } catch (e) { /* display only */ }
+        return result;
+      };
+    });
+    wrap('addonQty', function (fn) {
+      return function (id) {
+        if (bundleBlocks(id)) return undefined;
+        return fn.apply(this, arguments);
+      };
+    });
+    if (document.getElementById('addon-grid') && cards().length) afterRender();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+
+  return api;
+});

@@ -17,8 +17,8 @@ const ADDON_DISPLAY = {
     description: 'Deep pet hair removal from seats, carpets, mats, and trunk.',
   },
   superint: {
-    name: 'Super Interior Upgrade',
-    description: 'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas.',
+    name: 'Super Interior — Deep Cleaning Upgrade',
+    description: 'Double Shampoo for Heavy Stains, Pet Hair Removal, Odor Treatment & Extra Floor Mats Cleaning.',
   },
   odor: {
     name: 'Odor Treatment & Sanitize',

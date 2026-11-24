@@ -6,6 +6,7 @@
 const { asArray } = require('./historical-adapter');
 const PowersportsCatalog = require('../../assets/powersports-model-catalog');
 const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
+const AddonRules = require('../../assets/addon-rules');
 const CeramicCoating = require('./ceramic-coating');
 const { assertCarCatalogTier } = require('./car-catalog-tier');
 
@@ -535,10 +536,17 @@ function parseUnits(vehicle, booking) {
   return vehicle.cat === 'fleet' ? 2 : 1;
 }
 
-function computeAddonTotal(vehicle, booking) {
+function computeAddonTotal(vehicle, booking, opts = {}) {
   const cat = vehicle.cat;
   const catalog = PRICING[cat]?.addons || [];
   const included = new Set(includedAddonIds(cat, vehicle.packageId || vehicle.pkgId));
+  // Super Interior bundles pet hair, odor and floor mats on cars, for a new
+  // submission or a booking created under the bundle; stored bookings reprice
+  // unchanged.
+  if (AddonRules.bundleActiveFor(booking, opts)) {
+    const selected = (vehicle.addons || []).map((a) => a && a.id);
+    for (const id of AddonRules.includedBySuperint(cat, selected)) included.add(id);
+  }
   const ceramicPackage = CeramicCoating.isCeramicPackage(vehicle.packageId || vehicle.pkgId);
   const pricedVehicle = { ...vehicle };
   delete pricedVehicle.ceramicWaterSupply;
@@ -681,7 +689,7 @@ function computeVehicleSubtotal(vehicle, zip, booking, opts) {
   const base = computeVehicleBasePrice(vehicle, zip, booking, opts);
   if (!base.ok) return base;
   const pricedVehicle = { ...vehicle, cat: base.cat, pkgId: base.pkgId, tierKey: base.tierKey };
-  const addons = computeAddonTotal(pricedVehicle, booking);
+  const addons = computeAddonTotal(pricedVehicle, booking, opts || {});
   if (!addons.ok) return addons;
   const companion = CeramicCoating.resolveCompanionInterior({ ...pricedVehicle, addons: addons.addons });
   if (!companion.ok) return companion;
