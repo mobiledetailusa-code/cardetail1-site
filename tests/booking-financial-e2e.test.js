@@ -325,8 +325,19 @@ for (const s of SCENARIOS) {
 
 test('the browser cannot set the price: tampered totals, line prices, sizes and blocked add-ons', async () => {
   const base = RESULTS['index.html'][SCENARIOS[0].name].payload;
+  // With PostgreSQL present (CI), slot occupancy outlives the in-memory
+  // stores, so each probe gets its own customer and its own day.
+  let probe = 0;
   const tamper = async (mutate) => {
+    probe += 1;
     const p = JSON.parse(JSON.stringify(base));
+    const day = new Date(`${DATE}T12:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + 7 * probe);
+    Object.assign(p, {
+      phone: `2015557${String(100 + probe).slice(-3)}`,
+      email: `tamper-${probe}@example.com`,
+      preferredDate: day.toISOString().slice(0, 10),
+    });
     mutate(p);
     freshStores();
     return submitDraftAndFinalize(p);
