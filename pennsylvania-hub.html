@@ -2380,6 +2380,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/customer-payments-gate.js" defer></script>
 <script src="assets/ceramic-booking.js" defer></script>
+<script src="assets/addon-rules.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
 <link rel="stylesheet" href="assets/button-states.css">
@@ -4031,9 +4032,9 @@ const PRICING = {
         feats:['Technical exterior wash','Tar and iron decontamination','Mechanical clay when required','One-stage gloss-enhancement polish','Panel-prep wipe','Ceramic coating on painted surfaces','Normal wheel, tire, and glass cleaning','Final inspection'],
         miss:['Interior detailing','Engine bay','Undercarriage','Wheel ceramic','Glass ceramic','Trim ceramic','Headlight restoration','Deep paint correction','Complete defect removal']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Hand-applied premium paste wax','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Hand-applied premium paste wax','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Clay bar (available as add-on)','Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles - add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
@@ -4058,7 +4059,7 @@ const PRICING = {
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas', price:125},
+      {id:'superint',   scope:'int', name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains, Pet Hair Removal, Odor Treatment & Extra Floor Mats Cleaning.', price:125},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and general interior odors. Severe odor, mold, urine, or biohazard may require estimate confirmation', price:90},
       {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
       {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning — wheel, controls, handles, seats, and belts', price:65},

@@ -1968,6 +1968,7 @@ a.car-pkg-cta{display:flex;align-items:center;justify-content:center;text-align:
 <script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/customer-payments-gate.js" defer></script>
 <script src="assets/ceramic-booking.js" defer></script>
+<script src="assets/addon-rules.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
 <link rel="stylesheet" href="assets/luxury-theme.css">
@@ -4399,9 +4400,9 @@ let PRICING = {
         feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Hand-applied premium paste wax','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Hand-applied premium paste wax','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Clay bar (available as add-on)','Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
       {id:'wash',     name:'Exterior Hand Wash', icon:'🚿', tag:'Exterior wash only — add wax, clay bar, or engine bay if you want more', dur:'~45–75 min', popular:false, scope:'ext', note:'Exterior wash only — protection, clay bar, and engine bay are add-ons.',
         ext:['Exterior hand wash & rinse','Wheels & tires cleaned','Exterior windshield cleaned','Door jambs wiped down','Tire dressing'],
@@ -4421,7 +4422,7 @@ let PRICING = {
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas', price:125},
+      {id:'superint',   scope:'int', name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains, Pet Hair Removal, Odor Treatment & Extra Floor Mats Cleaning.', price:125},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and general interior odors. Severe odor, mold, urine, or biohazard may require estimate confirmation', price:90},
       {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
       {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning — wheel, controls, handles, seats, and belts', price:65},
@@ -6602,7 +6603,7 @@ const PKG_COMPACT_META_BY_CAT = {
     premium: { shortName: 'Signature Restoration', line: 'Correction + deep restoration', chips: ['Paint Correction', 'Sealant', 'Rain-X', 'Engine Bay'] },
     refresh: { shortName: 'Exterior Refresh & Protect', line: 'Exterior paint enhancement', chips: ['Clay', 'Polish', 'Sealant', 'Engine Bay'] },
     interior: { shortName: 'Interior Detail', line: 'Deep clean cabin', chips: ['Shampoo', 'Condition', 'UV'] },
-    maint: { shortName: 'Maintenance Detail', line: 'Keep-clean wash + light interior', chips: ['Wash', 'Wheels', 'Quick interior'] },
+    maint: { shortName: 'Maintenance Detail', line: 'Hand wash, paste wax + light interior', chips: ['Wash', 'Paste wax', 'Quick interior'] },
     wash: { shortName: 'Exterior Hand Wash', line: 'Basic exterior service', chips: ['Wash', 'Wheels', 'Windshield'] },
     ceramic_1yr: { shortName: 'Professional Ceramic Protection — Up to 1 Year', line: 'Up to 1 year with maintenance', chips: ['Preparation', 'Gloss', 'Hydrophobic'] },
     ceramic_3yr: { shortName: 'Professional Ceramic Protection — Up to 3 Years', line: 'Up to 3 years with maintenance', chips: ['Preparation', 'Gloss', 'Hydrophobic'] },

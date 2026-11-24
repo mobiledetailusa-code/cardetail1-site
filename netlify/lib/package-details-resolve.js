@@ -8,6 +8,8 @@ const {
   CAR_PACKAGES,
   LEGACY_FULL_DETAIL_SPRAY_SEALANT,
   soldLegacyFullDetail,
+  LEGACY_MAINTENANCE_DETAIL,
+  soldLegacyMaintenanceDetail,
 } = require('./customer-catalog');
 const { BOAT_PACKAGES, RV_PACKAGES, packagesForCategory } = require('./length-pricing');
 
@@ -63,6 +65,15 @@ function catalogEntryForVehicle(vehicle, opts = {}) {
     && soldLegacyFullDetail(opts.bookingCreatedAt)
   ) {
     return { ...found, ...LEGACY_FULL_DETAIL_SPRAY_SEALANT, feats: [...LEGACY_FULL_DETAIL_SPRAY_SEALANT.feats], category: cat };
+  }
+  // Same rule for the Maintenance Detail paste-wax change.
+  if (
+    list === CAR_PACKAGES
+    && pkgId === 'maint'
+    && Object.prototype.hasOwnProperty.call(opts, 'bookingCreatedAt')
+    && soldLegacyMaintenanceDetail(opts.bookingCreatedAt)
+  ) {
+    return { ...found, ...LEGACY_MAINTENANCE_DETAIL, feats: [...LEGACY_MAINTENANCE_DETAIL.feats], category: cat };
   }
   return { ...found, category: cat };
 }

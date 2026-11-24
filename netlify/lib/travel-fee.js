@@ -178,6 +178,7 @@ function applyServerTravelAndTotal(booking, opts = {}) {
 
   const pricing = validateAndRecalculateBookingPricing(booking, {
     catalogTierMode: opts.catalogTierMode,
+    newBooking: opts.newBooking === true,
   });
   if (!pricing.ok) {
     return { ok: false, error: pricing.error || 'invalid_pricing' };

@@ -32,7 +32,7 @@ const INTERIOR_SERVICE_INCLUSIONS = Object.freeze([
 /** Display-only descriptions (no prices). */
 const PACKAGE_DESCRIPTIONS = {
   cars: {
-    maint: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
+    maint: 'Exterior hand wash with hand-applied premium paste wax for enhanced gloss and protection, plus a light interior refresh.',
     interior: 'Deep vacuum including trunk and truck bed where applicable, fabric shampoo, leather conditioning, steam clean, door jambs, headliner, UV protectant on plastics.',
     full: 'Complete interior and exterior detailing with Clay Bar Paint Decontamination and Hand-Applied Premium Paste Wax for a deep, rich gloss, a smooth finish, and added paint protection.',
     refresh: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
