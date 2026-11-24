@@ -18,6 +18,12 @@
 
   var PARENT_ID = 'seasonal_driveway_cleanup';
 
+  // Driveway & Entry Cleanup is retired from new bookings. The family stays in
+  // the catalog so existing and historical bookings keep pricing, repricing and
+  // displaying it; the booking pages just stop offering it as a new add-on.
+  // Set to true to sell it again.
+  var NEW_BOOKINGS_ENABLED = false;
+
   var PUBLIC_CHILD_IDS = Object.freeze([
     'heavy_wet_leaf',
     'pressure_surface_wash',
@@ -141,6 +147,13 @@
 
   function isPublicId(id) {
     return !!PUBLIC_SET[String(id || '').trim()];
+  }
+
+  // Booking-page add-on filter: children are always shown only as upgrades
+  // under the parent card; the whole family is hidden while retired.
+  function hiddenFromNewBookings(id) {
+    if (!isFamilyId(id)) return false;
+    return !NEW_BOOKINGS_ENABLED || isChildId(id);
   }
 
   function isPublicChildId(id) {
@@ -554,6 +567,8 @@
     isChildId: isChildId,
     isPublicId: isPublicId,
     isPublicChildId: isPublicChildId,
+    NEW_BOOKINGS_ENABLED: NEW_BOOKINGS_ENABLED,
+    hiddenFromNewBookings: hiddenFromNewBookings,
     isEligibleCategory: isEligibleCategory,
     displayFor: displayFor,
     addonIdsFromVehicle: addonIdsFromVehicle,

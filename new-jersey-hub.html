@@ -5535,7 +5535,7 @@ function renderAddons(){
   const addons=(PRICING[ST.cat]?.addons||[]).filter(a=>{
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
-    if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isChildId(a.id)) return false;
+    if(window.CD1SeasonalDriveway && (CD1SeasonalDriveway.hiddenFromNewBookings ? CD1SeasonalDriveway.hiddenFromNewBookings(a.id) : CD1SeasonalDriveway.isChildId(a.id))) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
