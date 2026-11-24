@@ -382,6 +382,15 @@ test('Accessible Undercarriage Cleaning is suspended: hidden everywhere, refused
     assert.equal(old.ok, true, tier);
     assert.equal(old.serviceSubtotal, PRICING.cars.tiers[tier].wash + price, tier);
   }
+  // No booking surface still advertises it: package modal (incl. Ceramic) and Heavy Mud copy.
+  const modal = fs.readFileSync(path.join(ROOT, 'assets/car-pkg-detail-modal.js'), 'utf8');
+  assert.doesNotMatch(modal, /undercarriage/i, 'package details modal');
+  for (const file of PAGES) {
+    const html = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const mud = html.match(/\{id:'heavymud', scope:'ext'[^\n]*/);
+    assert.ok(mud, file);
+    assert.doesNotMatch(mud[0], /undercarriage/i, `${file} Heavy Mud copy`);
+  }
   // A stored booking may still change package without losing the line.
   assert.equal(Rules.validatePackageChange('cars', 'full', ['undercarriage']).ok, true);
 });
