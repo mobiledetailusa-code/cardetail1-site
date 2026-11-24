@@ -304,10 +304,12 @@ test('15. portal: compatible add-ons can be added separately or together; guards
 
 /* ── 10. Activation ──────────────────────────────────────────────────────── */
 
-test('activation: one instant, explicit offset, not approved, used by the dated history rules', () => {
+test('activation: one approved instant with an explicit offset, used by the dated history rules', () => {
   const a = Rules.PACKAGE_RULES_ACTIVATION;
   assert.equal(a.timeZone, 'America/New_York');
-  assert.equal(a.approved, false);
+  assert.equal(a.approved, true);
+  assert.equal(a.effectiveAt, '2026-11-24T13:40:00-05:00');
+  assert.equal(Rules.RULES_EFFECTIVE_AT, '2026-11-24T18:40:00.000Z');
   assert.match(a.effectiveAt, /[+-]\d{2}:\d{2}$|Z$/);
   assert.equal(CustomerCatalog.FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT, Rules.RULES_EFFECTIVE_AT);
   assert.equal(CustomerCatalog.MAINTENANCE_PASTE_WAX_EFFECTIVE_AT, Rules.RULES_EFFECTIVE_AT);
@@ -329,15 +331,17 @@ test('activation: env override is honored only with an explicit offset', () => {
   assert.deepEqual(fallback.slice(1), ['constant', true]);
 });
 
-test('activation gate refuses an unapproved release', () => {
+test('activation gate: ready at the planned publish time, refused when far from it', () => {
+  const ok = execFileSync(process.execPath, ['scripts/check-package-rules-activation.mjs', '--publish-at', '2026-11-24T13:30:00-05:00'], { cwd: ROOT, stdio: 'pipe' }).toString();
+  assert.match(ok, /READY/);
   let failed = false;
   try {
-    execFileSync(process.execPath, ['scripts/check-package-rules-activation.mjs'], { cwd: ROOT, stdio: 'pipe' });
+    execFileSync(process.execPath, ['scripts/check-package-rules-activation.mjs', '--publish-at', '2026-11-24T15:00:00-05:00'], { cwd: ROOT, stdio: 'pipe' });
   } catch (e) {
     failed = true;
-    assert.match(String(e.stderr), /approved is not true/);
+    assert.match(String(e.stderr), /more than 15 min from publish/);
   }
-  assert.ok(failed, 'gate must fail while approved is false');
+  assert.ok(failed, 'gate must refuse a publish far from the activation time');
 });
 
 /* ── Carnauba ────────────────────────────────────────────────────────────── */
