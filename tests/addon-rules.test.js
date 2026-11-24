@@ -181,13 +181,14 @@ test('14. Engine Bay $125 and Mobile Water retired; Top Clean $45 sold where Eng
     assert.equal(Rules.isOfferable('cars', pkg, 'engine_bay'), false, pkg);
     assert.equal(Rules.isOfferable('cars', pkg, 'mobile_water'), false, pkg);
   }
-  // Full and Refresh include Engine Bay Light Cleaning: no separate $45 line.
-  for (const pkg of ['full', 'refresh']) {
+  // Full, Refresh and Signature (same exterior as Refresh) include Engine Bay
+  // Light Cleaning: no separate $45 line.
+  for (const pkg of ['full', 'refresh', 'premium']) {
     assert.equal(Rules.isOfferable('cars', pkg, 'engine'), false, pkg);
     assert.equal(Rules.validateNewBookingAddons({ vehicles: [car(pkg, ['engine'])] }).error, 'addon_not_available', pkg);
     assert.equal(Rules.validateAddedAddons('cars', pkg, ['engine']).ok, false, pkg);
   }
-  for (const pkg of ['wash', 'maint', 'premium']) assert.equal(Rules.isOfferable('cars', pkg, 'engine'), true, pkg);
+  for (const pkg of ['wash', 'maint']) assert.equal(Rules.isOfferable('cars', pkg, 'engine'), true, pkg);
   for (const id of ['undercarriage', 'heavymud', 'claybar', 'rainx', 'polymer', 'headlight']) {
     assert.equal(Rules.isOfferable('cars', 'wash', id), true, id);
   }

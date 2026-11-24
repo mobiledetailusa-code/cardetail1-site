@@ -36,15 +36,8 @@ const CAR_PACKAGES = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium']
 const TIERS = Object.keys(PRICING.cars.tiers);
 
 // Known, documented page differences. Anything else fails the test.
-//   engine on Signature: the homepage Signature package lists "Engine Bay
-//   Light Cleaning & Wipe-Down" and hides the $45 Engine Bay Top Clean; the
-//   hub fallback copies do not list it and still offer the $45 add-on, which
-//   the server accepts. Customers reach the homepage modal from every hub, so
-//   only the fallback shows it. Signature composition is an open owner
-//   decision. (Full and Refresh were decided on 2026-11-24: included.)
-const DOCUMENTED_EXCEPTIONS = [
-  { pages: PAGES.filter((p) => p !== HOME), packages: ['premium'], id: 'engine', onlyOn: 'page' },
-];
+//   (none: Signature engine bay was resolved on 2026-11-24, see below)
+const DOCUMENTED_EXCEPTIONS = [];
 
 class LocalLoader extends ResourceLoader {
   fetch(url) {
@@ -188,6 +181,7 @@ test('every page offers the same car add-ons at the same prices as the homepage'
 });
 
 test('documented exceptions still exist (remove them here once resolved)', () => {
+  assert.ok(Array.isArray(DOCUMENTED_EXCEPTIONS));
   for (const e of DOCUMENTED_EXCEPTIONS) {
     for (const pkg of e.packages) {
       assert.equal(MATRIX[HOME][pkg + '|small'].offered.has(e.id), false, `${pkg} home ${e.id}`);
@@ -279,9 +273,21 @@ test('Full and Refresh include Engine Bay Light Cleaning: no $45 Engine Bay Top 
   assert.equal(PRICING.cars.addons.find((a) => a.id === 'engine').price, 45);
 });
 
-test('Signature: composition unchanged; homepage lists Engine Bay Light Cleaning (open owner decision)', () => {
-  assert.match(MATRIX[HOME].pkgText.premium, /Engine Bay Light Cleaning/);
-  assert.equal(Rules.isOfferable('cars', 'premium', 'engine'), true, 'server rule unchanged for Signature');
+test('Signature has the same exterior as Refresh, Engine Bay Light Cleaning included, no $45 line', () => {
+  for (const file of PAGES) assert.match(MATRIX[file].pkgText.premium, /Engine Bay Light Cleaning & Wipe-Down/, file);
+  for (const tier of TIERS) assert.deepEqual(offeredOnAllPages('premium', tier, 'engine').filter(Boolean), [], tier);
+  assert.equal(Rules.validateNewBookingAddons({ vehicles: [{ cat: 'cars', pkgId: 'premium', addons: [{ id: 'engine' }] }] }).error, 'addon_not_available');
+  assert.equal(Rules.validateAddedAddons('cars', 'premium', ['engine']).ok, false, 'portal');
+  const { CAR_PACKAGES: PORTAL } = require('../netlify/lib/customer-catalog');
+  assert.ok(PORTAL.find((p) => p.id === 'premium').feats.includes('Engine Bay Light Cleaning & Wipe-Down'));
+  // Stored Signature bookings keep a $45 line they already carry.
+  const old = computeBookingServiceSubtotal({ zipCode: '07601', createdAt: '2026-10-01T12:00:00Z', vehicles: [{ cat: 'cars', pkgId: 'premium', tierKey: 'small', addons: [{ id: 'engine' }] }] });
+  assert.equal(old.serviceSubtotal, 400 + 45);
+});
+
+test('the package modal no longer lists the retired Engine Bay Detail', () => {
+  const modal = fs.readFileSync(path.join(ROOT, 'assets/car-pkg-detail-modal.js'), 'utf8');
+  assert.doesNotMatch(modal, /Engine bay detail/i, 'retired $125 Engine Bay Detail');
 });
 
 test('Interior Detail + Headlight Restoration: offered at its $90 catalog price, never preselected, totals match', () => {

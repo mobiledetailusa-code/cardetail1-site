@@ -98,7 +98,7 @@ const CAR_PACKAGES = [
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & deep interior',
     duration: '~3.5–4h',
     description: 'Same exterior as Exterior Refresh & Protect — clay bar, chemical decontamination, single-pass correction, sealant, Rain-X, wheels and tire dressing — plus deep interior care.',
-    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
+    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Engine Bay Light Cleaning & Wipe-Down', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
   },
 ];
 

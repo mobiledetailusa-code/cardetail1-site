@@ -108,8 +108,9 @@
       // Premium Full Detail includes hand-applied premium paste wax and Engine
       // Bay Light Cleaning (owner decision 2026-11-24).
       full: ['wax1yr', 'engine'],
-      // Signature Restoration includes the same long-lasting sealant.
-      premium: ['polymer'],
+      // Signature's exterior is Exterior Refresh & Protect's exterior (same
+      // sealant, same Engine Bay Light Cleaning), so neither is sold again.
+      premium: ['polymer', 'engine'],
     },
   };
 

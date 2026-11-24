@@ -352,8 +352,14 @@ test('the browser cannot set the price: tampered totals, line prices, sizes and 
   assert.equal(r.fin.status, 200, JSON.stringify(r.fin && r.fin.body));
   assert.equal(r.saved.vehicles[0].addons[0].price, 90);
   assert.equal(r.saved.totalPrice, 315);
-  // Total off by 50 cents (inside the $1 acceptance window): accepted, stored at the exact server total.
-  r = await tamper((p) => { p.totalPrice = 314.5; });
+  // Any difference in cents is refused: what the customer saw is what is recorded.
+  for (const off of [314.5, 314.99, 315.01, 316]) {
+    r = await tamper((p) => { p.totalPrice = off; });
+    assert.equal(r.fin.status, 400, `total ${off}`);
+    assert.equal(r.fin.body.error, 'price_mismatch', `total ${off}`);
+  }
+  // Floating-point noise below a cent is the same amount and is accepted.
+  r = await tamper((p) => { p.totalPrice = 315.0000001; });
   assert.equal(r.fin.status, 200);
   assert.equal(cents(r.saved.totalPrice), cents(315));
   assert.equal(cents(r.saved.approvedFinalAmount), cents(315));
