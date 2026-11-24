@@ -240,14 +240,18 @@ test('booking pages: Super Interior stain copy, Maintenance paste wax, shared ru
   }
 });
 
-test('18. Super Interior details: stain treatment only, no other add-on, no guarantee', () => {
+test('18. Super Interior details: stain treatment, other treatments available separately, no guarantee', () => {
+  const DESC = 'Double shampoo for heavy stains and enhanced extraction for heavily soiled interiors. Ideal for vehicles requiring extra attention, including those affected by stubborn stains, pet hair or lingering odors.';
   const d = Rules.detailsFor('cars', { id: 'superint', desc: 'Double Shampoo for Heavy Stains.' });
-  assert.equal(d.description, 'Enhanced interior deep cleaning with double shampoo and additional extraction for heavily stained seats, carpets, and fabric surfaces requiring more intensive treatment.');
+  assert.equal(d.description, DESC);
+  assert.equal(d.note, 'Specialized Pet Hair Removal and Odor Treatment are available separately.');
   assert.match(d.items.join(' '), /second shampoo and extraction/i);
   assert.match(d.limits, /may be lightened rather than fully removed/);
-  assert.doesNotMatch(JSON.stringify(d), /pet hair|odor|floor mat|sanitiz|guarantee/i);
+  // Pet hair and odors are named as conditions, never as included services.
+  assert.doesNotMatch(JSON.stringify(d), /included with super interior|covered by super interior|no additional charge|no extra charge|choose super interior|guarantee/i);
+  assert.doesNotMatch(d.items.join(' '), /pet hair|odor|floor mat|sanitiz/i);
   const canonical = read('netlify/lib/canonical-addon-catalog.js');
-  assert.match(canonical, /description: 'Enhanced interior deep cleaning with double shampoo and additional extraction/);
+  assert.ok(canonical.includes(`description: '${DESC}'`));
   for (const id of ['pethair', 'odor']) {
     assert.doesNotMatch(JSON.stringify(Rules.detailsFor('cars', { id, desc: 'x' })), /super interior/i, id);
   }
@@ -348,4 +352,31 @@ test('Carnauba Wax: no durability promise on cars; price unchanged', () => {
     assert.doesNotMatch(wax, /1-Year|12 months|year/i, file);
     assert.match(wax, /price:75/, file);
   }
+});
+
+/* ── 19. Featured Super Interior + "View More Interior Add-ons" ──────────── */
+
+test('19. interior layout: Super Interior featured, independent add-ons in an expandable section', () => {
+  const src = read('assets/addon-rules.js');
+  assert.match(src, /'Recommended for heavily soiled interiors'/);
+  assert.match(src, /'View More Interior Add-ons'/);
+  assert.match(src, /setAttribute\('aria-expanded', 'false'\)/);
+  assert.match(src, /setAttribute\('aria-controls', 'cd1-more-panel'\)/);
+  // Cards are moved (appendChild of the existing node), never cloned or re-priced.
+  assert.match(src, /cardsToMove\.forEach\(function \(c\) \{ panelEl\.appendChild\(c\); \}\)/);
+  assert.doesNotMatch(src, /cloneNode/);
+  // Opens itself when a moved add-on is already selected.
+  assert.match(src, /Never hide a choice the customer already made/);
+  // Only interior-capable car packages, and only when Super Interior is offerable there.
+  assert.match(src, /if \(cat !== 'cars' \|\| !EXPECT_PACKAGES\[pkg\] \|\| !isOfferable\(cat, pkg, 'superint'\)\) return;/);
+  assert.deepEqual(['interior', 'full', 'premium'].filter((p) => Rules.isOfferable('cars', p, 'superint')), ['interior', 'full', 'premium']);
+});
+
+test('notes hints: whole-word pet terms; each condition suggests its own treatment', () => {
+  const src = read('assets/addon-rules.js');
+  const petRe = eval(src.match(/re: (\/[^\n]*\/i), id: 'pethair'/)[1]); // eslint-disable-line no-eval
+  assert.equal(petRe.test('dog hair on the back seat'), true);
+  assert.equal(petRe.test('my office chair'), false);
+  assert.equal(petRe.test('carpet stain'), false);
+  assert.doesNotMatch(src, /[\x00-\x08]/, 'no control characters in the module');
 });
