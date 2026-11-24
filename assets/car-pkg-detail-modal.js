@@ -47,6 +47,7 @@ const CAR_PKG_DETAILS = {
       "Biohazard",
       "Excessive stains",
     ],
+    conditionNote: "Results depend on the vehicle’s condition and time on site varies with it. Very deep or permanent stains, persistent odors and embedded pet hair may need a dedicated treatment such as Super Interior, Pet Hair Removal or Odor Treatment. Nothing extra is added or charged without your approval.",
   },
   full: {
     title: "Premium Full Detail",
@@ -78,6 +79,7 @@ const CAR_PKG_DETAILS = {
       "Engine bay",
       "Headlights",
     ],
+    conditionNote: "Results depend on the vehicle’s condition and time on site varies with it. Very deep or permanent stains, persistent odors and embedded pet hair may need a dedicated treatment such as Super Interior, Pet Hair Removal or Odor Treatment. Nothing extra is added or charged without your approval.",
   },
   ceramic_1yr: {
     title: "Professional Ceramic Protection — Up to 1 Year",
@@ -168,7 +170,7 @@ function buildCarPkgDetailSectionsHtml(d) {
   if (!d) return "";
   let html = "";
   if (d.includes && d.includes.length) {
-    html += `<div class="car-pkg-detail-section"><h4>Includes</h4><ul class="car-pkg-detail-list car-pkg-detail-list--inc">${d.includes.map((i) => `<li>${i}</li>`).join("")}</ul>${d.paintConditionNote ? `<p class="car-pkg-detail-note">${d.paintConditionNote}</p>` : ""}</div>`;
+    html += `<div class="car-pkg-detail-section"><h4>Includes</h4><ul class="car-pkg-detail-list car-pkg-detail-list--inc">${d.includes.map((i) => `<li>${i}</li>`).join("")}</ul>${d.paintConditionNote ? `<p class="car-pkg-detail-note">${d.paintConditionNote}</p>` : ""}${d.conditionNote ? `<p class="car-pkg-detail-note">${d.conditionNote}</p>` : ""}</div>`;
   }
   if (d.bestFor) {
     if (Array.isArray(d.bestFor)) {

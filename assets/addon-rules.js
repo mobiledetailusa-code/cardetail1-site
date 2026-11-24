@@ -27,13 +27,17 @@
    * One activation instant for every rule that depends on a date:
    *   - Premium Full Detail paste wax (#420): older bookings keep spray sealant;
    *   - Maintenance Detail paste wax: older bookings keep their composition;
-   *   - Super Interior bundle pricing for stored bookings.
-   * Browser eligibility does not use it: it is live from the deploy.
+   *   - Super Interior coverage for stored bookings without an includedWith mark.
+   * Browser eligibility does not use it: it is live from the deploy. Lines sold
+   * as covered carry includedWith: 'superint' and stay covered regardless.
    *
-   * NOT APPROVED. The owner sets effectiveAt to the real production release time
-   * (wall-clock time in America/New_York with its explicit UTC offset) and flips
-   * approved to true in the release commit. The server may override it with
-   * CD1_PACKAGE_RULES_EFFECTIVE_AT, which must also carry an explicit offset.
+   * NOT APPROVED. The owner sets effectiveAt to the planned production publish
+   * time (America/New_York wall-clock time with its explicit UTC offset) and
+   * flips approved to true in the release commit. The release then runs
+   * scripts/check-package-rules-activation.mjs, which refuses to proceed unless
+   * the activation is approved and within 15 minutes of the publish time.
+   * CD1_PACKAGE_RULES_EFFECTIVE_AT may override it on the server and must also
+   * carry an explicit offset.
    */
   var PACKAGE_RULES_ACTIVATION = {
     effectiveAt: '2026-12-01T00:00:00-05:00',
@@ -120,12 +124,25 @@
       superint: {
         items: [
           'Double shampoo for heavy stains: up to two total shampoo/extraction passes on upholstery and carpet where needed, as the material and its condition allow.',
+          'Enhanced interior cleaning: extra time on heavily soiled carpets, seats and high-use surfaces.',
+          'Additional attention to problem areas.',
           'Moderate pet hair removal.',
-          'Targeted odor treatment to neutralize common interior odors.',
-          'Extra floor mats cleaning: an additional, detailed cleaning of the vehicle’s existing mats.',
-          'Additional attention to high-use interior areas.',
+          'Targeted treatment for common interior odors.',
+          'Extra cleaning of this vehicle’s own floor mats.',
         ],
-        limits: 'Stains and odors are reduced, not guaranteed to be removed. Severe pet hair, smoke, mold, biological contamination or deeply embedded odors may require inspection and separate pricing.',
+        limits: 'Super Interior is an optional upgrade for interiors that need more intensive work. Stains and odors are reduced, not guaranteed to be removed, and it does not restore severely deteriorated interiors. Embedded pet hair, smoke, mold, biological contamination or deeply embedded odors may need inspection and a separate quote, which is only charged with your approval.',
+      },
+      pethair: {
+        items: [],
+        limits: 'With Super Interior, pet hair removal at the moderate level is included at no extra charge. Embedded or very heavy pet hair may need an estimate before work and is only charged with your approval.',
+      },
+      odor: {
+        items: [],
+        limits: 'With Super Interior, treatment of common odors is included at no extra charge. Odors embedded in materials are reduced rather than guaranteed to be eliminated; mold, urine or biohazard need inspection.',
+      },
+      floormats: {
+        items: [],
+        limits: 'Priced per mat. With Super Interior, cleaning of this vehicle’s own floor mats is included at no extra charge.',
       },
     },
   };
@@ -314,8 +331,13 @@
     '.cd1-addon-dialog ul{margin:0 0 10px;padding-left:20px}',
     '.cd1-addon-dialog li{margin:0 0 6px}',
     '.cd1-addon-dialog .cd1-addon-limits{font-size:12.5px;color:#475569;border-top:1px solid #e2e8f0;padding-top:10px;margin:4px 0 0}',
-    '.cd1-addon-included{opacity:.6;cursor:default}',
+    '.cd1-addon-covered .addon-price{text-decoration:line-through;opacity:.6}',
     '.cd1-addon-included-note{grid-column:1/-1;font-size:11.5px;font-weight:600;margin-top:2px}',
+    '.cd1-expect{margin:0 0 12px;padding:10px 12px;border:1px solid rgba(37,99,235,.25);border-radius:10px;background:rgba(37,99,235,.06);font-size:12.5px;line-height:1.5;text-align:left}',
+    '.cd1-expect[hidden]{display:none}',
+    '.cd1-expect button{margin-left:4px;padding:0;border:0;background:none;color:var(--blue,#2563eb);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}',
+    '.cd1-notes-hint{margin:6px 0 0;font-size:12px;line-height:1.45;opacity:.85}',
+    '.cd1-notes-hint[hidden]{display:none}',
   ].join('');
 
   function page(name) {
@@ -477,35 +499,47 @@
     return ((st && st.addons) || []).map(function (a) { return a && a.id; });
   }
 
+  function catalogPrice(cat, id) {
+    var row = catalogAddon(cat, id);
+    return row ? Number(row.price) || 0 : 0;
+  }
+
+  // Super Interior covers the standard level of pet hair, odor and floor mats.
+  // Those add-ons stay visible and selectable; a selected one stays on the
+  // booking at $0 (one unit) while Super Interior is on, and returns to its
+  // catalog price if Super Interior is removed. Nothing is removed for the
+  // customer and nothing is charged twice. Mirrors computeAddonTotal.
   function applyBundle() {
     var st = state();
     if (!st) return false;
     var cat = str(st.cat);
-    var included = includedBySuperint(cat, selectedIds(st));
+    var covered = includedBySuperint(cat, selectedIds(st));
     var changed = false;
-    if (included.length) {
-      var before = st.addons.length;
-      st.addons = st.addons.filter(function (a) { return included.indexOf(a && a.id) < 0; });
-      changed = st.addons.length !== before;
-    }
+    (st.addons || []).forEach(function (a) {
+      if (!a || bundledIds(cat).indexOf(a.id) < 0) return;
+      if (covered.indexOf(a.id) >= 0) {
+        if (a.price !== 0 || (a.qty && a.qty !== 1) || a.includedWith !== 'superint') changed = true;
+        a.price = 0;
+        if (a.qty) a.qty = 1;
+        a.includedWith = 'superint';
+        var qtyEl = document.getElementById('aq-' + a.id);
+        if (qtyEl && a.qty) qtyEl.textContent = '1';
+      } else if (a.includedWith === 'superint') {
+        a.price = catalogPrice(cat, a.id);
+        delete a.includedWith;
+        changed = true;
+      }
+    });
     bundledIds(cat).forEach(function (id) {
       var card = document.querySelector('#addon-grid .addon[data-id="' + id + '"]');
       if (!card) return;
-      var on = included.indexOf(id) >= 0;
-      card.classList.toggle('cd1-addon-included', on);
-      if (on) {
-        card.classList.remove('sel');
-        if (card.getAttribute('role') === 'checkbox') card.setAttribute('aria-checked', 'false');
-        card.setAttribute('aria-disabled', 'true');
-        var qty = document.getElementById('aq-' + id);
-        if (qty) qty.textContent = '0';
-        if (!card.querySelector('.cd1-addon-included-note')) {
-          card.appendChild(el('div', 'cd1-addon-included-note', includedNote(cat, id)));
-        }
-      } else {
-        card.removeAttribute('aria-disabled');
-        var note = card.querySelector('.cd1-addon-included-note');
-        if (note) note.remove();
+      var on = covered.indexOf(id) >= 0;
+      card.classList.toggle('cd1-addon-covered', on);
+      var note = card.querySelector('.cd1-addon-included-note');
+      if (on && !note) {
+        card.appendChild(el('div', 'cd1-addon-included-note', includedNote(cat, id) + ' — no extra charge'));
+      } else if (!on && note) {
+        note.remove();
       }
     });
     return changed;
@@ -526,14 +560,70 @@
     return st.addons.length !== before;
   }
 
+  // Interior-capable car packages: say plainly what the package covers and that
+  // extras are optional and only charged with approval. Never selects anything.
+  var EXPECT_PACKAGES = { interior: true, full: true, premium: true };
+  var EXPECT_TEXT = 'Results depend on your vehicle’s condition. Your package includes a complete interior clean; very deep or permanent stains, persistent odors and embedded pet hair may need a dedicated treatment. Nothing extra is added or charged without your approval.';
+
+  function openSuperintDetails(from) {
+    var addon = catalogAddon('cars', 'superint');
+    if (addon) openDialog(from, addon, detailsFor('cars', addon));
+  }
+
+  function renderExpectations() {
+    var grid = document.getElementById('addon-grid');
+    var st = state();
+    if (!grid || !st) return;
+    var box = document.getElementById('cd1-expect');
+    var show = str(st.cat) === 'cars' && !!EXPECT_PACKAGES[str(st.pkgId)] && isOfferable('cars', st.pkgId, 'superint');
+    if (!box) {
+      if (!show) return;
+      box = el('p', 'cd1-expect');
+      box.id = 'cd1-expect';
+      box.appendChild(el('span', '', EXPECT_TEXT + ' '));
+      var more = el('button', '', 'See Super Interior');
+      more.type = 'button';
+      more.setAttribute('aria-haspopup', 'dialog');
+      more.addEventListener('click', function (e) { e.preventDefault(); openSuperintDetails(more); });
+      box.appendChild(more);
+      grid.parentNode.insertBefore(box, grid);
+    }
+    box.hidden = !show;
+  }
+
+  var NOTES_PATTERN = /stain|odou?r|smell|smok|pet|dog|cat hair|hair|vomit|urine|mold|mildew|spill/i;
+
+  function updateNotesHint() {
+    var notes = document.getElementById('f-notes');
+    var st = state();
+    if (!notes || !st) return;
+    var hint = document.getElementById('cd1-notes-hint');
+    if (!hint) {
+      hint = el('p', 'cd1-notes-hint');
+      hint.id = 'cd1-notes-hint';
+      hint.setAttribute('aria-live', 'polite');
+      hint.textContent = 'Mentioned stains, odors or pet hair? You can go back to the Package step to add Super Interior, Pet Hair Removal or Odor Treatment. Otherwise we’ll do the standard clean and ask before any extra work.';
+      hint.hidden = true;
+      notes.parentNode.insertBefore(hint, notes.nextSibling);
+    }
+    var ids = selectedIds(st);
+    var relevant = str(st.cat) === 'cars' && !!EXPECT_PACKAGES[str(st.pkgId)]
+      && ids.indexOf('superint') < 0 && ids.indexOf('pethair') < 0 && ids.indexOf('odor') < 0;
+    hint.hidden = !(relevant && NOTES_PATTERN.test(notes.value || ''));
+  }
+
   function afterRender() {
     var changed = applyEligibility();
     if (applyBundle() || changed) refreshTotals();
+    renderExpectations();
   }
 
-  function bundleBlocks(id) {
+  // While Super Interior covers floor mats, one unit is all that is included.
+  function coveredQtyBlocked(id, delta) {
     var st = state();
-    return !!st && includedBySuperint(str(st.cat), selectedIds(st)).indexOf(str(id)) >= 0;
+    if (!st || !(delta > 0)) return false;
+    if (includedBySuperint(str(st.cat), selectedIds(st)).indexOf(str(id)) < 0) return false;
+    return (st.addons || []).some(function (a) { return a && a.id === id; });
   }
 
   function wrap(name, wrapper) {
@@ -561,19 +651,23 @@
     });
     wrap('toggleAddon', function (fn) {
       return function (card) {
-        if (card && bundleBlocks(card.getAttribute && card.getAttribute('data-id'))) return undefined;
         var result = fn.apply(this, arguments);
         try { if (applyBundle()) refreshTotals(); } catch (e) { /* display only */ }
         return result;
       };
     });
     wrap('addonQty', function (fn) {
-      return function (id) {
-        if (bundleBlocks(id)) return undefined;
-        return fn.apply(this, arguments);
+      return function (id, delta) {
+        if (coveredQtyBlocked(id, delta)) return undefined;
+        var result = fn.apply(this, arguments);
+        try { if (applyBundle()) refreshTotals(); } catch (e) { /* display only */ }
+        return result;
       };
     });
     if (document.getElementById('addon-grid') && cards().length) afterRender();
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'f-notes') updateNotesHint();
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
