@@ -15,7 +15,7 @@ const CAR_PKG_DETAILS = {
       "Between full details",
     ],
     addonsMayApply: [
-      "1-Year Carnauba Wax",
+      "Carnauba Wax",
       "Polymer paint sealant",
       "Clay bar",
       "Engine bay detailing",

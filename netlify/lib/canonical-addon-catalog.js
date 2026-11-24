@@ -53,8 +53,8 @@ const ADDON_DISPLAY = {
     description: 'Hand-applied polymer sealant for paint protection and gloss.',
   },
   wax1yr: {
-    name: '1-Year Carnauba Wax',
-    description: 'Premium carnauba wax with enhanced gloss and protection.',
+    name: 'Carnauba Wax',
+    description: 'Hand-applied carnauba wax for added gloss and a protective layer on the paint. How long it lasts depends on weather, washing, and storage.',
   },
   claybar: {
     name: 'Clay Bar Treatment',
