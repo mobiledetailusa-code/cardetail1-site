@@ -193,3 +193,85 @@ test('Maintenance history: older bookings keep the composition they were sold', 
   const fresh = resolvePackageDetailsForCustomerView(v, { bookingCreatedAt: new Date(cutover + 60_000).toISOString() });
   assert.ok(fresh.includedServices.includes(WAX));
 });
+
+/* ── Follow-up review: limits, portal guards, activation, Carnauba ───────── */
+
+const { execFileSync } = require('node:child_process');
+
+test('included Super Interior lines are dropped, never stored with a quantity', () => {
+  const v = car('full', ['superint']);
+  v.addons.push({ id: 'floormats', qty: 40 }, { id: 'pethair', qty: 5 }, { id: 'odor' });
+  const r = subtotal([v], {}, { newBooking: true });
+  assert.equal(r.serviceSubtotal, 250 + 125);
+  assert.deepEqual(r.vehicles[0].addons.map((a) => [a.id, a.qty]), [['superint', 1]]);
+});
+
+test('the card note states the standard level for each included service', () => {
+  assert.match(Rules.includedNote('cars', 'pethair'), /moderate pet hair/);
+  assert.match(Rules.includedNote('cars', 'odor'), /common odors/);
+  assert.match(Rules.includedNote('cars', 'floormats'), /own mats/);
+  for (const id of Rules.bundledIds('cars')) assert.match(Rules.includedNote('cars', id), /^Included with Super Interior/);
+});
+
+test('portal: newly added add-ons follow current rules; existing lines are not re-checked', () => {
+  assert.equal(Rules.validateAddedAddons('cars', 'maint', ['superint']).error, 'addon_not_available');
+  assert.equal(Rules.validateAddedAddons('cars', 'full', ['engine_bay']).error, 'addon_not_available');
+  assert.equal(Rules.validateAddedAddons('cars', 'full', ['mobile_water']).error, 'addon_not_available');
+  assert.equal(Rules.validateAddedAddons('cars', 'full', ['engine', 'pethair']).ok, true);
+  assert.equal(Rules.validateAddedAddons('rvs', 'maint', ['superint']).ok, true, 'other categories keep their rules');
+  // Package change: blocked when the vehicle carries an add-on the new package blocks.
+  assert.equal(Rules.validatePackageChange('cars', 'maint', ['superint']).error, 'addon_incompatible_with_package');
+  assert.equal(Rules.validatePackageChange('cars', 'interior', ['superint', 'pethair']).ok, true);
+  // A retired add-on already contracted does not block a package change.
+  assert.equal(Rules.validatePackageChange('cars', 'refresh', ['engine_bay']).ok, true);
+
+  const src = read('netlify/functions/submit-customer-action.js');
+  const addon = src.indexOf("} else if (action === 'addon_request') {");
+  const addonGuard = src.indexOf('AddonRules.validateAddedAddons(', addon);
+  const addonCmd = src.indexOf('submitChangeRequestCommand({', addon);
+  assert.ok(addon > 0 && addonGuard > addon && addonGuard < addonCmd, 'add-on guard runs before the change command');
+  const pkg = src.indexOf("} else if (action === 'package_change_request') {");
+  const pkgGuard = src.indexOf('AddonRules.validatePackageChange(', pkg);
+  const pkgCmd = src.indexOf('submitChangeRequestCommand({', pkg);
+  assert.ok(pkg > 0 && pkgGuard > pkg && pkgGuard < pkgCmd, 'package guard runs before the change command');
+});
+
+test('activation: one instant, explicit offset, not approved, used by every dated rule', () => {
+  const a = Rules.PACKAGE_RULES_ACTIVATION;
+  assert.equal(a.timeZone, 'America/New_York');
+  assert.equal(a.approved, false);
+  assert.match(a.effectiveAt, /[+-]\d{2}:\d{2}$|Z$/);
+  assert.equal(Rules.RULES_EFFECTIVE_AT, '2026-12-01T05:00:00.000Z', 'unchanged until the owner approves a date');
+  assert.equal(CustomerCatalog.FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT, Rules.RULES_EFFECTIVE_AT);
+  assert.equal(CustomerCatalog.MAINTENANCE_PASTE_WAX_EFFECTIVE_AT, Rules.RULES_EFFECTIVE_AT);
+  assert.equal(Rules.parseActivation('2026-12-03 06:00'), null, 'no offset is rejected');
+  assert.equal(Rules.parseActivation('2026-12-03T06:00:00'), null, 'no offset is rejected');
+  assert.ok(Rules.parseActivation('2026-12-03T06:00:00-05:00'));
+  const ms = Date.parse(Rules.RULES_EFFECTIVE_AT);
+  assert.equal(Rules.createdBeforeActivation(new Date(ms - 1).toISOString()), true);
+  assert.equal(Rules.createdBeforeActivation(new Date(ms).toISOString()), false);
+  assert.equal(Rules.createdBeforeActivation(''), true);
+});
+
+test('activation: env override is honored only with an explicit offset', () => {
+  const run = (value) => execFileSync(process.execPath, ['-e',
+    "const R=require('./assets/addon-rules');process.stdout.write(JSON.stringify([R.RULES_EFFECTIVE_AT,R.ACTIVATION_SOURCE,R.ACTIVATION_INVALID_ENV]))"],
+  { cwd: ROOT, env: { ...process.env, CD1_PACKAGE_RULES_EFFECTIVE_AT: value } }).toString();
+  assert.deepEqual(JSON.parse(run('2026-12-03T06:00:00-05:00')), ['2026-12-03T11:00:00.000Z', 'env', false]);
+  assert.deepEqual(JSON.parse(run('2026-12-03 06:00')), ['2026-12-01T05:00:00.000Z', 'constant', true]);
+});
+
+test('Carnauba Wax: no durability promise on cars; not sold where paste wax is included', () => {
+  for (const file of BOOKING_PAGES) {
+    const html = read(file);
+    const at = html.indexOf("name:'Super Interior — Deep Cleaning Upgrade'");
+    const list = html.slice(at, html.indexOf('    ],', at));
+    const wax = list.slice(list.indexOf("{id:'wax1yr'"), list.indexOf('}', list.indexOf("{id:'wax1yr'")) + 1);
+    assert.match(wax, /name:'Carnauba Wax'/, file);
+    assert.doesNotMatch(wax, /1-Year|12 months|year/i, file);
+    assert.match(wax, /price:75/, file);
+  }
+  assert.equal(Rules.isOfferable('cars', 'maint', 'wax1yr'), false);
+  assert.equal(Rules.isOfferable('cars', 'full', 'wax1yr'), false);
+  assert.equal(ADDON_PRICE.wax1yr, 75);
+});

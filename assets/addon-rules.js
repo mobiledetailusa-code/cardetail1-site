@@ -23,8 +23,52 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // Set to the production release time of these rules.
-  var RULES_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+  /*
+   * One activation instant for every rule that depends on a date:
+   *   - Premium Full Detail paste wax (#420): older bookings keep spray sealant;
+   *   - Maintenance Detail paste wax: older bookings keep their composition;
+   *   - Super Interior bundle pricing for stored bookings.
+   * Browser eligibility does not use it: it is live from the deploy.
+   *
+   * NOT APPROVED. The owner sets effectiveAt to the real production release time
+   * (wall-clock time in America/New_York with its explicit UTC offset) and flips
+   * approved to true in the release commit. The server may override it with
+   * CD1_PACKAGE_RULES_EFFECTIVE_AT, which must also carry an explicit offset.
+   */
+  var PACKAGE_RULES_ACTIVATION = {
+    effectiveAt: '2026-12-01T00:00:00-05:00',
+    timeZone: 'America/New_York',
+    approved: false,
+  };
+
+  var OFFSET_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
+
+  function parseActivation(value) {
+    var s = String(value == null ? '' : value).trim();
+    if (!OFFSET_ISO.test(s)) return null;
+    var ms = Date.parse(s);
+    return Number.isFinite(ms) ? ms : null;
+  }
+
+  function resolveActivation() {
+    var env = null;
+    try {
+      if (typeof process !== 'undefined' && process.env) env = process.env.CD1_PACKAGE_RULES_EFFECTIVE_AT || null;
+    } catch (e) { env = null; }
+    var fromEnv = env ? parseActivation(env) : null;
+    if (fromEnv != null) return { ms: fromEnv, source: 'env', invalidEnv: false };
+    return { ms: parseActivation(PACKAGE_RULES_ACTIVATION.effectiveAt), source: 'constant', invalidEnv: !!env };
+  }
+
+  var ACTIVATION = resolveActivation();
+  var RULES_EFFECTIVE_AT = new Date(ACTIVATION.ms).toISOString();
+
+  /** True when a booking created at `createdAt` predates activation (no time = older). */
+  function createdBeforeActivation(createdAt) {
+    var created = Date.parse(String(createdAt || ''));
+    if (!Number.isFinite(created)) return true;
+    return created < ACTIVATION.ms;
+  }
 
   var RETIRED_FOR_NEW_BOOKINGS = {
     cars: {
@@ -55,6 +99,21 @@
   var SUPERINT_BUNDLE = {
     cars: ['pethair', 'odor', 'floormats'],
   };
+
+  // What the card says when Super Interior covers it: the standard level only,
+  // matching the Super Interior details. The included line is dropped from the
+  // booking (never stored with a quantity), so it cannot be multiplied.
+  var SUPERINT_INCLUDED_NOTES = {
+    cars: {
+      pethair: 'Included with Super Interior (moderate pet hair)',
+      odor: 'Included with Super Interior (common odors)',
+      floormats: 'Included with Super Interior (this vehicle’s own mats)',
+    },
+  };
+
+  function includedNote(cat, id) {
+    return (SUPERINT_INCLUDED_NOTES[str(cat)] || {})[str(id)] || 'Included with Super Interior';
+  }
 
   var DETAILS = {
     cars: {
@@ -109,9 +168,7 @@
    */
   function bundleActiveFor(booking, opts) {
     if (opts && opts.newBooking === true) return true;
-    var created = Date.parse(str(booking && booking.createdAt));
-    if (!Number.isFinite(created)) return false;
-    return created >= Date.parse(RULES_EFFECTIVE_AT);
+    return !createdBeforeActivation(booking && booking.createdAt);
   }
 
   function vehicleAddonIds(vehicle) {
@@ -170,6 +227,36 @@
     return { ok: true };
   }
 
+  /**
+   * Customer-initiated change to an EXISTING booking: only the newly requested
+   * add-ons are checked. Lines already on the booking are never re-validated
+   * or repriced here.
+   */
+  function validateAddedAddons(cat, pkgId, addonIds) {
+    var ids = (addonIds || []).map(str).filter(Boolean);
+    for (var i = 0; i < ids.length; i += 1) {
+      if (!isOfferable(str(cat).toLowerCase(), pkgId, ids[i])) {
+        return { ok: false, error: 'addon_not_available', addonId: ids[i], packageId: str(pkgId) };
+      }
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Customer-initiated package change: the new package must not be one that
+   * blocks an add-on the vehicle already carries (e.g. Super Interior on
+   * Maintenance). Retired add-ons already on the booking stay as contracted.
+   */
+  function validatePackageChange(cat, newPkgId, existingAddonIds) {
+    var ids = (existingAddonIds || []).map(str).filter(Boolean);
+    for (var i = 0; i < ids.length; i += 1) {
+      if (isBlockedForPackage(str(cat).toLowerCase(), newPkgId, ids[i])) {
+        return { ok: false, error: 'addon_incompatible_with_package', addonId: ids[i], packageId: str(newPkgId) };
+      }
+    }
+    return { ok: true };
+  }
+
   function detailsFor(cat, addon) {
     var d = list(DETAILS, cat)[str(addon && addon.id)];
     return {
@@ -181,9 +268,16 @@
 
   var api = {
     RULES_EFFECTIVE_AT: RULES_EFFECTIVE_AT,
+    PACKAGE_RULES_ACTIVATION: PACKAGE_RULES_ACTIVATION,
+    ACTIVATION_SOURCE: ACTIVATION.source,
+    ACTIVATION_INVALID_ENV: ACTIVATION.invalidEnv,
+    parseActivation: parseActivation,
+    createdBeforeActivation: createdBeforeActivation,
     RETIRED_FOR_NEW_BOOKINGS: RETIRED_FOR_NEW_BOOKINGS,
     PACKAGE_BLOCKED: PACKAGE_BLOCKED,
     SUPERINT_BUNDLE: SUPERINT_BUNDLE,
+    SUPERINT_INCLUDED_NOTES: SUPERINT_INCLUDED_NOTES,
+    includedNote: includedNote,
     DETAILS: DETAILS,
     isRetired: isRetired,
     isBlockedForPackage: isBlockedForPackage,
@@ -194,6 +288,9 @@
     DROPPED_FROM_NEW_BOOKINGS: DROPPED_FROM_NEW_BOOKINGS,
     stripDroppedFromNewBooking: stripDroppedFromNewBooking,
     validateNewBookingAddons: validateNewBookingAddons,
+    validateAddedAddons: validateAddedAddons,
+    validatePackageChange: validatePackageChange,
+    vehicleAddonIds: vehicleAddonIds,
     detailsFor: detailsFor,
   };
 
@@ -403,7 +500,7 @@
         var qty = document.getElementById('aq-' + id);
         if (qty) qty.textContent = '0';
         if (!card.querySelector('.cd1-addon-included-note')) {
-          card.appendChild(el('div', 'cd1-addon-included-note', 'Included with Super Interior'));
+          card.appendChild(el('div', 'cd1-addon-included-note', includedNote(cat, id)));
         }
       } else {
         card.removeAttribute('aria-disabled');

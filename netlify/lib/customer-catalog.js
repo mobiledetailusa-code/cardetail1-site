@@ -4,11 +4,14 @@
 const SUBSCRIBER_DISCOUNT = 0.10;
 const MAX_DETAILS_PER_MONTH = 1;
 
+// Every dated package change shares one activation instant, defined (with its
+// time zone and approval flag) in assets/addon-rules.js.
+const AddonRules = require('../../assets/addon-rules');
+
 // Premium Full Detail finish changed from spray sealant to hand-applied premium
-// paste wax. Bookings created before this instant were sold the previous
-// composition, so their "what's included" keeps showing it. Set this to the
-// production release time of the change.
-const FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+// paste wax. Bookings created before activation were sold the previous
+// composition, so their "what's included" keeps showing it.
+const FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT = AddonRules.RULES_EFFECTIVE_AT;
 
 // Composition sold before FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT. Display only.
 const LEGACY_FULL_DETAIL_SPRAY_SEALANT = Object.freeze({
@@ -23,15 +26,12 @@ const LEGACY_FULL_DETAIL_SPRAY_SEALANT = Object.freeze({
  * Detail. Bookings with no usable creation time predate the change.
  */
 function soldLegacyFullDetail(createdAt) {
-  const created = Date.parse(String(createdAt || ''));
-  if (!Number.isFinite(created)) return true;
-  return created < Date.parse(FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT);
+  return AddonRules.createdBeforeActivation(createdAt);
 }
 
-// Maintenance Detail gained hand-applied premium paste wax. Same rule as the
-// Full Detail change: bookings created before this instant keep showing the
-// composition they were sold. Set to the production release time.
-const MAINTENANCE_PASTE_WAX_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+// Maintenance Detail gained hand-applied premium paste wax. Same activation and
+// rule as the Full Detail change.
+const MAINTENANCE_PASTE_WAX_EFFECTIVE_AT = AddonRules.RULES_EFFECTIVE_AT;
 
 // Composition sold before MAINTENANCE_PASTE_WAX_EFFECTIVE_AT. Display only.
 const LEGACY_MAINTENANCE_DETAIL = Object.freeze({
@@ -42,9 +42,7 @@ const LEGACY_MAINTENANCE_DETAIL = Object.freeze({
 });
 
 function soldLegacyMaintenanceDetail(createdAt) {
-  const created = Date.parse(String(createdAt || ''));
-  if (!Number.isFinite(created)) return true;
-  return created < Date.parse(MAINTENANCE_PASTE_WAX_EFFECTIVE_AT);
+  return AddonRules.createdBeforeActivation(createdAt);
 }
 
 const CAR_PACKAGES = [
