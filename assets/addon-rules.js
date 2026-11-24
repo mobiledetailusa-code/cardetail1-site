@@ -38,9 +38,9 @@
    * carry an explicit offset.
    */
   var PACKAGE_RULES_ACTIVATION = {
-    effectiveAt: '2026-12-01T00:00:00-05:00',
+    effectiveAt: '2026-11-24T13:40:00-05:00',
     timeZone: 'America/New_York',
-    approved: false,
+    approved: true,
   };
 
   var OFFSET_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/;
