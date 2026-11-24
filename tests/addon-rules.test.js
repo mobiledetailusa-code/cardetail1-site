@@ -189,8 +189,13 @@ test('14. Engine Bay $125 and Mobile Water retired; Top Clean $45 sold where Eng
     assert.equal(Rules.validateAddedAddons('cars', pkg, ['engine']).ok, false, pkg);
   }
   for (const pkg of ['wash', 'maint']) assert.equal(Rules.isOfferable('cars', pkg, 'engine'), true, pkg);
-  for (const id of ['undercarriage', 'heavymud', 'claybar', 'rainx', 'polymer', 'headlight']) {
+  for (const id of ['heavymud', 'claybar', 'rainx', 'polymer', 'headlight']) {
     assert.equal(Rules.isOfferable('cars', 'wash', id), true, id);
+  }
+  // Accessible Undercarriage Cleaning is suspended for new bookings (not verified).
+  for (const pkg of ['wash', 'refresh', 'full', 'premium', 'ceramic_1yr', 'ceramic_3yr']) {
+    assert.equal(Rules.isOfferable('cars', pkg, 'undercarriage'), false, pkg);
+    assert.equal(Rules.validateAddedAddons('cars', pkg, ['undercarriage']).ok, false, pkg);
   }
 });
 

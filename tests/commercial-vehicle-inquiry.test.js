@@ -24,6 +24,8 @@ const { TEMPLATE_KEYS } = require('../netlify/lib/sms-templates');
 const {
   VEHICLE_CATEGORIES,
   buildInquiryRecord,
+  vehicleSummaryLines,
+  NEW_REQUEST_EXTRAS,
 } = require('../netlify/lib/vehicle-inquiry');
 const { handler } = require('../netlify/functions/submit-inquiry');
 const { applyServerTravelAndTotal } = require('../netlify/lib/travel-fee');
@@ -45,7 +47,7 @@ const SCHOOL_BUS = {
     wheelchairSpaces: '2',
     lengthFt: '40',
     services: ['exterior_wash', 'interior_cleaning', 'sanitizing'],
-    extras: ['roof_cleaning', 'undercarriage_wash'],
+    extras: ['roof_cleaning'],
     notes: 'Six buses, monthly.',
   },
 };
@@ -194,7 +196,7 @@ describe('submit-inquiry: commercial & specialty quote requests', () => {
       wheelchairSpaces: 2,
       lengthFt: 40,
       services: ['exterior_wash', 'interior_cleaning', 'sanitizing'],
-      extras: ['roof_cleaning', 'undercarriage_wash'],
+      extras: ['roof_cleaning'],
       notes: 'Six buses, monthly.',
     });
     assert.ok(rec.retentionExpiresAt);
@@ -205,7 +207,7 @@ describe('submit-inquiry: commercial & specialty quote requests', () => {
     assert.match(emails[0].subject, /quote request — Dana Fleet/);
     for (const line of [/Category: School bus/, /Vehicle: 2019 Blue Bird Vision/, /Passenger capacity: 72/,
       /Wheelchair spaces: 2/, /Approx\. length: 40 ft/, /Services: Exterior wash, Interior cleaning, Sanitizing/,
-      /Extras: Roof cleaning, Undercarriage wash/, /ZIP: {3}07601/]) {
+      /Extras: Roof cleaning\n/, /ZIP: {3}07601/]) {
       assert.match(emails[0].text, line);
     }
 
@@ -669,7 +671,7 @@ describe('admin-inquiries: authenticated, read-only retrieval', () => {
       assert.equal(bus.vehicle.wheelchairSpaces, 2);
       assert.equal(bus.vehicle.lengthFt, 40);
       assert.deepEqual(bus.services, ['Exterior wash', 'Interior cleaning', 'Sanitizing / disinfection']);
-      assert.deepEqual(bus.extras, ['Roof cleaning', 'Undercarriage wash']);
+      assert.deepEqual(bus.extras, ['Roof cleaning']);
       assert.equal(bus.notification.state, 'sent');
       assert.equal(res.body.inquiries[0].notification.state, 'failed', 'not-alerted request is flagged');
       assert.equal(res.body.inquiries[0].vehicle, null);
@@ -1078,4 +1080,19 @@ describe('quote forms never claim "sent" without evidence', () => {
     assert.match(fleet, /if\(ok && data\.status==='sent'\)/);
     assert.match(fleet, /data && data\.retryable/);
   });
+});
+
+it('Undercarriage wash is suspended: new requests may not ask for it, stored requests still display it', () => {
+  assert.deepEqual(Object.keys(NEW_REQUEST_EXTRAS), ['roof_cleaning']);
+  const body = clone(SCHOOL_BUS);
+  body.vehicle.extras = ['roof_cleaning', 'undercarriage_wash'];
+  const refused = buildInquiryRecord(body);
+  assert.equal(refused.ok, false);
+  assert.ok(refused.fields.includes('extras'), JSON.stringify(refused.fields));
+  const ok = buildInquiryRecord(clone(SCHOOL_BUS));
+  assert.equal(ok.ok, true, JSON.stringify(ok.fields));
+  assert.deepEqual(ok.record.vehicle.extras, ['roof_cleaning']);
+  // A request stored before the suspension keeps its label in Admin.
+  const stored = { ...ok.record, vehicle: { ...ok.record.vehicle, extras: ['roof_cleaning', 'undercarriage_wash'] } };
+  assert.ok(vehicleSummaryLines(stored.vehicle).includes('Extras: Roof cleaning, Undercarriage wash'));
 });

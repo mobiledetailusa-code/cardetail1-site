@@ -364,16 +364,35 @@ test('ceramic checkout does not offer the retired Engine Bay Detail ($125)', () 
   assert.equal(Rules.validateNewBookingAddons({ vehicles: [{ cat: 'cars', pkgId: 'ceramic_1yr', addons: [{ id: 'engine_bay' }] }] }).ok, false);
 });
 
-test('Undercarriage price follows the server size band; vehicles without a band are not offered it', () => {
-  const expected = { small: 125, suv2: 150, suv3: 175, truck: 175, compact_van: 175, midsize_van: 175, full_size_van_passenger: 225 };
-  for (const pkg of ['wash', 'full', 'refresh', 'premium']) {
-    for (const tier of TIERS) {
-      const got = new Set(offeredOnAllPages(pkg, tier, 'undercarriage'));
-      if (expected[tier]) assert.deepEqual(got, new Set([expected[tier]]), `${pkg} ${tier}`);
-      else assert.deepEqual(got, new Set([undefined]), `${pkg} ${tier} has no size band`);
+test('Accessible Undercarriage Cleaning is suspended: hidden everywhere, refused for new bookings, history keeps its size-band price', () => {
+  for (const file of PAGES) {
+    for (const key of Object.keys(MATRIX[file]).filter((k) => k.includes('|'))) {
+      assert.equal(MATRIX[file][key].offered.has('undercarriage'), false, `${file} ${key}`);
     }
+    assert.doesNotMatch(MATRIX[file].ceramicMore, /Undercarriage/, `${file} ceramic`);
   }
-  for (const pkg of ['maint', 'interior']) assert.deepEqual(offeredOnAllPages(pkg, 'small', 'undercarriage').filter(Boolean), [], pkg);
+  for (const pkg of ['wash', 'refresh', 'full', 'premium', 'ceramic_1yr']) {
+    assert.equal(Rules.validateNewBookingAddons({ vehicles: [{ cat: 'cars', pkgId: pkg, addons: [{ id: 'undercarriage' }] }] }).ok, false, pkg);
+    assert.equal(Rules.validateAddedAddons('cars', pkg, ['undercarriage']).ok, false, `portal ${pkg}`);
+  }
+  // Stored bookings keep the contracted line at the existing size-band price.
+  const expected = { small: 125, suv2: 150, suv3: 175, truck: 175, compact_van: 175, midsize_van: 175, full_size_van_passenger: 225 };
+  for (const [tier, price] of Object.entries(expected)) {
+    const old = computeBookingServiceSubtotal({ zipCode: '07601', createdAt: '2026-10-01T12:00:00Z', vehicles: [{ cat: 'cars', pkgId: 'wash', tierKey: tier, addons: [{ id: 'undercarriage' }] }] });
+    assert.equal(old.ok, true, tier);
+    assert.equal(old.serviceSubtotal, PRICING.cars.tiers[tier].wash + price, tier);
+  }
+  // No booking surface still advertises it: package modal (incl. Ceramic) and Heavy Mud copy.
+  const modal = fs.readFileSync(path.join(ROOT, 'assets/car-pkg-detail-modal.js'), 'utf8');
+  assert.doesNotMatch(modal, /undercarriage/i, 'package details modal');
+  for (const file of PAGES) {
+    const html = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const mud = html.match(/\{id:'heavymud', scope:'ext'[^\n]*/);
+    assert.ok(mud, file);
+    assert.doesNotMatch(mud[0], /undercarriage/i, `${file} Heavy Mud copy`);
+  }
+  // A stored booking may still change package without losing the line.
+  assert.equal(Rules.validatePackageChange('cars', 'full', ['undercarriage']).ok, true);
 });
 
 test('frontend totals equal server totals for add-on combinations on every page', () => {
@@ -387,8 +406,8 @@ test('frontend totals equal server totals for add-on combinations on every page'
   }
   // Full 285 + Super Interior 125 + Pet Hair 95 + Headlight 90 + Polymer 25
   assert.equal(MATRIX[HOME].totals['full+combo'].base + MATRIX[HOME].totals['full+combo'].addonTotal, 620);
-  // Wash 145 + Carnauba 75 + Undercarriage (crossover) 150 + Engine 45 + Clay 45
-  assert.equal(MATRIX[HOME].totals['wash+exterior'].base + MATRIX[HOME].totals['wash+exterior'].addonTotal, 460);
+  // Wash 145 + Carnauba 75 + Engine 45 + Clay 45 (Undercarriage is suspended)
+  assert.equal(MATRIX[HOME].totals['wash+exterior'].base + MATRIX[HOME].totals['wash+exterior'].addonTotal, 310);
 });
 
 test('ZIP change recalculates the travel fee and nothing else; no add-on is added automatically', () => {

@@ -36,9 +36,16 @@ const SERVICES = Object.freeze({
   windows: 'Windows',
 });
 
+// Labels for every extra ever offered, so stored requests keep displaying.
 const EXTRAS = Object.freeze({
   roof_cleaning: 'Roof cleaning',
   undercarriage_wash: 'Undercarriage wash',
+});
+
+// Extras a NEW request may ask for. Undercarriage wash is suspended until the
+// service is confirmed operationally (see docs/undercarriage-pricing-review.md).
+const NEW_REQUEST_EXTRAS = Object.freeze({
+  roof_cleaning: EXTRAS.roof_cleaning,
 });
 
 const RANGES = Object.freeze({
@@ -198,7 +205,7 @@ function validateVehicle(raw) {
     return out;
   };
   vehicle.services = pickList(raw.services, SERVICES, 'services');
-  vehicle.extras = pickList(raw.extras, EXTRAS, 'extras');
+  vehicle.extras = pickList(raw.extras, NEW_REQUEST_EXTRAS, 'extras');
   if (category !== 'car_suv' && !vehicle.services.length && !errors.includes('services')) errors.push('services');
 
   vehicle.notes = cleanText(raw.notes, 1000);
@@ -618,6 +625,7 @@ module.exports = {
   VEHICLE_CATEGORIES,
   SERVICES,
   EXTRAS,
+  NEW_REQUEST_EXTRAS,
   NOTIFY_LEASE_MS,
   buildInquiryRecord,
   processInquiry,

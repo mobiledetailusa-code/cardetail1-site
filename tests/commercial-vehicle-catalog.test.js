@@ -493,7 +493,7 @@ describe('Commercial & Specialty form: catalog step (index.html)', () => {
     await sb.submitForm();
     assert.match(sb.status(), /1 to 40/);
     sb.set('cs-capacity', '24');
-    sb.check('interior_cleaning'); sb.check('undercarriage_wash');
+    sb.check('interior_cleaning'); sb.check('roof_cleaning');
     sb.set('cs-name', 'Lee'); sb.set('cs-phone', '(201) 555-0150'); sb.set('cs-year', '2019');
     await sb.submitForm();
     assert.equal(sb.calls.fetch.length, 1);
@@ -501,7 +501,7 @@ describe('Commercial & Specialty form: catalog step (index.html)', () => {
     assert.deepEqual(body.vehicle, {
       category: 'shuttle_bus', year: '2019', make: 'Ford', model: 'E-Series cutaway shuttle bus (E-350 / E-450)',
       catalog: { modelId: 'ford_eseries_cutaway_bus', body: 'shuttle_bus', busLength: '25_to_29', passengerCapacity: 24, wheelchairPositions: 2 },
-      services: ['interior_cleaning'], extras: ['undercarriage_wash'], notes: '',
+      services: ['interior_cleaning'], extras: ['roof_cleaning'], notes: '',
     });
     for (const k of ['price', 'tierKey', 'basePrice', 'total', 'sizeClass']) {
       assert.equal(body[k], undefined, k);
@@ -544,4 +544,12 @@ describe('Commercial & Specialty form: catalog step (index.html)', () => {
     assert.equal(sb.doc.getElementById('cs-identify').hidden, true);
     assert.equal(sb.doc.getElementById('cs-category-wrap').hidden, false);
   });
+});
+
+it('the Commercial & Specialty form no longer offers Undercarriage wash (service suspended)', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const extras = html.slice(html.indexOf('id="cs-extras"'), html.indexOf('</div>', html.indexOf('id="cs-extras"')));
+  assert.match(extras, /value="roof_cleaning"/);
+  assert.doesNotMatch(extras, /undercarriage/i);
+  assert.doesNotMatch(html, /value="undercarriage_wash"/);
 });
