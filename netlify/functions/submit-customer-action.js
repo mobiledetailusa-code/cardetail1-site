@@ -450,6 +450,30 @@ exports.handler = async (event) => {
     if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
       return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
     }
+    // Current add-on rules apply to what the customer is adding now; lines
+    // already on the booking are not re-checked or repriced.
+    {
+      const AddonRules = require('../../assets/addon-rules');
+      const { ensureVehicleIds } = require('../lib/booking-aggregate');
+      const vehicles = ensureVehicleIds(booking.service?.vehicles || booking.vehicles || []);
+      const vehicle = (target.vehicleId && vehicles.find((v) => v.vehicleId === target.vehicleId))
+        || (vehicles.length === 1 ? vehicles[0] : null);
+      if (vehicle) {
+        const rule = AddonRules.validateAddedAddons(
+          vehicle.cat || vehicle.category || booking.vehicleCategory || 'cars',
+          vehicle.packageId || vehicle.pkgId,
+          addonIds
+        );
+        if (!rule.ok) {
+          return json(400, {
+            ok: false,
+            error: rule.error,
+            addonId: rule.addonId,
+            message: 'That add-on is not available for this package.',
+          });
+        }
+      }
+    }
     // Browser price/label/total ignored — IDs only; Stage 1 mutation prices from catalog.
     const delta = { addOnIdsToAdd: addonIds, addonIds, requestedAddons: addonIds.join(', ') };
     const adminSubjectLocal = `Cardetail1 — Add-On Request · ${bookingId}`;
@@ -584,6 +608,23 @@ exports.handler = async (event) => {
     }
 
     const targetVehicle = vehicles.find((v) => v.vehicleId === vehicleId) || {};
+    {
+      // The new package must not block an add-on this vehicle already carries.
+      const AddonRules = require('../../assets/addon-rules');
+      const rule = AddonRules.validatePackageChange(
+        validated.category || targetVehicle.category || targetVehicle.cat || booking.vehicleCategory || 'cars',
+        newPackId,
+        AddonRules.vehicleAddonIds(targetVehicle)
+      );
+      if (!rule.ok) {
+        return json(400, {
+          ok: false,
+          error: rule.error,
+          addonId: rule.addonId,
+          message: 'Remove the add-on that is not available on this package before switching.',
+        });
+      }
+    }
     const vehicleCategory = normalizeLengthCategory(
       validated.category
         || targetVehicle.category

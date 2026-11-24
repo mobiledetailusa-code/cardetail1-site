@@ -4,11 +4,14 @@
 const SUBSCRIBER_DISCOUNT = 0.10;
 const MAX_DETAILS_PER_MONTH = 1;
 
+// Every dated package change shares one activation instant, defined (with its
+// time zone and approval flag) in assets/addon-rules.js.
+const AddonRules = require('../../assets/addon-rules');
+
 // Premium Full Detail finish changed from spray sealant to hand-applied premium
-// paste wax. Bookings created before this instant were sold the previous
-// composition, so their "what's included" keeps showing it. Set this to the
-// production release time of the change.
-const FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+// paste wax. Bookings created before activation were sold the previous
+// composition, so their "what's included" keeps showing it.
+const FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT = AddonRules.RULES_EFFECTIVE_AT;
 
 // Composition sold before FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT. Display only.
 const LEGACY_FULL_DETAIL_SPRAY_SEALANT = Object.freeze({
@@ -23,9 +26,23 @@ const LEGACY_FULL_DETAIL_SPRAY_SEALANT = Object.freeze({
  * Detail. Bookings with no usable creation time predate the change.
  */
 function soldLegacyFullDetail(createdAt) {
-  const created = Date.parse(String(createdAt || ''));
-  if (!Number.isFinite(created)) return true;
-  return created < Date.parse(FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT);
+  return AddonRules.createdBeforeActivation(createdAt);
+}
+
+// Maintenance Detail gained hand-applied premium paste wax. Same activation and
+// rule as the Full Detail change.
+const MAINTENANCE_PASTE_WAX_EFFECTIVE_AT = AddonRules.RULES_EFFECTIVE_AT;
+
+// Composition sold before MAINTENANCE_PASTE_WAX_EFFECTIVE_AT. Display only.
+const LEGACY_MAINTENANCE_DETAIL = Object.freeze({
+  id: 'maint',
+  name: 'Maintenance Detail',
+  description: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
+  feats: Object.freeze(['Exterior hand wash & rinse', 'Wheels & tires cleaned + dressed', 'Interior vacuum', 'Dashboard & console wipe', 'UV protectant']),
+});
+
+function soldLegacyMaintenanceDetail(createdAt) {
+  return AddonRules.createdBeforeActivation(createdAt);
 }
 
 const CAR_PACKAGES = [
@@ -44,8 +61,8 @@ const CAR_PACKAGES = [
     basePrice: 175,
     tag: 'Best for regularly maintained vehicles',
     duration: '~1.5–2h',
-    description: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
-    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned + dressed', 'Interior vacuum', 'Dashboard & console wipe', 'UV protectant'],
+    description: 'Exterior hand wash with hand-applied premium paste wax for enhanced gloss and protection, plus a light interior refresh.',
+    feats: ['Exterior hand wash & rinse', 'Wheels & tires cleaned + dressed', 'Hand-applied premium paste wax', 'Interior vacuum', 'Dashboard & console wipe', 'UV protectant'],
   },
   {
     id: 'interior',
@@ -250,6 +267,9 @@ module.exports = {
   FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT,
   LEGACY_FULL_DETAIL_SPRAY_SEALANT,
   soldLegacyFullDetail,
+  MAINTENANCE_PASTE_WAX_EFFECTIVE_AT,
+  LEGACY_MAINTENANCE_DETAIL,
+  soldLegacyMaintenanceDetail,
   ADDONS,
   FLEET_PLANS,
   MAINTENANCE_PERIODS,
