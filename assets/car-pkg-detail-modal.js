@@ -61,8 +61,8 @@ const CAR_PKG_DETAILS = {
       "Headliner cleaning",
       "Exterior hand wash",
       "Wheels and tires",
-      "Exterior windshield",
-      "Light paint cleaning",
+      "Exterior windshield + Rain-X treatment",
+      "Clay bar decontamination",
       "Exterior protection",
     ],
     bestFor: [
@@ -75,7 +75,6 @@ const CAR_PKG_DETAILS = {
       "Heavy pet hair",
       "Odor",
       "Deep stains",
-      "Clay/polish upgrade",
       "Engine bay",
       "Headlights",
     ],
