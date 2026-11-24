@@ -47,7 +47,7 @@ const CAR_PKG_DETAILS = {
       "Biohazard",
       "Excessive stains",
     ],
-    conditionNote: "Results depend on the vehicle’s condition and time on site varies with it. Very deep or permanent stains, persistent odors and embedded pet hair may need a dedicated treatment such as Super Interior, Pet Hair Removal or Odor Treatment. Nothing extra is added or charged without your approval.",
+    conditionNote: "Deep or permanent stains, embedded pet hair, and persistent odors may require additional specialized treatments. Results depend on the condition of the materials. Nothing extra is added or charged without your approval.",
   },
   full: {
     title: "Premium Full Detail",
@@ -79,7 +79,7 @@ const CAR_PKG_DETAILS = {
       "Engine bay",
       "Headlights",
     ],
-    conditionNote: "Results depend on the vehicle’s condition and time on site varies with it. Very deep or permanent stains, persistent odors and embedded pet hair may need a dedicated treatment such as Super Interior, Pet Hair Removal or Odor Treatment. Nothing extra is added or charged without your approval.",
+    conditionNote: "Deep or permanent stains, embedded pet hair, and persistent odors may require additional specialized treatments. Results depend on the condition of the materials. Nothing extra is added or charged without your approval.",
   },
   ceramic_1yr: {
     title: "Professional Ceramic Protection — Up to 1 Year",

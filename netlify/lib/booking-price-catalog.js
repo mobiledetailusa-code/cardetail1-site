@@ -6,7 +6,6 @@
 const { asArray } = require('./historical-adapter');
 const PowersportsCatalog = require('../../assets/powersports-model-catalog');
 const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
-const AddonRules = require('../../assets/addon-rules');
 const CeramicCoating = require('./ceramic-coating');
 const { assertCarCatalogTier } = require('./car-catalog-tier');
 
@@ -536,24 +535,10 @@ function parseUnits(vehicle, booking) {
   return vehicle.cat === 'fleet' ? 2 : 1;
 }
 
-function computeAddonTotal(vehicle, booking, opts = {}) {
+function computeAddonTotal(vehicle, booking) {
   const cat = vehicle.cat;
   const catalog = PRICING[cat]?.addons || [];
   const included = new Set(includedAddonIds(cat, vehicle.packageId || vehicle.pkgId));
-  // Super Interior already covers the standard level of pet hair, odor and floor
-  // mats on cars. When the customer also picks one of them, the line stays on
-  // the booking (so the summary and the job sheet show it) at $0 instead of
-  // being charged twice. Only for a new submission or a booking created under
-  // the rule; stored bookings reprice unchanged.
-  // A line stored as includedWith: 'superint' was sold as included and stays
-  // included on any later reprice, whatever the activation instant.
-  const bundleIds = AddonRules.includedBySuperint(cat, (vehicle.addons || []).map((a) => a && a.id));
-  const bundleActive = AddonRules.bundleActiveFor(booking, opts);
-  const coveredBySuperint = new Set(
-    bundleIds.filter((id) => bundleActive || (vehicle.addons || []).some(
-      (a) => a && a.id === id && a.includedWith === 'superint'
-    ))
-  );
   const ceramicPackage = CeramicCoating.isCeramicPackage(vehicle.packageId || vehicle.pkgId);
   const pricedVehicle = { ...vehicle };
   delete pricedVehicle.ceramicWaterSupply;
@@ -568,16 +553,6 @@ function computeAddonTotal(vehicle, booking, opts = {}) {
     if (included.has(a.id)) continue;
     const def = catalog.find((x) => x.id === a.id);
     if (!def) return { ok: false, error: 'invalid_pricing' };
-    if (coveredBySuperint.has(a.id)) {
-      normalized.push({
-        id: a.id,
-        name: a.name || def.name || a.id,
-        price: 0,
-        qty: 1,
-        includedWith: 'superint',
-      });
-      continue;
-    }
     const resolved = CeramicCoating.resolveAddonPrice(a.id, { ...pricedVehicle, pkgId: vehicle.packageId || vehicle.pkgId });
     if (resolved.handled && !resolved.ok) return resolved;
     if (SeasonalDriveway.isFamilyId(a.id)) {
@@ -706,7 +681,7 @@ function computeVehicleSubtotal(vehicle, zip, booking, opts) {
   const base = computeVehicleBasePrice(vehicle, zip, booking, opts);
   if (!base.ok) return base;
   const pricedVehicle = { ...vehicle, cat: base.cat, pkgId: base.pkgId, tierKey: base.tierKey };
-  const addons = computeAddonTotal(pricedVehicle, booking, opts || {});
+  const addons = computeAddonTotal(pricedVehicle, booking);
   if (!addons.ok) return addons;
   const companion = CeramicCoating.resolveCompanionInterior({ ...pricedVehicle, addons: addons.addons });
   if (!companion.ok) return companion;
