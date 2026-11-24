@@ -21,8 +21,17 @@
   // Driveway & Entry Cleanup is retired from new bookings. The family stays in
   // the catalog so existing and historical bookings keep pricing, repricing and
   // displaying it; the booking pages just stop offering it as a new add-on.
-  // Set to true to sell it again.
+  // Set to true to sell it again. setNewBookingsEnabled() exists for tests and
+  // a future re-enable; production ships with the family retired.
   var NEW_BOOKINGS_ENABLED = false;
+
+  function setNewBookingsEnabled(on) {
+    NEW_BOOKINGS_ENABLED = !!on;
+  }
+
+  function isNewBookingsEnabled() {
+    return NEW_BOOKINGS_ENABLED;
+  }
 
   var PUBLIC_CHILD_IDS = Object.freeze([
     'heavy_wet_leaf',
@@ -154,6 +163,24 @@
   function hiddenFromNewBookings(id) {
     if (!isFamilyId(id)) return false;
     return !NEW_BOOKINGS_ENABLED || isChildId(id);
+  }
+
+  /**
+   * Server, NEW booking submission or customer add-on request only: the family
+   * ids a request is trying to buy while the family is retired. Stored
+   * bookings, repricing and admin edits never call this.
+   */
+  function familyIdsInNewBooking(booking) {
+    if (NEW_BOOKINGS_ENABLED || !booking) return [];
+    var found = [];
+    var vehicles = asArray(booking.vehicles);
+    // Check both lists: pricing reads addons, other paths read addOnIds.
+    vehicles.concat([{ addons: booking.addons, addOnIds: booking.addOnIds }]).forEach(function (v) {
+      asArray(v && v.addOnIds).concat(asArray(v && v.addons).map(function (x) { return x && (x.id || x.addonId); }))
+        .forEach(function (id) { if (isFamilyId(id)) found.push(String(id).trim()); });
+    });
+    asArray(booking.seasonalAddonIds).forEach(function (id) { if (isFamilyId(id)) found.push(String(id).trim()); });
+    return uniqueIds(found);
   }
 
   function isPublicChildId(id) {
@@ -334,6 +361,12 @@
 
   function selectedIds(st) {
     if (!st) return [];
+    // Retired: a draft restored from before the retirement must not carry the
+    // family into a new booking (the card is hidden, so it could not be removed).
+    if (!NEW_BOOKINGS_ENABLED) {
+      st.seasonalAddonIds = [];
+      return [];
+    }
     if (!Array.isArray(st.seasonalAddonIds)) {
       st.seasonalAddonIds = collectFamilyIds(asArray(st.vehicles).concat([{ addons: st.addons, addOnIds: st.addOnIds }]));
     }
@@ -569,6 +602,9 @@
     isPublicChildId: isPublicChildId,
     NEW_BOOKINGS_ENABLED: NEW_BOOKINGS_ENABLED,
     hiddenFromNewBookings: hiddenFromNewBookings,
+    setNewBookingsEnabled: setNewBookingsEnabled,
+    isNewBookingsEnabled: isNewBookingsEnabled,
+    familyIdsInNewBooking: familyIdsInNewBooking,
     isEligibleCategory: isEligibleCategory,
     displayFor: displayFor,
     addonIdsFromVehicle: addonIdsFromVehicle,
