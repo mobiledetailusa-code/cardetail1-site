@@ -103,12 +103,13 @@
   var DETAILS = {
     cars: {
       superint: {
-        description: 'Enhanced interior deep cleaning with double shampoo and additional extraction for heavily stained seats, carpets, and fabric surfaces requiring more intensive treatment.',
+        description: 'Double shampoo for heavy stains and enhanced extraction for heavily soiled interiors. Ideal for vehicles requiring extra attention, including those affected by stubborn stains, pet hair or lingering odors.',
         items: [
           'A second shampoo and extraction pass on heavily stained seats, carpets, and fabric surfaces.',
           'Additional extraction time on the areas that need more intensive treatment than the shampoo already included in your package.',
         ],
         limits: 'Deep or permanent stains may be lightened rather than fully removed. Results depend on the material and its condition.',
+        note: 'Specialized Pet Hair Removal and Odor Treatment are available separately.',
       },
       pethair: {
         items: [],
@@ -234,6 +235,7 @@
       description: d && d.description ? d.description : str(addon && addon.desc),
       items: d ? d.items.slice() : [],
       limits: d ? d.limits : '',
+      note: d && d.note ? d.note : '',
     };
   }
 
@@ -284,6 +286,15 @@
     '.cd1-expect button{margin-left:4px;padding:0;border:0;background:none;color:var(--blue,#2563eb);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer}',
     '.cd1-notes-hint{margin:6px 0 0;font-size:12px;line-height:1.45;opacity:.85}',
     '.cd1-notes-hint[hidden]{display:none}',
+    '.cd1-feature,.cd1-more{grid-column:1/-1;margin:0 0 12px;text-align:left}',
+    '.cd1-feature-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.75;margin:0 0 6px}',
+    '.cd1-feature-note{font-size:12px;opacity:.8;margin:6px 0 0}',
+    '.cd1-more-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid rgba(37,99,235,.3);border-radius:10px;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer;text-align:left}',
+    '.cd1-more-toggle:focus-visible{outline:2px solid #2563eb;outline-offset:2px}',
+    '.cd1-more-toggle .cd1-more-count{font-weight:500;opacity:.75;font-size:12px}',
+    '.cd1-more-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-top:10px}',
+    '.cd1-more-panel[hidden]{display:none}',
+    '.cd1-empty{display:none!important}',
   ].join('');
 
   function page(name) {
@@ -408,6 +419,7 @@
       d.body.appendChild(ul);
     }
     if (info.limits) d.body.appendChild(el('p', 'cd1-addon-limits', info.limits));
+    if (info.note) d.body.appendChild(el('p', 'cd1-addon-note', info.note));
     returnFocus = btn;
     btn.setAttribute('aria-expanded', 'true');
     if (typeof d.box.showModal === 'function') {
@@ -484,8 +496,8 @@
   // Free-text notes are the only condition input today. Each condition maps to
   // its own treatment; nothing is selected and the booking is never blocked.
   var NOTE_SUGGESTIONS = [
-    { re: /stain|spill|soiled|dirty carpet/i, id: 'superint', label: 'Super Interior (heavy stains)' },
-    { re: /pet|dog|cat hair|fur|hair/i, id: 'pethair', label: 'Pet Hair Removal' },
+    { re: /stain|spill|soiled|dirty (carpet|seat)/i, id: 'superint', label: 'Super Interior (heavy stains)' },
+    { re: /\bpets?\b|\bdogs?\b|\bcats?\b|\bfur\b|\bhair\b|shedding/i, id: 'pethair', label: 'Pet Hair Removal' },
     { re: /odou?r|smell|smok|musty/i, id: 'odor', label: 'Odor Treatment' },
     { re: /mold|mildew/i, id: 'mold', label: 'Mold Treatment' },
   ];
@@ -522,8 +534,110 @@
     hint.hidden = !parts.length;
   }
 
+  // Interior-capable car packages: Super Interior is shown first as a discreet
+  // recommendation for heavily soiled interiors; the independent interior
+  // add-ons move into a "View More Interior Add-ons" section. Cards are moved,
+  // not copied, so selection, prices, handlers and eligibility stay intact.
+  function interiorIds(cat) {
+    var p = pricing();
+    var rows = (p && p[cat] && p[cat].addons) || [];
+    return rows.filter(function (a) { return a && a.scope === 'int' && a.id !== 'superint'; }).map(function (a) { return a.id; });
+  }
+
+  function isVisibleCard(c) {
+    return !c.classList.contains('cd1-addon-unavailable') && c.style.display !== 'none' && !c.hidden;
+  }
+
+  function visibleAddons(container) {
+    return Array.prototype.slice.call(container.querySelectorAll('.addon[data-id]')).filter(isVisibleCard);
+  }
+
+  function hideEmptyBlocks(grid) {
+    Array.prototype.slice.call(grid.querySelectorAll('.addon-section-label, .addon-popular-label')).forEach(function (label) {
+      var count = 0;
+      var node = label.nextElementSibling;
+      if (node && node.classList.contains('addon-grid-cols')) {
+        count = visibleAddons(node).length;
+        node.classList.toggle('cd1-empty', count === 0);
+      } else {
+        while (node && node.classList.contains('addon')) {
+          if (isVisibleCard(node)) count += 1;
+          node = node.nextElementSibling;
+        }
+      }
+      label.classList.toggle('cd1-empty', count === 0);
+    });
+  }
+
+  function arrangeInterior() {
+    var grid = document.getElementById('addon-grid');
+    var st = state();
+    if (!grid || !st) return;
+    var cat = str(st.cat);
+    var pkg = str(st.pkgId);
+    var feature = document.getElementById('cd1-feature');
+    var more = document.getElementById('cd1-more');
+    if (cat !== 'cars' || !EXPECT_PACKAGES[pkg] || !isOfferable(cat, pkg, 'superint')) return;
+    var superCard = grid.querySelector('.addon[data-id="superint"]');
+    if (!superCard) return;
+    if (!feature) {
+      feature = el('div', 'cd1-feature');
+      feature.id = 'cd1-feature';
+      feature.appendChild(el('p', 'cd1-feature-label', 'Recommended for heavily soiled interiors'));
+      grid.insertBefore(feature, grid.firstChild);
+    }
+    feature.appendChild(superCard);
+    if (!feature.querySelector('.cd1-feature-note')) {
+      feature.appendChild(el('p', 'cd1-feature-note', 'Specialized Pet Hair Removal and Odor Treatment are available separately.'));
+    } else {
+      feature.appendChild(feature.querySelector('.cd1-feature-note'));
+    }
+    var ids = interiorIds(cat);
+    var cardsToMove = ids.map(function (id) { return grid.querySelector('.addon[data-id="' + id + '"]'); })
+      .filter(function (c) { return c && !c.classList.contains('cd1-addon-unavailable'); });
+    if (!cardsToMove.length) return;
+    if (!more) {
+      more = el('div', 'cd1-more');
+      more.id = 'cd1-more';
+      var toggle = el('button', 'cd1-more-toggle');
+      toggle.type = 'button';
+      toggle.id = 'cd1-more-toggle';
+      toggle.setAttribute('aria-controls', 'cd1-more-panel');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.appendChild(el('span', 'cd1-more-text', 'View More Interior Add-ons'));
+      toggle.appendChild(el('span', 'cd1-more-count'));
+      var panel = el('div', 'cd1-more-panel');
+      panel.id = 'cd1-more-panel';
+      panel.setAttribute('role', 'region');
+      panel.setAttribute('aria-label', 'More interior add-ons');
+      panel.hidden = true;
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        var open = toggle.getAttribute('aria-expanded') !== 'true';
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        panel.hidden = !open;
+        toggle.querySelector('.cd1-more-text').textContent = open ? 'Hide Interior Add-ons' : 'View More Interior Add-ons';
+      });
+      more.appendChild(toggle);
+      more.appendChild(panel);
+      feature.parentNode.insertBefore(more, feature.nextSibling);
+    }
+    var panelEl = document.getElementById('cd1-more-panel');
+    cardsToMove.forEach(function (c) { panelEl.appendChild(c); });
+    var countEl = more.querySelector('.cd1-more-count');
+    if (countEl) countEl.textContent = cardsToMove.length + ' options';
+    // Never hide a choice the customer already made.
+    var chosen = selectedIds(st);
+    if (cardsToMove.some(function (c) { return chosen.indexOf(c.getAttribute('data-id')) >= 0; })) {
+      var tg = document.getElementById('cd1-more-toggle');
+      if (tg && tg.getAttribute('aria-expanded') !== 'true') tg.click();
+    }
+    hideEmptyBlocks(grid);
+  }
+
   function afterRender() {
     if (applyEligibility()) refreshTotals();
+    try { arrangeInterior(); } catch (e) { /* layout only */ }
     renderExpectations();
   }
 

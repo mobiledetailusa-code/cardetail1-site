@@ -18,7 +18,7 @@ const ADDON_DISPLAY = {
   },
   superint: {
     name: 'Super Interior — Deep Cleaning Upgrade',
-    description: 'Enhanced interior deep cleaning with double shampoo and additional extraction for heavily stained seats, carpets, and fabric surfaces requiring more intensive treatment.',
+    description: 'Double shampoo for heavy stains and enhanced extraction for heavily soiled interiors. Ideal for vehicles requiring extra attention, including those affected by stubborn stains, pet hair or lingering odors.',
   },
   odor: {
     name: 'Odor Treatment & Sanitize',
