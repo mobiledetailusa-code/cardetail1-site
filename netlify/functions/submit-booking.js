@@ -1240,7 +1240,6 @@ exports.handler = async (event) => {
   const travelApplied = applyServerTravelAndTotal(b, {
     ...(isDraftRequest ? { skipMismatchCheck: true } : {}),
     catalogTierMode: 'require_identity',
-    newBooking: true,
   });
   if (!travelApplied.ok) {
     return json(400, { ok: false, error: travelApplied.error || 'out_of_service_area' });

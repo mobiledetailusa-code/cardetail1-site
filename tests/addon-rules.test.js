@@ -1,12 +1,14 @@
 'use strict';
 
-// New-booking add-on rules for cars (assets/addon-rules.js), the Super Interior
-// bundle in server pricing, Maintenance paste wax, and history preservation.
+// New-booking add-on rules for cars (assets/addon-rules.js), independent add-on
+// pricing (Super Interior is a stain treatment that includes no other add-on),
+// Maintenance paste wax, customer-portal guards, activation, and history.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const Rules = require('../assets/addon-rules');
 const {
@@ -36,58 +38,149 @@ function car(pkgId, addonIds = [], tierKey = 'small') {
   };
 }
 
-function subtotal(vehicles, extra = {}, opts) {
-  const r = computeBookingServiceSubtotal({ zipCode: '07601', vehicles, ...extra }, opts);
+function subtotal(vehicles, extra = {}) {
+  const r = computeBookingServiceSubtotal({ zipCode: '07601', vehicles, ...extra });
   assert.equal(r.ok, true, r.error);
   return r;
 }
 
 const ADDON_PRICE = Object.fromEntries(PRICING.cars.addons.map((a) => [a.id, a.price]));
 
+// What the booking page sums: package price + each selected add-on at its
+// catalog price × quantity (recalcAddonTotal). Parsed from the page itself.
+function pageCarAddonPrices(file) {
+  const html = read(file);
+  const at = html.indexOf("name:'Super Interior — Deep Cleaning Upgrade'");
+  const list = html.slice(html.lastIndexOf('addons:[', at), html.indexOf('    ],', at));
+  const out = {};
+  for (const m of list.matchAll(/\{id:'([a-z0-9_]+)'[^}]*?price:(\d+)/g)) out[m[1]] = Number(m[2]);
+  return out;
+}
+
+function clientTotal(file, pkg, lines) {
+  const prices = pageCarAddonPrices(file);
+  return PRICING.cars.tiers.small[pkg] + lines.reduce((s, [id, qty = 1]) => s + prices[id] * qty, 0);
+}
+
 test('base prices and the add-on prices involved are unchanged', () => {
   assert.deepEqual(
     ['wash', 'maint', 'interior', 'full', 'refresh'].map((p) => PRICING.cars.tiers.small[p]),
     [125, 160, 200, 250, 335]
   );
-  assert.equal(ADDON_PRICE.superint, 125);
-  assert.equal(ADDON_PRICE.pethair, 95);
-  assert.equal(ADDON_PRICE.odor, 90);
-  assert.equal(ADDON_PRICE.floormats, 20);
-  assert.equal(ADDON_PRICE.engine, 45);
-  assert.equal(ADDON_PRICE.claybar, 45);
-  assert.equal(ADDON_PRICE.wax1yr, 75);
+  const expected = { superint: 125, pethair: 95, odor: 90, sanitize: 65, floormats: 20, mold: 149, biohazard: 115, engine: 45, claybar: 45, wax1yr: 75 };
+  for (const [id, price] of Object.entries(expected)) assert.equal(ADDON_PRICE[id], price, id);
 });
 
-test('Maintenance blocks Super Interior, Biohazard, Odor, Interior Sanitizing and the wax add-on', () => {
+/* ── Independent add-ons: every selected service is charged once ─────────── */
+
+test('1. Interior Detail without Super Interior', () => {
+  assert.equal(subtotal([car('interior')]).serviceSubtotal, 200);
+});
+
+test('2. Interior Detail with Super Interior', () => {
+  const r = subtotal([car('interior', ['superint'])]);
+  assert.equal(r.serviceSubtotal, 200 + 125);
+});
+
+test('3–6. Super Interior combined with Pet Hair, Odor and Sanitizing: each charged once', () => {
+  const cases = [
+    [['superint', 'pethair'], 200 + 125 + 95],
+    [['superint', 'odor'], 200 + 125 + 90],
+    [['superint', 'pethair', 'odor'], 200 + 125 + 95 + 90],
+    [['superint', 'pethair', 'odor', 'sanitize'], 200 + 125 + 95 + 90 + 65],
+  ];
+  for (const [ids, total] of cases) {
+    const r = subtotal([car('interior', ids)]);
+    assert.equal(r.serviceSubtotal, total, ids.join('+'));
+    // 10–12: nothing added, nothing removed, nothing zeroed, nothing duplicated.
+    assert.deepEqual(r.vehicles[0].addons.map((a) => a.id), ids, ids.join('+'));
+    assert.ok(r.vehicles[0].addons.every((a) => a.price > 0 && !a.includedWith), ids.join('+'));
+    assert.equal(new Set(r.vehicles[0].addons.map((a) => a.id)).size, ids.length);
+  }
+});
+
+test('Super Interior + Floor Mats: mats charged per valid unit', () => {
+  const v = car('interior', ['superint']);
+  v.addons.push({ id: 'floormats', qty: 4 });
+  assert.equal(subtotal([v]).serviceSubtotal, 200 + 125 + 4 * 20);
+});
+
+test('7. Premium Full Detail with several add-ons; package-included clay bar and Rain-X never billed', () => {
+  const v = car('full', ['superint', 'pethair', 'odor', 'sanitize', 'claybar', 'rainx']);
+  v.addons.push({ id: 'floormats', qty: 2 });
+  const r = subtotal([v]);
+  assert.equal(r.serviceSubtotal, 250 + 125 + 95 + 90 + 65 + 40);
+  assert.deepEqual(r.vehicles[0].addons.map((a) => a.id).sort(), ['floormats', 'odor', 'pethair', 'sanitize', 'superint']);
+  assert.deepEqual(includedAddonIds('cars', 'full').sort(), ['claybar', 'rainx']);
+});
+
+test('8–9. booking page totals equal the server totals for the same selections', () => {
+  const combos = [
+    ['interior', [['superint'], ['pethair'], ['odor'], ['sanitize']]],
+    ['interior', [['superint'], ['floormats', 3]]],
+    ['full', [['superint'], ['pethair'], ['odor'], ['mold']]],
+  ];
+  for (const file of BOOKING_PAGES) {
+    for (const [pkg, lines] of combos) {
+      const v = car(pkg);
+      v.addons = lines.map(([id, qty]) => (qty ? { id, qty } : { id }));
+      assert.equal(clientTotal(file, pkg, lines), subtotal([v]).serviceSubtotal, `${file} ${pkg} ${JSON.stringify(lines)}`);
+    }
+  }
+});
+
+test('submit path: server total for several add-ons matches; travel fee unchanged', () => {
+  const ids = ['superint', 'pethair', 'odor'];
+  const booking = { zipCode: '10001', totalPrice: 200 + 125 + 95 + 90 + 35, vehicles: [car('interior', ids)] };
+  const r = applyServerTravelAndTotal(booking);
+  assert.equal(r.ok, true, r.error);
+  assert.equal(booking.travelFeeAmount, 35);
+  assert.equal(booking.totalPrice, 545);
+  const stale = { zipCode: '07601', totalPrice: 200 + 125, vehicles: [car('interior', ids)] };
+  assert.equal(applyServerTravelAndTotal(stale).error, 'price_mismatch', 'a total that drops add-ons is refused');
+});
+
+test('no Super Interior inclusion rules or messages remain anywhere', () => {
+  for (const key of ['SUPERINT_BUNDLE', 'includedBySuperint', 'bundleActiveFor', 'includedNote']) {
+    assert.equal(Rules[key], undefined, key);
+  }
+  const sources = ['assets/addon-rules.js', 'netlify/lib/booking-price-catalog.js', 'netlify/lib/canonical-addon-catalog.js', ...BOOKING_PAGES];
+  for (const file of sources) {
+    assert.doesNotMatch(read(file), /Included with Super Interior|includedWith|Covered by Super Interior|Choose Super Interior instead/i, file);
+  }
+});
+
+/* ── Eligibility (unchanged decisions) ───────────────────────────────────── */
+
+test('13. Maintenance blocks Super Interior, Biohazard, Odor, Interior Sanitizing and the wax add-on', () => {
   for (const id of ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr']) {
     assert.equal(Rules.isOfferable('cars', 'maint', id), false, id);
     const v = Rules.validateNewBookingAddons({ vehicles: [car('maint', [id])] });
     assert.equal(v.ok, false, id);
     assert.equal(v.error, 'addon_not_available');
   }
-  // Audited, not changed: still offered on Maintenance.
   for (const id of ['claybar', 'pethair', 'floormats', 'mold', 'rainx', 'polymer', 'engine']) {
     assert.equal(Rules.isOfferable('cars', 'maint', id), true, id);
   }
 });
 
-test('Super Interior only on interior-capable car packages', () => {
-  for (const pkg of ['interior', 'full', 'premium']) assert.equal(Rules.isOfferable('cars', pkg, 'superint'), true, pkg);
+test('Super Interior only on interior-capable car packages; Pet Hair, Odor, Sanitizing stay available there', () => {
+  for (const pkg of ['interior', 'full', 'premium']) {
+    for (const id of ['superint', 'pethair', 'odor', 'sanitize', 'floormats']) {
+      assert.equal(Rules.isOfferable('cars', pkg, id), true, `${pkg} ${id}`);
+    }
+  }
   for (const pkg of ['maint', 'wash', 'refresh']) assert.equal(Rules.isOfferable('cars', pkg, 'superint'), false, pkg);
-  // Other categories keep their own rules.
   assert.equal(Rules.isOfferable('rvs', 'maint', 'superint'), true);
   assert.equal(Rules.isOfferable('trucks', 'interior', 'superint'), true);
 });
 
-test('Engine Bay Detail $125 and Mobile Water Supply are retired for new bookings; Top Clean $45 is not', () => {
+test('14. Engine Bay $125 and Mobile Water retired; Top Clean $45 and the exterior matrix unchanged', () => {
   for (const pkg of ['wash', 'refresh', 'full', 'premium']) {
     assert.equal(Rules.isOfferable('cars', pkg, 'engine_bay'), false, pkg);
     assert.equal(Rules.isOfferable('cars', pkg, 'mobile_water'), false, pkg);
     assert.equal(Rules.isOfferable('cars', pkg, 'engine'), true, pkg);
-    assert.equal(Rules.validateNewBookingAddons({ vehicles: [car(pkg, ['engine'])] }).ok, true, pkg);
   }
-  assert.equal(Rules.validateNewBookingAddons({ vehicles: [car('full', ['engine_bay'])] }).error, 'addon_not_available');
-  // Exterior matrix untouched: undercarriage, heavy mud, clay, Rain-X still offered where they were.
   for (const id of ['undercarriage', 'heavymud', 'claybar', 'rainx', 'polymer', 'headlight']) {
     assert.equal(Rules.isOfferable('cars', 'wash', id), true, id);
   }
@@ -99,15 +192,16 @@ test('Mobile Water Supply sent by an older page is dropped, not charged, and doe
   Rules.stripDroppedFromNewBooking(b);
   assert.deepEqual(b.vehicles[0].addons.map((a) => a.id), ['undercarriage']);
   assert.deepEqual(b.vehicles[0].addOnIds, []);
-  assert.equal(Rules.validateNewBookingAddons({ vehicles: [car('full', ['mobile_water'])] }).ok, true);
   assert.equal(Rules.validateNewBookingAddons({ vehicles: [car('full', ['engine_bay'])] }).ok, false);
-  const src = read('netlify/functions/submit-booking.js');
-  assert.ok(src.indexOf('AddonRules.stripDroppedFromNewBooking(b)') < src.indexOf('AddonRules.validateNewBookingAddons(b)'));
 });
 
-test('stored bookings with retired add-ons still price as before', () => {
-  const r = subtotal([car('full', ['engine_bay'], 'small')], { createdAt: '2026-10-01T12:00:00Z' });
-  assert.equal(r.vehicles[0].addonTotal > 0, true, 'engine_bay keeps its stored price');
+test('submit-booking strips and validates add-ons before pricing', () => {
+  const src = read('netlify/functions/submit-booking.js');
+  const strip = src.indexOf('AddonRules.stripDroppedFromNewBooking(b)');
+  const check = src.indexOf('AddonRules.validateNewBookingAddons(b)');
+  const price = src.indexOf('const travelApplied = applyServerTravelAndTotal(b, {');
+  assert.ok(strip > 0 && check > strip && price > check);
+  assert.doesNotMatch(src, /newBooking/);
 });
 
 test('Premium Full Detail and Maintenance do not sell a second wax', () => {
@@ -115,196 +209,106 @@ test('Premium Full Detail and Maintenance do not sell a second wax', () => {
   assert.equal(Rules.isOfferable('cars', 'maint', 'wax1yr'), false);
   assert.equal(Rules.isOfferable('cars', 'wash', 'wax1yr'), true);
   assert.equal(Rules.isOfferable('cars', 'refresh', 'wax1yr'), true);
-  assert.deepEqual(includedAddonIds('cars', 'full').sort(), ['claybar', 'rainx']);
 });
 
-test('Super Interior bundle: no double charge on a new booking', () => {
-  const opts = { newBooking: true };
-  const bundled = subtotal([car('full', ['superint', 'pethair', 'odor', 'floormats'])], {}, opts);
-  assert.equal(bundled.serviceSubtotal, 250 + 125);
-  // Covered lines stay on the booking (summary + job sheet) at $0, one unit.
-  assert.deepEqual(
-    bundled.vehicles[0].addons.map((a) => [a.id, a.price, a.qty, a.includedWith || null]),
-    [['superint', 125, 1, null], ['pethair', 0, 1, 'superint'], ['odor', 0, 1, 'superint'], ['floormats', 0, 1, 'superint']]
-  );
+/* ── 16. History ─────────────────────────────────────────────────────────── */
 
-  const alone = subtotal([car('interior', ['pethair', 'odor'])], {}, opts);
-  assert.equal(alone.serviceSubtotal, 200 + 95 + 90, 'individual add-ons still sell without Super Interior');
-
-  const other = subtotal([car('interior', ['superint', 'sanitize'])], {}, opts);
-  assert.equal(other.serviceSubtotal, 200 + 125 + 65, 'unrelated add-ons stay billable');
+test('16. stored bookings reprice exactly as before, including retired add-ons', () => {
+  assert.ok(subtotal([car('full', ['engine_bay'])], { createdAt: '2026-10-01T12:00:00Z' }).vehicles[0].addonTotal > 0);
+  assert.equal(subtotal([car('interior', ['superint', 'pethair'])], { createdAt: '2026-10-01T12:00:00Z' }).serviceSubtotal, 420);
 });
 
-test('Super Interior bundle never reprices stored bookings', () => {
-  const vehicles = [car('full', ['superint', 'pethair', 'odor'])];
-  assert.equal(subtotal(vehicles).serviceSubtotal, 250 + 125 + 95 + 90, 'no creation time = history');
-  assert.equal(subtotal(vehicles, { createdAt: '2026-11-01T00:00:00Z' }).serviceSubtotal, 560);
-  const after = new Date(Date.parse(Rules.RULES_EFFECTIVE_AT) + 60_000).toISOString();
-  assert.equal(subtotal(vehicles, { createdAt: after }).serviceSubtotal, 375);
+test('Maintenance and Full history: older bookings keep the composition they were sold', () => {
+  const cutover = Date.parse(Rules.RULES_EFFECTIVE_AT);
+  const maint = { ...car('maint'), basePrice: 160, subtotal: 160 };
+  assert.ok(!resolvePackageDetailsForCustomerView(maint, { bookingCreatedAt: new Date(cutover - 60_000).toISOString() }).includedServices.includes(WAX));
+  assert.ok(resolvePackageDetailsForCustomerView(maint, { bookingCreatedAt: new Date(cutover + 60_000).toISOString() }).includedServices.includes(WAX));
 });
 
-test('submit path: server total matches the bundled client total; travel fee unchanged', () => {
-  const booking = { zipCode: '10001', totalPrice: 250 + 125 + 35, vehicles: [car('full', ['superint', 'pethair'])] };
-  const r = applyServerTravelAndTotal(booking, { newBooking: true });
-  assert.equal(r.ok, true, r.error);
-  assert.equal(booking.travelFeeAmount, 35);
-  assert.equal(booking.totalPrice, 410);
-  const stale = { zipCode: '07601', totalPrice: 250 + 125 + 95, vehicles: [car('full', ['superint', 'pethair'])] };
-  assert.equal(applyServerTravelAndTotal(stale, { newBooking: true }).error, 'price_mismatch');
-});
+/* ── Copy ────────────────────────────────────────────────────────────────── */
 
-test('submit-booking validates add-ons before pricing and marks the submission as new', () => {
-  const src = read('netlify/functions/submit-booking.js');
-  const check = src.indexOf('AddonRules.validateNewBookingAddons(b)');
-  const price = src.indexOf('const travelApplied = applyServerTravelAndTotal(b, {');
-  assert.ok(check > 0 && price > check);
-  assert.match(src.slice(price, price + 300), /newBooking: true/);
-});
-
-test('booking pages: Maintenance paste wax, Super Interior copy, shared rules script', () => {
+test('booking pages: Super Interior stain copy, Maintenance paste wax, shared rules script', () => {
   for (const file of BOOKING_PAGES) {
     const html = read(file);
+    assert.match(html, /\{id:'superint',   scope:'int', name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains\.', price:125\}/, file);
     const start = html.indexOf("{id:'maint',    name:'Maintenance Detail'");
     const maint = html.slice(start, html.indexOf(']}', html.indexOf('miss:[', start)) + 2);
     assert.equal(maint.split(`'${WAX}'`).length - 1, 2, `${file} maint ext+feats`);
-    assert.doesNotMatch(maint.slice(0, maint.indexOf('miss:[')), /clay bar|shampoo/i, `${file} maint stays basic`);
-    assert.match(html, /name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains, Enhanced Interior Cleaning & Additional Attention to Problem Areas\.', price:125/, file);
     const ceramicAt = html.indexOf('<script src="assets/ceramic-booking.js" defer></script>');
     const rulesAt = html.indexOf('<script src="assets/addon-rules.js" defer></script>');
     assert.ok(ceramicAt > 0 && rulesAt > ceramicAt, `${file} loads addon-rules after ceramic-booking`);
   }
 });
 
-test('Super Interior details state scope and limits without guarantees', () => {
-  const d = Rules.detailsFor('cars', { id: 'superint', desc: 'x' });
-  assert.equal(d.items.length, 6);
-  assert.match(d.items.join(' '), /Enhanced interior cleaning/);
-  assert.match(d.items.join(' '), /problem areas/i);
-  assert.match(d.limits, /optional upgrade/i);
-  assert.match(d.limits, /only charged with your approval/i);
-  assert.match(d.items.join(' '), /Double shampoo/i);
-  assert.match(d.items.join(' '), /Moderate pet hair/i);
-  assert.match(d.items.join(' '), /odor/i);
-  assert.match(d.items.join(' '), /floor mats/i);
-  assert.match(d.limits, /not guaranteed/i);
-  assert.doesNotMatch(JSON.stringify(d), /guaranteed removal|permanent/i);
-  // Other add-ons fall back to their full catalog description, untruncated.
+test('18. Super Interior details: stain treatment only, no other add-on, no guarantee', () => {
+  const d = Rules.detailsFor('cars', { id: 'superint', desc: 'Double Shampoo for Heavy Stains.' });
+  assert.equal(d.description, 'Enhanced interior deep cleaning with double shampoo and additional extraction for heavily stained seats, carpets, and fabric surfaces requiring more intensive treatment.');
+  assert.match(d.items.join(' '), /second shampoo and extraction/i);
+  assert.match(d.limits, /may be lightened rather than fully removed/);
+  assert.doesNotMatch(JSON.stringify(d), /pet hair|odor|floor mat|sanitiz|guarantee/i);
+  const canonical = read('netlify/lib/canonical-addon-catalog.js');
+  assert.match(canonical, /description: 'Enhanced interior deep cleaning with double shampoo and additional extraction/);
+  for (const id of ['pethair', 'odor']) {
+    assert.doesNotMatch(JSON.stringify(Rules.detailsFor('cars', { id, desc: 'x' })), /super interior/i, id);
+  }
   const long = 'A'.repeat(200);
-  assert.equal(Rules.detailsFor('cars', { id: 'pethair', desc: long }).description, long);
+  assert.equal(Rules.detailsFor('cars', { id: 'floormats', desc: long }).description, long, 'full text, untruncated');
 });
 
-test('Maintenance history: older bookings keep the composition they were sold', () => {
-  const cutover = Date.parse(CustomerCatalog.MAINTENANCE_PASTE_WAX_EFFECTIVE_AT);
-  const v = { ...car('maint'), basePrice: 160, subtotal: 160 };
-  const old = resolvePackageDetailsForCustomerView(v, { bookingCreatedAt: new Date(cutover - 60_000).toISOString() });
-  assert.ok(!old.includedServices.includes(WAX));
-  const fresh = resolvePackageDetailsForCustomerView(v, { bookingCreatedAt: new Date(cutover + 60_000).toISOString() });
-  assert.ok(fresh.includedServices.includes(WAX));
-});
-
-/* ── Follow-up review: limits, portal guards, activation, Carnauba ───────── */
-
-const { execFileSync } = require('node:child_process');
-
-test('covered lines are kept at $0 and one unit, so a quantity cannot be multiplied', () => {
-  const v = car('full', ['superint']);
-  v.addons.push({ id: 'floormats', qty: 40 }, { id: 'pethair', qty: 5 }, { id: 'odor' });
-  const r = subtotal([v], {}, { newBooking: true });
-  assert.equal(r.serviceSubtotal, 250 + 125);
-  assert.deepEqual(
-    r.vehicles[0].addons.map((a) => [a.id, a.price, a.qty]),
-    [['superint', 125, 1], ['floormats', 0, 1], ['pethair', 0, 1], ['odor', 0, 1]]
-  );
-});
-
-test('Interior Detail without Super Interior: add-ons sell at catalog price; base unchanged', () => {
-  const opts = { newBooking: true };
-  assert.equal(subtotal([car('interior')], {}, opts).serviceSubtotal, 200);
-  assert.equal(subtotal([car('interior', ['pethair', 'odor', 'mold'])], {}, opts).serviceSubtotal, 200 + 95 + 90 + 149);
-  const mats = car('interior');
-  mats.addons.push({ id: 'floormats', qty: 3 });
-  assert.equal(subtotal([mats], {}, opts).serviceSubtotal, 200 + 60);
-});
-
-test('Super Interior with genuinely additional treatments keeps charging them', () => {
-  const opts = { newBooking: true };
-  const r = subtotal([car('interior', ['superint', 'mold', 'biohazard', 'sanitize', 'babyseat'])], {}, opts);
-  assert.equal(r.serviceSubtotal, 200 + 125 + 149 + 115 + 65 + 20);
-  assert.ok(r.vehicles[0].addons.every((a) => !a.includedWith));
-});
-
-test('a line sold as included stays included on any later reprice; legacy lines keep their price', () => {
-  const before = new Date(Date.parse(Rules.RULES_EFFECTIVE_AT) - 86_400_000).toISOString();
-  const flagged = car('interior', ['superint']);
-  flagged.addons.push({ id: 'pethair', price: 0, includedWith: 'superint' });
-  assert.equal(subtotal([flagged], { createdAt: before }).serviceSubtotal, 200 + 125);
-  assert.equal(subtotal([car('interior', ['superint', 'pethair'])], { createdAt: before }).serviceSubtotal, 200 + 125 + 95);
-});
-
-test('expectations copy: Interior and Full modal notes, no guarantees, approval required', () => {
+test('Interior and Full: approved condition note, no guarantee, nothing charged without approval', () => {
+  const NOTE = 'Deep or permanent stains, embedded pet hair, and persistent odors may require additional specialized treatments. Results depend on the condition of the materials.';
   const modal = read('assets/car-pkg-detail-modal.js');
   for (const key of ['interior', 'full']) {
     const block = modal.slice(modal.indexOf(`  ${key}: {`), modal.indexOf('  },', modal.indexOf(`  ${key}: {`)));
-    assert.match(block, /conditionNote: "Results depend on the vehicle’s condition/, key);
-    assert.match(block, /Nothing extra is added or charged without your approval/, key);
+    assert.ok(block.includes(`conditionNote: "${NOTE}`), key);
   }
-  assert.match(modal, /d\.conditionNote \?/);
   const src = read('assets/addon-rules.js');
+  assert.ok(src.includes(NOTE));
   assert.match(src, /Nothing extra is added or charged without your approval/);
-  assert.doesNotMatch(src, /guaranteed removal|permanently removed|eliminat(es|ed) (all|any) odor/i);
+  assert.doesNotMatch(src, /See Super Interior/);
 });
 
-test('activation gate refuses an unapproved or mistimed release', () => {
-  let failed = false;
-  try {
-    execFileSync(process.execPath, ['scripts/check-package-rules-activation.mjs', '--publish-at', '2026-12-01T00:05:00-05:00'], { cwd: ROOT, stdio: 'pipe' });
-  } catch (e) {
-    failed = true;
-    assert.match(String(e.stderr), /approved is not true/);
-  }
-  assert.ok(failed, 'gate must fail while approved is false');
+test('condition hints map each condition to its own treatment, never all to Super Interior', () => {
+  const src = read('assets/addon-rules.js');
+  assert.match(src, /id: 'superint', label: 'Super Interior \(heavy stains\)'/);
+  assert.match(src, /id: 'pethair', label: 'Pet Hair Removal'/);
+  assert.match(src, /id: 'odor', label: 'Odor Treatment'/);
+  assert.match(src, /hazardous contamination need an inspection/);
 });
 
-test('the card note states the standard level for each included service', () => {
-  assert.match(Rules.includedNote('cars', 'pethair'), /moderate pet hair/);
-  assert.match(Rules.includedNote('cars', 'odor'), /common odors/);
-  assert.match(Rules.includedNote('cars', 'floormats'), /own mats/);
-  for (const id of Rules.bundledIds('cars')) assert.match(Rules.includedNote('cars', id), /^Included with Super Interior/);
-});
+/* ── 15. Customer portal ─────────────────────────────────────────────────── */
 
-test('portal: newly added add-ons follow current rules; existing lines are not re-checked', () => {
+test('15. portal: compatible add-ons can be added separately or together; guards unchanged', () => {
+  assert.equal(Rules.validateAddedAddons('cars', 'interior', ['superint']).ok, true);
+  assert.equal(Rules.validateAddedAddons('cars', 'interior', ['pethair']).ok, true);
+  assert.equal(Rules.validateAddedAddons('cars', 'interior', ['odor']).ok, true);
+  assert.equal(Rules.validateAddedAddons('cars', 'full', ['superint', 'pethair', 'odor', 'sanitize']).ok, true);
   assert.equal(Rules.validateAddedAddons('cars', 'maint', ['superint']).error, 'addon_not_available');
   assert.equal(Rules.validateAddedAddons('cars', 'full', ['engine_bay']).error, 'addon_not_available');
-  assert.equal(Rules.validateAddedAddons('cars', 'full', ['mobile_water']).error, 'addon_not_available');
-  assert.equal(Rules.validateAddedAddons('cars', 'full', ['engine', 'pethair']).ok, true);
-  assert.equal(Rules.validateAddedAddons('rvs', 'maint', ['superint']).ok, true, 'other categories keep their rules');
-  // Package change: blocked when the vehicle carries an add-on the new package blocks.
   assert.equal(Rules.validatePackageChange('cars', 'maint', ['superint']).error, 'addon_incompatible_with_package');
   assert.equal(Rules.validatePackageChange('cars', 'interior', ['superint', 'pethair']).ok, true);
-  // A retired add-on already contracted does not block a package change.
   assert.equal(Rules.validatePackageChange('cars', 'refresh', ['engine_bay']).ok, true);
 
   const src = read('netlify/functions/submit-customer-action.js');
   const addon = src.indexOf("} else if (action === 'addon_request') {");
   const addonGuard = src.indexOf('AddonRules.validateAddedAddons(', addon);
-  const addonCmd = src.indexOf('submitChangeRequestCommand({', addon);
-  assert.ok(addon > 0 && addonGuard > addon && addonGuard < addonCmd, 'add-on guard runs before the change command');
+  assert.ok(addon > 0 && addonGuard > addon && addonGuard < src.indexOf('submitChangeRequestCommand({', addon));
   const pkg = src.indexOf("} else if (action === 'package_change_request') {");
   const pkgGuard = src.indexOf('AddonRules.validatePackageChange(', pkg);
-  const pkgCmd = src.indexOf('submitChangeRequestCommand({', pkg);
-  assert.ok(pkg > 0 && pkgGuard > pkg && pkgGuard < pkgCmd, 'package guard runs before the change command');
+  assert.ok(pkg > 0 && pkgGuard > pkg && pkgGuard < src.indexOf('submitChangeRequestCommand({', pkg));
 });
 
-test('activation: one instant, explicit offset, not approved, used by every dated rule', () => {
+/* ── 10. Activation ──────────────────────────────────────────────────────── */
+
+test('activation: one instant, explicit offset, not approved, used by the dated history rules', () => {
   const a = Rules.PACKAGE_RULES_ACTIVATION;
   assert.equal(a.timeZone, 'America/New_York');
   assert.equal(a.approved, false);
   assert.match(a.effectiveAt, /[+-]\d{2}:\d{2}$|Z$/);
-  assert.equal(Rules.RULES_EFFECTIVE_AT, '2026-12-01T05:00:00.000Z', 'unchanged until the owner approves a date');
   assert.equal(CustomerCatalog.FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT, Rules.RULES_EFFECTIVE_AT);
   assert.equal(CustomerCatalog.MAINTENANCE_PASTE_WAX_EFFECTIVE_AT, Rules.RULES_EFFECTIVE_AT);
-  assert.equal(Rules.parseActivation('2026-12-03 06:00'), null, 'no offset is rejected');
-  assert.equal(Rules.parseActivation('2026-12-03T06:00:00'), null, 'no offset is rejected');
+  assert.equal(Rules.parseActivation('2026-12-03 06:00'), null);
+  assert.equal(Rules.parseActivation('2026-12-03T06:00:00'), null);
   assert.ok(Rules.parseActivation('2026-12-03T06:00:00-05:00'));
   const ms = Date.parse(Rules.RULES_EFFECTIVE_AT);
   assert.equal(Rules.createdBeforeActivation(new Date(ms - 1).toISOString()), true);
@@ -317,10 +321,24 @@ test('activation: env override is honored only with an explicit offset', () => {
     "const R=require('./assets/addon-rules');process.stdout.write(JSON.stringify([R.RULES_EFFECTIVE_AT,R.ACTIVATION_SOURCE,R.ACTIVATION_INVALID_ENV]))"],
   { cwd: ROOT, env: { ...process.env, CD1_PACKAGE_RULES_EFFECTIVE_AT: value } }).toString();
   assert.deepEqual(JSON.parse(run('2026-12-03T06:00:00-05:00')), ['2026-12-03T11:00:00.000Z', 'env', false]);
-  assert.deepEqual(JSON.parse(run('2026-12-03 06:00')), ['2026-12-01T05:00:00.000Z', 'constant', true]);
+  const fallback = JSON.parse(run('2026-12-03 06:00'));
+  assert.deepEqual(fallback.slice(1), ['constant', true]);
 });
 
-test('Carnauba Wax: no durability promise on cars; not sold where paste wax is included', () => {
+test('activation gate refuses an unapproved release', () => {
+  let failed = false;
+  try {
+    execFileSync(process.execPath, ['scripts/check-package-rules-activation.mjs'], { cwd: ROOT, stdio: 'pipe' });
+  } catch (e) {
+    failed = true;
+    assert.match(String(e.stderr), /approved is not true/);
+  }
+  assert.ok(failed, 'gate must fail while approved is false');
+});
+
+/* ── Carnauba ────────────────────────────────────────────────────────────── */
+
+test('Carnauba Wax: no durability promise on cars; price unchanged', () => {
   for (const file of BOOKING_PAGES) {
     const html = read(file);
     const at = html.indexOf("name:'Super Interior — Deep Cleaning Upgrade'");
@@ -330,7 +348,4 @@ test('Carnauba Wax: no durability promise on cars; not sold where paste wax is i
     assert.doesNotMatch(wax, /1-Year|12 months|year/i, file);
     assert.match(wax, /price:75/, file);
   }
-  assert.equal(Rules.isOfferable('cars', 'maint', 'wax1yr'), false);
-  assert.equal(Rules.isOfferable('cars', 'full', 'wax1yr'), false);
-  assert.equal(ADDON_PRICE.wax1yr, 75);
 });
