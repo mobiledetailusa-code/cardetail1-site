@@ -2804,14 +2804,14 @@ const PRICING = {
         feats:CAR_INTERIOR_SERVICE_ITEMS,
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
       {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — clay bar, paste wax & Rain-X included',                                                dur:'~2.5–3h', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment','Engine Bay Light Cleaning & Wipe-Down'],
         int:CAR_INTERIOR_SERVICE_ITEMS,
-        feats:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'].concat(CAR_INTERIOR_SERVICE_ITEMS),
+        feats:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment','Engine Bay Light Cleaning & Wipe-Down'].concat(CAR_INTERIOR_SERVICE_ITEMS),
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
       {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~3.5–4h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
         int:[],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X windshield treatment','Tire dressing','Final quality inspection'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X windshield treatment','Tire dressing','Final quality inspection','Engine Bay Light Cleaning & Wipe-Down'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
       {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~3.5–4h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
@@ -4103,7 +4103,9 @@ document.getElementById('year-sel').addEventListener('change',function(){
 // ── STEP 4: ADD-ONS ───────────────────────────────────────────────────────────
 function addonRequiresShampooOrSteam(a){
   if(!a) return false;
-  if(a.id==='superint'||a.id==='floormats') return true;
+  // Floor Mat Deep Clean is a paid per-unit add-on on Maintenance (owner decision 2026-11-24).
+  if(a.id==='floormats') return false;
+  if(a.id==='superint') return true;
   const blob=((a.desc||'')+' '+(a.name||'')).toLowerCase();
   return /shampoo|steam/.test(blob);
 }

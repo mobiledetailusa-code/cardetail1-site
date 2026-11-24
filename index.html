@@ -7756,7 +7756,9 @@ document.getElementById('year-sel').addEventListener('change',function(){
 // ── STEP 4: ADD-ONS ───────────────────────────────────────────────────────────
 function addonRequiresShampooOrSteam(a){
   if(!a) return false;
-  if(a.id==='superint'||a.id==='floormats') return true;
+  // Floor Mat Deep Clean is a paid per-unit add-on on Maintenance (owner decision 2026-11-24).
+  if(a.id==='floormats') return false;
+  if(a.id==='superint') return true;
   const blob=((a.desc||'')+' '+(a.name||'')).toLowerCase();
   return /shampoo|steam/.test(blob);
 }

@@ -36,14 +36,14 @@ const CAR_PACKAGES = ['wash', 'maint', 'interior', 'full', 'refresh', 'premium']
 const TIERS = Object.keys(PRICING.cars.tiers);
 
 // Known, documented page differences. Anything else fails the test.
-//   engine: the homepage packages Full / Refresh / Signature list "Engine Bay
-//   Light Cleaning & Wipe-Down" as included and hide the $45 Engine Bay Top
-//   Clean; the hub fallback copies do not list it and still offer the $45
-//   add-on. Customers reach the homepage modal from every hub, so the
-//   fallback is the only place this shows. Owner decision pending: is the
-//   light engine-bay cleaning included in those packages or not?
+//   engine on Signature: the homepage Signature package lists "Engine Bay
+//   Light Cleaning & Wipe-Down" and hides the $45 Engine Bay Top Clean; the
+//   hub fallback copies do not list it and still offer the $45 add-on, which
+//   the server accepts. Customers reach the homepage modal from every hub, so
+//   only the fallback shows it. Signature composition is an open owner
+//   decision. (Full and Refresh were decided on 2026-11-24: included.)
 const DOCUMENTED_EXCEPTIONS = [
-  { pages: PAGES.filter((p) => p !== HOME), packages: ['full', 'refresh', 'premium'], id: 'engine', onlyOn: 'page' },
+  { pages: PAGES.filter((p) => p !== HOME), packages: ['premium'], id: 'engine', onlyOn: 'page' },
 ];
 
 class LocalLoader extends ResourceLoader {
@@ -129,6 +129,10 @@ test.before(async () => {
     for (const pkg of CAR_PACKAGES) {
       for (const tier of TIERS) MATRIX[file][pkg + '|' + tier] = render(w, pkg, tier);
     }
+    // Package inclusion text each page shows for Full, Refresh and Signature.
+    MATRIX[file].pkgText = JSON.parse(w.eval("JSON.stringify(Object.fromEntries(['full','refresh','premium'].map(function(id){" +
+      "var p = PRICING.cars.packages.find(function(x){ return x.id === id; }) || {};" +
+      "return [id, [].concat(p.ext || [], p.feats || []).join(' | ')];})))"));
     // Ceramic checkout panel ("More services") for the 1-year package.
     render(w, 'ceramic_1yr', 'small');
     const more = w.document.getElementById('ceramic-more');
@@ -139,12 +143,16 @@ test.before(async () => {
       ['interior+headlight', 'interior', ['headlight']],
       ['full+combo', 'full', ['superint', 'pethair', 'headlight', 'polymer']],
       ['wash+exterior', 'wash', ['wax1yr', 'undercarriage', 'engine', 'claybar']],
+      ['maint+floormats', 'maint', ['floormats']],
     ]) {
       render(w, pkg, 'suv2');
       for (const id of ids) {
         const card = w.document.querySelector('#addon-grid .addon[data-id="' + id + '"]');
         if (card && shown(w, card)) w.eval('toggleAddon')(card);
       }
+      // Per-unit control: a second floor mat through the page's own stepper.
+      if (key === 'maint+floormats') w.eval("addonQty('floormats', 1)");
+      MATRIX[file].totals[key + ':qty'] = JSON.parse(w.eval('JSON.stringify(ST.addons.map(function(a){return [a.id, a.qty || 1];}))'));
       MATRIX[file].totals[key] = {
         base: w.eval('ST.basePrice'),
         addonTotal: w.eval('ST.addonTotal'),
@@ -209,8 +217,8 @@ function offeredOnAllPages(pkg, tier, id) {
   return PAGES.map((p) => MATRIX[p][pkg + '|' + tier].offered.get(id));
 }
 
-test('Maintenance Detail: no Mold Treatment, Trash Cans, Floor Mats or specialized interior treatments', () => {
-  for (const id of ['mold', 'trashcans', 'floormats', 'superint', 'biohazard', 'odor', 'sanitize', 'wax1yr']) {
+test('Maintenance Detail: no Mold Treatment, Trash Cans or specialized interior treatments', () => {
+  for (const id of ['mold', 'trashcans', 'superint', 'biohazard', 'odor', 'sanitize', 'wax1yr']) {
     for (const tier of TIERS) assert.deepEqual(offeredOnAllPages('maint', tier, id).filter(Boolean), [], `maint ${tier} ${id}`);
     assert.equal(Rules.validateNewBookingAddons({ vehicles: [{ cat: 'cars', pkgId: 'maint', addons: [{ id }] }] }).ok, false, id);
     assert.equal(Rules.validateAddedAddons('cars', 'maint', [id]).ok, false, `portal ${id}`);
@@ -219,6 +227,61 @@ test('Maintenance Detail: no Mold Treatment, Trash Cans, Floor Mats or specializ
   for (const pkg of ['interior', 'full', 'premium']) {
     assert.deepEqual(new Set(offeredOnAllPages(pkg, 'small', 'mold')), new Set([149]), pkg);
   }
+});
+
+test('Maintenance Detail keeps Floor Mat Deep Clean as a paid $20-per-unit add-on, never preselected', () => {
+  for (const tier of TIERS) assert.deepEqual(new Set(offeredOnAllPages('maint', tier, 'floormats')), new Set([20]), tier);
+  assert.equal(Rules.validateNewBookingAddons({ vehicles: [{ cat: 'cars', pkgId: 'maint', addons: [{ id: 'floormats', qty: 2 }] }] }).ok, true);
+  assert.equal(Rules.validateAddedAddons('cars', 'maint', ['floormats']).ok, true, 'portal may add it');
+  for (const file of PAGES) {
+    const t = MATRIX[file].totals['maint+floormats'];
+    assert.deepEqual(MATRIX[file].totals['maint+floormats:qty'], [['floormats', 2]], file);
+    const server = computeBookingServiceSubtotal({ zipCode: '07601', vehicles: [{ cat: 'cars', pkgId: 'maint', tierKey: 'suv2', addons: [{ id: 'floormats', qty: 2 }] }] });
+    assert.equal(server.ok, true, server.error);
+    assert.equal(server.serviceSubtotal, 195 + 40);
+    assert.equal(t.base + t.addonTotal, server.serviceSubtotal, file);
+  }
+});
+
+test('Full and Refresh include Engine Bay Light Cleaning: no $45 Engine Bay Top Clean line, no duplicate charge', () => {
+  for (const pkg of ['full', 'refresh']) {
+    for (const tier of TIERS) assert.deepEqual(offeredOnAllPages(pkg, tier, 'engine').filter(Boolean), [], `${pkg} ${tier}`);
+    for (const file of PAGES) assert.match(MATRIX[file].pkgText[pkg], /Engine Bay Light Cleaning & Wipe-Down/, `${file} ${pkg} inclusion`);
+    // A direct API submission cannot add the separate line.
+    const v = Rules.validateNewBookingAddons({ vehicles: [{ cat: 'cars', pkgId: pkg, addons: [{ id: 'engine' }] }] });
+    assert.equal(v.ok, false, pkg);
+    assert.equal(v.error, 'addon_not_available');
+    assert.equal(Rules.validateAddedAddons('cars', pkg, ['engine']).ok, false, `portal ${pkg}`);
+  }
+  // Shared package modal and portal package list say the same thing.
+  const modal = fs.readFileSync(path.join(ROOT, 'assets/car-pkg-detail-modal.js'), 'utf8');
+  for (const id of ['full', 'refresh']) {
+    const start = modal.indexOf(`  ${id}: {`);
+    const may = modal.indexOf('addonsMayApply', start);
+    const end = modal.indexOf('],', may);
+    assert.match(modal.slice(start, may), /Engine Bay Light Cleaning & Wipe-Down/, `modal ${id} includes`);
+    assert.doesNotMatch(modal.slice(may, end), /Engine bay/i, `modal ${id} add-ons`);
+  }
+  const { CAR_PACKAGES: PORTAL } = require('../netlify/lib/customer-catalog');
+  for (const id of ['full', 'refresh']) {
+    assert.ok(PORTAL.find((p) => p.id === id).feats.includes('Engine Bay Light Cleaning & Wipe-Down'), `portal ${id}`);
+  }
+  // Engine Bay Top Clean $45 stays sold where it is not included.
+  for (const pkg of ['wash', 'maint']) {
+    for (const tier of TIERS) assert.deepEqual(new Set(offeredOnAllPages(pkg, tier, 'engine')), new Set([45]), `${pkg} ${tier}`);
+  }
+  // Stored bookings keep a $45 line they already carry; base prices are unchanged.
+  for (const pkg of ['full', 'refresh']) {
+    const old = computeBookingServiceSubtotal({ zipCode: '07601', createdAt: '2026-10-01T12:00:00Z', vehicles: [{ cat: 'cars', pkgId: pkg, tierKey: 'small', addons: [{ id: 'engine' }] }] });
+    assert.equal(old.ok, true, pkg);
+    assert.equal(old.serviceSubtotal, PRICING.cars.tiers.small[pkg] + 45, pkg);
+  }
+  assert.equal(PRICING.cars.addons.find((a) => a.id === 'engine').price, 45);
+});
+
+test('Signature: composition unchanged; homepage lists Engine Bay Light Cleaning (open owner decision)', () => {
+  assert.match(MATRIX[HOME].pkgText.premium, /Engine Bay Light Cleaning/);
+  assert.equal(Rules.isOfferable('cars', 'premium', 'engine'), true, 'server rule unchanged for Signature');
 });
 
 test('Interior Detail + Headlight Restoration: offered at its $90 catalog price, never preselected, totals match', () => {

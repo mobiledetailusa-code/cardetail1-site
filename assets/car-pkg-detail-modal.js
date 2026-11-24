@@ -65,6 +65,7 @@ const CAR_PKG_DETAILS = {
       "Exterior windshield + Rain-X treatment",
       "Clay bar decontamination",
       "Hand-applied premium paste wax",
+      "Engine Bay Light Cleaning & Wipe-Down",
     ],
     bestFor: [
       "Full refresh inside and out",
@@ -76,7 +77,6 @@ const CAR_PKG_DETAILS = {
       "Heavy pet hair",
       "Odor",
       "Deep stains",
-      "Engine bay",
       "Headlights",
     ],
     conditionNote: "Deep or permanent stains, embedded pet hair, and persistent odors may require additional specialized treatments. Results depend on the condition of the materials. Nothing extra is added or charged without your approval.",
@@ -148,6 +148,7 @@ const CAR_PKG_DETAILS = {
       "Clay bar/decontamination",
       "Polish or gloss enhancement",
       "Sealant/protection",
+      "Engine Bay Light Cleaning & Wipe-Down",
     ],
     bestFor: [
       "Dull paint",
@@ -160,7 +161,6 @@ const CAR_PKG_DETAILS = {
       "Heavy oxidation",
       "Severe scratches",
       "Ceramic coating",
-      "Engine bay",
       "Headlight restoration",
     ],
   },

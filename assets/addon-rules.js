@@ -97,15 +97,17 @@
     cars: {
       // Maintenance stays a maintenance service: no deep interior work, and the
       // paste wax it includes is not sold again as a wax add-on.
-      // Mold Treatment is a specialized interior treatment, and Floor Mat Deep
-      // Clean is a shampoo service; Maintenance includes neither shampoo nor steam.
-      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold', 'floormats'],
+      // Mold Treatment is a specialized interior treatment. Floor Mat Deep Clean
+      // stays a paid, per-unit add-on on Maintenance (owner decision 2026-11-24).
+      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold'],
       wash: ['superint'],
       // Exterior Refresh & Protect includes its own sealant: no second sealant
-      // and no carnauba layered over it as a paid add-on.
-      refresh: ['superint', 'wax1yr', 'polymer'],
-      // Premium Full Detail includes hand-applied premium paste wax.
-      full: ['wax1yr'],
+      // and no carnauba layered over it as a paid add-on. It also includes
+      // Engine Bay Light Cleaning, so the $45 Engine Bay Top Clean is not sold.
+      refresh: ['superint', 'wax1yr', 'polymer', 'engine'],
+      // Premium Full Detail includes hand-applied premium paste wax and Engine
+      // Bay Light Cleaning (owner decision 2026-11-24).
+      full: ['wax1yr', 'engine'],
       // Signature Restoration includes the same long-lasting sealant.
       premium: ['polymer'],
     },

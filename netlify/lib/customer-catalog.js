@@ -80,7 +80,7 @@ const CAR_PACKAGES = [
     tag: 'Full inside/out refresh — most popular',
     duration: '~2.5–3h',
     description: 'Complete interior and exterior detailing with Clay Bar Paint Decontamination and Hand-Applied Premium Paste Wax for a deep, rich gloss, a smooth finish, and added paint protection.',
-    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Hand-applied premium paste wax', 'Tire dressing'],
+    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Hand-applied premium paste wax', 'Tire dressing', 'Engine Bay Light Cleaning & Wipe-Down'],
   },
   {
     id: 'refresh',
@@ -89,7 +89,7 @@ const CAR_PACKAGES = [
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & wheels',
     duration: '~3.5–4h',
     description: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
-    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing'],
+    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Engine Bay Light Cleaning & Wipe-Down'],
   },
   {
     id: 'premium',

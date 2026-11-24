@@ -86,9 +86,10 @@ test('cars packages are ordered expensive-first with compact booking UI', () => 
   assert.match(html, /const useCompact = usesCompactPackageUi\(cat\);/);
 });
 
-test('Maintenance Detail hides shampoo/steam add-ons', () => {
+test('Maintenance Detail hides shampoo/steam add-ons but keeps paid Floor Mat Deep Clean', () => {
   assert.match(html, /function addonRequiresShampooOrSteam\(a\)\{/);
-  assert.match(html, /a\.id==='superint'\|\|a\.id==='floormats'/);
+  assert.match(html, /if\(a\.id==='floormats'\) return false;/);
+  assert.match(html, /if\(a\.id==='superint'\) return true;/);
   assert.match(html, /ST\.pkgId==='maint' && addonRequiresShampooOrSteam\(a\)/);
 });
 

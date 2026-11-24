@@ -152,14 +152,15 @@ test('no Super Interior inclusion rules or messages remain anywhere', () => {
 
 /* ── Eligibility (unchanged decisions) ───────────────────────────────────── */
 
-test('13. Maintenance blocks Super Interior, Biohazard, Odor, Interior Sanitizing, Mold, Floor Mats and the wax add-on', () => {
-  for (const id of ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold', 'floormats']) {
+test('13. Maintenance blocks Super Interior, Biohazard, Odor, Interior Sanitizing, Mold and the wax add-on', () => {
+  for (const id of ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold']) {
     assert.equal(Rules.isOfferable('cars', 'maint', id), false, id);
     const v = Rules.validateNewBookingAddons({ vehicles: [car('maint', [id])] });
     assert.equal(v.ok, false, id);
     assert.equal(v.error, 'addon_not_available');
   }
-  for (const id of ['claybar', 'pethair', 'rainx', 'polymer', 'engine', 'headlight']) {
+  // Floor Mat Deep Clean stays a paid per-unit add-on on Maintenance (owner decision).
+  for (const id of ['claybar', 'pethair', 'rainx', 'polymer', 'engine', 'headlight', 'floormats']) {
     assert.equal(Rules.isOfferable('cars', 'maint', id), true, id);
   }
 });
@@ -175,12 +176,18 @@ test('Super Interior only on interior-capable car packages; Pet Hair, Odor, Sani
   assert.equal(Rules.isOfferable('trucks', 'interior', 'superint'), true);
 });
 
-test('14. Engine Bay $125 and Mobile Water retired; Top Clean $45 and the exterior matrix unchanged', () => {
+test('14. Engine Bay $125 and Mobile Water retired; Top Clean $45 sold where Engine Bay Light Cleaning is not included', () => {
   for (const pkg of ['wash', 'refresh', 'full', 'premium']) {
     assert.equal(Rules.isOfferable('cars', pkg, 'engine_bay'), false, pkg);
     assert.equal(Rules.isOfferable('cars', pkg, 'mobile_water'), false, pkg);
-    assert.equal(Rules.isOfferable('cars', pkg, 'engine'), true, pkg);
   }
+  // Full and Refresh include Engine Bay Light Cleaning: no separate $45 line.
+  for (const pkg of ['full', 'refresh']) {
+    assert.equal(Rules.isOfferable('cars', pkg, 'engine'), false, pkg);
+    assert.equal(Rules.validateNewBookingAddons({ vehicles: [car(pkg, ['engine'])] }).error, 'addon_not_available', pkg);
+    assert.equal(Rules.validateAddedAddons('cars', pkg, ['engine']).ok, false, pkg);
+  }
+  for (const pkg of ['wash', 'maint', 'premium']) assert.equal(Rules.isOfferable('cars', pkg, 'engine'), true, pkg);
   for (const id of ['undercarriage', 'heavymud', 'claybar', 'rainx', 'polymer', 'headlight']) {
     assert.equal(Rules.isOfferable('cars', 'wash', id), true, id);
   }
