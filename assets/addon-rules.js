@@ -5,9 +5,13 @@
  * come from one table.
  *
  * Scope is deliberately narrow:
- *   - two car add-ons retired from new bookings (Engine Bay Detail $125,
- *     Mobile Water Supply $50); the $45 Engine Bay Top Clean is untouched;
- *   - car package blocks for Maintenance Detail and Super Interior placement.
+ *   - car add-ons retired from new bookings (Engine Bay Detail $125, Mobile
+ *     Water Supply $50, Trash Can Cleaning); the $45 Engine Bay Top Clean is
+ *     untouched;
+ *   - car package blocks (Maintenance Detail, Super Interior placement, no
+ *     second wax or sealant over an included one);
+ *   - interior / exterior scope for car packages, with one documented
+ *     exception: Headlight Restoration on Interior Detail.
  * Every add-on stays an independent, separately priced service; pricing lives
  * in booking-price-catalog.js and is not changed here. The existing exterior
  * matrix in ceramic-booking.js is not changed, and other vehicle categories
@@ -76,6 +80,9 @@
     cars: {
       engine_bay: 'Engine Bay Detail is no longer offered on new bookings.',
       mobile_water: 'Mobile Water Supply is no longer sold as an add-on; we bring our own water and power.',
+      // Residential trash cans are not a vehicle detailing add-on. Other
+      // categories keep their own catalog line; history keeps its price.
+      trashcans: 'Trash Can Cleaning is not offered as a car detailing add-on.',
     },
   };
 
@@ -90,12 +97,37 @@
     cars: {
       // Maintenance stays a maintenance service: no deep interior work, and the
       // paste wax it includes is not sold again as a wax add-on.
-      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr'],
+      // Mold Treatment is a specialized interior treatment, and Floor Mat Deep
+      // Clean is a shampoo service; Maintenance includes neither shampoo nor steam.
+      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold', 'floormats'],
       wash: ['superint'],
-      refresh: ['superint'],
+      // Exterior Refresh & Protect includes its own sealant: no second sealant
+      // and no carnauba layered over it as a paid add-on.
+      refresh: ['superint', 'wax1yr', 'polymer'],
       // Premium Full Detail includes hand-applied premium paste wax.
       full: ['wax1yr'],
+      // Signature Restoration includes the same long-lasting sealant.
+      premium: ['polymer'],
     },
+  };
+
+  /*
+   * Interior / exterior scope for car add-ons on non-ceramic packages. Pages
+   * already filter by scope; the server now applies the same rule so a portal
+   * request cannot add what no booking page offers. Ids not listed here keep
+   * no scope limit. Ceramic packages keep their own matrix (ceramic-coating.js).
+   */
+  var CAR_PACKAGE_SCOPE = { wash: 'ext', refresh: 'ext', interior: 'int' };
+  var CAR_ADDON_SCOPE = {
+    pethair: 'int', superint: 'int', odor: 'int', mold: 'int', sanitize: 'int',
+    biohazard: 'int', floormats: 'int', babyseat: 'int', stroller: 'int',
+    engine: 'ext', rainx: 'ext', polymer: 'ext', wax1yr: 'ext', claybar: 'ext',
+    headlight: 'ext', undercarriage: 'ext', heavymud: 'ext', engine_bay: 'ext', mobile_water: 'ext',
+  };
+  // Documented exceptions to the scope rule. Headlight Restoration may be added
+  // to an Interior Detail visit at its catalog price; no other exterior add-on.
+  var CROSS_SCOPE_ALLOWED = {
+    cars: { interior: ['headlight'] },
   };
 
   // Every add-on is an independent, separately priced service. Super Interior
@@ -139,8 +171,21 @@
     return blocked.indexOf(str(id)) >= 0;
   }
 
+  function allowsCrossScope(cat, pkgId, id) {
+    var allowed = list(CROSS_SCOPE_ALLOWED, cat)[str(pkgId)] || [];
+    return allowed.indexOf(str(id)) >= 0;
+  }
+
+  function isOutOfScope(cat, pkgId, id) {
+    if (str(cat) !== 'cars') return false;
+    var pkgScope = CAR_PACKAGE_SCOPE[str(pkgId)];
+    var addonScope = CAR_ADDON_SCOPE[str(id)];
+    if (!pkgScope || !addonScope || pkgScope === addonScope) return false;
+    return !allowsCrossScope(cat, pkgId, id);
+  }
+
   function isOfferable(cat, pkgId, id) {
-    return !isRetired(cat, id) && !isBlockedForPackage(cat, pkgId, id);
+    return !isRetired(cat, id) && !isBlockedForPackage(cat, pkgId, id) && !isOutOfScope(cat, pkgId, id);
   }
 
   function vehicleAddonIds(vehicle) {
@@ -222,7 +267,8 @@
   function validatePackageChange(cat, newPkgId, existingAddonIds) {
     var ids = (existingAddonIds || []).map(str).filter(Boolean);
     for (var i = 0; i < ids.length; i += 1) {
-      if (isBlockedForPackage(str(cat).toLowerCase(), newPkgId, ids[i])) {
+      var c = str(cat).toLowerCase();
+      if (isBlockedForPackage(c, newPkgId, ids[i]) || isOutOfScope(c, newPkgId, ids[i])) {
         return { ok: false, error: 'addon_incompatible_with_package', addonId: ids[i], packageId: str(newPkgId) };
       }
     }
@@ -251,6 +297,11 @@
     DETAILS: DETAILS,
     isRetired: isRetired,
     isBlockedForPackage: isBlockedForPackage,
+    CAR_PACKAGE_SCOPE: CAR_PACKAGE_SCOPE,
+    CAR_ADDON_SCOPE: CAR_ADDON_SCOPE,
+    CROSS_SCOPE_ALLOWED: CROSS_SCOPE_ALLOWED,
+    allowsCrossScope: allowsCrossScope,
+    isOutOfScope: isOutOfScope,
     isOfferable: isOfferable,
     DROPPED_FROM_NEW_BOOKINGS: DROPPED_FROM_NEW_BOOKINGS,
     stripDroppedFromNewBooking: stripDroppedFromNewBooking,

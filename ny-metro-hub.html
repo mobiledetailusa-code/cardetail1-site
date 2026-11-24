@@ -5456,7 +5456,7 @@ function renderAddons(){
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
     if(window.CD1SeasonalDriveway && (CD1SeasonalDriveway.hiddenFromNewBookings ? CD1SeasonalDriveway.hiddenFromNewBookings(a.id) : CD1SeasonalDriveway.isChildId(a.id))) return false;
-    return pkgScope==='both' || s==='any' || s===pkgScope;
+    return pkgScope==='both' || s==='any' || s===pkgScope || !!(window.CD1AddonRules && CD1AddonRules.allowsCrossScope(ST.cat,ST.pkgId,a.id));
   });
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
   const popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);

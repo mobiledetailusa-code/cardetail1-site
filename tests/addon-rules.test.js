@@ -152,14 +152,14 @@ test('no Super Interior inclusion rules or messages remain anywhere', () => {
 
 /* ── Eligibility (unchanged decisions) ───────────────────────────────────── */
 
-test('13. Maintenance blocks Super Interior, Biohazard, Odor, Interior Sanitizing and the wax add-on', () => {
-  for (const id of ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr']) {
+test('13. Maintenance blocks Super Interior, Biohazard, Odor, Interior Sanitizing, Mold, Floor Mats and the wax add-on', () => {
+  for (const id of ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold', 'floormats']) {
     assert.equal(Rules.isOfferable('cars', 'maint', id), false, id);
     const v = Rules.validateNewBookingAddons({ vehicles: [car('maint', [id])] });
     assert.equal(v.ok, false, id);
     assert.equal(v.error, 'addon_not_available');
   }
-  for (const id of ['claybar', 'pethair', 'floormats', 'mold', 'rainx', 'polymer', 'engine']) {
+  for (const id of ['claybar', 'pethair', 'rainx', 'polymer', 'engine', 'headlight']) {
     assert.equal(Rules.isOfferable('cars', 'maint', id), true, id);
   }
 });
@@ -204,11 +204,18 @@ test('submit-booking strips and validates add-ons before pricing', () => {
   assert.doesNotMatch(src, /newBooking/);
 });
 
-test('Premium Full Detail and Maintenance do not sell a second wax', () => {
+test('Premium Full Detail and Maintenance do not sell a second wax; Refresh does not sell wax or sealant over its sealant', () => {
   assert.equal(Rules.isOfferable('cars', 'full', 'wax1yr'), false);
   assert.equal(Rules.isOfferable('cars', 'maint', 'wax1yr'), false);
   assert.equal(Rules.isOfferable('cars', 'wash', 'wax1yr'), true);
-  assert.equal(Rules.isOfferable('cars', 'refresh', 'wax1yr'), true);
+  assert.equal(Rules.isOfferable('cars', 'refresh', 'wax1yr'), false);
+  assert.equal(Rules.isOfferable('cars', 'refresh', 'polymer'), false);
+  assert.equal(Rules.isOfferable('cars', 'premium', 'polymer'), false);
+  // Paste wax packages may still add a separate polymer sealant (different product).
+  assert.equal(Rules.isOfferable('cars', 'full', 'polymer'), true);
+  assert.equal(Rules.isOfferable('cars', 'maint', 'polymer'), true);
+  // Carnauba on Premium (Signature) stays until the owner decides; see the audit report.
+  assert.equal(Rules.isOfferable('cars', 'premium', 'wax1yr'), true);
 });
 
 /* ── 16. History ─────────────────────────────────────────────────────────── */
