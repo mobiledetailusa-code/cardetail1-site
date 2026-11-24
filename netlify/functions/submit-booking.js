@@ -1202,6 +1202,15 @@ exports.handler = async (event) => {
   delete b.id;
   delete b.bookingId;
 
+  // Driveway & Entry Cleanup is retired from new bookings (stored bookings keep it).
+  {
+    const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
+    const retired = SeasonalDriveway.familyIdsInNewBooking(b);
+    if (retired.length) {
+      return json(400, { ok: false, bookingCreated: false, error: 'addon_not_available', addonId: retired[0] });
+    }
+  }
+
   // Schedule flexibility is preference-only (never auto-changes the date).
   {
     const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
