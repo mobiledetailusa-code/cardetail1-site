@@ -76,7 +76,16 @@ test('shared package detail data includes required content for homepage car pack
 
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Full refresh inside and out"[\s\S]*"Resale prep"[\s\S]*\]/);
-  assert.match(pkgModalJs, /full:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Clay\/polish upgrade"[\s\S]*"Headlights"[\s\S]*\]/);
+  assert.match(pkgModalJs, /full:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Machine polish upgrade"[\s\S]*"Headlights"[\s\S]*\]/);
+  // The catalog bundles clay bar and Rain-X into Premium Full Detail
+  // (PACKAGE_INCLUDED_ADDONS.cars.full) and the ads advertise "clay bar", so the
+  // "what's included" modal must list both and must not sell clay as an upgrade.
+  const fullModal = pkgModalJs.slice(pkgModalJs.indexOf('  full: {'), pkgModalJs.indexOf('  ceramic_1yr: {'));
+  const fullIncludes = fullModal.slice(fullModal.indexOf('includes:'), fullModal.indexOf('bestFor:'));
+  const fullAddons = fullModal.slice(fullModal.indexOf('addonsMayApply:'));
+  assert.match(fullIncludes, /"Clay bar decontamination"/);
+  assert.match(fullIncludes, /Rain-X/);
+  assert.doesNotMatch(fullAddons, /clay/i);
 
   assert.match(pkgModalJs, /refresh:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Hand wash"[\s\S]*"Clay bar\/decontamination"[\s\S]*"Sealant\/protection"[\s\S]*\]/);
   assert.match(pkgModalJs, /refresh:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Dull paint"[\s\S]*"Exterior restoration"[\s\S]*\]/);
