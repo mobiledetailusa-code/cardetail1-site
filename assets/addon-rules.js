@@ -242,6 +242,18 @@
           return { ok: false, error: 'addon_not_available', addonId: ids[j], packageId: pkgId, category: cat };
         }
       }
+      // The pages send each add-on once (per-unit items carry qty). A repeated
+      // line would be priced twice, so a new booking may not carry one.
+      var seen = {};
+      var lines = Array.isArray(v.addons) ? v.addons : [];
+      for (var k = 0; k < lines.length; k += 1) {
+        var lineId = str(lines[k] && (lines[k].id || lines[k].addonId));
+        if (!lineId) continue;
+        if (seen[lineId]) {
+          return { ok: false, error: 'duplicate_addon', addonId: lineId, packageId: pkgId, category: cat };
+        }
+        seen[lineId] = true;
+      }
     }
     return { ok: true };
   }
