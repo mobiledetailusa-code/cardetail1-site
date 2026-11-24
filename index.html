@@ -7817,7 +7817,7 @@ function renderAddons(){
     if(ST.cat==='rvs' && rvPackageIncludesProtection(ST.pkgId) && (a.id==='polymer' || a.id==='wax1yr')) return false;
     if(ST.cat==='rvs' && ST.rvType && !RV_MOTORIZED[ST.rvType] && a.id==='rainx') return false;
     if(ST.cat==='powersports' && !a.publicNew) return false;
-    if(window.CD1SeasonalDriveway && CD1SeasonalDriveway.isChildId(a.id)) return false;
+    if(window.CD1SeasonalDriveway && (CD1SeasonalDriveway.hiddenFromNewBookings ? CD1SeasonalDriveway.hiddenFromNewBookings(a.id) : CD1SeasonalDriveway.isChildId(a.id))) return false;
     if(ST.cat==='cars' && ST.pkgId==='maint' && addonRequiresShampooOrSteam(a)) return false;
     return pkgScope==='both' || s==='any' || s===pkgScope;
   });
