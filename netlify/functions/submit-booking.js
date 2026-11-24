@@ -85,6 +85,7 @@ function resolveCardOnFileRequired(preference, requestedFlag) {
 }
 
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const AddonRules = require('../../assets/addon-rules');
 const { stripClientCatalogTierAuthority } = require('../lib/car-catalog-tier');
 const {
   enforcePublicRateLimit,
@@ -1223,6 +1224,19 @@ exports.handler = async (event) => {
 
   const isDraftRequest = !!b.isDraft;
   stripClientCatalogTierAuthority(b);
+  // New bookings only: retired add-ons and package-blocked add-ons are refused.
+  // Stored bookings, admin edits and repricing never pass through here.
+  AddonRules.stripDroppedFromNewBooking(b);
+  const addonRules = AddonRules.validateNewBookingAddons(b);
+  if (!addonRules.ok) {
+    return json(400, {
+      ok: false,
+      bookingCreated: false,
+      error: addonRules.error,
+      addonId: addonRules.addonId,
+      packageId: addonRules.packageId,
+    });
+  }
   const travelApplied = applyServerTravelAndTotal(b, {
     ...(isDraftRequest ? { skipMismatchCheck: true } : {}),
     catalogTierMode: 'require_identity',

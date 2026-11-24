@@ -4,7 +4,13 @@
  * Never invent inclusions from package names alone.
  */
 
-const { CAR_PACKAGES } = require('./customer-catalog');
+const {
+  CAR_PACKAGES,
+  LEGACY_FULL_DETAIL_SPRAY_SEALANT,
+  soldLegacyFullDetail,
+  LEGACY_MAINTENANCE_DETAIL,
+  soldLegacyMaintenanceDetail,
+} = require('./customer-catalog');
 const { BOAT_PACKAGES, RV_PACKAGES, packagesForCategory } = require('./length-pricing');
 
 const UNAVAILABLE_MESSAGE =
@@ -43,13 +49,33 @@ function catalogPackagesForCategory(cat) {
   return Array.isArray(via) ? via : [];
 }
 
-function catalogEntryForVehicle(vehicle) {
+function catalogEntryForVehicle(vehicle, opts = {}) {
   const cat = categoryKey(vehicle);
   const pkgId = packageIdOf(vehicle);
   if (!pkgId) return null;
   const list = catalogPackagesForCategory(cat);
   const found = list.find((p) => String(p.id) === pkgId);
-  return found ? { ...found, category: cat } : null;
+  if (!found) return null;
+  // A booking view passes its creation time: a Premium Full Detail sold before
+  // the paste-wax change keeps the spray-sealant composition it was sold with.
+  if (
+    list === CAR_PACKAGES
+    && pkgId === 'full'
+    && Object.prototype.hasOwnProperty.call(opts, 'bookingCreatedAt')
+    && soldLegacyFullDetail(opts.bookingCreatedAt)
+  ) {
+    return { ...found, ...LEGACY_FULL_DETAIL_SPRAY_SEALANT, feats: [...LEGACY_FULL_DETAIL_SPRAY_SEALANT.feats], category: cat };
+  }
+  // Same rule for the Maintenance Detail paste-wax change.
+  if (
+    list === CAR_PACKAGES
+    && pkgId === 'maint'
+    && Object.prototype.hasOwnProperty.call(opts, 'bookingCreatedAt')
+    && soldLegacyMaintenanceDetail(opts.bookingCreatedAt)
+  ) {
+    return { ...found, ...LEGACY_MAINTENANCE_DETAIL, feats: [...LEGACY_MAINTENANCE_DETAIL.feats], category: cat };
+  }
+  return { ...found, category: cat };
 }
 
 function selectedAddonsForVehicle(vehicle, { stripIds = false } = {}) {
@@ -124,7 +150,7 @@ function resolvePackageDetailsForVehicle(vehicle, opts = {}) {
     }
   }
 
-  const catalog = catalogEntryForVehicle(v);
+  const catalog = catalogEntryForVehicle(v, opts);
   if (catalog) {
     const included = normalizeStringList(catalog.feats || catalog.features || catalog.includes || catalog.includedServices);
     const limitations = normalizeStringList(catalog.limitations || catalog.exclusions || catalog.miss);

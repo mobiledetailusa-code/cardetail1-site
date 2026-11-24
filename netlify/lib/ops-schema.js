@@ -100,8 +100,12 @@ function legacyDisplayStatus(booking) {
  * are server dollars — same units as booking-price-catalog / quoteService inputs.
  * Do not mix with ledger *Cents fields.
  */
-function projectVehicleForCustomer(v) {
+function projectVehicleForCustomer(v, context) {
   if (!v || typeof v !== 'object') return null;
+  const detailOpts = context && typeof context === 'object' && !Array.isArray(context)
+    && Object.prototype.hasOwnProperty.call(context, 'bookingCreatedAt')
+    ? { bookingCreatedAt: context.bookingCreatedAt }
+    : {};
   const year = v.year != null && v.year !== '' ? String(v.year) : (v.vehicleYear != null && v.vehicleYear !== '' ? String(v.vehicleYear) : '');
   const make = v.make || v.vehicleMake || '';
   const model = v.model || v.vehicleModel || '';
@@ -170,7 +174,7 @@ function projectVehicleForCustomer(v) {
   }
   try {
     const { resolvePackageDetailsForCustomerView } = require('./package-details-resolve');
-    projected.packageDetails = resolvePackageDetailsForCustomerView({ ...v, ...projected });
+    projected.packageDetails = resolvePackageDetailsForCustomerView({ ...v, ...projected }, detailOpts);
   } catch (_) {
     projected.packageDetails = null;
   }
@@ -212,7 +216,7 @@ function projectBookingForCustomer(b) {
   const vehiclesArr = resolveCustomerVehicles(src, material);
   const addonsArr = Array.isArray(src.addons) ? src.addons : [];
   const projectedVehicles = vehiclesArr
-    .map(projectVehicleForCustomer)
+    .map((vehicle) => projectVehicleForCustomer(vehicle, { bookingCreatedAt: src.createdAt }))
     .filter(Boolean);
   const {
     customerFacingStatusLabel,

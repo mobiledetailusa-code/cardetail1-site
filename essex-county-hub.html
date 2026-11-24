@@ -1339,6 +1339,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
 <script src="assets/booking-review-runtime.js" defer></script>
 <script src="assets/customer-payments-gate.js" defer></script>
 <script src="assets/ceramic-booking.js" defer></script>
+<script src="assets/addon-rules.js" defer></script>
 <script src="assets/travel-fee-client.js"></script>
 <link rel="stylesheet" href="assets/public-surface-contrast.css">
   <link rel="stylesheet" href="assets/public-surface.css">
@@ -2806,19 +2807,19 @@ const PRICING = {
         feats:['Technical exterior wash','Tar and iron decontamination','Mechanical clay when required','One-stage gloss-enhancement polish','Panel-prep wipe','Ceramic coating on painted surfaces','Normal wheel, tire, and glass cleaning','Final inspection'],
         miss:['Interior detailing','Engine bay','Undercarriage','Wheel ceramic','Glass ceramic','Trim ceramic','Headlight restoration','Deep paint correction','Complete defect removal']},
       {id:'maint',    name:'Maintenance Detail', icon:'🪣', tag:'Best for regularly maintained vehicles',                                                                      dur:'~1.5–2h',              popular:false, scope:'both',
-        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
+        ext:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Hand-applied premium paste wax','Exterior windshield cleaned','Door jambs wiped down','UV protectant applied'],
         int:['Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted'],
-        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
+        feats:['Exterior hand wash & rinse','Wheels & tires cleaned + dressed','Hand-applied premium paste wax','Exterior windshield cleaned','Door jambs wiped down','Interior vacuum','Dashboard & console wipe','Leather & plastic conditioning where applicable','Air vents dusted','UV protectant applied'],
         miss:['Clay bar (available as add-on)','Heavy carpet/seat shampoo','Pet hair removal','Odor treatment','Excessive stains','Roof/headliner']},
       {id:'interior', name:'Interior Detail',   icon:'💺', tag:'Best for neglected interiors or family vehicles - add-ons available for pet hair, odor & stains', dur:'~2.5–3.5h',            popular:false, scope:'int',
         ext:[],
         int:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
-      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — clay bar & Rain-X included',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Spray sealant/protection','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'],
+      {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — clay bar, paste wax & Rain-X included',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','UV protectant'],
-        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Spray sealant/protection','Tire dressing','UV protectant'],
+        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Hand-applied premium paste wax','Tire dressing','UV protectant'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
       {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
         ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
@@ -2833,7 +2834,7 @@ const PRICING = {
     ],
     addons:[
       {id:'pethair',    scope:'int', name:'Pet Hair Removal',          desc:'Deep pet hair removal from seats, carpets, mats, and trunk. Heavy buildup may need an estimate', price:95},
-      {id:'superint',   scope:'int', name:'Super Interior Upgrade',    desc:'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas', price:125},
+      {id:'superint',   scope:'int', name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains.', price:125},
       {id:'odor',       scope:'int', name:'Odor Treatment & Sanitize', desc:'Treatment for smoke, food, pet, and general interior odors. Severe odor, mold, urine, or biohazard may require estimate confirmation', price:90},
       {id:'mold',       scope:'int', name:'Mold Treatment',            desc:'Targeted mold treatment for affected interior areas. Inspection required; estimate may be needed. Starting at $149 based on severity', price:149},
       {id:'sanitize',   scope:'int', name:'Interior Sanitizing',       desc:'High-touch interior wipe-down after cleaning — wheel, controls, handles, seats, and belts', price:65},
@@ -2842,7 +2843,7 @@ const PRICING = {
       {id:'floormats',  scope:'int', name:'Floor Mat Deep Clean',      desc:'Deep shampoo and scrub of rubber or fabric floor mats. $20 each', price:20, qty:true},
       {id:'rainx',      scope:'ext', name:'Rain-X Windshield Treatment',    desc:'Water-repellent Rain-X on windshield', price:25},
       {id:'polymer',    scope:'ext', name:'Polymer Paint Sealant',     desc:'Hand-applied polymer sealant for paint protection and gloss. Lasts 3–6 months', price:25},
-      {id:'wax1yr',     scope:'ext', name:'1-Year Carnauba Wax',       desc:'Premium carnauba wax with enhanced gloss and up to 12 months of protection', price:75},
+      {id:'wax1yr',     scope:'ext', name:'Carnauba Wax',              desc:'Hand-applied carnauba wax for added gloss and a protective layer on the paint. How long it lasts depends on weather, washing, and storage.', price:75},
       {id:'claybar',    scope:'ext', name:'Clay Bar Treatment',        desc:'Removes embedded contaminants, fallout, and rail dust for smooth paint', price:45},
       {id:'headlight',  scope:'ext', name:'Headlight Restoration',     desc:'Clean, polish, and seal foggy headlights (per pair). Cosmetic detailing only', price:90},
       {id:'babyseat',   scope:'int', name:'Baby / Car Seat Cleaning',  desc:'Clean child car seat straps, padding, and buckle. $20 each', price:20, qty:true},

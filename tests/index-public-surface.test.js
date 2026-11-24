@@ -67,14 +67,14 @@ const buttonStatesCss = read('assets/button-states.css');
 test('shared package detail data includes required content for homepage car packages', () => {
   assert.match(pkgModalJs, /const CAR_PKG_DETAILS\s*=\s*\{/);
   assert.match(pkgModalJs, /wash:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Exterior hand wash and rinse"[\s\S]*"Tire dressing"[\s\S]*\]/);
-  assert.match(pkgModalJs, /wash:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"1-Year Carnauba Wax"[\s\S]*"Clay bar"[\s\S]*"Engine bay detailing"[\s\S]*\]/);
+  assert.match(pkgModalJs, /wash:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Carnauba Wax"[\s\S]*"Clay bar"[\s\S]*"Engine bay detailing"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Door jambs cleaned"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*includes:\s*\[[\s\S]*truck bed where applicable[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Daily drivers"[\s\S]*"Family cars"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Heavy pet hair"[\s\S]*"Biohazard"[\s\S]*\]/);
 
-  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
+  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Hand-applied premium paste wax"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Full refresh inside and out"[\s\S]*"Resale prep"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Deep stains"[\s\S]*"Headlights"[\s\S]*\]/);
   // The catalog bundles clay bar and Rain-X into Premium Full Detail
