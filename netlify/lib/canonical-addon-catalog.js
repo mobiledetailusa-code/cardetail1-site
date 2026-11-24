@@ -18,7 +18,7 @@ const ADDON_DISPLAY = {
   },
   superint: {
     name: 'Super Interior — Deep Cleaning Upgrade',
-    description: 'Double Shampoo for Heavy Stains, Pet Hair Removal, Odor Treatment & Extra Floor Mats Cleaning.',
+    description: 'Double Shampoo for Heavy Stains, Enhanced Interior Cleaning & Additional Attention to Problem Areas.',
   },
   odor: {
     name: 'Odor Treatment & Sanitize',

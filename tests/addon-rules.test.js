@@ -122,7 +122,11 @@ test('Super Interior bundle: no double charge on a new booking', () => {
   const opts = { newBooking: true };
   const bundled = subtotal([car('full', ['superint', 'pethair', 'odor', 'floormats'])], {}, opts);
   assert.equal(bundled.serviceSubtotal, 250 + 125);
-  assert.deepEqual(bundled.vehicles[0].addons.map((a) => a.id), ['superint']);
+  // Covered lines stay on the booking (summary + job sheet) at $0, one unit.
+  assert.deepEqual(
+    bundled.vehicles[0].addons.map((a) => [a.id, a.price, a.qty, a.includedWith || null]),
+    [['superint', 125, 1, null], ['pethair', 0, 1, 'superint'], ['odor', 0, 1, 'superint'], ['floormats', 0, 1, 'superint']]
+  );
 
   const alone = subtotal([car('interior', ['pethair', 'odor'])], {}, opts);
   assert.equal(alone.serviceSubtotal, 200 + 95 + 90, 'individual add-ons still sell without Super Interior');
@@ -164,7 +168,7 @@ test('booking pages: Maintenance paste wax, Super Interior copy, shared rules sc
     const maint = html.slice(start, html.indexOf(']}', html.indexOf('miss:[', start)) + 2);
     assert.equal(maint.split(`'${WAX}'`).length - 1, 2, `${file} maint ext+feats`);
     assert.doesNotMatch(maint.slice(0, maint.indexOf('miss:[')), /clay bar|shampoo/i, `${file} maint stays basic`);
-    assert.match(html, /name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains, Pet Hair Removal, Odor Treatment & Extra Floor Mats Cleaning\.', price:125/, file);
+    assert.match(html, /name:'Super Interior — Deep Cleaning Upgrade', desc:'Double Shampoo for Heavy Stains, Enhanced Interior Cleaning & Additional Attention to Problem Areas\.', price:125/, file);
     const ceramicAt = html.indexOf('<script src="assets/ceramic-booking.js" defer></script>');
     const rulesAt = html.indexOf('<script src="assets/addon-rules.js" defer></script>');
     assert.ok(ceramicAt > 0 && rulesAt > ceramicAt, `${file} loads addon-rules after ceramic-booking`);
@@ -173,7 +177,11 @@ test('booking pages: Maintenance paste wax, Super Interior copy, shared rules sc
 
 test('Super Interior details state scope and limits without guarantees', () => {
   const d = Rules.detailsFor('cars', { id: 'superint', desc: 'x' });
-  assert.equal(d.items.length, 5);
+  assert.equal(d.items.length, 6);
+  assert.match(d.items.join(' '), /Enhanced interior cleaning/);
+  assert.match(d.items.join(' '), /problem areas/i);
+  assert.match(d.limits, /optional upgrade/i);
+  assert.match(d.limits, /only charged with your approval/i);
   assert.match(d.items.join(' '), /Double shampoo/i);
   assert.match(d.items.join(' '), /Moderate pet hair/i);
   assert.match(d.items.join(' '), /odor/i);
@@ -198,12 +206,63 @@ test('Maintenance history: older bookings keep the composition they were sold', 
 
 const { execFileSync } = require('node:child_process');
 
-test('included Super Interior lines are dropped, never stored with a quantity', () => {
+test('covered lines are kept at $0 and one unit, so a quantity cannot be multiplied', () => {
   const v = car('full', ['superint']);
   v.addons.push({ id: 'floormats', qty: 40 }, { id: 'pethair', qty: 5 }, { id: 'odor' });
   const r = subtotal([v], {}, { newBooking: true });
   assert.equal(r.serviceSubtotal, 250 + 125);
-  assert.deepEqual(r.vehicles[0].addons.map((a) => [a.id, a.qty]), [['superint', 1]]);
+  assert.deepEqual(
+    r.vehicles[0].addons.map((a) => [a.id, a.price, a.qty]),
+    [['superint', 125, 1], ['floormats', 0, 1], ['pethair', 0, 1], ['odor', 0, 1]]
+  );
+});
+
+test('Interior Detail without Super Interior: add-ons sell at catalog price; base unchanged', () => {
+  const opts = { newBooking: true };
+  assert.equal(subtotal([car('interior')], {}, opts).serviceSubtotal, 200);
+  assert.equal(subtotal([car('interior', ['pethair', 'odor', 'mold'])], {}, opts).serviceSubtotal, 200 + 95 + 90 + 149);
+  const mats = car('interior');
+  mats.addons.push({ id: 'floormats', qty: 3 });
+  assert.equal(subtotal([mats], {}, opts).serviceSubtotal, 200 + 60);
+});
+
+test('Super Interior with genuinely additional treatments keeps charging them', () => {
+  const opts = { newBooking: true };
+  const r = subtotal([car('interior', ['superint', 'mold', 'biohazard', 'sanitize', 'babyseat'])], {}, opts);
+  assert.equal(r.serviceSubtotal, 200 + 125 + 149 + 115 + 65 + 20);
+  assert.ok(r.vehicles[0].addons.every((a) => !a.includedWith));
+});
+
+test('a line sold as included stays included on any later reprice; legacy lines keep their price', () => {
+  const before = new Date(Date.parse(Rules.RULES_EFFECTIVE_AT) - 86_400_000).toISOString();
+  const flagged = car('interior', ['superint']);
+  flagged.addons.push({ id: 'pethair', price: 0, includedWith: 'superint' });
+  assert.equal(subtotal([flagged], { createdAt: before }).serviceSubtotal, 200 + 125);
+  assert.equal(subtotal([car('interior', ['superint', 'pethair'])], { createdAt: before }).serviceSubtotal, 200 + 125 + 95);
+});
+
+test('expectations copy: Interior and Full modal notes, no guarantees, approval required', () => {
+  const modal = read('assets/car-pkg-detail-modal.js');
+  for (const key of ['interior', 'full']) {
+    const block = modal.slice(modal.indexOf(`  ${key}: {`), modal.indexOf('  },', modal.indexOf(`  ${key}: {`)));
+    assert.match(block, /conditionNote: "Results depend on the vehicle’s condition/, key);
+    assert.match(block, /Nothing extra is added or charged without your approval/, key);
+  }
+  assert.match(modal, /d\.conditionNote \?/);
+  const src = read('assets/addon-rules.js');
+  assert.match(src, /Nothing extra is added or charged without your approval/);
+  assert.doesNotMatch(src, /guaranteed removal|permanently removed|eliminat(es|ed) (all|any) odor/i);
+});
+
+test('activation gate refuses an unapproved or mistimed release', () => {
+  let failed = false;
+  try {
+    execFileSync(process.execPath, ['scripts/check-package-rules-activation.mjs', '--publish-at', '2026-12-01T00:05:00-05:00'], { cwd: ROOT, stdio: 'pipe' });
+  } catch (e) {
+    failed = true;
+    assert.match(String(e.stderr), /approved is not true/);
+  }
+  assert.ok(failed, 'gate must fail while approved is false');
 });
 
 test('the card note states the standard level for each included service', () => {
