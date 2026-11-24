@@ -34,7 +34,7 @@ const PACKAGE_DESCRIPTIONS = {
   cars: {
     maint: 'Exterior hand wash, wheels dressed, interior vacuum, dash wipe, UV protectant. Ideal for monthly upkeep.',
     interior: 'Deep vacuum including trunk and truck bed where applicable, fabric shampoo, leather conditioning, steam clean, door jambs, headliner, UV protectant on plastics.',
-    full: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
+    full: 'Complete interior and exterior detailing with Clay Bar Paint Decontamination and Hand-Applied Premium Paste Wax for a deep, rich gloss, a smooth finish, and added paint protection.',
     refresh: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
     premium: 'Clay bar, single-pass correction, Rain-X, wheel cleaning and tire shine, exterior plastic restoration, door jambs, headliner, trunk and truck bed where applicable.',
     ceramic_1yr: 'Professional surface preparation, gloss enhancement, hydrophobic behavior, and contamination resistance on painted exterior surfaces. Expected durability is up to 1 year with required maintenance. Does not include interior, engine bay, undercarriage, or coating on wheels, glass, or trim.',
