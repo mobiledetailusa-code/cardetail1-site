@@ -447,6 +447,14 @@ exports.handler = async (event) => {
 
     const target = { vehicleId: p.vehicleId || undefined };
     const addonIds = parseAddonIdList(p.addonIds || p.addOnIdsToAdd);
+    {
+      // Retired Driveway family cannot be added to an existing booking either.
+      const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
+      const retired = SeasonalDriveway.familyIdsInNewBooking({ addOnIds: addonIds });
+      if (retired.length) {
+        return json(400, { ok: false, error: 'addon_not_available', addonId: retired[0], message: 'That add-on is no longer offered.' });
+      }
+    }
     if (!addonIds.length && !String(p.requestedAddons || '').trim()) {
       return json(400, { ok: false, error: 'validation_error', message: 'Please select at least one add-on.' });
     }
