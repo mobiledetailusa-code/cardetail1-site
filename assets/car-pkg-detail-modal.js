@@ -63,7 +63,7 @@ const CAR_PKG_DETAILS = {
       "Wheels and tires",
       "Exterior windshield + Rain-X treatment",
       "Clay bar decontamination",
-      "Exterior protection",
+      "Hand-applied premium paste wax",
     ],
     bestFor: [
       "Full refresh inside and out",

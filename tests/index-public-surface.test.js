@@ -74,7 +74,7 @@ test('shared package detail data includes required content for homepage car pack
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Daily drivers"[\s\S]*"Family cars"[\s\S]*\]/);
   assert.match(pkgModalJs, /interior:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Heavy pet hair"[\s\S]*"Biohazard"[\s\S]*\]/);
 
-  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Exterior protection"[\s\S]*\]/);
+  assert.match(pkgModalJs, /full:\s*\{[\s\S]*includes:\s*\[[\s\S]*"Headliner cleaning"[\s\S]*"Exterior hand wash"[\s\S]*"Hand-applied premium paste wax"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*bestFor:\s*\[[\s\S]*"Full refresh inside and out"[\s\S]*"Resale prep"[\s\S]*\]/);
   assert.match(pkgModalJs, /full:\s*\{[\s\S]*addonsMayApply:\s*\[[\s\S]*"Deep stains"[\s\S]*"Headlights"[\s\S]*\]/);
   // The catalog bundles clay bar and Rain-X into Premium Full Detail

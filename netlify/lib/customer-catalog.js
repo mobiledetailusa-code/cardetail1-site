@@ -4,6 +4,30 @@
 const SUBSCRIBER_DISCOUNT = 0.10;
 const MAX_DETAILS_PER_MONTH = 1;
 
+// Premium Full Detail finish changed from spray sealant to hand-applied premium
+// paste wax. Bookings created before this instant were sold the previous
+// composition, so their "what's included" keeps showing it. Set this to the
+// production release time of the change.
+const FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT = '2026-12-01T05:00:00.000Z';
+
+// Composition sold before FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT. Display only.
+const LEGACY_FULL_DETAIL_SPRAY_SEALANT = Object.freeze({
+  id: 'full',
+  name: 'Premium Detail',
+  description: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
+  feats: Object.freeze(['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Spray sealant', 'Tire dressing']),
+});
+
+/**
+ * True when a booking created at `createdAt` was sold the spray-sealant Full
+ * Detail. Bookings with no usable creation time predate the change.
+ */
+function soldLegacyFullDetail(createdAt) {
+  const created = Date.parse(String(createdAt || ''));
+  if (!Number.isFinite(created)) return true;
+  return created < Date.parse(FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT);
+}
+
 const CAR_PACKAGES = [
   {
     id: 'wash',
@@ -38,8 +62,8 @@ const CAR_PACKAGES = [
     basePrice: 300,
     tag: 'Full inside/out refresh — most popular',
     duration: '~2.5–3h',
-    description: 'Complete exterior and interior detail with clay bar, shampoo, steam, door jambs, headliner, trunk and truck bed where applicable, and sealant protection.',
-    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Spray sealant', 'Tire dressing'],
+    description: 'Complete interior and exterior detailing with Clay Bar Paint Decontamination and Hand-Applied Premium Paste Wax for a deep, rich gloss, a smooth finish, and added paint protection.',
+    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Hand-applied premium paste wax', 'Tire dressing'],
   },
   {
     id: 'refresh',
@@ -223,6 +247,9 @@ module.exports = {
   SUBSCRIBER_DISCOUNT,
   MAX_DETAILS_PER_MONTH,
   CAR_PACKAGES,
+  FULL_DETAIL_PASTE_WAX_EFFECTIVE_AT,
+  LEGACY_FULL_DETAIL_SPRAY_SEALANT,
+  soldLegacyFullDetail,
   ADDONS,
   FLEET_PLANS,
   MAINTENANCE_PERIODS,
