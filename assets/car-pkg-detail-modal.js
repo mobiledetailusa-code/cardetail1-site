@@ -75,7 +75,6 @@ const CAR_PKG_DETAILS = {
       "Heavy pet hair",
       "Odor",
       "Deep stains",
-      "Machine polish upgrade",
       "Engine bay",
       "Headlights",
     ],
