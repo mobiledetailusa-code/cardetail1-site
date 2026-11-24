@@ -3669,7 +3669,7 @@ a.loc-card.loc-card-link{display:block;color:inherit;text-decoration:none}
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg full"><p class="bk-field-help" id="f-util-help"><strong>We bring our own water and power</strong> for standard services. Answering just helps us plan the setup, and "No" or "Not sure" is fine. Exception: Accessible Undercarriage Cleaning without a usable outdoor water connection requires the Mobile Water Supply add-on.</p></div>
+          <div class="fg full"><p class="bk-field-help" id="f-util-help"><strong>We bring our own water and power</strong> for standard services. Answering just helps us plan the setup, and "No" or "Not sure" is fine.</p></div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
               <option value="">Select…</option>
@@ -4143,19 +4143,19 @@ const PRICING = {
         feats:['Deep vacuum - seats, floors, trunk','Fabric seats & carpet shampoo','Leather surfaces conditioned','Steam clean - vents, panels, crevices','Dashboard, doors & trim detail with UV protectant on plastics','Interior windshield cleaned'],
         miss:['Exterior wash','Clay bar','Machine polish','Exterior wax/sealant','Odor treatment (available as add-on)']},
       {id:'full',     name:'Premium Detail',    icon:'🧽', tag:'Best for a full inside/out refresh — clay bar, paste wax & Rain-X included',                                                dur:'~3–5h depending on condition', popular:true,  scope:'both',
-        ext:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment'],
+        ext:['Exterior hand wash & rinse','Clay bar decontamination','Hand-applied premium paste wax','Wheels & tires dressed','Exterior windshield cleaned + Rain-X treatment','Engine Bay Light Cleaning & Wipe-Down'],
         int:['Full interior vacuum','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','UV protectant'],
-        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Hand-applied premium paste wax','Tire dressing','UV protectant'],
+        feats:['Maintenance Detail included','Clay bar decontamination','Carpet & seat shampoo','Interior steam clean','Interior windshield cleaned','Trunk detailed','Hand-applied premium paste wax','Tire dressing','UV protectant','Engine Bay Light Cleaning & Wipe-Down'],
         miss:['Machine polish','Paint correction','Premium long-term sealant']},
       {id:'refresh',  name:'Exterior Refresh & Protect', icon:'🛡️', tag:'Complete exterior treatment — clay bar, single-pass correction, sealant, Rain-X & deep wheel detail', dur:'~2.5–3h', popular:false, scope:'ext', note:'Exterior only — all-inclusive price for your vehicle size.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
         int:[],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X windshield treatment','Tire dressing','Final quality inspection'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction','Long-lasting sealant application','Deep wheel & lug detailing','Rain-X windshield treatment','Tire dressing','Final quality inspection','Engine Bay Light Cleaning & Wipe-Down'],
         miss:['Interior shampoo','Deep interior restoration','Multi-stage paint correction']},
       {id:'premium',  name:'Signature Interior & Exterior Restoration', icon:'✨', tag:'Our ultimate restoration — clay bar, single-pass correction, sealant, Rain-X & deep interior care', dur:'~6–8h', popular:false, scope:'both', note:'Complete interior + exterior — one all-inclusive price.',
-        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing'],
+        ext:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Engine Bay Light Cleaning & Wipe-Down'],
         int:['Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Detailed dash & console cleaning','Interior windshield & vents detailed','Trunk & cargo area detail'],
-        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection'],
+        feats:['Clay bar decontamination','Chemical paint decontamination','Single-pass paint correction (enhancement polish)','Long-lasting sealant application','Deep wheel & lug detailing','Exterior windshield cleaned + Rain-X treatment','Tire dressing','Deep interior sanitization','Carpet & seat shampoo','Leather & plastics conditioning with UV protection','Dash & console detail','Final quality inspection','Engine Bay Light Cleaning & Wipe-Down'],
         miss:[]}
     ],
     addons:[
@@ -5456,7 +5456,7 @@ function renderAddons(){
     const s=a.scope||'any';
     if(_pkgIncludesAddon[a.id]) return false;
     if(window.CD1SeasonalDriveway && (CD1SeasonalDriveway.hiddenFromNewBookings ? CD1SeasonalDriveway.hiddenFromNewBookings(a.id) : CD1SeasonalDriveway.isChildId(a.id))) return false;
-    return pkgScope==='both' || s==='any' || s===pkgScope;
+    return pkgScope==='both' || s==='any' || s===pkgScope || !!(window.CD1AddonRules && CD1AddonRules.allowsCrossScope(ST.cat,ST.pkgId,a.id));
   });
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
   const popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);

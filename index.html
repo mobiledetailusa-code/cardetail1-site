@@ -3786,7 +3786,7 @@ body.luxury-surface .hero h1{
               <option value="unsure">Not sure</option>
             </select>
           </div>
-          <div class="fg full"><p class="bk-field-help" id="f-util-help"><strong>We bring our own water and power</strong> for standard services. Answering just helps us plan the setup, and "No" or "Not sure" is fine. Exception: Accessible Undercarriage Cleaning without a usable outdoor water connection requires the Mobile Water Supply add-on.</p></div>
+          <div class="fg full"><p class="bk-field-help" id="f-util-help"><strong>We bring our own water and power</strong> for standard services. Answering just helps us plan the setup, and "No" or "Not sure" is fine.</p></div>
           <div class="fg full"><div class="fl">Service location / access</div>
             <select class="fsel" id="f-location">
               <option value="">Select…</option>
@@ -7756,7 +7756,9 @@ document.getElementById('year-sel').addEventListener('change',function(){
 // ── STEP 4: ADD-ONS ───────────────────────────────────────────────────────────
 function addonRequiresShampooOrSteam(a){
   if(!a) return false;
-  if(a.id==='superint'||a.id==='floormats') return true;
+  // Floor Mat Deep Clean is a paid per-unit add-on on Maintenance (owner decision 2026-11-24).
+  if(a.id==='floormats') return false;
+  if(a.id==='superint') return true;
   const blob=((a.desc||'')+' '+(a.name||'')).toLowerCase();
   return /shampoo|steam/.test(blob);
 }
@@ -7819,7 +7821,7 @@ function renderAddons(){
     if(ST.cat==='powersports' && !a.publicNew) return false;
     if(window.CD1SeasonalDriveway && (CD1SeasonalDriveway.hiddenFromNewBookings ? CD1SeasonalDriveway.hiddenFromNewBookings(a.id) : CD1SeasonalDriveway.isChildId(a.id))) return false;
     if(ST.cat==='cars' && ST.pkgId==='maint' && addonRequiresShampooOrSteam(a)) return false;
-    return pkgScope==='both' || s==='any' || s===pkgScope;
+    return pkgScope==='both' || s==='any' || s===pkgScope || !!(window.CD1AddonRules && CD1AddonRules.allowsCrossScope(ST.cat,ST.pkgId,a.id));
   });
   const POPULAR_IDS=(window.CD1SeasonalDriveway&&CD1SeasonalDriveway.popularIdsFor(ST.cat))||['rainx','pethair','odor'];
   let popularAddons=window.CD1SeasonalDriveway&&CD1SeasonalDriveway.pickPopularAddons?CD1SeasonalDriveway.pickPopularAddons(addons,ST.cat):addons.filter(a=>POPULAR_IDS.includes(a.id)).slice(0,4);

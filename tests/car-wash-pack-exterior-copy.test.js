@@ -157,7 +157,7 @@ test('booking catalog still sells Exterior Hand Wash from $125', () => {
   assert.match(modal, /wash:\s*\{[\s\S]*title:\s*"Exterior Hand Wash"/);
   assert.match(modal, /"Carnauba Wax"/);
   assert.match(modal, /"Clay bar"/);
-  assert.match(modal, /"Engine bay detailing"/);
+  assert.match(modal, /"Engine Bay Top Clean"/);
 });
 
 test('homepage shows 3 main packs that open all categories, without pack icons', () => {

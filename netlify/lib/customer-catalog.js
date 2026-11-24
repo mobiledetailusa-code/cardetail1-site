@@ -80,7 +80,7 @@ const CAR_PACKAGES = [
     tag: 'Full inside/out refresh — most popular',
     duration: '~2.5–3h',
     description: 'Complete interior and exterior detailing with Clay Bar Paint Decontamination and Hand-Applied Premium Paste Wax for a deep, rich gloss, a smooth finish, and added paint protection.',
-    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Hand-applied premium paste wax', 'Tire dressing'],
+    feats: ['Clay bar decontamination', 'Carpet & seat shampoo', 'Interior steam clean', 'Door jambs cleaned', 'Headliner cleaning', 'Hand-applied premium paste wax', 'Tire dressing', 'Engine Bay Light Cleaning & Wipe-Down'],
   },
   {
     id: 'refresh',
@@ -89,7 +89,7 @@ const CAR_PACKAGES = [
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & wheels',
     duration: '~3.5–4h',
     description: 'Clay bar, chemical decontamination, single-pass paint correction, sealant, deep wheel detail, and Rain-X included.',
-    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing'],
+    feats: ['Clay bar decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Engine Bay Light Cleaning & Wipe-Down'],
   },
   {
     id: 'premium',
@@ -98,7 +98,7 @@ const CAR_PACKAGES = [
     tag: 'Clay bar, single-pass correction, sealant, Rain-X & deep interior',
     duration: '~3.5–4h',
     description: 'Same exterior as Exterior Refresh & Protect — clay bar, chemical decontamination, single-pass correction, sealant, Rain-X, wheels and tire dressing — plus deep interior care.',
-    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
+    feats: ['Clay bar decontamination', 'Chemical paint decontamination', 'Single-pass paint correction', 'Long-lasting sealant', 'Deep wheel & lug detailing', 'Rain-X windshield treatment', 'Tire dressing', 'Engine Bay Light Cleaning & Wipe-Down', 'Door jambs cleaned', 'Headliner cleaning', 'Carpet & seat shampoo', 'Leather & plastics with UV protection'],
   },
 ];
 

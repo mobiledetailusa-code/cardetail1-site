@@ -5,9 +5,13 @@
  * come from one table.
  *
  * Scope is deliberately narrow:
- *   - two car add-ons retired from new bookings (Engine Bay Detail $125,
- *     Mobile Water Supply $50); the $45 Engine Bay Top Clean is untouched;
- *   - car package blocks for Maintenance Detail and Super Interior placement.
+ *   - car add-ons retired from new bookings (Engine Bay Detail $125, Mobile
+ *     Water Supply $50, Trash Can Cleaning); the $45 Engine Bay Top Clean is
+ *     untouched;
+ *   - car package blocks (Maintenance Detail, Super Interior placement, no
+ *     second wax or sealant over an included one);
+ *   - interior / exterior scope for car packages, with one documented
+ *     exception: Headlight Restoration on Interior Detail.
  * Every add-on stays an independent, separately priced service; pricing lives
  * in booking-price-catalog.js and is not changed here. The existing exterior
  * matrix in ceramic-booking.js is not changed, and other vehicle categories
@@ -76,6 +80,9 @@
     cars: {
       engine_bay: 'Engine Bay Detail is no longer offered on new bookings.',
       mobile_water: 'Mobile Water Supply is no longer sold as an add-on; we bring our own water and power.',
+      // Residential trash cans are not a vehicle detailing add-on. Other
+      // categories keep their own catalog line; history keeps its price.
+      trashcans: 'Trash Can Cleaning is not offered as a car detailing add-on.',
     },
   };
 
@@ -90,12 +97,40 @@
     cars: {
       // Maintenance stays a maintenance service: no deep interior work, and the
       // paste wax it includes is not sold again as a wax add-on.
-      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr'],
+      // Mold Treatment is a specialized interior treatment. Floor Mat Deep Clean
+      // stays a paid, per-unit add-on on Maintenance (owner decision 2026-11-24).
+      maint: ['superint', 'biohazard', 'odor', 'sanitize', 'wax1yr', 'mold'],
       wash: ['superint'],
-      refresh: ['superint'],
-      // Premium Full Detail includes hand-applied premium paste wax.
-      full: ['wax1yr'],
+      // Exterior Refresh & Protect includes its own sealant: no second sealant
+      // and no carnauba layered over it as a paid add-on. It also includes
+      // Engine Bay Light Cleaning, so the $45 Engine Bay Top Clean is not sold.
+      refresh: ['superint', 'wax1yr', 'polymer', 'engine'],
+      // Premium Full Detail includes hand-applied premium paste wax and Engine
+      // Bay Light Cleaning (owner decision 2026-11-24).
+      full: ['wax1yr', 'engine'],
+      // Signature's exterior is Exterior Refresh & Protect's exterior (same
+      // sealant, same Engine Bay Light Cleaning), so neither is sold again.
+      premium: ['polymer', 'engine'],
     },
+  };
+
+  /*
+   * Interior / exterior scope for car add-ons on non-ceramic packages. Pages
+   * already filter by scope; the server now applies the same rule so a portal
+   * request cannot add what no booking page offers. Ids not listed here keep
+   * no scope limit. Ceramic packages keep their own matrix (ceramic-coating.js).
+   */
+  var CAR_PACKAGE_SCOPE = { wash: 'ext', refresh: 'ext', interior: 'int' };
+  var CAR_ADDON_SCOPE = {
+    pethair: 'int', superint: 'int', odor: 'int', mold: 'int', sanitize: 'int',
+    biohazard: 'int', floormats: 'int', babyseat: 'int', stroller: 'int',
+    engine: 'ext', rainx: 'ext', polymer: 'ext', wax1yr: 'ext', claybar: 'ext',
+    headlight: 'ext', undercarriage: 'ext', heavymud: 'ext', engine_bay: 'ext', mobile_water: 'ext',
+  };
+  // Documented exceptions to the scope rule. Headlight Restoration may be added
+  // to an Interior Detail visit at its catalog price; no other exterior add-on.
+  var CROSS_SCOPE_ALLOWED = {
+    cars: { interior: ['headlight'] },
   };
 
   // Every add-on is an independent, separately priced service. Super Interior
@@ -139,8 +174,21 @@
     return blocked.indexOf(str(id)) >= 0;
   }
 
+  function allowsCrossScope(cat, pkgId, id) {
+    var allowed = list(CROSS_SCOPE_ALLOWED, cat)[str(pkgId)] || [];
+    return allowed.indexOf(str(id)) >= 0;
+  }
+
+  function isOutOfScope(cat, pkgId, id) {
+    if (str(cat) !== 'cars') return false;
+    var pkgScope = CAR_PACKAGE_SCOPE[str(pkgId)];
+    var addonScope = CAR_ADDON_SCOPE[str(id)];
+    if (!pkgScope || !addonScope || pkgScope === addonScope) return false;
+    return !allowsCrossScope(cat, pkgId, id);
+  }
+
   function isOfferable(cat, pkgId, id) {
-    return !isRetired(cat, id) && !isBlockedForPackage(cat, pkgId, id);
+    return !isRetired(cat, id) && !isBlockedForPackage(cat, pkgId, id) && !isOutOfScope(cat, pkgId, id);
   }
 
   function vehicleAddonIds(vehicle) {
@@ -195,6 +243,18 @@
           return { ok: false, error: 'addon_not_available', addonId: ids[j], packageId: pkgId, category: cat };
         }
       }
+      // The pages send each add-on once (per-unit items carry qty). A repeated
+      // line would be priced twice, so a new booking may not carry one.
+      var seen = {};
+      var lines = Array.isArray(v.addons) ? v.addons : [];
+      for (var k = 0; k < lines.length; k += 1) {
+        var lineId = str(lines[k] && (lines[k].id || lines[k].addonId));
+        if (!lineId) continue;
+        if (seen[lineId]) {
+          return { ok: false, error: 'duplicate_addon', addonId: lineId, packageId: pkgId, category: cat };
+        }
+        seen[lineId] = true;
+      }
     }
     return { ok: true };
   }
@@ -222,7 +282,8 @@
   function validatePackageChange(cat, newPkgId, existingAddonIds) {
     var ids = (existingAddonIds || []).map(str).filter(Boolean);
     for (var i = 0; i < ids.length; i += 1) {
-      if (isBlockedForPackage(str(cat).toLowerCase(), newPkgId, ids[i])) {
+      var c = str(cat).toLowerCase();
+      if (isBlockedForPackage(c, newPkgId, ids[i]) || isOutOfScope(c, newPkgId, ids[i])) {
         return { ok: false, error: 'addon_incompatible_with_package', addonId: ids[i], packageId: str(newPkgId) };
       }
     }
@@ -251,6 +312,11 @@
     DETAILS: DETAILS,
     isRetired: isRetired,
     isBlockedForPackage: isBlockedForPackage,
+    CAR_PACKAGE_SCOPE: CAR_PACKAGE_SCOPE,
+    CAR_ADDON_SCOPE: CAR_ADDON_SCOPE,
+    CROSS_SCOPE_ALLOWED: CROSS_SCOPE_ALLOWED,
+    allowsCrossScope: allowsCrossScope,
+    isOutOfScope: isOutOfScope,
     isOfferable: isOfferable,
     DROPPED_FROM_NEW_BOOKINGS: DROPPED_FROM_NEW_BOOKINGS,
     stripDroppedFromNewBooking: stripDroppedFromNewBooking,
@@ -267,6 +333,9 @@
 
   var STYLE = [
     '.cd1-addon-unavailable{display:none!important}',
+    // Pages force 16px on every button under 768px (iOS input zoom guard); the
+    // compact details link keeps its desktop size so mobile cards stay short.
+    '#addon-grid .cd1-addon-more{font-size:12px!important}',
     '.cd1-addon-more{grid-column:1/-1;justify-self:start;margin:4px 0 0;padding:2px 0;border:0;background:none;color:var(--blue,#2563eb);font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}',
     '.cd1-addon-more:focus-visible,.cd1-addon-dialog button:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:4px}',
     '.cd1-addon-dialog{margin:auto;inset:0;border:0;padding:0;background:#fff;color:#0f172a;width:calc(100% - 32px);max-width:460px;max-height:min(85vh,640px);overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.35);text-align:left;font-size:14px;line-height:1.55}',

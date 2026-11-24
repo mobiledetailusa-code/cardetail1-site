@@ -3483,8 +3483,21 @@
       return Array.isArray(a.includedInPackageIds)
         && a.includedInPackageIds.indexOf(targetPackageId) >= 0;
     });
+    // Same new-booking rules the booking pages and the server apply (retired
+    // lines, package blocks, interior/exterior scope). Lines already on the
+    // booking stay listed above as contracted.
+    var rules = window.CD1AddonRules;
+    var driveway = window.CD1SeasonalDriveway;
+    var targetCat = normalizePackageCategory(
+      targetVehicle.category || targetVehicle.cat
+        || (state.booking && (state.booking.vehicleCategory || state.booking.cat))
+        || 'cars'
+    ) || 'cars';
     var available = addons.filter(function (a) {
-      return a.available !== false && !selectedSet[a.id] && included.indexOf(a) < 0;
+      if (a.available === false || selectedSet[a.id] || included.indexOf(a) >= 0) return false;
+      if (rules && typeof rules.isOfferable === 'function' && !rules.isOfferable(targetCat, targetPackageId, a.id)) return false;
+      if (driveway && typeof driveway.hiddenFromNewBookings === 'function' && driveway.hiddenFromNewBookings(a.id)) return false;
+      return true;
     });
 
     form.innerHTML =
