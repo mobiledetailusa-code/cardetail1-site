@@ -59,6 +59,7 @@
   const DURATION_MSG = 'That start time is too late for this Ceramic Coating appointment. Choose an earlier slot so the full service fits on the schedule.';
   const SLOT_TAKEN_MSG = 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.';
   const CLOSED_MSG = 'No arrival windows are available on this date. Please choose another date.';
+  const DATE_UNAVAILABLE_MSG = 'Unavailable — please choose another date.';
   const ADVANCE_UNAVAILABLE_MSG = 'That date isn’t available. Please choose today or a later open day. Need help? Call or text us.';
   const ALT_ADVANCE_MSG = 'Alternate date must be today or a later open day.';
   const LATE_SAME_DAY_MSG = 'This is our last standard same-day window (arrive by 5:00 PM). Timing can run tight — if we can’t make it, we’ll contact you to reschedule.';
@@ -918,11 +919,6 @@
       if (!iso) { timeEl.value = ''; return; }
       const p = typeof window.bkIsoParts === 'function' ? window.bkIsoParts(iso) : null;
       if (!p) return;
-      if (p.day === 0) {
-        if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('Unavailable — please choose another date.');
-        timeEl.value = '';
-        return;
-      }
       if (typeof window.bkHolidays === 'function' && window.bkHolidays(+p.iso.slice(0, 4)).has(p.iso)) {
         if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('Closed for the holiday. Please choose another date.');
         timeEl.value = '';
@@ -934,6 +930,14 @@
           window.bkShowScheduleMsg(ADVANCE_UNAVAILABLE_MSG);
         }
         timeEl.value = '';
+        return;
+      }
+      // Operational availability (weekday inventory, weekend mode, and admin
+      // date overrides) decides whether a date is open — never the weekday alone.
+      if (!slotsForIso(iso).length) {
+        if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg(DATE_UNAVAILABLE_MSG);
+        timeEl.value = '';
+        refreshArrivalWindowsForDates();
         return;
       }
       if (timeEl.tagName === 'SELECT' && typeof window.bkSlotsFor === 'function') {
@@ -956,7 +960,6 @@
         if (!iso) return { ok: false, message: 'Please select a preferred date.' };
         const p = typeof window.bkIsoParts === 'function' ? window.bkIsoParts(iso) : null;
         if (!p) return { ok: false, message: 'Please select a valid date.' };
-        if (p.day === 0) return { ok: false, message: 'Unavailable — please choose another date.' };
         if (typeof window.bkHolidays === 'function' && window.bkHolidays(+p.iso.slice(0, 4)).has(p.iso)) {
           return { ok: false, message: 'Closed for the holiday. Please choose another date.' };
         }
@@ -964,6 +967,7 @@
         if (minIso && p.iso < minIso) {
           return { ok: false, message: ADVANCE_UNAVAILABLE_MSG };
         }
+        if (!slotsForIso(iso).length) return { ok: false, message: DATE_UNAVAILABLE_MSG };
         const mode = primaryArrival ? primaryArrival.mode() : '';
         if (!mode) {
           if (primaryArrival) primaryArrival.showError('Please select a preferred arrival window.');
@@ -1000,7 +1004,6 @@
           if (altDate === iso) return { ok: false, message: 'Alternate date must be different from your preferred date.' };
           const ap = typeof window.bkIsoParts === 'function' ? window.bkIsoParts(altDate) : null;
           if (!ap) return { ok: false, message: 'Please select a valid alternate date.' };
-          if (ap.day === 0) return { ok: false, message: 'Alternate date is unavailable — please choose another day.' };
           if (typeof window.bkHolidays === 'function' && window.bkHolidays(+ap.iso.slice(0, 4)).has(ap.iso)) {
             return { ok: false, message: 'Alternate date is closed for the holiday.' };
           }
