@@ -335,13 +335,30 @@ describe('home page compression', () => {
     assert.equal(html.includes('Inspect &amp; pay after'), false);
   });
 
-  it('builds one work carousel instead of a vertical gallery dump', () => {
+  it('shows recent work in one short filmstrip', () => {
     assert.match(html, /initHomeWorkCarousel/);
-    assert.match(html, /View more work/);
+    assert.match(html, /is-strip/);
+    assert.match(html, /data-fit="contain"/);
     assert.match(html, /prefers-reduced-motion/);
-    assert.match(css, /scroll-snap-type:x mandatory/);
-    assert.match(css, /aspect-ratio:4\/3/);
-    assert.match(css, /flex-basis:calc\(50% - 6px\)/);
+    assert.equal(html.includes('View more work'), false);
+    assert.equal(html.includes('go((currentPage()+1)%pages)'), false);
+    assert.equal(html.includes('class="ba-finished"'), false);
+    assert.equal(html.includes('class="ba-group"'), false);
+    assert.match(css, /#before-after\.is-strip \.ba-grid\{[^}]*touch-action:pan-y/);
+    assert.match(css, /#before-after\.is-strip \.ba-grid\.is-comparing\{[^}]*overflow-x:hidden/);
+    assert.match(css, /#before-after\.is-strip \.ba-showcase\[data-fit="contain"\] img\{[^}]*object-fit:contain/);
+    assert.match(css, /#before-after\.is-strip \.ba-compare,\s*#before-after\.is-strip \.ba-showcase\{[^}]*height:148px/);
+    const section = html.slice(html.indexOf('id="before-after"'), html.indexOf('AVAIL. BANNER'));
+    const groupCard = section.slice(section.indexOf('data-fit="contain"'), section.indexOf('luxury-porsche-1.webp'));
+    assert.equal(groupCard.includes('Range Rover'), false);
+    assert.equal(groupCard.includes('Land Rover'), false);
+    assert.equal(section.split('luxury-fleet-lineup.webp').length - 1, 1);
+    const lineup = section.indexOf('luxury-fleet-lineup.webp');
+    const porsche = section.indexOf('luxury-porsche-1.webp');
+    const urus = section.indexOf('luxury-urus.webp');
+    const secondPorsche = section.indexOf('luxury-porsche-2.webp');
+    assert.ok(section.indexOf('subaru-exterior-after.webp') < lineup);
+    assert.ok(lineup > -1 && porsche > lineup && urus > porsche && secondPorsche > urus);
   });
 
   it('styles 48px targets and blocks horizontal overflow through 430px', () => {
