@@ -136,7 +136,7 @@ test('before/after gallery uses WebP with descriptive alts', () => {
   const index = read('index.html');
   assert.match(index, /assets\/before-after\/subaru-exterior-after\.webp/);
   assert.doesNotMatch(index, /assets\/before-after\/subaru-exterior-after\.jpg/);
-  assert.match(index, /alt="After mobile car detailing Subaru Crosstrek Palisades Park NJ/);
+  assert.match(index, /alt="After mobile car detailing Subaru Crosstrek Bergen County NJ/);
   assert.ok(fs.existsSync(path.join(root, 'assets/before-after/subaru-exterior-after.webp')));
 });
 

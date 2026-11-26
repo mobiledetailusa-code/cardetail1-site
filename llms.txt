@@ -1,6 +1,6 @@
 # Cardetail1
 
-> Mobile car, boat, RV, and powersports detailing based in Palisades Park, Bergen County, New Jersey. We come to the driveway with water and power. Cardetail1 is a registered DBA of Detailing Zone L.L.C.
+> Mobile car, boat, RV, and powersports detailing based in Bergen County, New Jersey, serving Northern New Jersey. We come to the driveway with water and power. Cardetail1 is a registered DBA of Detailing Zone L.L.C.
 
 ## Primary pages
 - [Home](https://cardetail1.com/): Mobile car detailing in Bergen County — packages, ZIP check, booking
@@ -35,13 +35,13 @@
 - Exterior Refresh & Protect from $335
 
 ## Facts
-- Address locality: Palisades Park, NJ 07650
+- Service-area business: fully mobile, no public street address; based in Bergen County, NJ
 - Phone: +15513893986
 - Hours: Monday–Saturday · By Appointment Only
 - Experience: 5+ years, owner-operated mobile detailing
 - Google reviews: https://g.page/r/CTJwfJerrQeCEAI/review
 - Booking: request online, no charge at submission
-- Coverage: one page per nearby county. Bergen, Hudson, Essex, Passaic, Union, and Morris in New Jersey. Rockland and Westchester in New York. Fairfield County in Connecticut. No mileage fee inside 50 road miles of Palisades Park. Farther Connecticut and Pennsylvania stays by quote.
+- Coverage: one page per nearby county. Bergen, Hudson, Essex, Passaic, Union, and Morris in New Jersey. Rockland and Westchester in New York. Fairfield County in Connecticut. No mileage fee inside our standard 50-road-mile service radius. Farther Connecticut and Pennsylvania stays by quote.
 
 ## Optional
 - [llms.txt](https://cardetail1.com/llms.txt)

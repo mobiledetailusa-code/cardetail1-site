@@ -28,12 +28,14 @@ test('alignment script reports no drift', () => {
   execFileSync(process.execPath, [path.join(root, 'scripts/align-public-pages-with-home.mjs'), '--check'], { cwd: root, stdio: 'pipe' });
 });
 
-test('legacy hubs no longer promise a 120-mile radius in visible copy, and keep the Palisades Park base', () => {
+test('legacy hubs no longer promise a 120-mile radius in visible copy, and state the Bergen County base', () => {
   for (const f of LEGACY_HUBS) {
     const html = visible(read(f));
     assert.doesNotMatch(html, /up to\s*(?:<strong>)?120 miles/i, f);
-    assert.doesNotMatch(html, /We operate from our <strong>(?!Palisades)/, f);
-    assert.match(html, /Based in <strong>Palisades Park, NJ<\/strong>/, f);
+    assert.doesNotMatch(html, /We operate from our <strong>/, f);
+    // Public identity is the region, not a town: the owner may move within Bergen County.
+    assert.match(html, /Based in <strong>Bergen County, NJ<\/strong>/, f);
+    assert.doesNotMatch(html, /Based in <strong>Palisades Park/, f);
     assert.match(html, /Serving [^.<]+. Extended service areas available by quote./, f);
     assert.doesNotMatch(html, /GeoCircle|geoRadius|"@type": "State"/, `${f} JSON-LD still claims a radius or a whole state`);
   }
