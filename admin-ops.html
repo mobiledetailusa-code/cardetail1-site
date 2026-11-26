@@ -225,6 +225,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="tab" data-tab="subscriptions" role="tab" aria-selected="false">Subscriptions</button>
       <button type="button" class="tab" data-tab="maintenance" role="tab" aria-selected="false">Maintenance</button>
       <button type="button" class="tab" data-tab="reviews" role="tab" aria-selected="false">Homepage reviews</button>
+      <button type="button" class="tab" data-tab="inquiries" role="tab" aria-selected="false">Quote requests</button>
       <button type="button" class="tab" data-tab="events" role="tab" aria-selected="false">Event Log</button>
       <button type="button" class="tab" data-tab="revops" role="tab" aria-selected="false">Revenue Ops</button>
     </div>
@@ -298,6 +299,10 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
         <div id="dvSchedList"></div>
         <div class="dv-sec-title">Pipeline (next 14 days)</div>
         <div id="dvPipeline"></div>
+        <div class="dv-sec-title">Unscheduled bookings</div>
+        <div id="dvUnscheduled"></div>
+        <div class="dv-sec-title">Technician withdrawal requests</div>
+        <div id="dvWithdrawals"><div class="dv-empty"><p>Loading…</p></div></div>
         <p class="dv-board-link">Need filters or bulk actions? <button type="button" class="btn ghost sm" data-dv-goto-jobs>Open Jobs Board →</button></p>
       </main>
     </div>
@@ -393,6 +398,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       <button type="button" class="req-filter-btn" data-req-filter="declined" aria-pressed="false">Declined</button>
       <button type="button" class="req-filter-btn" data-req-filter="all" aria-pressed="false">All</button>
     </div>
+    <p class="hint" style="margin:8px 0"><button type="button" class="btn" id="requestsDismissOrphans">Clear test leftovers</button> Dismisses open requests whose appointment no longer exists or is archived as a test. No customer is contacted and no appointment changes.</p>
     <div id="requestsList"><div class="empty">Loading…</div></div>
   </section>
 
@@ -515,6 +521,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     </div>
   </section>
 
+  <section class="panel" id="p-inquiries">
+    <p class="hint">Quote requests and questions sent from the website (vehicles not priced online, commercial and specialty vehicles, chat). Read-only. “Not alerted” means the email and text to the team both failed — follow up from here.</p>
+    <div class="toolbar">
+      <button type="button" class="btn ghost sm" id="inquiriesRefresh">Reload</button>
+    </div>
+    <div class="card" id="inquiriesList"><div class="empty">Loading…</div></div>
+  </section>
+
   <section class="panel" id="p-events">
     <div class="toolbar">
       <input class="srch" id="evSearch" type="search" placeholder="Filter events…">
@@ -532,6 +546,13 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <div id="revopsLoading" class="empty" hidden>Loading Revenue Operations…</div>
     <div id="revopsError" class="card" hidden style="border-color:rgba(239,68,68,.35)">
       <p id="revopsErrorMsg" class="hint" style="color:var(--err)"></p>
+    </div>
+    <!-- Outside #revopsContent so it stays visible while the main RevOps request loads or fails. -->
+    <div class="card" style="margin-bottom:14px" id="revopsAi">
+      <h3 style="margin-bottom:6px">AI search performance</h3>
+      <p class="hint" id="revopsAiNote" style="margin:0 0 10px"></p>
+      <div class="grid g4" id="revopsAiStats"></div>
+      <div id="revopsAiSources" style="margin-top:10px"></div>
     </div>
     <div id="revopsContent">
     <div class="grid g4" id="revopsStats"></div>
@@ -659,6 +680,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
   let jobsSnapshotSavedAt = null;
   let jobsSnapshotRefreshing = false;
   let jobsFreshLoaded = false;
+  let withdrawalsLoadedOnce = false;
   let settingsLoading = false;
   let settingsError = null;
   const jobMutationGuards = new Map();
@@ -2601,6 +2623,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     });
     if (stillVisible) placeActiveDetailRow(expandedJobId);
     if (window.CD1AdminDayView) CD1AdminDayView.render();
+    if (!withdrawalsLoadedOnce && jobsFreshLoaded) { withdrawalsLoadedOnce = true; loadWithdrawals(); }
   }
 
   function renderAssign() {
@@ -4004,11 +4027,11 @@ async function loadTechs(fetchOpts, loadOpts) {
         html += '<div style="margin-top:10px"><h4 style="font-size:11px;color:var(--mu);margin-bottom:6px">JOB PHOTOS</h4>';
         if ((j.photosBefore||[]).length) {
           html += '<div style="font-size:11px;color:var(--mu);margin-bottom:4px">Before</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
-            j.photosBefore.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
+            j.photosBefore.map(u=>'<a data-photo-link href="#" target="_blank" rel="noopener"><img data-admin-photo="'+esc(u)+'" alt="Before photo" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
         }
         if ((j.photosAfter||[]).length) {
           html += '<div style="font-size:11px;color:var(--mu);margin-bottom:4px">After</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
-            j.photosAfter.map(u=>'<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(u)+'" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
+            j.photosAfter.map(u=>'<a data-photo-link href="#" target="_blank" rel="noopener"><img data-admin-photo="'+esc(u)+'" alt="After photo" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)"></a>').join('')+'</div>';
         }
         html += '</div>';
       }
@@ -4733,6 +4756,53 @@ async function loadTechs(fetchOpts, loadOpts) {
       '<p style="margin:0 0 10px">' + comment + '</p>' + action + '</div>';
   }
 
+  // ── Quote requests (read-only; admin-inquiries) ────────────────────────────
+  const INQUIRY_ALERT_LABEL = { sent: 'Team alerted', failed: 'Not alerted', pending: 'Alert pending', unknown: 'Alert unknown' };
+  function inquiryRowHtml(q) {
+    const c = q.contact || {};
+    const v = q.vehicle;
+    const when = q.createdAt ? new Date(q.createdAt).toLocaleString() : '';
+    const state = (q.notification && q.notification.state) || 'unknown';
+    const alertBadge = '<span class="badge" style="background:' + (state === 'failed' ? 'rgba(239,68,68,.18);color:var(--err)' : 'rgba(148,163,184,.15);color:var(--mu)') + '">' + esc(INQUIRY_ALERT_LABEL[state] || state) + '</span>';
+    const vehicleLine = v ? esc([v.categoryLabel, [v.year, v.make, v.model].filter(Boolean).join(' ')].filter(Boolean).join(' — ')) : 'Question (no vehicle)';
+    const details = v ? [
+      v.passengerCapacity != null ? 'Seats: ' + esc(v.passengerCapacity) : '',
+      v.wheelchairSpaces != null ? 'Wheelchair spaces: ' + esc(v.wheelchairSpaces) : '',
+      v.lengthFt != null ? 'Length: ~' + esc(v.lengthFt) + ' ft' : '',
+    ].filter(Boolean).join(' · ') : '';
+    // Phase 2A catalog selection: configuration and the server-derived size class (no price).
+    const cat = v && v.catalog;
+    const catalogLine = cat ? 'Configuration: ' + esc(cat.configuration) + ' · Size class: ' +
+      (cat.sizeClass ? esc(cat.sizeClass) : 'needs manual review') +
+      (cat.reviewReasons && cat.reviewReasons.length ? ' (' + cat.reviewReasons.map(esc).join(', ') + ')' : '') +
+      ' · Commercial pricing not active' : '';
+    const services = (q.services || []).concat(q.extras || []).map(esc).join(', ');
+    return '<div class="inq-row" data-inquiry-id="' + esc(q.id) + '" style="border-bottom:1px solid var(--line);padding:12px 0">' +
+      '<h5 style="margin:0 0 4px">' + vehicleLine + '</h5>' +
+      '<p class="hint" style="margin:0 0 6px">' + esc(when) + ' · ' + esc(q.id) + ' · Status: ' + esc(q.status || 'new') + ' ' + alertBadge + '</p>' +
+      '<p style="margin:0 0 4px">' + esc(c.name) + ' · <a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + '</a>' +
+        (c.email ? ' · <a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '') + (c.zip ? ' · ZIP ' + esc(c.zip) : '') + '</p>' +
+      (details ? '<p class="hint" style="margin:0 0 4px">' + details + '</p>' : '') +
+      (catalogLine ? '<p class="hint" style="margin:0 0 4px">' + catalogLine + '</p>' : '') +
+      (services ? '<p style="margin:0 0 4px">Services: ' + services + '</p>' : '') +
+      (q.message ? '<p class="hint" style="margin:0;white-space:pre-wrap">' + esc(q.message) + '</p>' : '') +
+      '</div>';
+  }
+  async function refreshInquiriesTab() {
+    const el = $('#inquiriesList');
+    if (!el) return;
+    el.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const data = await api('/.netlify/functions/admin-inquiries?limit=100', 'GET');
+      const rows = (data && data.inquiries) || [];
+      el.innerHTML = rows.length
+        ? rows.map(inquiryRowHtml).join('') + (data.truncated ? '<p class="hint">Showing the newest ' + rows.length + ' of ' + esc(data.total) + '.</p>' : '')
+        : '<div class="empty">No quote requests yet.</div>';
+    } catch (e) {
+      el.innerHTML = '<div class="empty">Could not load quote requests.</div>';
+    }
+  }
+
   async function refreshHomepageReviews() {
     const pendingEl = $('#reviewsPending');
     const publishedEl = $('#reviewsPublished');
@@ -4813,12 +4883,14 @@ async function loadTechs(fetchOpts, loadOpts) {
     $('#p-'+b.dataset.tab).classList.add('on');
     if (b.dataset.tab === 'payments') renderPayments();
     if (b.dataset.tab === 'dayview' && window.CD1AdminDayView) CD1AdminDayView.render();
+    if (b.dataset.tab === 'dayview') loadWithdrawals();
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
     if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
     if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
     if (b.dataset.tab === 'reviews') refreshHomepageReviews();
+    if (b.dataset.tab === 'inquiries') refreshInquiriesTab();
     if (b.dataset.tab === 'techs') {
       ensureTechsForManagement()
         .then(() => { renderTechs(); renderOverview(); })
@@ -4831,6 +4903,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     }
   };
   if ($('#reviewsRefresh')) $('#reviewsRefresh').onclick = () => refreshHomepageReviews();
+  if ($('#inquiriesRefresh')) $('#inquiriesRefresh').onclick = () => refreshInquiriesTab();
   ['reviewsPending', 'reviewsPublished'].forEach((id) => {
     const el = $('#' + id);
     if (!el) return;
@@ -4882,6 +4955,19 @@ async function loadTechs(fetchOpts, loadOpts) {
       $('#testPreview').textContent = 'Archived: '+d.archived+' · Skipped: '+d.skipped;
       await refreshAll();
     } catch(e) { toast('Archive failed: '+e.message); }
+  };
+  $('#requestsDismissOrphans').onclick = async () => {
+    const url = '/.netlify/functions/admin-customer-requests';
+    try {
+      const preview = await api(url, 'POST', { action: 'dismiss_orphan_requests', scanAll: true, dryRun: true });
+      if (!preview.eligible) { toast('No test leftovers to clear'); return; }
+      if (!confirm('Dismiss ' + preview.eligible + ' open request(s) that belong to missing or archived test appointments? Nobody is notified.')) return;
+      const done = await api(url, 'POST', { action: 'dismiss_orphan_requests', scanAll: true, reason: 'admin_cleanup_test_leftovers' });
+      toast('Dismissed ' + done.dismissed + ' test request(s)' + (done.refused ? ' · ' + done.refused + ' kept (live appointment)' : ''));
+      await loadChangeRequests();
+      renderRequests();
+      updateRequestsTabBadge();
+    } catch (e) { toast(e.message || 'Could not clear test requests'); }
   };
   $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
   $('#btnRefresh').onclick = () => opsRefresh
@@ -5079,6 +5165,103 @@ async function loadTechs(fetchOpts, loadOpts) {
     opsRefresh.bindLifecycle();
   }
 
+
+  // Protected job photos need the session header on every request, which an
+  // <img src> cannot send. Fetch them with the header and display blob: URLs.
+  // Legacy public photos load the same way (the server ignores the header).
+  var _photoObjectUrls = [];
+  function hydratePhotos(root) {
+    (root || document).querySelectorAll('img[data-admin-photo]:not([data-photo-loaded])').forEach(function (img) {
+      img.setAttribute('data-photo-loaded', '1');
+      var url = img.getAttribute('data-admin-photo');
+      fetch(url, { headers: { 'x-admin-key': CD1AdminSession.getToken() }, cache: 'no-store', credentials: 'same-origin' })
+        .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.blob(); })
+        .then(function (blob) {
+          var obj = URL.createObjectURL(blob);
+          _photoObjectUrls.push(obj);
+          img.src = obj;
+          var link = img.closest('a[data-photo-link]');
+          if (link) link.href = obj;
+        })
+        .catch(function () {
+          img.alt = 'Photo not available';
+          img.style.opacity = '0.35';
+        });
+    });
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function () { hydratePhotos(document); })
+      .observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  // Technician withdrawal requests. Approve = take that technician off the job
+  // (same unassign as the drawer). It never cancels the customer booking.
+  async function loadWithdrawals() {
+    const el = document.getElementById('dvWithdrawals');
+    if (!el) return;
+    let data;
+    try {
+      data = await api('/.netlify/functions/tech-assignment', 'POST', { action: 'list_withdrawals', status: 'pending' });
+    } catch (_) {
+      el.innerHTML = '<div class="dv-empty"><p>Withdrawal requests could not be loaded.</p></div>';
+      return;
+    }
+    const rows = (data && data.requests) || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="dv-empty"><p>No pending withdrawal requests</p></div>';
+      return;
+    }
+    el.innerHTML = rows.map((r) => {
+      const job = jobs.find((j) => j && j.id === r.bookingId);
+      const when = r.arrivalStartAt
+        ? new Date(r.arrivalStartAt).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET'
+        : '';
+      const busy = r.status === 'approving';
+      return '<div class="dv-pipe-row flagged" style="display:block;cursor:default">' +
+        '<div><strong>' + esc(r.techName || r.techId) + '</strong> asks to withdraw from ' +
+          '<button type="button" class="btn ghost sm" data-wd-open="' + esc(r.bookingId) + '">' + esc(job ? cust(job) : r.bookingId) + '</button>' +
+          (when ? ' · arrival ' + esc(when) : '') + '</div>' +
+        '<div style="margin:6px 0;font-size:12px;color:var(--mu)">Reason: ' + esc(r.reason) + '</div>' +
+        (busy ? '<div style="font-size:12px">Approval in progress…</div>' :
+          '<button type="button" class="btn sm" data-wd-decide="approve" data-wd-id="' + esc(r.id) + '">Approve — unassign technician</button> ' +
+          '<button type="button" class="btn ghost sm" data-wd-decide="decline" data-wd-id="' + esc(r.id) + '">Decline</button>') +
+      '</div>';
+    }).join('');
+  }
+
+  document.addEventListener('click', async (e) => {
+    const open = e.target.closest('[data-wd-open]');
+    if (open) { openDrawer(open.getAttribute('data-wd-open')).catch(() => {}); return; }
+    const btn = e.target.closest('[data-wd-decide]');
+    if (!btn) return;
+    const decision = btn.getAttribute('data-wd-decide');
+    if (decision === 'approve' && !confirm('Remove this technician from the job? The customer booking stays confirmed and you can assign someone else.')) return;
+    btn.disabled = true;
+    try {
+      const res = await api('/.netlify/functions/tech-assignment', 'POST', {
+        action: 'decide_withdrawal', requestId: btn.getAttribute('data-wd-id'), decision,
+      });
+      if (res && res.ok) {
+        toast(decision === 'approve' ? 'Technician removed. Assign someone else.' : 'Request declined.');
+        if (decision === 'approve') loadJobs().catch(() => {});
+      } else {
+        toast((res && (res.message || res.error)) || 'Could not update the request.', 'error');
+      }
+    } catch (err) {
+      const code = String((err && err.message) || '');
+      const friendly = {
+        stale_request: 'Not changed: this job is no longer assigned to that technician.',
+        job_not_active: 'Not changed: the job is already cancelled or completed.',
+        already_decided: 'This request was already decided.',
+        concurrent_decision: 'Someone else is deciding this request. Refresh and try again.',
+        booking_unavailable: 'The booking could not be loaded. Nothing was changed.',
+        version_conflict: 'The job changed while approving. Nothing was changed; try again.',
+      };
+      toast(friendly[code] || code || 'Could not update the request.', 'error');
+    }
+    loadWithdrawals();
+  });
+
   if (window.CD1AdminDayView) {
     CD1AdminDayView.attach({
       getJobs: () => jobs,
@@ -5206,8 +5389,90 @@ async function loadTechs(fetchOpts, loadOpts) {
     }
   }
 
+  // AI search performance: recorded counts from revenue-admin?view=ai-search.
+  // Loaded after the main dashboard on its own error path, so a failure here
+  // never blanks or delays the rest of RevOps. Amounts arrive in dollars.
+  function aiMoney(n) {
+    return '$' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  }
+  function renderAiSearch(d) {
+    const clear = function () { $('#revopsAiStats').innerHTML = ''; $('#revopsAiSources').innerHTML = ''; };
+    // Unavailable data is never shown as 0.
+    if (!d || d.status === 'unavailable' || !d.totals) {
+      $('#revopsAiNote').textContent = 'AI search data is unavailable right now (storage could not be read). No figures are shown.';
+      clear();
+      return;
+    }
+    if (d.status === 'not_started') {
+      $('#revopsAiNote').textContent = 'No AI-attributed activity recorded yet. Tracking starts with the first visit from an AI assistant.';
+      clear();
+      return;
+    }
+    const t = d.totals;
+    const x = d.excluded || {};
+    // Partial ranges show lower bounds ("≥") because some data could not be read.
+    const n = function (v) { return (d.lowerBound ? '≥ ' : '') + esc(v || 0); };
+    const usd = function (v) { return (d.lowerBound ? '≥ ' : '') + aiMoney(v); };
+    let note = 'Browser-reported attribution, not independently verified. Tracked since ' +
+      esc(d.coverageStart ? String(d.coverageStart).slice(0, 10) : 'unknown') + '. ';
+    note += d.status === 'complete'
+      ? 'Complete for this range.'
+      : '<strong>Partial for this range</strong>: some data is missing or could not be read, so figures are minimums.';
+    if (x.paidAssistedConfirmed || x.paidAssistedSubmissions) {
+      note += ' Paid ad + AI-assisted (not counted above): ' + esc(x.paidAssistedSubmissions || 0) + ' submitted, ' +
+        esc(x.paidAssistedConfirmed || 0) + ' confirmed, ' + aiMoney(x.paidAssistedApprovedValue) + ' approved.';
+    }
+    if (x.unverifiableSubmissions || x.unverifiableConfirmed) {
+      note += ' Conflicting or unverifiable attribution (excluded): ' + esc(x.unverifiableSubmissions || 0) + ' submitted, ' +
+        esc(x.unverifiableConfirmed || 0) + ' confirmed.';
+    }
+    $('#revopsAiNote').innerHTML = note;
+    $('#revopsAiStats').innerHTML = [
+      ['AI-attributed sessions', n(t.aiSessions)],
+      ['AI-attributed booking submissions', n(t.bookingSubmissions)],
+      ['Server-confirmed AI bookings', n(t.confirmedBookings)],
+      ['Approved booking value — not collected payment', usd(t.approvedValue)],
+    ].map(function (row) {
+      return '<div class="card"><h3>' + row[0] + '</h3><div class="stat">' + row[1] + '</div></div>';
+    }).join('');
+    const rows = (d.sources || []).filter(function (s) {
+      return s.latestReferralSessions || s.firstAcquiredSessions || s.bookingSubmissions || s.confirmedBookings;
+    });
+    $('#revopsAiSources').innerHTML =
+      (rows.length
+        ? '<table class="tbl"><thead><tr><th>AI platform</th><th>Latest referral sessions</th><th>First acquired sessions</th><th>Submissions</th><th>Server-confirmed</th><th>Approved value</th></tr></thead><tbody>' +
+          rows.map(function (s) {
+            return '<tr><td>' + esc(s.label) + '</td><td>' + n(s.latestReferralSessions) + '</td><td>' + n(s.firstAcquiredSessions) +
+              '</td><td>' + n(s.bookingSubmissions) + '</td><td>' + n(s.confirmedBookings) + '</td><td>' + usd(s.approvedValue) +
+              (s.confirmedMissingAmount ? ' <span class="hint">(' + esc(s.confirmedMissingAmount) + ' without amount)</span>' : '') + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '') +
+      '<details style="margin-top:8px"><summary class="hint">How these numbers are measured</summary><ul class="hint">' +
+      (d.limitations || []).map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul></details>';
+  }
+  // Independent of the main RevOps request: started first, never awaited by it,
+  // and one request at a time (repeated tab clicks reuse the in-flight one).
+  let aiSearchInflight = null;
+  function refreshAiSearch() {
+    if (aiSearchInflight) return aiSearchInflight;
+    if (!$('#revopsAiStats').innerHTML) $('#revopsAiNote').textContent = 'Loading AI search data…';
+    aiSearchInflight = (async function () {
+      try {
+        renderAiSearch(await api('/.netlify/functions/revenue-admin?view=ai-search'));
+      } catch (e) {
+        $('#revopsAiNote').textContent = 'AI search report unavailable: ' + (e.message || 'unknown error') + '. No figures are shown.';
+        $('#revopsAiStats').innerHTML = '';
+        $('#revopsAiSources').innerHTML = '';
+      } finally {
+        aiSearchInflight = null;
+      }
+    })();
+    return aiSearchInflight;
+  }
+
   async function refreshRevopsTab() {
     if (revopsInflight) return revopsInflight;
+    refreshAiSearch();
     setRevopsError('');
     setRevopsLoading(true);
     revopsInflight = (async function () {

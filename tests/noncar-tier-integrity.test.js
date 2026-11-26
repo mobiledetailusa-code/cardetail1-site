@@ -687,8 +687,8 @@ describe('concurrency, preview, and mutations', () => {
     const travelOriginal = fs.readFileSync(travelPath, 'utf8');
     try {
       fs.writeFileSync(travelPath, travelOriginal.replace(
-        'if (!opts.skipMismatchCheck && clientTotal > 0 && Math.abs(clientTotal - serverTotal) > 1)',
-        'if (false && !opts.skipMismatchCheck && clientTotal > 0 && Math.abs(clientTotal - serverTotal) > 1)',
+        'if (!opts.skipMismatchCheck && clientTotal > 0 && Math.round(clientTotal * 100) !== Math.round(serverTotal * 100))',
+        'if (false && !opts.skipMismatchCheck && clientTotal > 0 && Math.round(clientTotal * 100) !== Math.round(serverTotal * 100))',
       ));
       const acceptClientTotal = probe(`
         const assert = require('node:assert/strict');

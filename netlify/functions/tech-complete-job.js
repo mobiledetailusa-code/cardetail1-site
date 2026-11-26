@@ -1,7 +1,16 @@
 // Technician job completion — no mandatory signatures; payment channel paths.
 const {
-  blobsStore, jsonCors, validateTechSession, bookingAssignedToTech, sanitizeText,
+  blobsStore, listAllBlobs, fetchBlobRecords, jsonCors, validateTechSession, sanitizeText,
 } = require('../lib/tech-security');
+const {
+  resolveTechAssignment, createRosterLoader, technicianTerminalState,
+} = require('../lib/tech-dispatch-privacy');
+
+async function rosterRecords() {
+  const store = await blobsStore('cd1-tech-accounts');
+  const blobs = await listAllBlobs(store, 'cd1-tech-accounts');
+  return fetchBlobRecords(store, blobs.filter((x) => String(x.key || '').startsWith('tech-')), 15, { strict: true });
+}
 const { appendEventLog } = require('../lib/ops-workflow');
 const {
   syncLegacyFields, evaluateTechAdjustment, getApprovedAmountCents, makeRequestId,
@@ -32,13 +41,29 @@ exports.handler = async (event) => {
   const store = await blobsStore('cd1-bookings');
   setBookingStoreOverride(store);
   try {
-    const current = await getBookingRecord(bookingId, { storeOverride: store });
+    let current;
+    try {
+      // Authorization read: strong only, never an eventual fallback.
+      current = await getBookingRecord(bookingId, { storeOverride: store, requireStrong: true });
+    } catch (e) {
+      if (e && e.code === 'strong_read_failed') {
+        return jsonCors(503, { ok: false, error: 'temporarily_unavailable' }, { 'Retry-After': '5' });
+      }
+      throw e;
+    }
     if (!current.exists || !current.booking) {
       return jsonCors(404, { ok: false, error: 'booking_not_found' });
     }
     const booking = current.booking;
-    if (!bookingAssignedToTech(booking, session.techId, session.techName)) {
+    const assignment = await resolveTechAssignment(booking, session, {
+      loadRoster: createRosterLoader(rosterRecords),
+    });
+    if (!assignment.assigned) {
       return jsonCors(403, { ok: false, error: 'not_assigned_to_you' });
+    }
+    // A cancelled appointment (in any status field) can never be completed.
+    if (technicianTerminalState(booking).reason === 'cancelled') {
+      return jsonCors(403, { ok: false, error: 'not_confirmed_eligible' });
     }
     const { isTechEligibleBooking } = require('../lib/ops-workflow');
     if (!isTechEligibleBooking(booking) && !booking.completionSubmitted) {

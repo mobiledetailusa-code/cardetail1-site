@@ -218,12 +218,44 @@ async function loadOpportunities({ limit = MAX_OPPORTUNITIES, segment, priority 
   return { items: out, warnings };
 }
 
+function isServerConfirmation(ev) {
+  return !!(
+    ev
+    && ev.event === 'booking_confirmed'
+    && ev.properties
+    && ev.properties.event_origin === 'server_confirm'
+  );
+}
+
 function countEventsByName(events) {
   const counts = {};
   for (const ev of events) {
+    // Rows stored before the server marker, including any anonymous POST,
+    // stay in the store. They are counted separately and are not confirmations.
+    if (ev.event === 'booking_confirmed' && !isServerConfirmation(ev)) {
+      counts.booking_confirmed_unverified = (counts.booking_confirmed_unverified || 0) + 1;
+      continue;
+    }
     counts[ev.event] = (counts[ev.event] || 0) + 1;
   }
   return counts;
+}
+
+function approvedRevenueAtConfirmation(events) {
+  // Sum of approved amounts captured on server confirmation events.
+  // This is not cash received, and public estimated_value is not included.
+  let cents = 0;
+  let missingAmount = 0;
+  for (const ev of events) {
+    if (!isServerConfirmation(ev)) continue;
+    const value = ev.properties.estimated_value;
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      cents += Math.round(value * 100);
+    } else {
+      missingAmount += 1;
+    }
+  }
+  return { amount: cents / 100, missingAmount };
 }
 
 function buildFunnel(eventCounts) {
@@ -273,10 +305,11 @@ function buildBreakdowns(events) {
   };
 }
 
-function buildSummary(eventCounts, opportunities) {
+function buildSummary(eventCounts, opportunities, events = []) {
   const pipelineValue = opportunities.reduce((s, o) => s + (Number(o.estimatedValue) || 0), 0);
   const ticketCount = opportunities.filter((o) => o.estimatedValue > 0).length;
   const avgTicket = ticketCount ? Math.round((pipelineValue / ticketCount) * 100) / 100 : 0;
+  const approved = approvedRevenueAtConfirmation(events);
 
   return {
     sessions: eventCounts.session_started || eventCounts.page_view || 0,
@@ -288,6 +321,8 @@ function buildSummary(eventCounts, opportunities) {
     bookingSubmissions: eventCounts.booking_submitted || 0,
     garagePlanRequests: (eventCounts.garage_plan_completed || 0) + (eventCounts.garage_plan_started || 0),
     confirmedBookings: eventCounts.booking_confirmed || 0,
+    approvedRevenueAtConfirmation: approved.amount,
+    approvedRevenueMissingAmount: approved.missingAmount,
     completedServices: eventCounts.service_completed || 0,
     estimatedPipelineValue: pipelineValue,
     averageEstimatedTicket: avgTicket,
@@ -367,7 +402,7 @@ async function buildRevopsDashboard(query = {}) {
 
   const eventCounts = countEventsByName(eventResult.events);
   const opportunities = oppResult.items;
-  const summary = buildSummary(eventCounts, opportunities);
+  const summary = buildSummary(eventCounts, opportunities, eventResult.events);
   const funnel = buildFunnel(eventCounts);
   const breakdowns = buildBreakdowns(eventResult.events);
   const priorityQueue = buildPriorityQueue(opportunities);

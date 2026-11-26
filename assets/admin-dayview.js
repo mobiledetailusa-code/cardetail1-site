@@ -801,6 +801,30 @@
     }).join('') + '</div>';
   }
 
+  /**
+   * Bookings with no usable service date never appear on a calendar day.
+   * Listed here so Admin keeps access to them from the Schedule tab.
+   */
+  function unscheduledJobs() {
+    return getJobs().filter((j) => j && !isHiddenJob(j) && !/^\d{4}-\d{2}-\d{2}$/.test(jobDate(j)));
+  }
+
+  function renderUnscheduled() {
+    const el = document.getElementById('dvUnscheduled');
+    if (!el) return;
+    const list = unscheduledJobs();
+    if (!list.length) {
+      el.innerHTML = '<div class="dv-empty"><p>' + esc(emptyJobsMessage('Every open booking has a date')) + '</p></div>';
+      return;
+    }
+    el.innerHTML = '<div class="dv-pipeline">' + list.map((j) =>
+      '<button type="button" class="dv-pipe-row flagged" data-dv-open="' + esc(j.id) + '">' +
+        '<span class="dv-pipe-date">No date</span>' +
+        '<span class="dv-pipe-body">' + esc(api.customerName(j)) + ' · ' + esc(api.vehicleSummary ? api.vehicleSummary(j) : '') + '</span>' +
+        '<span class="dv-pipe-amt">' + esc(techLabel(j) || 'Unassigned') + '</span></button>'
+    ).join('') + '</div>';
+  }
+
   function focusJob(id) {
     heroJobId = id;
     const job = getJobs().find((j) => j.id === id);
@@ -814,6 +838,11 @@
   }
 
   function onPanelClick(e) {
+    const unschedBtn = e.target.closest('[data-dv-open]');
+    if (unschedBtn) {
+      if (api.openJob) api.openJob(unschedBtn.getAttribute('data-dv-open'));
+      return;
+    }
     const nav = e.target.closest('[data-dv-cal-nav]');
     if (nav) {
       const action = nav.getAttribute('data-dv-cal-nav');
@@ -939,6 +968,7 @@
     renderTechLoad();
     renderList(selectedDate);
     renderPipeline();
+    renderUnscheduled();
   }
 
   function isActive() {

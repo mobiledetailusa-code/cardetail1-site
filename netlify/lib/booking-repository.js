@@ -34,13 +34,26 @@ function cloneStoredRecord(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
+/**
+ * @param {string} bookingId
+ * @param {{ storeOverride?: object, requireStrong?: boolean }} [opts]
+ *   requireStrong: for authorization decisions. The read must be strong; a
+ *   failed strong read throws StrongReadError (from tech-security) instead of
+ *   falling back to an eventually consistent read. Default behaviour is
+ *   unchanged for every other caller.
+ */
+async function getBookingRecord(bookingId, { storeOverride = null, requireStrong = false } = {}) {
   const store = storeOverride || await getStore();
   const id = String(bookingId || '').trim();
   if (!id) return { exists: false, booking: null, etag: null, raw: null };
 
   let result = null;
-  if (typeof store.getWithMetadata === 'function') {
+  if (requireStrong) {
+    const { readJsonStrong } = require('./tech-security');
+    const strong = await readJsonStrong(store, id); // throws on failure
+    if (!strong.data) return { exists: false, booking: null, etag: null, raw: null };
+    result = { data: strong.data, etag: strong.etag };
+  } else if (typeof store.getWithMetadata === 'function') {
     result = await store.getWithMetadata(id, { type: 'json', consistency: STRONG_CONSISTENCY }).catch(() => null);
   }
   if (result && result.data) {
@@ -51,7 +64,7 @@ async function getBookingRecord(bookingId, { storeOverride = null } = {}) {
     return {
       exists: true,
       booking: norm.ok ? norm.aggregate : booking,
-      etag: result.etag || null,
+      etag: result.etag || (requireStrong ? `v${Number(result.data.bookingVersion) || 0}:${result.data.updatedAt || ''}` : null),
       raw: cloneStoredRecord(result.data),
       quarantined: adapted.quarantined,
     };

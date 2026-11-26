@@ -53,7 +53,10 @@ test('renderTierChips does not force-show chips for cars', () => {
 test('year selection shows chips only on classification failure', () => {
   const start = index.indexOf("getElementById('year-sel').addEventListener");
   assert.ok(start > 0);
-  const chunk = index.slice(start, start + 3200);
+  // The whole year handler (it grew with the 2027 confirmation check), not a fixed window.
+  const end = index.indexOf('// No auto-advance', start);
+  assert.ok(end > start, 'end of year handler');
+  const chunk = index.slice(start, end);
   assert.match(chunk, /ST\.classNeedsConfirm=false/);
   assert.match(chunk, /ST\.classNeedsConfirm=true/);
   assert.equal((chunk.match(/syncTierChipsVisibility\(\)/g) || []).length >= 2, true);

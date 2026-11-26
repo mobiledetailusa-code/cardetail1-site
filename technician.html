@@ -124,6 +124,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--white);min-
 .chk-row.issue{border-color:rgba(251,191,36,.25);background:rgba(251,191,36,.04)}
 .sec-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin:16px 0 10px;padding-bottom:7px;border-bottom:1px solid rgba(77,163,255,.12)}
 .sec-lbl:first-child{margin-top:0}
+.dd-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.dd-bar input[type=date]{background:var(--bg2);color:inherit;border:1px solid var(--border);border-radius:8px;padding:6px 8px;font:inherit}
+.dd-sum{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-bottom:14px}
+.dd-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;text-align:left;color:inherit;font:inherit;cursor:pointer}
+.dd-card:hover{border-color:var(--blue)}
+.dd-win{font-weight:700;font-size:13px}
+.dd-meta{font-size:12px;color:var(--mu);margin-top:3px}
+.pii-lock{grid-column:1/-1;font-size:12px;color:var(--mu);background:rgba(77,163,255,.06);border:1px dashed var(--border);border-radius:8px;padding:8px 10px}
+.jc.flash{outline:2px solid var(--blue)}
 
 .fi{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--white);font-size:13px;font-family:inherit;outline:none;transition:.2s;margin-bottom:10px}
 .fi:focus{border-color:var(--blue)}
@@ -210,7 +219,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 <div id="s-onboard" class="screen">
   <div class="lbox" style="width:min(520px,100%);max-height:90vh;overflow:auto">
     <div class="ll">Contractor <span>Profile</span></div>
-    <div class="lsub">Required before bidding. You are an independent contractor — not an employee. You are never required to bid; if you win, you must complete the job or cancel 24+ hours before the appointment.</div>
+    <div class="lsub">Required before bidding. You are an independent contractor — not an employee. You are never required to bid; if you win, you must complete the job or request a withdrawal in the portal at least 12 hours before the arrival window.</div>
     <form id="onboard-form" onsubmit="return submitOnboarding(event)">
       <label class="fl">Company / DBA name</label>
       <input class="linp" id="ob-company" required>
@@ -238,7 +247,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
       <label class="chk-row"><input type="checkbox" id="ob-exp-extract"> Extraction / shampoo</label>
       <label class="chk-row"><input type="checkbox" id="ob-exp-deep"> Deep clean</label>
       <label class="chk-row" style="margin-top:10px"><input type="checkbox" id="ob-photos" required> I will take before &amp; after photos on every job (required)</label>
-      <label class="chk-row"><input type="checkbox" id="ob-emergency" required> If unforeseen issues arise, I will contact the customer to reschedule or cancel 24+ hours before the job when possible</label>
+      <label class="chk-row"><input type="checkbox" id="ob-emergency" required> If unforeseen issues arise, I will request a withdrawal in the portal at least 12 hours before the arrival window when possible</label>
       <label class="chk-row"><input type="checkbox" id="ob-terms" required> I accept the independent contractor terms (v1) — bidding is optional; winning bids must be completed</label>
       <button class="lbtn" type="submit" id="ob-btn">Submit profile</button>
     </form>
@@ -271,6 +280,14 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     <div id="dash-bid-note" style="display:none;font-size:11px;color:var(--mu);margin-bottom:12px;padding:10px;background:var(--bg2);border-radius:8px;border:1px solid var(--border)">
       Jobs are awarded by <strong>lowest bid</strong> within the bid window AND your <strong>rating/acceptance history</strong> — not price alone. You are never required to bid.
     </div>
+    <div id="dispatch-day" class="dd-bar" aria-label="Day view">
+      <label for="dd-date" style="font-size:12px;color:var(--mu)">Day</label>
+      <input type="date" id="dd-date" onchange="setDispatchDate(this.value)">
+      <button class="refresh-btn" type="button" onclick="setDispatchDate(todayIso())">Today</button>
+      <button class="refresh-btn" type="button" onclick="setDispatchDate('')">All dates</button>
+      <span id="dd-count" style="font-size:12px;color:var(--mu)"></span>
+    </div>
+    <div id="dd-summary" class="dd-sum"></div>
     <div id="jobs-list"><div class="loading">Loading jobs…</div></div>
     <div id="bids-list" style="display:none"><div class="loading">Loading open auctions…</div></div>
   </div>
@@ -445,6 +462,110 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   let TECH_PROFILE = null;
   let JOBS = [];
   let AUCTIONS = [];
+  // Daily dispatch: client-side day filter over the server-redacted payload.
+  // The server decides which customer details are sent; nothing here unlocks them.
+  let DISPATCH_DATE = '';
+  let WITHDRAWALS = [];
+  // Job-list state. JOBS/WITHDRAWALS are only ever shown or acted on while
+  // JOBS_STATE is 'ready' (the latest request succeeded with a valid payload).
+  // Every request gets a sequence number; a response that is not the latest
+  // is ignored, so a slow or overlapping request can never restore old data.
+  let JOBS_STATE = 'loading'; // 'loading' | 'ready' | 'unavailable'
+  let JOBS_ERROR = '';
+  let JOBS_SEQ = 0;
+  function invalidateJobs(state, message) {
+    JOBS = [];
+    WITHDRAWALS = [];
+    JOBS_STATE = state;
+    JOBS_ERROR = message || '';
+    discardCompletionDialog();
+  }
+  // A completion dialog belongs to one job in one successful list. When that
+  // list is invalidated the dialog is closed and its customer summary, photos
+  // and customer name are cleared, so nothing stale stays on screen or can be
+  // submitted. (Server-side completion rules are unchanged.)
+  function discardCompletionDialog() {
+    var modal = document.getElementById('complete-modal');
+    if (modal) modal.classList.remove('open');
+    _completeJobId = '';
+    _jobPhotos = { before: [], after: [] };
+    ['cmp-summary', 'grid-before', 'grid-after'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    var sub = document.getElementById('cmp-sub');
+    if (sub) sub.textContent = '—';
+    var eq = document.getElementById('cmp-equipment');
+    if (eq) eq.textContent = '';
+    var cust = document.getElementById('cust-name');
+    if (cust) cust.value = '';
+  }
+  function validJobsPayload(data) {
+    if (!data || data.ok !== true || !Array.isArray(data.jobs)) return false;
+    if (data.withdrawals != null && !Array.isArray(data.withdrawals)) return false;
+    return data.jobs.every(function (j) { return j && typeof j === 'object' && typeof j.id === 'string' && j.id; });
+  }
+  /** The job object from the latest successful list, or null (with a message). */
+  function currentJob(id) {
+    var job = JOBS_STATE === 'ready' ? JOBS.find(function (j) { return j.id === id; }) : null;
+    if (!job) toast('Your job list is out of date. Refresh it before continuing.', 'err');
+    return job || null;
+  }
+  window.todayIso = function () {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
+  window.setDispatchDate = function (v) {
+    DISPATCH_DATE = /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '';
+    var input = document.getElementById('dd-date');
+    if (input) input.value = DISPATCH_DATE;
+    renderJobs();
+  };
+  function jobDay(j) { return String(j.confirmedDate || j.preferredDate || '').slice(0, 10); }
+  function lockText(j) {
+    if (!j.piiLocked) return '';
+    if (j.piiLockReason === 'before_unlock_window' && j.piiUnlocksAt) {
+      return 'Customer name, phone, address and notes unlock ' +
+        new Date(j.piiUnlocksAt).toLocaleString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) +
+        ' ET (12 hours before the arrival window).';
+    }
+    return 'Customer details are locked: the arrival time on this job is missing or unclear. Contact the office.';
+  }
+  function pendingWithdrawal(id) {
+    return WITHDRAWALS.find(function (w) { return w.bookingId === id && w.status === 'pending'; });
+  }
+  window.focusJob = function (id) {
+    var el = document.getElementById('job-' + id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.add('flash');
+    setTimeout(function () { el.classList.remove('flash'); }, 1600);
+  };
+  window.requestWithdrawal = async function (id) {
+    if (!currentJob(id)) return;
+    var reason = window.prompt('Why do you need to withdraw from this job? (required, at least 10 characters)\n\nRequests need at least 12 hours notice before the arrival window. The office approves each request; until then the job stays yours.');
+    if (reason == null) return;
+    reason = String(reason).trim();
+    if (reason.length < 10) { toast('Please give a reason (at least 10 characters).', 'err'); return; }
+    if (!currentJob(id)) return; // list may have failed while the prompt was open
+    try {
+      var r = await techFetch(JOBS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'request_withdrawal', bookingId: id, reason: reason }),
+      });
+      if (r.data.ok) { toast('Withdrawal request sent to the office.', 'ok'); loadJobs(); return; }
+      var msg = r.data.message || ({
+        insufficient_notice: 'Less than 12 hours before the arrival window. Call the office.',
+        schedule_unresolved: 'This job has no confirmed arrival time. Call the office.',
+        request_already_pending: 'You already have a pending request for this job.',
+        reason_required: 'Please give a reason (at least 10 characters).',
+      })[r.data.error] || 'Could not send the request.';
+      toast(msg, 'err');
+    } catch (_) {
+      toast('Network error.', 'err');
+    }
+  };
   let _jobPhotos = { before: [], after: [] };
   let _completeJobId = '';
   let _issueJobId = '';
@@ -715,14 +836,28 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     return false;
   };
 
+  let LOGGING_OUT = false;
   window.doLogout = async function () {
+    // Invalidate before anything asynchronous: in-flight list responses become
+    // stale, the list and any completion dialog are cleared, and no new list
+    // request starts while the server-side logout is pending or if it fails.
+    LOGGING_OUT = true;
+    JOBS_SEQ += 1;
+    invalidateJobs('loading');
+    renderJobs();
     var token = getToken();
-    if (token) {
-      try { await authApi({ action: 'logout', token: token }); } catch (_) {}
+    try {
+      if (token) {
+        try { await authApi({ action: 'logout', token: token }); } catch (_) {}
+      }
+    } finally {
+      clearToken();
+      TECH = null;
+      JOBS_SEQ += 1;
+      invalidateJobs('loading');
+      renderJobs();
+      LOGGING_OUT = false;
     }
-    clearToken();
-    TECH = null;
-    JOBS = [];
     showScreen('land');
     toast('Signed out');
   };
@@ -763,36 +898,92 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.loadJobs = async function () {
-    var el = document.getElementById('jobs-list');
+    if (LOGGING_OUT) return;
+    var seq = ++JOBS_SEQ;
+    // Drop the previous list before asking again: nothing old stays visible
+    // or actionable while loading, and a failure leaves nothing behind.
+    invalidateJobs('loading');
+    renderJobs();
     if (!getToken()) { showScreen('land'); return; }
-    el.innerHTML = '<div class="loading">Loading jobs…</div>';
+    var r = null;
+    var failure = '';
     try {
-      var r = await techFetch(JOBS_URL);
-      if (r.res.status === 401) {
-        clearToken();
-        showScreen('login');
-        showErr('lerr', 'Session expired. Please sign in again.');
-        return;
-      }
-      if (!r.data.ok) {
-        el.innerHTML = '<div class="empty"><div class="ei">⚠️</div><div class="et">Could not load jobs.</div></div>';
-        return;
-      }
-      JOBS = r.data.jobs || [];
-      renderJobs();
+      r = await techFetch(JOBS_URL);
     } catch (_) {
-      el.innerHTML = '<div class="empty"><div class="ei">📡</div><div class="et">Network error loading jobs.</div></div>';
+      failure = 'network';
     }
+    if (seq !== JOBS_SEQ || LOGGING_OUT || !getToken()) return; // superseded, or signed out
+    if (!failure && r.res.status === 401) {
+      invalidateJobs('unavailable', 'Session expired.');
+      renderJobs();
+      clearToken();
+      showScreen('login');
+      showErr('lerr', 'Session expired. Please sign in again.');
+      return;
+    }
+    if (!failure && !(r.res.ok && validJobsPayload(r.data))) {
+      failure = r.res.status === 503 ? 'unavailable' : 'error';
+    }
+    if (failure) {
+      invalidateJobs('unavailable', {
+        network: 'Could not reach the server. Check your connection.',
+        unavailable: 'Your jobs are temporarily unavailable.',
+        error: 'Could not load your jobs.',
+      }[failure]);
+      renderJobs();
+      return;
+    }
+    JOBS = r.data.jobs;
+    WITHDRAWALS = r.data.withdrawals || [];
+    JOBS_STATE = 'ready';
+    JOBS_ERROR = '';
+    renderJobs();
   };
+
+  function renderDaySummary(list) {
+    var sum = document.getElementById('dd-summary');
+    var count = document.getElementById('dd-count');
+    if (count) count.textContent = DISPATCH_DATE ? (list.length + ' job' + (list.length === 1 ? '' : 's') + ' on ' + fmtDate(DISPATCH_DATE)) : (list.length + ' assigned job' + (list.length === 1 ? '' : 's'));
+    if (!sum) return;
+    if (!DISPATCH_DATE || !list.length) { sum.innerHTML = ''; return; }
+    sum.innerHTML = list.map(function (j) {
+      return '<button class="dd-card" type="button" onclick="focusJob(\'' + esc(j.id) + '\')">' +
+        '<div class="dd-win">' + esc(fmtTime(j)) + '</div>' +
+        '<div class="dd-meta">' + esc(j.piiLocked ? 'Customer (locked)' : (j.customerName || 'Customer')) + ' · ' + esc(j.zone || '—') + '</div>' +
+        '<div class="dd-meta">' + esc(j.vehicle || '—') + ' · ' + esc(j.package || 'Detail') + '</div>' +
+        '<div style="margin-top:6px">' + badge(j.jobStatus || 'assigned') + '</div>' +
+      '</button>';
+    }).join('');
+  }
 
   function renderJobs() {
     var el = document.getElementById('jobs-list');
-    if (!JOBS.length) {
-      el.innerHTML = '<div class="empty"><div class="ei">📋</div><div class="et">No assigned jobs right now.</div></div>';
+    if (JOBS_STATE !== 'ready') {
+      // No list: clear summary cards and count, never draw JOBS.
+      var sum = document.getElementById('dd-summary');
+      var count = document.getElementById('dd-count');
+      if (sum) sum.innerHTML = '';
+      if (count) count.textContent = '';
+      if (!el) return;
+      if (JOBS_STATE === 'loading') {
+        el.innerHTML = '<div class="loading">Loading jobs…</div>';
+        return;
+      }
+      el.innerHTML = '<div class="empty" id="jobs-unavailable" role="alert"><div class="ei">⚠️</div>' +
+        '<div class="et">' + esc(JOBS_ERROR || 'Your jobs are temporarily unavailable.') + '</div>' +
+        '<div class="et" style="margin-top:4px">No job details are shown until the list loads again.</div>' +
+        '<button class="btn btn-p btn-sm" type="button" style="margin-top:12px" onclick="loadJobs()">Try again</button></div>';
       return;
     }
-    var active = JOBS.filter(function (j) { return !DONE_STATUSES.has(j.jobStatus); });
-    var done = JOBS.filter(function (j) { return DONE_STATUSES.has(j.jobStatus); });
+    var list = DISPATCH_DATE ? JOBS.filter(function (j) { return jobDay(j) === DISPATCH_DATE; }) : JOBS;
+    renderDaySummary(list);
+    if (!list.length) {
+      el.innerHTML = '<div class="empty"><div class="ei">📋</div><div class="et">' +
+        (DISPATCH_DATE ? 'No assigned jobs on this day.' : 'No assigned jobs right now.') + '</div></div>';
+      return;
+    }
+    var active = list.filter(function (j) { return !DONE_STATUSES.has(j.jobStatus); });
+    var done = list.filter(function (j) { return DONE_STATUSES.has(j.jobStatus); });
     var html = '';
     if (active.length) html += active.map(jobCard).join('');
     if (done.length) {
@@ -840,10 +1031,18 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         acts += '<a class="btn btn-g btn-sm" href="https://www.google.com/maps/search/?api=1&query=' + mapsQ + '" target="_blank" rel="noopener">📍 Directions</a>';
       }
     }
+    if (!done && (js === 'assigned' || js === 'confirmed' || js === 'accepted')) {
+      if (pendingWithdrawal(j.id)) {
+        acts += '<span style="font-size:11px;color:var(--mu);font-weight:600">Withdrawal requested — awaiting office</span>';
+      } else {
+        acts += btn('Request withdrawal', 'btn-g', "requestWithdrawal('" + j.id + "')");
+      }
+    }
     if (j.completionSubmitted) {
       acts += '<span style="font-size:11px;color:var(--green);font-weight:600">✓ Completion submitted</span>';
     }
-    return '<div class="' + cls + '">' +
+    var lock = lockText(j);
+    return '<div class="' + cls + '" id="job-' + esc(j.id) + '">' +
       '<div class="jc-top"><div>' +
         '<div class="jc-id">' + esc((j.id || '').slice(-8)) + '</div>' +
         '<div class="jc-sv">' + esc(j.package || 'Detail') + '</div>' +
@@ -854,6 +1053,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         cell('Date', fmtDate(j.confirmedDate || j.preferredDate)) +
         cell('Time', fmtTime(j)) +
         cell('Zone', j.zone || j.zipCode || '—') +
+        (lock ? '<div class="pii-lock">🔒 ' + esc(lock) + '</div>' : '') +
         (j.address ? fullCell('Address', j.address) : '') +
         (j.addons && j.addons.length ? fullCell('Add-ons', fmtAddons(j.addons)) : '') +
         (j.packageDescription ? fullCell('Package details', j.packageDescription) : '') +
@@ -879,6 +1079,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.updStatus = async function (bookingId, status) {
+    if (!currentJob(bookingId)) return;
     try {
       var r = await techFetch(JOBS_URL, {
         method: 'POST',
@@ -896,6 +1097,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   };
 
   window.openIssue = function (id) {
+    if (!currentJob(id)) return;
     _issueJobId = id;
     document.getElementById('issue-type').value = '';
     document.getElementById('issue-desc').value = '';
@@ -914,6 +1116,10 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     if (!type) { showErr('isserr', 'Select an issue type.'); return; }
     if (!desc) { showErr('isserr', 'Describe the issue.'); return; }
     clearErr('isserr');
+    if (JOBS_STATE !== 'ready' || !JOBS.some(function (j) { return j.id === _issueJobId; })) {
+      showErr('isserr', 'Your job list is out of date. Refresh it, then submit again.');
+      return;
+    }
     var note = type + ': ' + desc;
     try {
       var r = await techFetch(JOBS_URL, {
@@ -1011,13 +1217,43 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     if (elA) elA.textContent = a + (!issue && a < 1 ? ' (min 1)' : '');
   }
 
+
+  // Protected job photos need the session header on every request, which an
+  // <img src> cannot send. Fetch them with the header and display blob: URLs.
+  // Legacy public photos load the same way (the server ignores the header).
+  var _photoObjectUrls = [];
+  function hydratePhotos(root) {
+    (root || document).querySelectorAll('img[data-photo-src]:not([data-photo-loaded])').forEach(function (img) {
+      img.setAttribute('data-photo-loaded', '1');
+      var url = img.getAttribute('data-photo-src');
+      fetch(url, { headers: { 'x-tech-token': getToken() }, cache: 'no-store', credentials: 'same-origin' })
+        .then(function (res) { if (!res.ok) throw new Error(String(res.status)); return res.blob(); })
+        .then(function (blob) {
+          var obj = URL.createObjectURL(blob);
+          _photoObjectUrls.push(obj);
+          img.src = obj;
+          var link = img.closest('a[data-photo-link]');
+          if (link) link.href = obj;
+        })
+        .catch(function () {
+          img.alt = 'Photo not available';
+          img.style.opacity = '0.35';
+        });
+    });
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    new MutationObserver(function () { hydratePhotos(document); })
+      .observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   function renderPhotoGrid(phase) {
     var grid = document.getElementById('grid-' + phase);
     if (!grid) return;
     var urls = _jobPhotos[phase] || [];
     grid.innerHTML = urls.map(function (url) {
-      return '<div class="photo-thumb"><img src="' + esc(url) + '" alt="' + phase + '"></div>';
+      return '<div class="photo-thumb"><img data-photo-src="' + esc(url) + '" alt="' + phase + '"></div>';
     }).join('');
+    hydratePhotos(grid);
     updatePhotoCounts();
   }
 
@@ -1040,16 +1276,34 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
     if (!file || !_completeJobId) return;
     var errEl = document.getElementById('err-' + phase);
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
+    if (JOBS_STATE !== 'ready' || !JOBS.some(function (j) { return j.id === _completeJobId; })) {
+      if (errEl) { errEl.textContent = 'Your job list is out of date. Refresh it, then upload again.'; errEl.classList.add('show'); }
+      return;
+    }
     if (file.size > 4 * 1024 * 1024) {
       if (errEl) { errEl.textContent = 'Photo must be 4 MB or smaller.'; errEl.classList.add('show'); }
       return;
     }
+    var jobId = _completeJobId;
+    var seq = JOBS_SEQ;
+    // Still the same successful list, the same open job, and that job is in it?
+    function stillCurrent() {
+      return JOBS_STATE === 'ready' && JOBS_SEQ === seq && _completeJobId === jobId
+        && JOBS.some(function (j) { return j.id === jobId; });
+    }
     try {
       var data = await fileToBase64(file);
+      // Reading the file is asynchronous: the list may have been refreshed,
+      // failed, or the technician signed out meanwhile. Re-check right before
+      // sending; if anything changed, nothing is uploaded.
+      if (!stillCurrent()) {
+        if (errEl && _completeJobId === jobId) { errEl.textContent = 'Your job list changed. Upload again.'; errEl.classList.add('show'); }
+        return;
+      }
       var r = await techFetch(PHOTOS_URL, {
         method: 'POST',
         body: JSON.stringify({
-          bookingId: _completeJobId,
+          bookingId: jobId,
           phase: phase,
           data: data,
           contentType: file.type,
@@ -1062,6 +1316,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         if (errEl) { errEl.textContent = msg; errEl.classList.add('show'); }
         return;
       }
+      if (!stillCurrent()) return; // dialog was discarded while uploading
       _jobPhotos.before = r.data.photosBefore || _jobPhotos.before;
       _jobPhotos.after = r.data.photosAfter || _jobPhotos.after;
       renderPhotoGrid('before');
@@ -1075,6 +1330,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   async function loadJobPhotos(bookingId) {
     try {
       var r = await techFetch(PHOTOS_URL + '?bookingId=' + encodeURIComponent(bookingId));
+      if (_completeJobId !== bookingId) return; // dialog closed or discarded meanwhile
       if (r.data.ok) {
         _jobPhotos.before = r.data.photosBefore || [];
         _jobPhotos.after = r.data.photosAfter || [];
@@ -1082,6 +1338,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
         _jobPhotos = { before: [], after: [] };
       }
     } catch (_) {
+      if (_completeJobId !== bookingId) return;
       _jobPhotos = { before: [], after: [] };
     }
     renderPhotoGrid('before');
@@ -1089,7 +1346,7 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
   }
 
   window.openComplete = function (id) {
-    var job = JOBS.find(function (j) { return j.id === id; });
+    var job = currentJob(id);
     if (!job) return;
     _completeJobId = id;
     clearErr('cmperr');
@@ -1153,6 +1410,12 @@ canvas.sig{display:block;width:100%;height:150px;touch-action:none;border-radius
 
   window.submitComplete = async function () {
     clearErr('cmperr');
+    // The form stays filled in, but nothing is submitted against a job that
+    // is not in the latest successful list.
+    if (JOBS_STATE !== 'ready' || !JOBS.some(function (j) { return j.id === _completeJobId; })) {
+      showErr('cmperr', 'Your job list is out of date. Refresh it, then submit again.');
+      return;
+    }
     var issuePath = document.getElementById('chk-issue').checked;
     var checklist = {};
 

@@ -60,7 +60,7 @@ function resolveHref(href) {
 
 test('sitemap reported count equals actual URL entries', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 33);
+  assert.equal(urls.length, 38);
 });
 
 test('every sitemap route file exists on disk', () => {
@@ -217,6 +217,12 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/notification-delivery.js',
     'netlify/functions/tech-complete-job.js',
     'netlify/functions/tech-jobs.js',
+    'netlify/functions/job-photo-image.js',
+    'netlify/functions/tech-job-photos.js',
+    'netlify/functions/tech-auctions.js',
+    'netlify/lib/tech-dispatch-privacy.js',
+    'netlify/lib/tech-withdrawal.js',
+    'netlify/lib/job-photo-storage.js',
     'netlify/functions/customer-portal-action.js',
     'netlify/functions/evaluate-booking-offer.js',
     'netlify/functions/admin-ops-jobs.js',
@@ -229,6 +235,9 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/functions/tech-accounts.js',
     'netlify/lib/revenue-store.js',
     'netlify/lib/revops-dashboard.js',
+    // Server-only booking_confirmed writer. Public revenue-event cannot create it.
+    'netlify/lib/revenue-authoritative-confirm.js',
+    'netlify/functions/confirm-analytics-recovery.js',
     'netlify/functions/qa-opscore-lifecycle.js',
     'netlify/lib/booking-price-catalog.js',
     // Public car bookings must match the official catalog class.
@@ -419,6 +428,15 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/address-suggest.js',
     'netlify/functions/welcome-lead-capture.js',
     'netlify/lib/welcome-lead-store.js',
+    // Commercial & specialty quote requests: validation + inquiry storage (no pricing or payment imports).
+    'netlify/lib/vehicle-inquiry.js',
+    // Commercial pricing engine (rate card v2): draft card, every amount null, no public price,
+    // checkout off (no payment imports), and the shared vehicle classifier it uses. Neither is
+    // required by any function or booking path yet.
+    'netlify/lib/commercial-pricing.js',
+    'netlify/lib/vehicle-pricing-channel.js',
+    // Read-only admin list of stored quote requests (existing admin session auth).
+    'netlify/functions/admin-inquiries.js',
     'netlify/lib/welcome-offer-redemption.js',
     'netlify/functions/review-invite.js',
     'netlify/lib/review-request-notifications.js',
@@ -450,6 +468,12 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/booking-cancel.js',
     'netlify/lib/payment-resume-token.js',
     'netlify/lib/quick-ops-html.js',
+    'netlify/lib/quick-ops-job-sheet.js',
+    'netlify/lib/quick-ops-finish.js',
+    // On-site close finishes only a performed service, then one completion text.
+    'netlify/lib/onsite-job-close.js',
+    'netlify/lib/service-completion-notice.js',
+    'netlify/lib/orphan-request-dismissal.js',
     // Production customer Stripe payments fail closed unless explicitly enabled.
     'netlify/functions/stripe-config.js',
     'netlify/lib/stripe-customer-payments.js',
@@ -462,6 +486,11 @@ test('Netlify Function changes vs production master are limited to approved RevO
     // Square webhook signature check. No public endpoint and no ledger write.
     'netlify/lib/square-webhook-verifier.js',
     'netlify/lib/square-webhook-event.js',
+    // AI search attribution: write-time index and admin-only report (PR #406).
+    // No booking, price, payment or Ads conversion code.
+    'netlify/lib/ai-attribution.js',
+    'netlify/lib/ai-attribution-index.js',
+    'netlify/lib/ai-search-report.js',
   ]);
   for (const file of changed) {
     assert.ok(allowed.has(file), `unexpected backend diff: ${file}`);

@@ -721,7 +721,7 @@ test('17. operational sections outrank profile in the portal hierarchy', () => {
   for (let i = 1; i < order.length; i += 1) {
     assert.ok(order[i] > order[i - 1], 'section order is current → upcoming → past → payments → profile → addresses');
   }
-  assert.match(html, /<h3 id="upcoming-h">Current appointment<\/h3>/);
+  assert.match(html, /<h3 id="upcoming-h">My service<\/h3>/);
   assert.match(html, /<h3 id="appt-h">Upcoming appointments<\/h3>/);
   assert.match(html, /<h3 id="hist-h">Past services<\/h3>/);
 });

@@ -223,6 +223,18 @@ async function reconcilePostgresPaymentIntent(evt, paymentIntent) {
     const sync = projection
       ? await syncBlobCompatibilityFromProjection(bookingId, projection).catch(() => ({ ok: false }))
       : { ok: false };
+    if (sync && sync.ok !== false && projection) {
+      try {
+        const { shouldNotifyFromWebhook, notifyIfServiceClosedAndPaid } = require('../lib/service-completion-notice');
+        if (shouldNotifyFromWebhook({ ...result, projection })) {
+          const { getBooking } = require('../lib/ops-db');
+          const booking = bookingId ? await getBooking(bookingId) : null;
+          if (booking) await notifyIfServiceClosedAndPaid(booking, { source: 'stripe_webhook' });
+        }
+      } catch (err) {
+        console.warn('[stripe-webhook] completion notice failed', String(err && err.message || err).slice(0, 80));
+      }
+    }
     return {
       handled: !!projection && sync?.ok !== false,
       retryable: !projection || sync?.ok === false,

@@ -17,6 +17,40 @@ exports.handler = async (event) => {
   catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
 
   const action = String(body.action || 'assign');
+
+  // Technician withdrawal requests (QuickOps Daily Dispatch). Approval
+  // unassigns the requesting technician through unassignQuickOpsTech and
+  // never cancels the customer booking.
+  if (action === 'list_withdrawals') {
+    const { listWithdrawalRequests, projectWithdrawalForAdmin } = require('../lib/tech-withdrawal');
+    const status = sanitizeText(body.status, 24) || 'pending';
+    try {
+      const rows = await listWithdrawalRequests({ status });
+      return jsonCors(200, { ok: true, requests: rows.map(projectWithdrawalForAdmin) });
+    } catch {
+      return jsonCors(503, { ok: false, error: 'withdrawals_unavailable' });
+    }
+  }
+  if (action === 'decide_withdrawal') {
+    const { decideWithdrawalRequest, projectWithdrawalForAdmin } = require('../lib/tech-withdrawal');
+    const result = await decideWithdrawalRequest({
+      id: sanitizeText(body.requestId, 64),
+      decision: sanitizeText(body.decision, 16),
+      adminNote: body.adminNote,
+      actor: (auth && auth.actor) || 'admin',
+    });
+    const payload = {
+      ok: !!result.ok,
+      ...(result.error ? { error: result.error } : {}),
+      ...(result.message ? { message: result.message } : {}),
+      ...(result.request ? { request: projectWithdrawalForAdmin(result.request) } : {}),
+      ...(result.bookingId ? { bookingId: result.bookingId } : {}),
+      ...(result.assignment ? { assignment: result.assignment } : {}),
+      ...(result.jobStatus ? { jobStatus: result.jobStatus } : {}),
+    };
+    return jsonCors(result.ok ? 200 : (result.statusCode || 409), payload);
+  }
+
   const bookingId = sanitizeText(body.bookingId, 48);
   if (!bookingId) return jsonCors(400, { ok: false, error: 'bookingId_required' });
 

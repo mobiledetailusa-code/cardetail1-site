@@ -38,7 +38,7 @@ function extractFn(name) {
 function classifier() {
   const ctx = { ACTIONABLE_JOB_STATUSES: ['completed_pending_payment', 'awaiting_customer_action'] };
   vm.createContext(ctx);
-  const src = ['appointmentNeedsAttention', 'todayIso', 'appointmentDatePassed', 'appointmentIsPast']
+  const src = ['appointmentNeedsAttention', 'todayIso', 'hasAppointmentDate', 'appointmentDatePassed', 'appointmentIsPast']
     .map(extractFn)
     .join('\n');
   vm.runInContext(
@@ -98,11 +98,12 @@ describe('appointment date classification', () => {
     assert.equal(w.appointmentIsPast(approval), false);
   });
 
-  it('leaves an undated or malformed appointment alone', () => {
+  it('does not treat a missing or malformed date as upcoming', () => {
     assert.equal(w.appointmentDatePassed({}), false);
     assert.equal(w.appointmentDatePassed({ preferredDate: '' }), false);
     assert.equal(w.appointmentDatePassed({ preferredDate: 'next Tuesday' }), false);
-    assert.equal(w.appointmentIsPast({ status: 'Pending Review' }), false);
+    assert.equal(w.appointmentIsPast({ status: 'Pending Review' }), true);
+    assert.equal(w.appointmentIsPast({ status: 'Confirmed', preferredDate: 'next Tuesday' }), true);
   });
 
   it('still archives on status alone, date aside', () => {

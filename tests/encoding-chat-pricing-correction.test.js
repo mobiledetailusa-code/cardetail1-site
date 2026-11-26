@@ -160,6 +160,9 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/customer-portal-vehicles.js',
     'netlify/functions/tech-complete-job.js',
     'netlify/functions/tech-jobs.js',
+    'netlify/functions/job-photo-image.js',
+    'netlify/functions/tech-job-photos.js',
+    'netlify/functions/tech-auctions.js',
     'netlify/functions/customer-portal-action.js',
     'netlify/functions/evaluate-booking-offer.js',
     'netlify/functions/admin-ops-jobs.js',
@@ -203,6 +206,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/tech-accounts.js',
     // PR5 Twilio readiness: all provider traffic is isolated behind the outbox.
     'netlify/functions/submit-inquiry.js',
+    // Read-only admin list of stored quote requests (PR #409).
+    'netlify/functions/admin-inquiries.js',
     'netlify/functions/twilio-inbound.js',
     'netlify/functions/twilio-outbox-worker.js',
     'netlify/functions/twilio-status-callback.js',
@@ -227,6 +232,8 @@ test('Netlify Function changes since stabilization are limited to ai-chat pricin
     'netlify/functions/financial-reconciliation-audit.js',
     // Production customer Stripe payments fail closed unless explicitly enabled.
     'netlify/functions/stripe-config.js',
+    // Bounded drain for confirmation analytics. Does not confirm or text.
+    'netlify/functions/confirm-analytics-recovery.js',
   ]);
   for (const file of files) {
     assert.ok(allowed.has(file), `unexpected Netlify Function diff: ${file}`);

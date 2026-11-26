@@ -85,6 +85,7 @@ function resolveCardOnFileRequired(preference, requestedFlag) {
 }
 
 const { applyServerTravelAndTotal } = require('../lib/travel-fee');
+const AddonRules = require('../../assets/addon-rules');
 const { stripClientCatalogTierAuthority } = require('../lib/car-catalog-tier');
 const {
   enforcePublicRateLimit,
@@ -1202,6 +1203,15 @@ exports.handler = async (event) => {
   delete b.id;
   delete b.bookingId;
 
+  // Driveway & Entry Cleanup is retired from new bookings (stored bookings keep it).
+  {
+    const SeasonalDriveway = require('../../assets/seasonal-driveway-addon');
+    const retired = SeasonalDriveway.familyIdsInNewBooking(b);
+    if (retired.length) {
+      return json(400, { ok: false, bookingCreated: false, error: 'addon_not_available', addonId: retired[0] });
+    }
+  }
+
   // Schedule flexibility is preference-only (never auto-changes the date).
   {
     const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
@@ -1223,6 +1233,19 @@ exports.handler = async (event) => {
 
   const isDraftRequest = !!b.isDraft;
   stripClientCatalogTierAuthority(b);
+  // New bookings only: retired add-ons and package-blocked add-ons are refused.
+  // Stored bookings, admin edits and repricing never pass through here.
+  AddonRules.stripDroppedFromNewBooking(b);
+  const addonRules = AddonRules.validateNewBookingAddons(b);
+  if (!addonRules.ok) {
+    return json(400, {
+      ok: false,
+      bookingCreated: false,
+      error: addonRules.error,
+      addonId: addonRules.addonId,
+      packageId: addonRules.packageId,
+    });
+  }
   const travelApplied = applyServerTravelAndTotal(b, {
     ...(isDraftRequest ? { skipMismatchCheck: true } : {}),
     catalogTierMode: 'require_identity',

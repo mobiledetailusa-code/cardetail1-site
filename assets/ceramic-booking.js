@@ -127,7 +127,13 @@
     var id = addon.id;
     var pkg = state && state.pkgId;
     if (CERAMIC_ONLY[id]) return isCeramicPackage(pkg);
-    if (GLOBAL_IDS[id]) return !!GLOBAL_PACKAGES[pkg];
+    if (GLOBAL_IDS[id]) {
+      if (!GLOBAL_PACKAGES[pkg]) return false;
+      // Size-priced add-ons need a server size band; vehicles without one
+      // (full-size cargo van) would be refused at checkout, so never offer them.
+      if (SIZE_PRICE[id] && !bandFor(state && state.tierKey)) return false;
+      return true;
+    }
     if (id === 'engine' && isCeramicPackage(pkg)) return false;
     if (isCeramicPackage(pkg) && EXTERIOR_PROTECTION[id]) return false;
     if (id === 'rainx') return true;
@@ -763,6 +769,13 @@
   }
 
   function appendResolvedCard(parent, id, opts) {
+    // Lines retired from new bookings (Engine Bay Detail $125) are refused by
+    // the server, so the ceramic checkout never offers them. A line the
+    // customer already carries stays visible so it can be removed.
+    var rules = global.CD1AddonRules;
+    var st = syncLiveState();
+    if (rules && typeof rules.isOfferable === 'function' && !hasAddon(id)
+      && !rules.isOfferable('cars', st && st.pkgId, id)) return;
     var row = resolveOffer(id);
     if (!row) return;
     parent.appendChild(touchCard({

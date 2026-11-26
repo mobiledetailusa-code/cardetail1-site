@@ -139,6 +139,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   <a class="nav-brand-img" href="/" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" href="/">Services</a>
+    <a class="nav-link" href="/ceramic-coating">Ceramic Coating</a>
     <a class="nav-link" href="my-garage.html">My Garage</a>
     <a class="nav-link" href="tel:+15513893986">Call / Text</a>
     <a class="nav-cta" href="/">Check Price</a>
@@ -319,6 +320,14 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         <a href="/connecticut-hub">Connecticut</a>
         <a href="/pennsylvania-hub">Pennsylvania</a>
         <a href="/bergen-county-hub">Bergen County</a>
+        <a href="/hudson-county-hub">Hudson County</a>
+        <a href="/essex-county-hub">Essex County</a>
+        <a href="/passaic-county-hub">Passaic County</a>
+        <a href="/union-county-hub">Union County</a>
+        <a href="/morris-county-hub">Morris County</a>
+        <a href="/rockland-county-hub">Rockland County</a>
+        <a href="/westchester-mobile-detailing">Westchester County</a>
+        <a href="/fairfield-county-hub">Fairfield County</a>
         <a href="/#service-areas">Extended Areas by Quote</a>
       </div>
       <div class="foot-col">
@@ -341,7 +350,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
     </div>
     <div class="foot-bot">
       <div class="foot-copy">&copy; 2026 Cardetail1 &middot; All rights reserved.</div>
-      <div class="foot-legal">Cardetail1 is a registered DBA of Detailing Zone L.L.C.</div>
+      <div class="foot-legal" data-nosnippet>Cardetail1 is a registered DBA of Detailing Zone L.L.C.</div>
     </div>
   </div>
 </footer>
@@ -352,8 +361,15 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
   var form=document.getElementById('fleet-quote-form');
   var statusEl=document.getElementById('fleet-quote-status');
   if(!form) return;
+  // Same id on every retry of one request, so the server keeps a single copy.
+  var submissionId='';
+  function newSubmissionId(){
+    try{ if(window.crypto&&typeof window.crypto.randomUUID==='function') return window.crypto.randomUUID(); }catch(e){}
+    return 'sub-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,12)+Math.random().toString(36).slice(2,12);
+  }
   form.addEventListener('submit',async function(ev){
     ev.preventDefault();
+    if(!submissionId) submissionId=newSubmissionId();
     if(statusEl) statusEl.textContent='Sending…';
     var fd=new FormData(form);
     var message=[
@@ -372,6 +388,7 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
+          submissionId:submissionId,
           name:fd.get('name'),
           phone:fd.get('phone'),
           email:fd.get('email')||'',
@@ -380,9 +397,19 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
         })
       });
       var data=await res.json().catch(function(){return {};});
-      if(res.ok && data.ok!==false){
+      // "Sent" only with server evidence that the team was alerted.
+      var ok=res.ok && data.ok===true;
+      if(ok && data.status==='sent'){
         if(statusEl) statusEl.textContent='Quote request sent — we will follow up by text or email.';
         form.reset();
+        submissionId='';
+      }else if(ok && (data.status==='saved_not_notified' || data.status==='saved_alert_unconfirmed')){
+        if(statusEl) statusEl.textContent='Your request is saved. We could not confirm our team was alerted, so a reply may take a little longer. No need to send it again — or call or text (551) 389-3986.';
+        form.reset();
+        submissionId='';
+      }else if(data && data.retryable){
+        // Keep the same submission id: retrying cannot create a duplicate.
+        if(statusEl) statusEl.textContent='We are still confirming your request. Please try again in a moment — it will not create a duplicate. Or call or text (551) 389-3986.';
       }else{
         if(statusEl) statusEl.textContent='Could not send online — please call or text (551) 389-3986.';
       }
@@ -393,7 +420,6 @@ footer{background:var(--bg1);border-top:1px solid rgba(255,255,255,.05);padding:
 })();
 </script>
 
-  <script src="assets/welcome-lead-balloon.js" defer></script>
   <script src="assets/back-to-top.js" defer></script>
 </body>
 </html>

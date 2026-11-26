@@ -21,6 +21,11 @@ const { buildReceiptProjection } = require('../netlify/lib/receipt-projection');
 const Seasonal = require('../assets/seasonal-driveway-addon');
 const lineItems = require('../assets/booking-line-items');
 
+// This file covers the module's enabled behavior (kept for a future re-enable
+// and for stored bookings). Production ships retired; that state is covered by
+// tests/driveway-cleanup-retirement.test.js, which runs in its own process.
+Seasonal.setNewBookingsEnabled(true);
+
 const PARENT = Seasonal.PARENT_ID;
 const CHILDREN = Seasonal.CHILD_IDS;
 const PUBLIC_CHILDREN = Seasonal.PUBLIC_CHILD_IDS;

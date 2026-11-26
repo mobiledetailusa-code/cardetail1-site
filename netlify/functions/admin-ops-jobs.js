@@ -125,7 +125,9 @@ async function hydrateJobsFromBlobs(timing = {}) {
   const listStarted = performance.now();
   // Strict on the primary operational path: an unavailable Blob listing is a
   // failed request, never an authoritative successful zero Jobs response.
-  const blobs = await listAllBlobsStrict(store, timing);
+  const { isInternalBookingStoreKey } = require('../lib/booking-visibility');
+  const blobs = (await listAllBlobsStrict(store, timing))
+    .filter((blob) => !isInternalBookingStoreKey(blob && blob.key));
   timing.blobListMs = performance.now() - listStarted;
   const keyed = [];
   // Eventual list reads — strong consistency is reserved for get_job / mutations.
@@ -1455,6 +1457,15 @@ function adminOperationalControls(booking, projection = null) {
   };
 }
 
+function reviewRequestSummary(result) {
+  if (!result) return null;
+  return {
+    queued: result.queued === true,
+    skipped: result.skipped === true,
+    reason: result.reason || result.error || null,
+  };
+}
+
 async function handleAdminAction(body, testOpts = {}) {
   const action = sanitizeText(body.action, 40);
 
@@ -1885,6 +1896,8 @@ async function handleAdminAction(body, testOpts = {}) {
     return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
   }
 
+  // Outcome of approve_completion's one-per-booking review SMS (Admin / QuickOps).
+  let reviewRequest = null;
   if (action === 'approve_completion') {
     const charging = body.confirmSavedCardCharge === true;
     const js = String(booking.jobStatus || '');
@@ -1958,7 +1971,6 @@ async function handleAdminAction(body, testOpts = {}) {
       patched = persisted.booking;
       // Idempotent by the notification ledger: a second approve_completion for the
       // same state key does not send a second completion email.
-      // Skip pay-required notify when the invoice is already settled.
       if (!alreadyPaid) {
         try {
           const { emitCustomerActionRequired } = require('../lib/booking-transactional-notifications');
@@ -1978,12 +1990,22 @@ async function handleAdminAction(body, testOpts = {}) {
         }
       }
       try {
-        const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
-        await notifyReviewRequestedQuietly(patched, {
-          event: testOpts.event,
-          prisma: testOpts.prisma,
-          env: testOpts.env,
-        });
+        if (alreadyPaid) {
+          const { notifyIfServiceClosedAndPaid } = require('../lib/service-completion-notice');
+          reviewRequest = await notifyIfServiceClosedAndPaid(patched, {
+            event: testOpts.event,
+            prisma: testOpts.prisma,
+            env: testOpts.env,
+            source: 'approve_completion',
+          });
+        } else {
+          const { notifyReviewRequestedQuietly } = require('../lib/review-request-notifications');
+          reviewRequest = await notifyReviewRequestedQuietly(patched, {
+            event: testOpts.event,
+            prisma: testOpts.prisma,
+            env: testOpts.env,
+          });
+        }
       } catch (e) {
         console.warn('[admin-ops-jobs] review-request notify failed:', e.message);
       }
@@ -2054,6 +2076,7 @@ async function handleAdminAction(body, testOpts = {}) {
       bookingVersion: patched.bookingVersion,
       postService: postServiceState(patched),
       charge,
+      reviewRequest: reviewRequestSummary(reviewRequest),
     });
   }
 
