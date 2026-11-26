@@ -143,7 +143,7 @@ const CITIES = [
     "lng": -73.9976,
     "title": "Mobile Car Detailing in Palisades Park, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Palisades Park, NJ",
-    "description": "Mobile car detailing in Palisades Park, NJ — our home base. Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. We bring water and power. Book online.",
+    "description": "Mobile car detailing in Palisades Park, NJ, on our Bergen County core route. Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. We bring water and power. Book online.",
     "nearby": [
       "fort-lee",
       "englewood",
@@ -153,8 +153,8 @@ const CITIES = [
     ],
     "faqs": [
       {
-        "q": "Are you based in Palisades Park?",
-        "a": "Yes. Cardetail1 (Detailing Zone L.L.C.) is based in Palisades Park, ZIP 07650. Jobs here are on our core route with no travel fee on standard Bergen County pricing."
+        "q": "Is Palisades Park on your core route?",
+        "a": "Yes. Cardetail1 (Detailing Zone L.L.C.) is a fully mobile detailing service based in Bergen County, and Palisades Park (ZIP 07650) is on our core route. Jobs here are with no travel fee on standard Bergen County pricing."
       },
       {
         "q": "Do you work on Broad Avenue and side-street driveways?",
@@ -170,11 +170,11 @@ const CITIES = [
       }
     ],
     "paragraphs": [
-      "Cardetail1 is based in Palisades Park, ZIP 07650 — not a shop you drop the car at. We load water, power, and professional chemicals in the van and detail in your driveway, parking pad, or an approved lot. Palisades Park is the shortest hop on our Bergen County route, so standard interior, full, and exterior packages here use the same core NJ pricing you see on the homepage: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, and {{name.refresh}} from {{refresh.small}}.",
+      "Cardetail1 is a fully mobile detailing service based in Bergen County — not a shop you drop the car at — and Palisades Park (ZIP 07650) is on our core route. We load water, power, and professional chemicals in the van and detail in your driveway, parking pad, or an approved lot. Palisades Park is a short hop on our Bergen County route, so standard interior, full, and exterior packages here use the same core NJ pricing you see on the homepage: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, and {{name.refresh}} from {{refresh.small}}.",
       "Broad Avenue and the residential blocks off it mix tight driveways, street parking, and small commercial lots. That is normal for this town, and it is why we ask for access notes when you book: where the vehicle will sit, whether we can stage next to it, and whether a HOA or landlord has vendor rules. We do not need your outdoor faucet. Same-week requests are easiest here because we are already in town.",
       "Most Palisades Park jobs we price are daily drivers — sedans, two-row SUVs, and family crossovers that pick up GWB-adjacent film, winter salt, and interior wear from kids or pets. Interior Detail is the right call when the cabin is the problem. Premium Full Detail is the package most customers book when they want inside and out in one visit. Heavy pet hair, odor, or stained carpets are add-ons at booking, not surprises on the invoice.",
       "Interior Detail in the live catalog is deep vacuum (seats, floors, trunk), fabric shampoo, leather conditioning, steam on vents and panels, dash and door trim with UV protectant, and interior glass. It does not include an exterior wash. Premium Full Detail stacks that cabin work with a hand wash, clay decontamination, hand-applied premium paste wax, wheels, and exterior glass — that is why it is marked most booked. {{name.refresh}} is clay, chemical decon, a single-pass enhancement polish, sealant, wheel and lug detail, Rain-X, and tire dressing, with no interior. Signature Restoration (from {{premium.small}} sedan) is the ~3.5–4 hour inside-and-out path with single-pass correction, wheel and tire shine, plastic restoration, and the full interior list — not a ceramic-coating package.",
-      "Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ({{addon.pethair}}), odor treatment ({{addon.odor}}), engine-bay top clean ({{addon.engine}}), and headlight restoration ({{addon.headlight}}) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Saturday · By Appointment Only). Call (551) 389-3986. Neighboring towns from this base include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead."
+      "Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ({{addon.pethair}}), odor treatment ({{addon.odor}}), engine-bay top clean ({{addon.engine}}, already included with Premium Full Detail and {{name.refresh}}), and headlight restoration ({{addon.headlight}}) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Saturday · By Appointment Only). Call (551) 389-3986. Neighboring towns include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead."
     ]
   },
   {
@@ -185,7 +185,7 @@ const CITIES = [
     "lng": -73.9701,
     "title": "Mobile Car Detailing in Fort Lee, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Fort Lee, NJ",
-    "description": "Mobile car detailing in Fort Lee, NJ (07024). Interior, full, and exterior packages at your driveway or approved garage. Based in Palisades Park. Book online.",
+    "description": "Mobile car detailing in Fort Lee, NJ (07024). Interior, full, and exterior packages at your driveway or approved garage. Based in Bergen County. Book online.",
     "nearby": [
       "palisades-park",
       "edgewater",
@@ -200,7 +200,7 @@ const CITIES = [
       },
       {
         "q": "Is there a travel fee for ZIP 07024?",
-        "a": "Fort Lee is on our Bergen County core route from Palisades Park. Standard jobs in 07024 use core NJ pricing with no separate travel fee on the quote."
+        "a": "Fort Lee is on our Bergen County core route. Standard jobs in 07024 use core NJ pricing with no separate travel fee on the quote."
       },
       {
         "q": "Can you handle brake dust and GWB road film?",
@@ -212,9 +212,9 @@ const CITIES = [
       }
     ],
     "paragraphs": [
-      "Fort Lee (ZIP 07024) sits next to our Palisades Park base, on the New Jersey side of the George Washington Bridge. Cardetail1 comes to houses, townhome lots, and approved garage or visitor spots — we bring water and power, so we are not asking the building for a hose. Core Bergen pricing applies: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, {{name.refresh}} from {{refresh.small}}.",
+      "Fort Lee (ZIP 07024) sits next to Palisades Park, on the New Jersey side of the George Washington Bridge. Cardetail1 comes to houses, townhome lots, and approved garage or visitor spots — we bring water and power, so we are not asking the building for a hose. Core Bergen pricing applies: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, {{name.refresh}} from {{refresh.small}}.",
       "Bridge and Route 9W commuting leaves a specific kind of mess: brake dust on wheels, film on white and silver paint, and interiors that get used hard on the NYC trip. Exterior-only work is the {{name.refresh}} package, not a $20 wash. If the cabin needs shampoo and steam as well, book Premium Full Detail. Pet hair and odor are listed add-ons so the quote stays honest.",
-      "High-rise and garage jobs need a clear access plan. We cannot work in a stall that has no staging room or that forbids vendor equipment. Put the building name, floor or lot, and any COI request in the notes. Driveway jobs in the residential blocks toward Palisades Park and Leonia are simpler — same process as the home-base town, a few minutes on local roads.",
+      "High-rise and garage jobs need a clear access plan. We cannot work in a stall that has no staging room or that forbids vendor equipment. Put the building name, floor or lot, and any COI request in the notes. Driveway jobs in the residential blocks toward Palisades Park and Leonia are simpler — same process as Palisades Park, a few minutes on local roads.",
       "What you actually get is the homepage spec, not a lighter “Fort Lee special.” Interior Detail: vacuum, shampoo, steam, UV on plastics, interior glass (~1.5–2 hrs). Premium Full Detail: that interior plus hand wash, clay bar, hand-applied premium paste wax, and wheels (SUVs from {{full.suv2}}, 3-row from {{full.suv3}}, ~2.5–3 hrs). {{name.refresh}} from {{refresh.small}} is the paint-enhancement path (~3.5–4 hrs). Garage jobs run longer if we have to work around pillars and low clearance.",
       "Enter ZIP 07024 to load pricing, submit the request, and wait for confirmation — no charge at request. Hours Monday–Saturday · By Appointment Only. Call (551) 389-3986 if the building needs a certificate of insurance before we are allowed in. Nearby pages: Palisades Park, Edgewater, Englewood, Teaneck."
     ]
@@ -227,7 +227,7 @@ const CITIES = [
     "lng": -74.0754,
     "title": "Mobile Car Detailing in Paramus, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Paramus, NJ",
-    "description": "Mobile car detailing in Paramus, NJ (07652). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. Bergen County core route from Palisades Park. Book online.",
+    "description": "Mobile car detailing in Paramus, NJ (07652). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. Bergen County core route. Book online.",
     "nearby": [
       "ridgewood",
       "hackensack",
@@ -254,7 +254,7 @@ const CITIES = [
       }
     ],
     "paragraphs": [
-      "Paramus (07652 / 07653) is a Bergen County driveway stop on our Palisades Park route — larger suburban lots than the Gold Coast, which usually means easier staging for a full interior or exterior job. We still bring our own water and power. Pricing matches the homepage catalog: Interior Detail from {{interior.small}} (sedan), Premium Full Detail from {{full.small}} / {{full.suv2}} / {{full.suv3}} by size, {{name.refresh}} from {{refresh.small}}.",
+      "Paramus (07652 / 07653) is a Bergen County driveway stop on our Bergen County route — larger suburban lots than the Gold Coast, which usually means easier staging for a full interior or exterior job. We still bring our own water and power. Pricing matches the homepage catalog: Interior Detail from {{interior.small}} (sedan), Premium Full Detail from {{full.small}} / {{full.suv2}} / {{full.suv3}} by size, {{name.refresh}} from {{refresh.small}}.",
       "Route 4, Route 17, and mall-area traffic put film on paint and brake dust on wheels. Family SUVs and 3-row vehicles are common here; those sizes have their own “from” prices on Premium Full Detail, not a one-size sedan rate. If the interior is the problem after kids, sports gear, or pets, start with Interior Detail and add pet hair or odor only if you need them.",
       "Office-park and dealership-adjacent lots are fine when management allows a vendor to occupy a stall for a few hours. Say so in the notes. We do not do a drive-through wash; {{name.refresh}} is clay, decontamination, and protection sized to the vehicle. Two or more cars in one driveway should use the multi-vehicle checkout so both vehicles share one visit.",
       "Package contents do not change because you are in Paramus. Interior Detail is vacuum, shampoo, steam, and interior glass. Premium Full Detail adds the exterior wash, clay, and sealant. {{name.refresh}} is the machine-polish and protection package without cabin work. Add-ons (pet hair {{addon.pethair}}, odor {{addon.odor}}, polymer sealant {{addon.polymer}}, carnauba wax {{addon.wax1yr}}) are optional lines at booking. Weather can delay exterior steps; we confirm the day after you request, Monday–Saturday · By Appointment Only.",
@@ -269,7 +269,7 @@ const CITIES = [
     "lng": -74.0435,
     "title": "Mobile Car Detailing in Hackensack, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Hackensack, NJ",
-    "description": "Mobile car detailing in Hackensack, NJ (07601). Interior, full, and exterior packages at home or office lots. Bergen County core from Palisades Park. Book online.",
+    "description": "Mobile car detailing in Hackensack, NJ (07601). Interior, full, and exterior packages at home or office lots. Bergen County core service area. Book online.",
     "nearby": [
       "teaneck",
       "paramus",
@@ -292,11 +292,11 @@ const CITIES = [
       },
       {
         "q": "Is 07601 in your free-travel zone?",
-        "a": "Hackensack is Bergen County core from Palisades Park. Standard jobs use core NJ pricing with no separate travel fee on the quote."
+        "a": "Hackensack is Bergen County core service area. Standard jobs use core NJ pricing with no separate travel fee on the quote."
       }
     ],
     "paragraphs": [
-      "Hackensack (07601) is the Bergen County seat and a regular stop from our Palisades Park base. We detail at residential driveways and at office or medical-area lots when access is legal and there is room to stage. Water and power come with us. Packages and “from” prices are the same catalog as the homepage: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, {{name.refresh}} from {{refresh.small}}.",
+      "Hackensack (07601) is the Bergen County seat and a regular stop from our Bergen County base. We detail at residential driveways and at office or medical-area lots when access is legal and there is room to stage. Water and power come with us. Packages and “from” prices are the same catalog as the homepage: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, {{name.refresh}} from {{refresh.small}}.",
       "The mix here is daily drivers plus vehicles that sit in work lots. Interior Detail is the right product when the cabin is dusty, stained, or overdue for shampoo. Premium Full Detail covers inside and out in one appointment. If you manage more than one van or truck, use the fleet page for per-unit programs rather than stacking consumer packages blindly — fleet maintenance wash starts at {{fleet.vehicle.maint}} per unit on the fleet catalog, which is a different product than a {{interior.small}} interior on a personal sedan.",
       "Street parking and garage-only buildings need the same honesty as Fort Lee: we have to stand next to the car with tanks and hoses. If that is not allowed, say so before we confirm the day. South Hackensack (07606) and Maywood (07607) book the same way — enter the actual ZIP so pricing and routing stay correct. County-complex and hospital-area lots often need a visit from security; put that in the notes.",
       "On the car catalog, Interior Detail includes trunk vacuum and interior glass; Premium Full Detail adds clay bar decontamination and a hand-applied premium paste wax on the paint. {{name.refresh}} from {{refresh.small}} is paint enhancement, not a rinse. Truck interior starts at {{interior.truck}}. Add-ons for odor, mold (from {{addon.mold}}), and biohazard are estimate-gated when the job is severe. Hours Monday–Saturday · By Appointment Only. No charge when you submit ZIP 07601 on the booking form.",
@@ -311,10 +311,11 @@ const CITIES = [
     "lng": -73.9726,
     "title": "Mobile Car Detailing in Englewood, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Englewood, NJ",
-    "description": "Mobile car detailing in Englewood, NJ (07631). Driveway interior, full, and exterior detail from our Palisades Park base. From {{interior.small}} interior / {{full.small}} full. Book online.",
+    "description": "Mobile car detailing in Englewood, NJ (07631). Driveway interior, full, and exterior detail from our Bergen County base. From {{interior.small}} interior / {{full.small}} full. Book online.",
     "nearby": [
       "palisades-park",
       "fort-lee",
+      "tenafly",
       "teaneck",
       "hackensack",
       "ridgewood"
@@ -322,7 +323,7 @@ const CITIES = [
     "faqs": [
       {
         "q": "Do you service Englewood Cliffs as well as Englewood?",
-        "a": "Yes. Enter the ZIP you actually park in (07631 Englewood or 07632 Englewood Cliffs) so routing and the quote stay correct. Both are Bergen County core from Palisades Park."
+        "a": "Yes. Enter the ZIP you actually park in (07631 Englewood or 07632 Englewood Cliffs) so routing and the quote stay correct. Both are Bergen County core service area."
       },
       {
         "q": "Tree pollen and water spots — which package?",
@@ -341,8 +342,8 @@ const CITIES = [
       "Englewood (07631) is a short run north of Palisades Park. Cardetail1 details in residential driveways along the tree-lined streets and in approved lots — we bring water and power, and we price from the same Bergen County catalog: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans (SUVs from {{full.suv2}}), {{name.refresh}} from {{refresh.small}}.",
       "Pollen, shade-tree sap, and water spots show up on paint here more than beach salt. That is an exterior decontamination job, not a rinse. Interior work is still the Interior Detail package: vacuum, shampoo, steam, glass. Englewood Cliffs (07632) uses the same process; enter that ZIP if the car sits there so the quote is tied to the right block.",
       "Larger properties usually make staging easier than Fort Lee high-rises. If a HOA or gated driveway needs a vendor code, put it in the notes so we are not stuck at the curb. Luxury SUVs and sedans take the same packages; size and condition set the number, not a separate Englewood surcharge. Signature Restoration is the ~3.5–4 hour option when you want single-pass correction, wheel and tire shine, and plastic restoration on the paint plus a full interior.",
-      "What Interior Detail includes in Englewood is identical to Palisades Park: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. {{name.refresh}} from {{refresh.small}} is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Saturday · By Appointment Only. Request with ZIP 07631; no payment at submission.",
-      "Call (551) 389-3986 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack. Tenafly and Alpine remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is."
+      "What Interior Detail includes in Englewood is identical across Bergen County: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. {{name.refresh}} from {{refresh.small}} is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Saturday · By Appointment Only. Request with ZIP 07631; no payment at submission.",
+      "Call (551) 389-3986 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack, Tenafly. Alpine and Englewood Cliffs remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is."
     ]
   },
   {
@@ -353,7 +354,7 @@ const CITIES = [
     "lng": -74.016,
     "title": "Mobile Car Detailing in Teaneck, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Teaneck, NJ",
-    "description": "Mobile car detailing in Teaneck, NJ (07666). Interior, full, and exterior packages at your driveway. Pet-hair add-on available. Palisades Park base. Book online.",
+    "description": "Mobile car detailing in Teaneck, NJ (07666). Interior, full, and exterior packages at your driveway. Pet-hair add-on available. Bergen County route. Book online.",
     "nearby": [
       "hackensack",
       "englewood",
@@ -368,7 +369,7 @@ const CITIES = [
       },
       {
         "q": "Is ZIP 07666 a core Bergen ZIP?",
-        "a": "Yes. Teaneck is between Englewood and Hackensack on our Palisades Park route. Standard jobs use core NJ pricing with no separate travel fee."
+        "a": "Yes. Teaneck is between Englewood and Hackensack on our Bergen County route. Standard jobs use core NJ pricing with no separate travel fee."
       },
       {
         "q": "Can you come while I am at work?",
@@ -380,7 +381,7 @@ const CITIES = [
       }
     ],
     "paragraphs": [
-      "Teaneck (07666) sits between Englewood and Hackensack, still on the Palisades Park core route. We detail in suburban driveways with our own water and power. Prices are the live catalog: Interior Detail from {{interior.small}} sedan / {{interior.suv2}} two-row SUV, Premium Full Detail from {{full.small}} / {{full.suv2}} / {{full.suv3}}, {{name.refresh}} from {{refresh.small}}.",
+      "Teaneck (07666) sits between Englewood and Hackensack, still on our Bergen County core route. We detail in suburban driveways with our own water and power. Prices are the live catalog: Interior Detail from {{interior.small}} sedan / {{interior.suv2}} two-row SUV, Premium Full Detail from {{full.small}} / {{full.suv2}} / {{full.suv3}}, {{name.refresh}} from {{refresh.small}}.",
       "Family vehicles are the usual request: car seats, crumbs, and pet hair in the second row. Interior Detail is built for that cabin work. The pet-hair add-on exists because a household vacuum does not lift coat from honeycomb fabric — the before/after slider on the homepage is that job. Do not skip the add-on and expect packed-in coat to disappear inside the base interior price. Baby-seat cleaning is {{addon.babyseat}} per seat if you add it.",
       "Street-parked cars are possible when we can occupy the space legally for the duration (often 1.5–4 hours by package). If the township or a HOA limits that, use a driveway. We confirm access when we confirm the day. Someone 18+ needs to authorize the visit if you will not be home. Hours Monday–Saturday · By Appointment Only.",
       "Package scope matches the rest of Bergen County. Interior Detail: vacuum, shampoo, steam, interior glass, UV on plastics. Premium Full Detail adds exterior wash, clay, and sealant. {{name.refresh}} is the paint-enhancement package. Odor treatment ({{addon.odor}}) and Super Interior Upgrade ({{addon.superint}}) are opt-in when the cabin is beyond a standard shampoo. ZIP 07666 loads core NJ pricing with no separate travel fee on the standard quote.",
@@ -395,18 +396,19 @@ const CITIES = [
     "lng": -74.1165,
     "title": "Mobile Car Detailing in Ridgewood, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Ridgewood, NJ",
-    "description": "Mobile car detailing in Ridgewood, NJ (07450). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. Bergen County route from Palisades Park. Book online.",
+    "description": "Mobile car detailing in Ridgewood, NJ (07450). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. Bergen County route. Book online.",
     "nearby": [
       "paramus",
+      "franklin-lakes",
+      "mahwah",
       "hackensack",
       "teaneck",
-      "englewood",
-      "palisades-park"
+      "englewood"
     ],
     "faqs": [
       {
         "q": "Is Ridgewood ZIP 07450 inside your Bergen coverage?",
-        "a": "Yes. 07450 routes to our Bergen County hub from Palisades Park. Enter the ZIP at booking to load local package pricing."
+        "a": "Yes. 07450 routes to our Bergen County hub. Enter the ZIP at booking to load local package pricing."
       },
       {
         "q": "Do larger lots change the price?",
@@ -422,10 +424,10 @@ const CITIES = [
       }
     ],
     "paragraphs": [
-      "Ridgewood (07450) is northern Bergen County on our Palisades Park route. We come to the driveway with water and power. Package prices are not a special Ridgewood list — they are the same numbers on cardetail1.com: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, {{name.refresh}} from {{refresh.small}} sized up for SUVs and trucks at booking.",
+      "Ridgewood (07450) is northern Bergen County on our Bergen County route. We come to the driveway with water and power. Package prices are not a special Ridgewood list — they are the same numbers on cardetail1.com: Interior Detail from {{interior.small}} Premium Full Detail from {{full.small}} for sedans, {{name.refresh}} from {{refresh.small}} sized up for SUVs and trucks at booking.",
       "Commuter vehicles and family SUVs pick up highway film and interior wear. Premium Full Detail is the inside-and-out appointment. If you only need the cabin, book Interior Detail. If the paint is dull from sitting under trees, {{name.refresh}} is the clay / polish / sealant path, not a hand wash sold as a detail. Two cars at the same house should go through multi-vehicle checkout so we route one visit.",
       "Lots here are often large enough for a van and a full-size SUV. That helps time-on-site; it does not change the catalog. Tell us about HOA gates or shared driveways in the notes. Hours remain Monday–Saturday · By Appointment Only. 07450 is in the Bergen hub ZIP map (074 prefix), not a long-distance quote.",
-      "Interior Detail includes seats, carpets, trunk, steam, and interior glass. Premium Full Detail adds wash, clay, and sealant. {{name.refresh}} from {{refresh.small}} includes single-pass paint enhancement and Rain-X. Add-ons (pet hair, odor, polymer, 1-year wax) are the same dollars as Palisades Park. We do not invent a Ridgewood travel surcharge on standard core pricing — enter the ZIP so the form can show the live total.",
+      "Interior Detail includes seats, carpets, trunk, steam, and interior glass. Premium Full Detail adds wash, clay, and sealant. {{name.refresh}} from {{refresh.small}} includes single-pass paint enhancement and Rain-X. Add-ons (pet hair, odor, polymer, 1-year wax) are the same dollars as everywhere else in Bergen County. We do not invent a Ridgewood travel surcharge on standard core pricing — enter the ZIP so the form can show the live total.",
       "Submit ZIP 07450 or call (551) 389-3986. Nearby dedicated pages: Paramus, Hackensack, Teaneck, Palisades Park. Glen Rock and Fair Lawn stay on the New Jersey hub accordion for now; those links still work as in-county anchors until they get their own files. Request first, pay after service — same as every other Bergen page."
     ]
   },
@@ -437,7 +439,7 @@ const CITIES = [
     "lng": -73.9757,
     "title": "Mobile Car Detailing in Edgewater, NJ | Cardetail1",
     "h1": "Mobile Car Detailing in Edgewater, NJ",
-    "description": "Mobile car detailing in Edgewater, NJ (07020). Driveway and approved-garage interior, full, and exterior packages. Palisades Park base. Boats by marina access. Book online.",
+    "description": "Mobile car detailing in Edgewater, NJ (07020). Driveway and approved-garage interior, full, and exterior packages. Bergen County route. Boats by marina access. Book online.",
     "nearby": [
       "fort-lee",
       "palisades-park",
@@ -456,7 +458,7 @@ const CITIES = [
       },
       {
         "q": "Is 07020 a core ZIP?",
-        "a": "Yes. Edgewater is mapped to the Bergen hub (07020). Standard car jobs use core NJ pricing from Palisades Park."
+        "a": "Yes. Edgewater is mapped to the Bergen hub (07020). Standard car jobs use core NJ pricing."
       },
       {
         "q": "What if street parking is the only option?",
@@ -464,11 +466,135 @@ const CITIES = [
       }
     ],
     "paragraphs": [
-      "Edgewater (07020) is the Hudson waterfront town just south of Fort Lee, still a Palisades Park core ZIP (mapped in the Bergen hub ZIP5 list). Cardetail1 details cars at driveways and in approved garages; we bring water and power. Car package “from” prices: Interior Detail {{interior.small}}, Premium Full Detail {{full.small}} sedan, {{name.refresh}} {{refresh.small}}. Boat work is a different catalog on /boats-detailing, priced by vessel length, not by this car list.",
+      "Edgewater (07020) is the Hudson waterfront town just south of Fort Lee, still a Bergen County core ZIP (mapped in the Bergen hub ZIP5 list). Cardetail1 details cars at driveways and in approved garages; we bring water and power. Car package “from” prices: Interior Detail {{interior.small}}, Premium Full Detail {{full.small}} sedan, {{name.refresh}} {{refresh.small}}. Boat work is a different catalog on /boats-detailing, priced by vessel length, not by this car list.",
       "River Road high-rises have the same constraint as Fort Lee: stall size, discharge rules, and COI requests. If the garage forbids our setup, we cannot do the job there. Townhome and house driveways off the waterfront streets are the straightforward path. Street parking only works if we can legally occupy the space for the full 1.5–4 hour window.",
       "Winter salt, garage dust, and commuter film are the usual exterior complaints. Use {{name.refresh}} or Premium Full Detail, not a wash. Interiors follow Interior Detail plus add-ons. Above-waterline marine jobs at marinas or storage lots use Marine Wash / Full Marine / Premium Marine and need marina rules in the notes — we do not clean underwater hulls.",
-      "Car package contents are the Palisades Park catalog. Interior: vacuum, shampoo, steam, interior glass. Premium Full: interior plus wash, clay bar, hand-applied premium paste wax. {{name.refresh}}: clay, polish, sealant, Rain-X, wheels. 07020 does not add a special waterfront surcharge on standard core NJ car pricing; enter the ZIP so the form shows the live number. Hours Monday–Saturday · By Appointment Only. No charge at request.",
+      "Car package contents are the same Bergen County catalog. Interior: vacuum, shampoo, steam, interior glass. Premium Full: interior plus wash, clay bar, hand-applied premium paste wax. {{name.refresh}}: clay, polish, sealant, Rain-X, wheels. 07020 does not add a special waterfront surcharge on standard core NJ car pricing; enter the ZIP so the form shows the live number. Hours Monday–Saturday · By Appointment Only. No charge at request.",
       "Book with ZIP 07020 or call (551) 389-3986 for garage questions. Nearby: Fort Lee, Palisades Park, Englewood, Hackensack, Teaneck. Cliffside Park and Fairview remain on the county hub city list; use those ZIPs on the homepage if that is where the vehicle will sit. Public quotes lower on this page are shown as written."
+    ]
+  },
+  {
+    "key": "franklin-lakes",
+    "city": "Franklin Lakes",
+    "zip": "07417",
+    "lat": 41.0168,
+    "lng": -74.2057,
+    "title": "Mobile Car Detailing in Franklin Lakes, NJ | Cardetail1",
+    "h1": "Mobile Car Detailing in Franklin Lakes, NJ",
+    "description": "Mobile car detailing in Franklin Lakes, NJ (07417). Interior from {{interior.small}}, full detail from {{full.small}} in your driveway or garage. No separate travel fee. Book online.",
+    "nearby": [
+      "ridgewood",
+      "mahwah",
+      "paramus",
+      "hackensack"
+    ],
+    "faqs": [
+      {
+        "q": "Do you charge extra to come to Franklin Lakes?",
+        "a": "No. ZIP 07417 is inside our standard service radius, so the quote has no separate travel fee. Enter the ZIP at booking and the form shows the package total for your vehicle size."
+      },
+      {
+        "q": "Can you work at the end of a long or gated driveway?",
+        "a": "Yes. Tell us the gate code or who will let us in, and where the van can park within reach of the car. We carry our own water and power, so we do not need an outdoor outlet or hose bib."
+      },
+      {
+        "q": "Can you detail more than one car at the same house?",
+        "a": "Yes. Use Book Multiple Vehicles on the homepage, or add another vehicle in checkout, so both cars are scheduled in one visit at the same address."
+      },
+      {
+        "q": "Do you offer ceramic coating in Franklin Lakes?",
+        "a": "Yes. Ceramic coating has its own page and quote at /ceramic-coating, because the prep and cure time are different from a detail. The car packages on this page are Interior Detail, Premium Full Detail, and {{name.refresh}}."
+      }
+    ],
+    "paragraphs": [
+      "Franklin Lakes (07417) is in northwest Bergen County, inside our standard service radius with no separate travel fee. We come to the house with water, power, and our own equipment and detail the car where it is parked, usually in the driveway or in front of the garage. Starting prices are the same catalog as the homepage: Interior Detail from {{interior.small}} for a sedan, Premium Full Detail from {{full.small}} (two-row SUVs from {{full.suv2}}, three-row from {{full.suv3}}), and {{name.refresh}} from {{refresh.small}}.",
+      "Before we confirm the day, tell us how to reach the car: a gate code, a long driveway, a detached garage, or a spot where the van can stand next to the vehicle for the whole job. If the car lives in a closed garage, we can work at the garage apron. Larger SUVs and three-row vehicles are priced by size, so pick the right vehicle class at booking and the total will match.",
+      "Winter is when most cabins need the most help: road salt on the carpets, wet floor mats, and dust on vents. Interior Detail covers vacuuming, fabric shampoo, steam on vents and panels, leather conditioning, and interior glass. Pet hair ({{addon.pethair}}) and odor treatment ({{addon.odor}}) are optional lines you add only if you need them. On the outside, Premium Full Detail adds a hand wash, clay bar decontamination, and hand-applied premium paste wax.",
+      "{{name.refresh}} is the exterior-only package for paint that looks dull or rough: clay, polish, sealant, wheels, and glass. If you want longer-term protection, ceramic coating is quoted separately on /ceramic-coating. We confirm exterior work against the weather, so a cold or wet day may move the exterior steps; interior work is less affected. Appointments run Monday–Saturday · By Appointment Only.",
+      "Book with ZIP 07417 or call (551) 389-3986. No charge is collected when you submit the request; you pay after the service. Nearby pages: Ridgewood, Mahwah, Paramus, Hackensack. Wyckoff, Oakland, and Allendale are listed on the Bergen County hub; enter the ZIP where the car will be parked."
+    ]
+  },
+  {
+    "key": "mahwah",
+    "city": "Mahwah",
+    "zip": "07430",
+    "lat": 41.0887,
+    "lng": -74.1438,
+    "title": "Mobile Car Detailing in Mahwah, NJ | Cardetail1",
+    "h1": "Mobile Car Detailing in Mahwah, NJ",
+    "description": "Mobile car detailing in Mahwah, NJ (07430). Interior, full, and exterior packages at your home or an approved work lot. No separate travel fee. Book online.",
+    "nearby": [
+      "franklin-lakes",
+      "ridgewood",
+      "paramus",
+      "hackensack"
+    ],
+    "faqs": [
+      {
+        "q": "Is Mahwah inside your service area?",
+        "a": "Yes. ZIP 07430 is inside our standard service radius, so the quote has no separate travel fee. Enter the ZIP at booking to see the total for your vehicle."
+      },
+      {
+        "q": "Can you detail my car at work instead of at home?",
+        "a": "Yes, if the property allows an outside vendor to use a parking space for the length of the job. Put the company, the lot, and any security check-in in the booking notes so we can confirm before the day."
+      },
+      {
+        "q": "Do you service townhome and condo communities?",
+        "a": "Yes, when the HOA allows it and there is a driveway or assigned spot where we can stand next to the car. Tell us the community rules in the notes; we will not start a job we are not allowed to finish."
+      },
+      {
+        "q": "What is the best package after a winter of highway driving?",
+        "a": "Premium Full Detail covers inside and out in one visit (sedans from {{full.small}}, two-row SUVs from {{full.suv2}}). If only the cabin needs work, Interior Detail starts at {{interior.small}}."
+      }
+    ],
+    "paragraphs": [
+      "Mahwah (07430) is in the northwest corner of Bergen County, next to the New York state line, and inside our standard service radius with no separate travel fee. We drive to you with water and power and detail the car at the house, the townhome driveway, or an approved work lot. Starting prices match the homepage catalog: Interior Detail from {{interior.small}}, Premium Full Detail from {{full.small}} for a sedan, and {{name.refresh}} from {{refresh.small}}.",
+      "Many Mahwah drivers spend a lot of time on Route 17 and I-287, which leaves road film on the paint, brake dust on the wheels, and salt on the lower panels in winter. Premium Full Detail handles that in one appointment: interior vacuum, shampoo, and steam, plus a hand wash, clay bar decontamination, and hand-applied premium paste wax. {{name.refresh}} is the exterior-only option when the cabin is fine.",
+      "If you want the car done while you are at work, tell us the company and the parking rules. Corporate and office lots often require a security check-in or a certificate of insurance; we need that information before we confirm. Townhome communities usually have HOA rules about vendors; tell us those too. If we cannot stand next to the car for the whole job window, we will say so before the day.",
+      "Interior Detail is vacuuming (seats, floors, trunk), fabric shampoo, steam on vents and panels, leather conditioning, dash and door trim with UV protectant, and interior glass. Optional add-ons are priced at booking: pet hair {{addon.pethair}}, odor treatment {{addon.odor}}, headlight restoration {{addon.headlight}}. Appointments run Monday–Saturday · By Appointment Only, and exterior steps depend on the weather.",
+      "Book with ZIP 07430 or call (551) 389-3986. No charge at request; you pay after the service. Nearby pages: Franklin Lakes, Ridgewood, Paramus, Hackensack. Ramsey, Allendale, and Upper Saddle River are listed on the Bergen County hub; use the ZIP where the vehicle will be parked."
+    ]
+  },
+  {
+    "key": "tenafly",
+    "city": "Tenafly",
+    "zip": "07670",
+    "lat": 40.9254,
+    "lng": -73.9629,
+    "title": "Mobile Car Detailing in Tenafly, NJ | Cardetail1",
+    "h1": "Mobile Car Detailing in Tenafly, NJ",
+    "description": "Mobile car detailing in Tenafly, NJ (07670). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway in eastern Bergen County. Book online.",
+    "nearby": [
+      "englewood",
+      "teaneck",
+      "fort-lee",
+      "palisades-park",
+      "edgewater"
+    ],
+    "faqs": [
+      {
+        "q": "Is Tenafly inside your service area?",
+        "a": "Yes. Tenafly is in eastern Bergen County, inside our standard service radius, so there is no separate travel fee. Enter ZIP 07670 at booking to see the total for your vehicle."
+      },
+      {
+        "q": "Can you work on a street with no driveway space?",
+        "a": "Only if we can legally park next to the car for the whole job. A driveway, a garage apron, or an assigned spot is the reliable option. Tell us the setup in the notes and we will confirm before the day."
+      },
+      {
+        "q": "Do you detail luxury and leather interiors?",
+        "a": "Yes. Interior Detail includes leather conditioning and UV protectant on the dash and door trim. Tell us about delicate surfaces or light-colored leather in the notes so we plan the right products."
+      },
+      {
+        "q": "Can I add ceramic coating?",
+        "a": "Ceramic coating is quoted on its own page at /ceramic-coating because the prep and cure time differ from a detail. For a gloss refresh without coating, {{name.refresh}} starts at {{refresh.small}}."
+      }
+    ],
+    "paragraphs": [
+      "Tenafly (07670) is in the Northern Valley, in eastern Bergen County, inside our standard service radius with no separate travel fee. We bring water, power, and equipment to the house and detail the car in the driveway or at the garage apron. Starting prices are the homepage catalog: Interior Detail from {{interior.small}}, Premium Full Detail from {{full.small}} for a sedan (two-row SUVs from {{full.suv2}}), and {{name.refresh}} from {{refresh.small}}.",
+      "Tree-lined streets mean pollen, sap, and leaf stains on the paint for much of the year, and road salt in winter. Clay bar decontamination, which is part of Premium Full Detail and {{name.refresh}}, removes the bonded contamination that a wash leaves behind. Premium Full Detail then finishes with hand-applied premium paste wax; {{name.refresh}} adds polish and sealant for paint that has lost its gloss.",
+      "On the inside, Interior Detail covers vacuuming, fabric shampoo, steam on vents and panels, leather conditioning, and interior glass. If you have light-colored leather or delicate trim, say so in the notes. Pet hair ({{addon.pethair}}) and odor treatment ({{addon.odor}}) are optional and only added if you choose them. We do not offer a quick drive-through wash; every package is hand work at your location.",
+      "We confirm every request by text or call before the day, and exterior steps can move if it rains or the temperature is too low. Appointments run Monday–Saturday · By Appointment Only. Two or more cars at the same address should use the multi-vehicle checkout so they share one visit.",
+      "Book with ZIP 07670 or call (551) 389-3986. No charge at request; you pay after the service. Nearby pages: Englewood, Teaneck, Fort Lee, Palisades Park, Edgewater. Alpine, Cresskill, and Closter are listed on the Bergen County hub; enter the ZIP where the car will be parked."
     ]
   }
 ];
@@ -603,7 +729,7 @@ ${schema(city)}
 </head>
 <body>
 <nav class="nav" id="main-nav">
-  <a class="nav-brand-img" href="/" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Palisades Park NJ" decoding="async"></a>
+  <a class="nav-brand-img" href="/" aria-label="Cardetail1 Home"><img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Bergen County NJ" decoding="async"></a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" href="/#services">Services</a>
     <a class="nav-link" href="/ceramic-coating">Ceramic Coating</a>
@@ -630,7 +756,7 @@ ${schema(city)}
   <a href="/">Home</a> · <a href="/bergen-county-hub">Bergen County</a> · ${esc(city.city)}
 </nav>
 <header class="sp-hero">
-  <div class="sp-eyebrow">Palisades Park base · ${esc(city.city)}, NJ ${city.zip}</div>
+  <div class="sp-eyebrow">Fully mobile · ${esc(city.city)}, NJ ${city.zip}</div>
   <h1>${esc(city.h1)}</h1>
   <p class="sp-hero-sub">We come to your driveway in ${esc(city.city)} with water and power. Interior, full, and exterior packages priced from the same Bergen County catalog — no shop drop-off.</p>
   <form class="city-zip" action="/" method="get">
@@ -648,7 +774,7 @@ ${schema(city)}
 </header>
 <section class="sp-section" aria-label="Why this town">
   <div class="sp-trust">
-    <div class="sp-trust-item"><strong>Based in Palisades Park</strong><span>${city.zip === '07650' ? 'Home base · ZIP 07650' : `Serving ZIP ${city.zip}`}</span></div>
+    <div class="sp-trust-item"><strong>Based in Bergen County</strong><span>Serving ZIP ${city.zip}</span></div>
     <div class="sp-trust-item"><strong>We bring water &amp; power</strong><span>No hose hookup required</span></div>
     <div class="sp-trust-item"><strong>5+ Years Experience</strong><span>Owner-operated mobile detailing</span></div>
     <div class="sp-trust-item"><strong>$0 at request</strong><span>Pay after service</span></div>
@@ -701,7 +827,7 @@ ${schema(city)}
 </section>
 <section class="sp-cta" aria-label="Book in ${esc(city.city)}">
   <h2>Ready to book in ${esc(city.city)}?</h2>
-  <p>ZIP ${city.zip} · Monday–Saturday · By Appointment Only · Palisades Park base</p>
+  <p>ZIP ${city.zip} · Monday–Saturday · By Appointment Only · Bergen County, NJ</p>
   <div class="sp-btns">
     <a class="sp-btn sp-btn-primary" href="${book}">Check price &amp; availability</a>
     <a class="sp-btn sp-btn-outline" href="tel:${PHONE}">Call / Text</a>
@@ -712,7 +838,7 @@ ${schema(city)}
     <div class="foot-top">
       <div>
         <img class="foot-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" loading="lazy" decoding="async">
-        <p class="foot-tagline">Based in Palisades Park, NJ. Mobile cars, boats, RVs, and powersports — we come to you.</p>
+        <p class="foot-tagline">Based in Bergen County, NJ. Mobile cars, boats, RVs, and powersports — we come to you.</p>
       </div>
       <div class="foot-col">
         <h4>Services</h4>
@@ -733,7 +859,7 @@ ${CITIES.map((c) => `        <a href="/${pagePath(c)}">${esc(c.city)}</a>`).join
         <h4>Contact</h4>
         <a href="tel:${PHONE}">Call / Text</a>
         <a href="https://www.instagram.com/cardetail1com" target="_blank" rel="noopener noreferrer">Instagram</a>
-        <span class="foot-static">Palisades Park, NJ</span>
+        <span class="foot-static">Bergen County, NJ</span>
         <span class="foot-static">Monday–Saturday · By Appointment Only</span>
       </div>
     </div>

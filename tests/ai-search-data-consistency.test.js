@@ -79,7 +79,11 @@ test('the business entity has one name and phone, and no conflicting @id types',
   assert.equal(b.name, 'Cardetail1');
   assert.equal(b.legalName, 'Detailing Zone L.L.C.');
   assert.equal(b.telephone, '+15513893986');
-  assert.equal(b.address.addressLocality, 'Palisades Park');
+  // Service-area business: identity is Bergen County, NJ; no locality, ZIP or coordinates.
+  assert.equal(b.address.addressLocality, undefined);
+  assert.equal(b.address.postalCode, undefined);
+  assert.equal(b.geo, undefined);
+  assert.match(b.description, /based in Bergen County, NJ/);
   assert.equal(b.address.streetAddress, undefined, 'a mobile business must not publish a street address');
   assert.equal(b.aggregateRating, undefined);
 });

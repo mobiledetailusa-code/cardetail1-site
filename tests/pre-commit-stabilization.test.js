@@ -60,7 +60,7 @@ function resolveHref(href) {
 
 test('sitemap reported count equals actual URL entries', () => {
   const urls = sitemapUrls();
-  assert.equal(urls.length, 38);
+  assert.equal(urls.length, 41);
 });
 
 test('every sitemap route file exists on disk', () => {
@@ -135,7 +135,9 @@ test('every specialty package CTA maps to valid package IDs', () => {
 
 test('every homepage service-area link resolves to an existing file and anchor', () => {
   const links = extractHomeServiceLinks(read('index.html'));
-  assert.ok(links.length >= 8 && links.length <= 12);
+  // 11 dedicated city pages + county hub links since the Nov 2026 local-SEO pilot
+  // (Franklin Lakes, Mahwah, Tenafly). Keep a ceiling so the section stays compact.
+  assert.ok(links.length >= 8 && links.length <= 16, `got ${links.length}`);
   for (const link of links) {
     resolveHref(link.href);
   }

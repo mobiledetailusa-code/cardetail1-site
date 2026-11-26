@@ -17,6 +17,9 @@ const CITY_PAGES = [
   'teaneck-mobile-detailing.html',
   'ridgewood-mobile-detailing.html',
   'edgewater-mobile-detailing.html',
+  'franklin-lakes-mobile-detailing.html',
+  'mahwah-mobile-detailing.html',
+  'tenafly-mobile-detailing.html',
 ];
 
 const LOCAL_TEMPLATES = ['template-city.html', 'bergen-county-hub.html'];
@@ -85,7 +88,10 @@ test('Bergen city pages keep LocalBusiness, address, phone, breadcrumbs, and vis
     assert.equal(business.name, 'Cardetail1');
     assert.equal(business.telephone, '+15513893986');
     assert.equal(business.address['@type'], 'PostalAddress');
-    assert.equal(business.address.addressLocality, 'Palisades Park');
+    // Service-area business: identity is Bergen County, NJ; no locality, ZIP or coordinates.
+    assert.equal(business.address.addressLocality, undefined);
+    assert.equal(business.address.postalCode, undefined);
+    assert.equal(business.geo, undefined);
     assert.equal(business.address.addressRegion, 'NJ');
     assert.ok(business.areaServed, `${file} missing service area`);
     assert.equal(business.image, 'https://cardetail1.com/assets/cardetail1-logo.webp');
@@ -118,7 +124,10 @@ test('local templates keep the business identity fields without review markup', 
     assert.ok(business, `${file} missing LocalBusiness`);
     assert.equal(business.telephone, '+15513893986');
     assert.equal(business.address['@type'], 'PostalAddress');
-    assert.equal(business.address.addressLocality, 'Palisades Park');
+    // Service-area business: identity is Bergen County, NJ; no locality, ZIP or coordinates.
+    assert.equal(business.address.addressLocality, undefined);
+    assert.equal(business.address.postalCode, undefined);
+    assert.equal(business.geo, undefined);
     assert.equal(
       Object.prototype.hasOwnProperty.call(business, 'openingHoursSpecification'),
       false,

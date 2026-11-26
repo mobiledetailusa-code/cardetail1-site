@@ -59,6 +59,9 @@ const expectedCityHrefs = [
   '/teaneck-mobile-detailing',
   '/ridgewood-mobile-detailing',
   '/edgewater-mobile-detailing',
+  '/franklin-lakes-mobile-detailing',
+  '/mahwah-mobile-detailing',
+  '/tenafly-mobile-detailing',
   '/bergen-county-hub',
 ];
 
@@ -66,7 +69,7 @@ test('homepage contains the Mobile Detailing Near You section', () => {
   assert.match(section, /aria-labelledby="home-service-areas-title"/);
   assert.match(section, /<h2 id="home-service-areas-title" class="sec-title">Mobile Detailing Near You<\/h2>/);
   assert.match(section, /SERVICE AREAS/);
-  assert.match(section, /Based in Palisades Park, Cardetail1 provides/);
+  assert.match(section, /Based in Bergen County, Cardetail1 provides/);
 });
 
 test('section is placed after reviews and before final CTA', () => {

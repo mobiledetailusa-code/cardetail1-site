@@ -214,7 +214,7 @@ test('city pages show the same two Google quotes, sourced from the dataset', () 
   assert.match(src, /CITY_REVIEW_IDS = \['g-john-daquila', 'g-gerard-baltazar'\]/);
   assert.doesNotMatch(src, /White BMW 760|Truly impressive work/, 'no second copy of the review text');
   const g = reviews.googleReviews();
-  for (const f of PUBLIC_PAGES.filter((p) => /^(palisades-park|fort-lee|paramus|hackensack|englewood|teaneck|ridgewood|edgewater)-mobile-detailing\.html$/.test(p))) {
+  for (const f of PUBLIC_PAGES.filter((p) => /^(palisades-park|fort-lee|paramus|hackensack|englewood|teaneck|ridgewood|edgewater|franklin-lakes|mahwah|tenafly)-mobile-detailing\.html$/.test(p))) {
     const html = read(f);
     assert.equal((html.match(/<article class="city-review">/g) || []).length, 2, f);
     for (const id of ['g-john-daquila', 'g-gerard-baltazar']) {

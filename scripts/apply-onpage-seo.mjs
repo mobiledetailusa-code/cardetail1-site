@@ -17,34 +17,34 @@ function write(rel, html) {
 }
 
 const ALT = {
-  'subaru-exterior-after': 'After mobile car detailing Subaru Crosstrek Palisades Park NJ — clean paint, dressed trim, and fresh tires',
-  'subaru-exterior-before': 'Before mobile car detailing Subaru Crosstrek Palisades Park NJ — road film on paint and dusty wheels',
-  'gator-interior-after': 'After mobile interior detailing John Deere Gator Palisades Park NJ — spotless dash, floor mats, and seats',
-  'gator-interior-before': 'Before mobile interior detailing John Deere Gator Palisades Park NJ — dusty dash, floor mats, and controls',
+  'subaru-exterior-after': 'After mobile car detailing Subaru Crosstrek Bergen County NJ — clean paint, dressed trim, and fresh tires',
+  'subaru-exterior-before': 'Before mobile car detailing Subaru Crosstrek Bergen County NJ — road film on paint and dusty wheels',
+  'gator-interior-after': 'After mobile interior detailing John Deere Gator Bergen County NJ — spotless dash, floor mats, and seats',
+  'gator-interior-before': 'Before mobile interior detailing John Deere Gator Bergen County NJ — dusty dash, floor mats, and controls',
   'gmc-exterior-after': 'After mobile car detailing GMC Terrain Bergen County NJ — glossy white paint and deep black trim',
   'gmc-exterior-before': 'Before mobile car detailing GMC Terrain Bergen County NJ — road film on white paint and dusty grille',
   'pet-hair-interior-after': 'After pet hair interior detailing Bergen County NJ — clean fabric seats and rubber floor mats',
   'pet-hair-interior-before': 'Before pet hair interior detailing Bergen County NJ — heavy dog hair on fabric seats',
-  'mini-front-after': 'After exterior mobile detailing Mini Cooper S Palisades Park NJ — mirror-gloss black paint',
-  'mini-front-before': 'Before exterior mobile detailing Mini Cooper S Palisades Park NJ — dusty hood and dull black paint',
+  'mini-front-after': 'After exterior mobile detailing Mini Cooper S Bergen County NJ — mirror-gloss black paint',
+  'mini-front-before': 'Before exterior mobile detailing Mini Cooper S Bergen County NJ — dusty hood and dull black paint',
   'mini-side-after': 'After exterior mobile detailing Mini Cooper Clubman Bergen County NJ — deep gloss on dark blue paint',
   'mini-side-before': 'Before exterior mobile detailing Mini Cooper Clubman Bergen County NJ — road dust on lower doors and wheels',
   'mini-rear-after': 'After exterior mobile detailing Mini Cooper Clubman Bergen County NJ — clean split doors and glossy paint',
   'mini-rear-before': 'Before exterior mobile detailing Mini Cooper Clubman Bergen County NJ — thick dust on barn doors and bumper',
-  'vienna-rv-front-after': 'After mobile RV detailing Renegade Vienna Palisades Park NJ — glossy black cap and clean windshield',
-  'vienna-rv-front-before': 'Before mobile RV detailing Renegade Vienna Palisades Park NJ — mud streaks on black front cap',
+  'vienna-rv-front-after': 'After mobile RV detailing Renegade Vienna Bergen County NJ — glossy black cap and clean windshield',
+  'vienna-rv-front-before': 'Before mobile RV detailing Renegade Vienna Bergen County NJ — mud streaks on black front cap',
   'vienna-rv-roof-after': 'After mobile RV roof cleaning Renegade Vienna NJ — clean solar panels and white roof surface',
   'vienna-rv-roof-before': 'Before mobile RV roof cleaning Renegade Vienna NJ — grime and debris on solar panels and roof',
   'defender-exterior-after': 'After mobile car detailing Land Rover Defender Bergen County NJ — glossy white paint and clean wheels',
   'defender-exterior-before': 'Before mobile car detailing Land Rover Defender Bergen County NJ — road film and dusty wheels',
   'defender-interior-after': 'After interior mobile detailing Land Rover Defender Bergen County NJ — spotless dash and console',
   'defender-interior-before': 'Before interior mobile detailing Land Rover Defender Bergen County NJ — muddy floor mat and dusty dash',
-  'volvo-exterior-after': 'After mobile car detailing Volvo XC90 Palisades Park NJ — mirror-gloss black paint',
-  'volvo-exterior-before': 'Before mobile car detailing Volvo XC90 Palisades Park NJ — pollen and dust on black hood',
+  'volvo-exterior-after': 'After mobile car detailing Volvo XC90 Bergen County NJ — mirror-gloss black paint',
+  'volvo-exterior-before': 'Before mobile car detailing Volvo XC90 Bergen County NJ — pollen and dust on black hood',
   'luxury-urus': 'Lamborghini Urus after mobile exterior detailing Bergen County NJ — deep gloss on grey paint and clean wheels',
-  'luxury-porsche-1': 'Porsche after mobile exterior detailing Palisades Park NJ — mirror-gloss paint and dressed trim',
+  'luxury-porsche-1': 'Porsche after mobile exterior detailing Bergen County NJ — mirror-gloss paint and dressed trim',
   'luxury-porsche-2': 'Porsche after mobile exterior detailing Bergen County NJ — clean body lines and glossy finish',
-  'luxury-fleet-lineup': 'Two Porsches and Range Rover after multi-vehicle mobile detailing Palisades Park NJ',
+  'luxury-fleet-lineup': 'Two Porsches and Range Rover after multi-vehicle mobile detailing Bergen County NJ',
   'jayco-dolly-front': 'Jayco Eagle fifth-wheel after mobile RV exterior detailing NJ — glossy white fiberglass front cap',
   'gator-exterior-hero': 'John Deere Gator XUV835M after mobile UTV detailing Bergen County NJ — polished green panels and dressed tires',
 };
@@ -69,7 +69,7 @@ function patchImages(html) {
 const HOME_FAQ = [
   {
     q: 'Do you come to my home for mobile car detailing in Bergen County?',
-    a: 'Yes. Cardetail1 is based in Palisades Park, NJ. We bring water, power, and professional equipment to your driveway, office lot, or other approved location in Bergen County and nearby NJ/NY areas.',
+    a: 'Yes. Cardetail1 is based in Bergen County, NJ. We bring water, power, and professional equipment to your driveway, office lot, or other approved location in Bergen County and nearby NJ/NY areas.',
   },
   {
     q: 'How much does mobile car detailing cost in Palisades Park?',
@@ -100,7 +100,7 @@ const HOME_GRAPH = {
       url: ORIGIN,
       telephone: '+15513893986',
       description:
-        'Mobile car detailing based in Palisades Park, NJ. Serving Bergen County and nearby NJ/NY areas. Interior, full, and exterior packages at your driveway.',
+        'Fully mobile car detailing based in Bergen County, NJ. Serving Northern New Jersey and nearby New York areas. Interior, full, and exterior packages at your driveway.',
       image: `${ORIGIN}/assets/cardetail1-logo.webp`,
       logo: {
         '@type': 'ImageObject',
@@ -117,21 +117,13 @@ const HOME_GRAPH = {
         'RV Detailing',
         'Powersports Detailing',
       ],
+      // Service-area business: no street address, locality, ZIP or coordinates.
       address: {
         '@type': 'PostalAddress',
-        addressLocality: 'Palisades Park',
         addressRegion: 'NJ',
-        postalCode: '07650',
         addressCountry: 'US',
       },
-      geo: { '@type': 'GeoCoordinates', latitude: 40.8482, longitude: -73.9976 },
       areaServed: [
-        {
-          '@type': 'GeoCircle',
-          name: 'Mobile service radius',
-          geoMidpoint: { '@type': 'GeoCoordinates', latitude: 40.8482, longitude: -73.9976 },
-          geoRadius: 241401,
-        },
         { '@type': 'AdministrativeArea', name: 'Bergen County, NJ' },
         { '@type': 'City', name: 'Palisades Park, NJ' },
         { '@type': 'City', name: 'Fort Lee, NJ' },
@@ -237,15 +229,15 @@ function patchIndex(html) {
 
   html = html.replace(
     /<meta name="description" content="[^"]*">/,
-    '<meta name="description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $200, full detail from $250 at your driveway. We bring water and power. Book online.">'
+    '<meta name="description" content="Fully mobile car detailing in Bergen County and Northern New Jersey. Interior from $200, full detail from $250 at your driveway. We bring water and power. Book online.">'
   );
   html = html.replace(
     /<meta property="og:description" content="[^"]*">/,
-    '<meta property="og:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $200, full detail from $250 at your driveway. Book online.">'
+    '<meta property="og:description" content="Fully mobile car detailing in Bergen County and Northern New Jersey. Interior from $200, full detail from $250 at your driveway. Book online.">'
   );
   html = html.replace(
     /<meta name="twitter:description" content="[^"]*">/,
-    '<meta name="twitter:description" content="Mobile car detailing in Palisades Park and Bergen County, NJ. Interior from $200, full detail from $250 at your driveway. Book online.">'
+    '<meta name="twitter:description" content="Fully mobile car detailing in Bergen County and Northern New Jersey. Interior from $200, full detail from $250 at your driveway. Book online.">'
   );
 
   const ldStart = html.indexOf('<script type="application/ld+json">');
@@ -299,7 +291,7 @@ function patchIndex(html) {
 
   html = html.replace(
     '<img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 Mobile Detailing" decoding="async">',
-    '<img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Palisades Park NJ" decoding="async">'
+    '<img class="nav-logo-img" src="assets/cardetail1-logo.webp" width="520" height="261" alt="Cardetail1 mobile car detailing Bergen County NJ" decoding="async">'
   );
 
   html = html.replace(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/, (m, json) => {
@@ -319,8 +311,8 @@ function patchIndex(html) {
 
 const HUB_TITLES = {
   'bergen-county-hub.html': {
-    title: 'Mobile Car Detailing in Bergen County | Palisades Park, NJ',
-    desc: 'Mobile car detailing in Bergen County, NJ — Palisades Park, Fort Lee, Paramus, Hackensack, Englewood, Teaneck. Interior from $200. We come to your driveway.',
+    title: 'Bergen County Mobile Car Detailing by Town | Cardetail1',
+    desc: 'Mobile car detailing across Bergen County, NJ, from Fort Lee to Mahwah. Interior from $200, full detail from $250. We bring water and power.',
     h1: null,
   },
   'hudson-county-hub.html': {
@@ -404,7 +396,7 @@ const BERGEN_CITIES_STRIP = `
 <section class="sp-section" id="bergen-cities" style="padding:28px 20px 8px">
   <div class="sec-eye" style="text-align:center">Bergen County cities</div>
   <h2 class="sec-title">Mobile detailing near Palisades Park</h2>
-  <p class="sec-desc">Dedicated pages for the towns we run from our Palisades Park base. Same packages and ZIP check as the homepage.</p>
+  <p class="sec-desc">Dedicated pages for the towns we run from our Bergen County base. Same packages and ZIP check as the homepage.</p>
   <div class="service-area-city-grid" style="max-width:900px;margin:0 auto 24px">
     <a class="service-area-city-link" href="palisades-park-mobile-detailing.html">Palisades Park</a>
     <a class="service-area-city-link" href="fort-lee-mobile-detailing.html">Fort Lee</a>
@@ -572,7 +564,7 @@ function patchSitemap() {
 function writeLlms() {
   const body = `# Cardetail1
 
-> Mobile car, boat, RV, and powersports detailing based in Palisades Park, Bergen County, New Jersey. We come to the driveway with water and power. Cardetail1 is a registered DBA of Detailing Zone L.L.C.
+> Mobile car, boat, RV, and powersports detailing based in Bergen County, New Jersey, serving Northern New Jersey. We come to the driveway with water and power. Cardetail1 is a registered DBA of Detailing Zone L.L.C.
 
 ## Primary pages
 - [Home](https://cardetail1.com/): Mobile car detailing in Bergen County — packages, ZIP check, booking
@@ -596,7 +588,7 @@ function writeLlms() {
 - Exterior Detail & Paint Enhancement from $370
 
 ## Facts
-- Address locality: Palisades Park, NJ 07650
+- Service-area business: fully mobile, no public street address; based in Bergen County, NJ
 - Phone: +15513893986
 - Hours: Monday–Saturday · By Appointment Only
 - Experience: 5+ years, owner-operated mobile detailing
@@ -620,8 +612,8 @@ for (const [file, spec] of Object.entries(HUB_TITLES)) {
 patchAccordion('new-jersey-hub.html');
 let nj = read('new-jersey-hub.html');
 nj = patchTitleDesc(nj, 'new-jersey-hub.html', {
-  title: 'Mobile Car Detailing in New Jersey | Palisades Park & Bergen County',
-  desc: 'Mobile car detailing in New Jersey from Palisades Park. Interior, full, and exterior packages in Bergen County and nearby NJ. Book by ZIP.',
+  title: 'Mobile Car Detailing in New Jersey | Bergen County Based',
+  desc: 'Mobile car detailing in New Jersey from Bergen County. Interior, full, and exterior packages in Bergen County and nearby NJ. Book by ZIP.',
 });
 nj = enrichLocalBusinessJson(nj);
 nj = patchImages(nj);
@@ -656,8 +648,8 @@ patchSpecialty('boats-detailing.html', {
   crumb: 'Boat Detailing',
   serviceType: ['Boat Detailing', 'Marine Detailing'],
   areaServed: 'Bergen County and nearby marinas',
-  title: 'Mobile Boat Detailing in Bergen County | Palisades Park, NJ',
-  desc: 'Mobile boat detailing in Bergen County and nearby marinas. Hull, deck, and cockpit packages from Palisades Park. Priced by length. Book online.',
+  title: 'Mobile Boat Detailing in Bergen County, NJ | Cardetail1',
+  desc: 'Mobile boat detailing in Bergen County and nearby marinas. Hull, deck, and cockpit packages from Bergen County. Priced by length. Book online.',
   offers: [
     { name: 'Marine Wash', price: 170 },
     { name: 'Full Marine Detail', price: 380 },
@@ -670,8 +662,8 @@ patchSpecialty('rv-detailing.html', {
   crumb: 'RV Detailing',
   serviceType: ['RV Detailing', 'Travel Trailer Detailing'],
   areaServed: 'Bergen County, New Jersey',
-  title: 'Mobile RV Detailing in Bergen County | Palisades Park, NJ',
-  desc: 'Mobile RV and travel trailer detailing in Bergen County. Six packages priced by length from our Palisades Park base. Book online.',
+  title: 'Mobile RV Detailing in Bergen County, NJ | Cardetail1',
+  desc: 'Mobile RV and travel trailer detailing in Bergen County. Six packages priced by length from our Bergen County base. Book online.',
   offers: [
     { name: 'Maintenance Wash', price: 270 },
     { name: 'Interior Detail', price: 390 },
@@ -684,8 +676,8 @@ patchSpecialty('powersports-detailing.html', {
   crumb: 'Powersports Detailing',
   serviceType: ['Motorcycle Detailing', 'ATV Detailing', 'UTV Detailing'],
   areaServed: 'Bergen County, New Jersey',
-  title: 'Mobile Motorcycle & Powersports Detailing | Palisades Park, NJ',
-  desc: 'Mobile motorcycle, ATV, UTV, and Jet Ski detailing in Bergen County. Hand-safe cleaning from Palisades Park. Book online.',
+  title: 'Mobile Motorcycle & Powersports Detailing | Bergen County, NJ',
+  desc: 'Mobile motorcycle, ATV, UTV, and Jet Ski detailing in Bergen County. Hand-safe cleaning from Bergen County. Book online.',
   offers: [
     { name: 'Wash & Shine', price: 100 },
     { name: 'Full Detail', price: 225 },

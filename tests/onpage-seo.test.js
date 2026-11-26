@@ -15,6 +15,9 @@ const CITY_PAGES = [
   'teaneck-mobile-detailing.html',
   'ridgewood-mobile-detailing.html',
   'edgewater-mobile-detailing.html',
+  'franklin-lakes-mobile-detailing.html',
+  'mahwah-mobile-detailing.html',
+  'tenafly-mobile-detailing.html',
 ];
 
 function jsonLdBlocks(html) {
@@ -133,7 +136,7 @@ test('before/after gallery uses WebP with descriptive alts', () => {
   const index = read('index.html');
   assert.match(index, /assets\/before-after\/subaru-exterior-after\.webp/);
   assert.doesNotMatch(index, /assets\/before-after\/subaru-exterior-after\.jpg/);
-  assert.match(index, /alt="After mobile car detailing Subaru Crosstrek Palisades Park NJ/);
+  assert.match(index, /alt="After mobile car detailing Subaru Crosstrek Bergen County NJ/);
   assert.ok(fs.existsSync(path.join(root, 'assets/before-after/subaru-exterior-after.webp')));
 });
 

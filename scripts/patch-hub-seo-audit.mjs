@@ -17,7 +17,7 @@ const HUBS = {
     faq: [
       {
         q: 'Do you come to my home or office in New Jersey?',
-        a: 'Yes. We are a mobile detailing service based in Palisades Park, NJ. We bring professional equipment to your driveway, office parking area, or other approved location in Bergen County and nearby NJ areas.',
+        a: 'Yes. We are a mobile detailing service based in Bergen County, NJ. We bring professional equipment to your driveway, office parking area, or other approved location in Bergen County and nearby NJ areas.',
       },
       {
         q: 'What areas in New Jersey do you serve?',
@@ -49,7 +49,7 @@ const HUBS = {
       'Monday–Saturday · By Appointment Only · Bergen County, NJ and nearby areas':
         'Monday–Saturday · By Appointment Only · NYC &amp; NY Metro by appointment from our NJ base',
       "We are a local, hard-working team proud to serve our Bergen County neighbors.":
-        'We are a mobile detailing team serving New York Metro customers by appointment from our Palisades Park, NJ base.',
+        'We are a mobile detailing team serving New York Metro customers by appointment from our Bergen County, NJ base.',
       'Serving Bergen County · Hudson County · Manhattan · Long Island · Fairfield CT · and surrounding areas':
         'Serving Manhattan · Brooklyn · Queens · Bronx · Staten Island · Westchester · Long Island · and surrounding NY Metro areas',
       'Your review will appear publicly on Google and help others find us in Bergen County.':
@@ -60,7 +60,7 @@ const HUBS = {
     faq: [
       {
         q: 'Do you detail cars in Manhattan and NYC?',
-        a: 'Yes — by appointment. We travel from our Palisades Park, NJ base to Manhattan, Brooklyn, Queens, the Bronx, Staten Island, Westchester, and nearby NY Metro locations. Enter your ZIP to confirm service.',
+        a: 'Yes — by appointment. We travel from our Bergen County, NJ base to Manhattan, Brooklyn, Queens, the Bronx, Staten Island, Westchester, and nearby NY Metro locations. Enter your ZIP to confirm service.',
       },
       {
         q: 'Is there a travel fee for New York City?',

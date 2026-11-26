@@ -38,6 +38,7 @@ const CARD_PAGES = [
   'index.html', 'connecticut-hub.html', 'new-jersey-hub.html', 'ny-metro-hub.html', 'pennsylvania-hub.html',
   'fairfield-county-hub.html', 'morris-county-hub.html', 'rockland-county-hub.html', 'union-county-hub.html',
   'edgewater-mobile-detailing.html', 'englewood-mobile-detailing.html', 'fort-lee-mobile-detailing.html',
+  'franklin-lakes-mobile-detailing.html', 'mahwah-mobile-detailing.html', 'tenafly-mobile-detailing.html',
   'hackensack-mobile-detailing.html', 'palisades-park-mobile-detailing.html', 'paramus-mobile-detailing.html',
   'ridgewood-mobile-detailing.html', 'teaneck-mobile-detailing.html',
 ];
