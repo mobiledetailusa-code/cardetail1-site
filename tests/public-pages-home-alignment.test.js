@@ -21,7 +21,7 @@ const LEGACY_CITIES = ['newark-mobile-detailing.html', 'trenton-mobile-detailing
 const STATE_HUBS = ['new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html'];
 const FULL_CLONES = [...LEGACY_HUBS, ...LEGACY_CITIES, ...STATE_HUBS, 'template-city.html'];
 const COUNTY_HUBS = ['union-county-hub.html', 'morris-county-hub.html', 'rockland-county-hub.html', 'fairfield-county-hub.html'];
-const BERGEN_CITIES = ['palisades-park', 'fort-lee', 'paramus', 'hackensack', 'englewood', 'teaneck', 'ridgewood', 'edgewater']
+const BERGEN_CITIES = ['palisades-park', 'fort-lee', 'paramus', 'hackensack', 'englewood', 'teaneck', 'ridgewood', 'edgewater', 'franklin-lakes', 'mahwah', 'tenafly']
   .map((c) => `${c}-mobile-detailing.html`);
 
 test('alignment script reports no drift', () => {

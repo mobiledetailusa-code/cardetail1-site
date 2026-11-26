@@ -24,6 +24,12 @@ const BERGEN_CITY_PAGES = [
   'teaneck-mobile-detailing.html',
   'ridgewood-mobile-detailing.html',
   'edgewater-mobile-detailing.html',
+
+  'franklin-lakes-mobile-detailing.html',
+
+  'mahwah-mobile-detailing.html',
+
+  'tenafly-mobile-detailing.html',
 ];
 const LANDING_PAGES = [...BERGEN_CITY_PAGES, 'ceramic-coating.html', 'reviews.html'];
 const TRACKING = ['assets/consent-manager.js', 'assets/revenue-events.js', 'assets/revops-init.js'];

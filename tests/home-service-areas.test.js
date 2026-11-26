@@ -59,6 +59,9 @@ const expectedCityHrefs = [
   '/teaneck-mobile-detailing',
   '/ridgewood-mobile-detailing',
   '/edgewater-mobile-detailing',
+  '/franklin-lakes-mobile-detailing',
+  '/mahwah-mobile-detailing',
+  '/tenafly-mobile-detailing',
   '/bergen-county-hub',
 ];
 
