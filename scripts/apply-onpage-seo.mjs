@@ -72,7 +72,7 @@ const HOME_FAQ = [
     a: 'Yes. Cardetail1 is based in Bergen County, NJ. We bring water, power, and professional equipment to your driveway, office lot, or other approved location in Bergen County and nearby NJ/NY areas.',
   },
   {
-    q: 'How much does mobile car detailing cost in Palisades Park?',
+    q: 'How much does mobile car detailing cost in Bergen County?',
     a: 'Interior Detail starts at $200 for sedans. Premium Full Detail starts at $250 for sedans, $270 for SUVs, and $280 for 3-row SUVs. Exterior Detail & Paint Enhancement starts at $335. Enter your ZIP for the price on your vehicle size.',
   },
   {
