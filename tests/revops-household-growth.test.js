@@ -371,9 +371,11 @@ test('Google Ads AW tag uses Consent Mode and always configures', () => {
   assert.doesNotMatch(src, /consent\.marketing && adsId/);
 });
 
-test('Google Ads Page view conversion send_to is wired', () => {
+test('Google Ads Page view conversion is opt-in (removed label has no default)', () => {
   const src = fs.readFileSync(path.join(root, 'assets/revenue-events.js'), 'utf8');
-  assert.match(src, /AW-11321647982\/r6SRCJeL998YEO7GypYq/);
+  // The r6SR… Page view action was removed in Google Ads (ctId 6643631511).
+  assert.doesNotMatch(src, /\|\|\s*'AW-11321647982\/r6SRCJeL998YEO7GypYq'/);
+  assert.match(src, /adsPageViewSendTo && !global\.__cd1GoogleAdsPageViewFired/);
   assert.match(src, /CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO/);
   assert.match(src, /gtag\('event', 'conversion'/);
   assert.match(src, /send_to:\s*adsPageViewSendTo/);
