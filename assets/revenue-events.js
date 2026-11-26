@@ -894,16 +894,22 @@
   };
   var ADS_QUOTE_TX_STORAGE_KEY = 'cd1_ads_quote_tx_ids';
   var ADS_CALL_SESSION_KEY = 'cd1_ads_call_fired';
+  // Removed Page view action (ctId 6643631511). Kept only as a reserved label.
+  var ADS_LEGACY_PAGE_VIEW_SEND_TO = 'AW-11321647982/r6SRCJeL998YEO7GypYq';
 
   function adsLeadSendTo(kind) {
     var override = global[ADS_LEAD_SEND_TO_OVERRIDES[kind]];
     var sendTo = String(override || ADS_LEAD_SEND_TO_DEFAULTS[kind] || '').trim();
     if (!/^AW-\d+\/[A-Za-z0-9_-]+$/.test(sendTo)) return '';
+    // Lead conversions must never reuse a page-view or booking label: the
+    // configured page-view label (if any), the removed legacy Page view label,
+    // and the booking label are all reserved.
     var reserved = [
-      global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO || 'AW-11321647982/r6SRCJeL998YEO7GypYq',
+      global.CD1_GOOGLE_ADS_PAGE_VIEW_SEND_TO,
+      ADS_LEGACY_PAGE_VIEW_SEND_TO,
       global.CD1_GOOGLE_ADS_BOOKING_SEND_TO || global.CD1_GOOGLE_ADS_PURCHASE_SEND_TO
         || 'AW-11321647982/AAOmCJW9roAdEO7GypYq',
-    ];
+    ].filter(Boolean);
     return reserved.indexOf(sendTo) >= 0 ? '' : sendTo;
   }
 
