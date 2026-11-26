@@ -112,7 +112,7 @@ test('fleet-services.html is quote-only (no public unit pricing or fleet booking
 
 test('sitemap lists canonical public routes and excludes admin/customer portals', () => {
   const urls = extractSitemapUrls();
-  assert.equal(urls.length, 38);
+  assert.equal(urls.length, 41);
   assert.ok(urls.includes('https://cardetail1.com/'));
   for (const slug of [
     'boats-detailing',
@@ -130,6 +130,9 @@ test('sitemap lists canonical public routes and excludes admin/customer portals'
     'connecticut-hub',
     'pennsylvania-hub',
     'newark-mobile-detailing',
+    'franklin-lakes-mobile-detailing',
+    'mahwah-mobile-detailing',
+    'tenafly-mobile-detailing',
     'privacy-policy',
     'blog',
     'detailing-vs-car-wash',
