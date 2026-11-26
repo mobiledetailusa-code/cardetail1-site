@@ -384,6 +384,14 @@ for (const file of COUNTY_HUBS) {
     ed.edit('footer hours: canonical Monday–Saturday',
       '<span class="foot-static">Mon–Fri 8AM–5PM · By appointment</span>',
       '<span class="foot-static">Monday–Saturday · By Appointment Only</span>', (s) => false);
+    // The FAQ answer (visible and in FAQPage JSON-LD) and the ZIP line kept the
+    // legacy fixed hours after the footer was fixed.
+    ed.edit('FAQ hours: canonical Monday–Saturday',
+      'Hours are Monday through Friday, 8AM to 5PM.',
+      'Hours: Monday–Saturday · By Appointment Only.', (s) => false);
+    ed.edit('ZIP line hours: canonical Monday–Saturday',
+      ' · Monday–Friday 8AM–5PM · ',
+      ' · Monday–Saturday · By Appointment Only · ', (s) => false);
   });
 }
 

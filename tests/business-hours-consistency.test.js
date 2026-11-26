@@ -45,6 +45,10 @@ const COMMERCIAL_PAGES = [
   'detailing-vs-car-wash.html',
   'how-often-to-detail.html',
   'mobile-detailing-what-to-expect.html',
+  'union-county-hub.html',
+  'morris-county-hub.html',
+  'rockland-county-hub.html',
+  'fairfield-county-hub.html',
   'terms-conditions.html',
   'template-city.html',
   'assets/partials/specialty-public-footer.html',
@@ -144,4 +148,15 @@ test('llms.txt publishes the official appointment-only hours', () => {
   const llms = read('llms.txt');
   assert.match(llms, new RegExp(`- Hours: ${OFFICIAL_HOURS}`));
   assert.doesNotMatch(llms, LEGACY_HOURS_ANY);
+});
+
+// The county hubs kept "Monday through Friday, 8AM to 5PM" in their FAQ (visible
+// and FAQPage JSON-LD) and ZIP line after the footer was fixed; the patterns
+// above did not catch the "through ... to" wording.
+const LEGACY_HOURS_WORDED = /Monday through Friday|Mon(?:day)?[–-]Fri(?:day)?|8\s?AM\s*(?:[–-]|to)\s*5\s?PM/i;
+
+test('public pages never state the legacy Monday–Friday 8AM–5PM hours in any wording', () => {
+  for (const file of COMMERCIAL_PAGES) {
+    assert.doesNotMatch(read(file), LEGACY_HOURS_WORDED, `${file} still states legacy hours`);
+  }
 });
