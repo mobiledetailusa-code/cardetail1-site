@@ -319,8 +319,8 @@ function patchIndex(html) {
 
 const HUB_TITLES = {
   'bergen-county-hub.html': {
-    title: 'Mobile Car Detailing in Bergen County | Palisades Park, NJ',
-    desc: 'Mobile car detailing in Bergen County, NJ — Palisades Park, Fort Lee, Paramus, Hackensack, Englewood, Teaneck. Interior from $200. We come to your driveway.',
+    title: 'Bergen County Mobile Car Detailing by Town | Cardetail1',
+    desc: 'Mobile car detailing across Bergen County, NJ, from Fort Lee to Mahwah. Interior from $200, full detail from $250. We bring water and power.',
     h1: null,
   },
   'hudson-county-hub.html': {

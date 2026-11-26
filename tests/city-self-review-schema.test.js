@@ -17,6 +17,9 @@ const CITY_PAGES = [
   'teaneck-mobile-detailing.html',
   'ridgewood-mobile-detailing.html',
   'edgewater-mobile-detailing.html',
+  'franklin-lakes-mobile-detailing.html',
+  'mahwah-mobile-detailing.html',
+  'tenafly-mobile-detailing.html',
 ];
 
 const LOCAL_TEMPLATES = ['template-city.html', 'bergen-county-hub.html'];

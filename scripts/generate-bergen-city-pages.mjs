@@ -174,7 +174,7 @@ const CITIES = [
       "Broad Avenue and the residential blocks off it mix tight driveways, street parking, and small commercial lots. That is normal for this town, and it is why we ask for access notes when you book: where the vehicle will sit, whether we can stage next to it, and whether a HOA or landlord has vendor rules. We do not need your outdoor faucet. Same-week requests are easiest here because we are already in town.",
       "Most Palisades Park jobs we price are daily drivers — sedans, two-row SUVs, and family crossovers that pick up GWB-adjacent film, winter salt, and interior wear from kids or pets. Interior Detail is the right call when the cabin is the problem. Premium Full Detail is the package most customers book when they want inside and out in one visit. Heavy pet hair, odor, or stained carpets are add-ons at booking, not surprises on the invoice.",
       "Interior Detail in the live catalog is deep vacuum (seats, floors, trunk), fabric shampoo, leather conditioning, steam on vents and panels, dash and door trim with UV protectant, and interior glass. It does not include an exterior wash. Premium Full Detail stacks that cabin work with a hand wash, clay decontamination, hand-applied premium paste wax, wheels, and exterior glass — that is why it is marked most booked. {{name.refresh}} is clay, chemical decon, a single-pass enhancement polish, sealant, wheel and lug detail, Rain-X, and tire dressing, with no interior. Signature Restoration (from {{premium.small}} sedan) is the ~3.5–4 hour inside-and-out path with single-pass correction, wheel and tire shine, plastic restoration, and the full interior list — not a ceramic-coating package.",
-      "Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ({{addon.pethair}}), odor treatment ({{addon.odor}}), engine-bay top clean ({{addon.engine}}), and headlight restoration ({{addon.headlight}}) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Saturday · By Appointment Only). Call (551) 389-3986. Neighboring towns from this base include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead."
+      "Booking uses the same homepage form: ZIP 07650 unlocks car packages, then vehicle size. Add-ons such as pet hair ({{addon.pethair}}), odor treatment ({{addon.odor}}), engine-bay top clean ({{addon.engine}}, already included with Premium Full Detail and {{name.refresh}}), and headlight restoration ({{addon.headlight}}) only apply if you select them. No charge is collected when you submit. We review access and contact you about the day (Monday–Saturday · By Appointment Only). Call (551) 389-3986. Neighboring towns from this base include Fort Lee, Edgewater, Englewood, Teaneck, and Hackensack — use those pages if the car sits there instead."
     ]
   },
   {
@@ -315,6 +315,7 @@ const CITIES = [
     "nearby": [
       "palisades-park",
       "fort-lee",
+      "tenafly",
       "teaneck",
       "hackensack",
       "ridgewood"
@@ -342,7 +343,7 @@ const CITIES = [
       "Pollen, shade-tree sap, and water spots show up on paint here more than beach salt. That is an exterior decontamination job, not a rinse. Interior work is still the Interior Detail package: vacuum, shampoo, steam, glass. Englewood Cliffs (07632) uses the same process; enter that ZIP if the car sits there so the quote is tied to the right block.",
       "Larger properties usually make staging easier than Fort Lee high-rises. If a HOA or gated driveway needs a vendor code, put it in the notes so we are not stuck at the curb. Luxury SUVs and sedans take the same packages; size and condition set the number, not a separate Englewood surcharge. Signature Restoration is the ~3.5–4 hour option when you want single-pass correction, wheel and tire shine, and plastic restoration on the paint plus a full interior.",
       "What Interior Detail includes in Englewood is identical to Palisades Park: seats, carpets, trunk, steam, UV on plastics. Premium Full Detail adds the exterior wash and clay. {{name.refresh}} from {{refresh.small}} is clay, polish, sealant, Rain-X, and wheels. Wet weather pauses exterior work; we do not pretend a detail can be finished in a downpour. Hours Monday–Saturday · By Appointment Only. Request with ZIP 07631; no payment at submission.",
-      "Call (551) 389-3986 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack. Tenafly and Alpine remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is."
+      "Call (551) 389-3986 for gates and HOA questions. Nearby: Palisades Park, Fort Lee, Teaneck, Hackensack, Tenafly. Alpine and Englewood Cliffs remain on the Bergen County hub list until they have their own pages — enter those ZIPs on the homepage if that is where the car is."
     ]
   },
   {
@@ -398,10 +399,11 @@ const CITIES = [
     "description": "Mobile car detailing in Ridgewood, NJ (07450). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway. Bergen County route from Palisades Park. Book online.",
     "nearby": [
       "paramus",
+      "franklin-lakes",
+      "mahwah",
       "hackensack",
       "teaneck",
-      "englewood",
-      "palisades-park"
+      "englewood"
     ],
     "faqs": [
       {
@@ -469,6 +471,130 @@ const CITIES = [
       "Winter salt, garage dust, and commuter film are the usual exterior complaints. Use {{name.refresh}} or Premium Full Detail, not a wash. Interiors follow Interior Detail plus add-ons. Above-waterline marine jobs at marinas or storage lots use Marine Wash / Full Marine / Premium Marine and need marina rules in the notes — we do not clean underwater hulls.",
       "Car package contents are the Palisades Park catalog. Interior: vacuum, shampoo, steam, interior glass. Premium Full: interior plus wash, clay bar, hand-applied premium paste wax. {{name.refresh}}: clay, polish, sealant, Rain-X, wheels. 07020 does not add a special waterfront surcharge on standard core NJ car pricing; enter the ZIP so the form shows the live number. Hours Monday–Saturday · By Appointment Only. No charge at request.",
       "Book with ZIP 07020 or call (551) 389-3986 for garage questions. Nearby: Fort Lee, Palisades Park, Englewood, Hackensack, Teaneck. Cliffside Park and Fairview remain on the county hub city list; use those ZIPs on the homepage if that is where the vehicle will sit. Public quotes lower on this page are shown as written."
+    ]
+  },
+  {
+    "key": "franklin-lakes",
+    "city": "Franklin Lakes",
+    "zip": "07417",
+    "lat": 41.0168,
+    "lng": -74.2057,
+    "title": "Mobile Car Detailing in Franklin Lakes, NJ | Cardetail1",
+    "h1": "Mobile Car Detailing in Franklin Lakes, NJ",
+    "description": "Mobile car detailing in Franklin Lakes, NJ (07417). Interior from {{interior.small}}, full detail from {{full.small}} in your driveway or garage. No separate travel fee. Book online.",
+    "nearby": [
+      "ridgewood",
+      "mahwah",
+      "paramus",
+      "hackensack"
+    ],
+    "faqs": [
+      {
+        "q": "Do you charge extra to come to Franklin Lakes?",
+        "a": "No. ZIP 07417 is inside our standard service radius, so the quote has no separate travel fee. Enter the ZIP at booking and the form shows the package total for your vehicle size."
+      },
+      {
+        "q": "Can you work at the end of a long or gated driveway?",
+        "a": "Yes. Tell us the gate code or who will let us in, and where the van can park within reach of the car. We carry our own water and power, so we do not need an outdoor outlet or hose bib."
+      },
+      {
+        "q": "Can you detail more than one car at the same house?",
+        "a": "Yes. Use Book Multiple Vehicles on the homepage, or add another vehicle in checkout, so both cars are scheduled in one visit at the same address."
+      },
+      {
+        "q": "Do you offer ceramic coating in Franklin Lakes?",
+        "a": "Yes. Ceramic coating has its own page and quote at /ceramic-coating, because the prep and cure time are different from a detail. The car packages on this page are Interior Detail, Premium Full Detail, and {{name.refresh}}."
+      }
+    ],
+    "paragraphs": [
+      "Franklin Lakes (07417) is in northwest Bergen County, inside our standard service radius with no separate travel fee. We come to the house with water, power, and our own equipment and detail the car where it is parked, usually in the driveway or in front of the garage. Starting prices are the same catalog as the homepage: Interior Detail from {{interior.small}} for a sedan, Premium Full Detail from {{full.small}} (two-row SUVs from {{full.suv2}}, three-row from {{full.suv3}}), and {{name.refresh}} from {{refresh.small}}.",
+      "Before we confirm the day, tell us how to reach the car: a gate code, a long driveway, a detached garage, or a spot where the van can stand next to the vehicle for the whole job. If the car lives in a closed garage, we can work at the garage apron. Larger SUVs and three-row vehicles are priced by size, so pick the right vehicle class at booking and the total will match.",
+      "Winter is when most cabins need the most help: road salt on the carpets, wet floor mats, and dust on vents. Interior Detail covers vacuuming, fabric shampoo, steam on vents and panels, leather conditioning, and interior glass. Pet hair ({{addon.pethair}}) and odor treatment ({{addon.odor}}) are optional lines you add only if you need them. On the outside, Premium Full Detail adds a hand wash, clay bar decontamination, and hand-applied premium paste wax.",
+      "{{name.refresh}} is the exterior-only package for paint that looks dull or rough: clay, polish, sealant, wheels, and glass. If you want longer-term protection, ceramic coating is quoted separately on /ceramic-coating. We confirm exterior work against the weather, so a cold or wet day may move the exterior steps; interior work is less affected. Appointments run Monday–Saturday · By Appointment Only.",
+      "Book with ZIP 07417 or call (551) 389-3986. No charge is collected when you submit the request; you pay after the service. Nearby pages: Ridgewood, Mahwah, Paramus, Hackensack. Wyckoff, Oakland, and Allendale are listed on the Bergen County hub; enter the ZIP where the car will be parked."
+    ]
+  },
+  {
+    "key": "mahwah",
+    "city": "Mahwah",
+    "zip": "07430",
+    "lat": 41.0887,
+    "lng": -74.1438,
+    "title": "Mobile Car Detailing in Mahwah, NJ | Cardetail1",
+    "h1": "Mobile Car Detailing in Mahwah, NJ",
+    "description": "Mobile car detailing in Mahwah, NJ (07430). Interior, full, and exterior packages at your home or an approved work lot. No separate travel fee. Book online.",
+    "nearby": [
+      "franklin-lakes",
+      "ridgewood",
+      "paramus",
+      "hackensack"
+    ],
+    "faqs": [
+      {
+        "q": "Is Mahwah inside your service area?",
+        "a": "Yes. ZIP 07430 is inside our standard service radius, so the quote has no separate travel fee. Enter the ZIP at booking to see the total for your vehicle."
+      },
+      {
+        "q": "Can you detail my car at work instead of at home?",
+        "a": "Yes, if the property allows an outside vendor to use a parking space for the length of the job. Put the company, the lot, and any security check-in in the booking notes so we can confirm before the day."
+      },
+      {
+        "q": "Do you service townhome and condo communities?",
+        "a": "Yes, when the HOA allows it and there is a driveway or assigned spot where we can stand next to the car. Tell us the community rules in the notes; we will not start a job we are not allowed to finish."
+      },
+      {
+        "q": "What is the best package after a winter of highway driving?",
+        "a": "Premium Full Detail covers inside and out in one visit (sedans from {{full.small}}, two-row SUVs from {{full.suv2}}). If only the cabin needs work, Interior Detail starts at {{interior.small}}."
+      }
+    ],
+    "paragraphs": [
+      "Mahwah (07430) is in the northwest corner of Bergen County, next to the New York state line, and inside our standard service radius with no separate travel fee. We drive to you with water and power and detail the car at the house, the townhome driveway, or an approved work lot. Starting prices match the homepage catalog: Interior Detail from {{interior.small}}, Premium Full Detail from {{full.small}} for a sedan, and {{name.refresh}} from {{refresh.small}}.",
+      "Many Mahwah drivers spend a lot of time on Route 17 and I-287, which leaves road film on the paint, brake dust on the wheels, and salt on the lower panels in winter. Premium Full Detail handles that in one appointment: interior vacuum, shampoo, and steam, plus a hand wash, clay bar decontamination, and hand-applied premium paste wax. {{name.refresh}} is the exterior-only option when the cabin is fine.",
+      "If you want the car done while you are at work, tell us the company and the parking rules. Corporate and office lots often require a security check-in or a certificate of insurance; we need that information before we confirm. Townhome communities usually have HOA rules about vendors; tell us those too. If we cannot stand next to the car for the whole job window, we will say so before the day.",
+      "Interior Detail is vacuuming (seats, floors, trunk), fabric shampoo, steam on vents and panels, leather conditioning, dash and door trim with UV protectant, and interior glass. Optional add-ons are priced at booking: pet hair {{addon.pethair}}, odor treatment {{addon.odor}}, headlight restoration {{addon.headlight}}. Appointments run Monday–Saturday · By Appointment Only, and exterior steps depend on the weather.",
+      "Book with ZIP 07430 or call (551) 389-3986. No charge at request; you pay after the service. Nearby pages: Franklin Lakes, Ridgewood, Paramus, Hackensack. Ramsey, Allendale, and Upper Saddle River are listed on the Bergen County hub; use the ZIP where the vehicle will be parked."
+    ]
+  },
+  {
+    "key": "tenafly",
+    "city": "Tenafly",
+    "zip": "07670",
+    "lat": 40.9254,
+    "lng": -73.9629,
+    "title": "Mobile Car Detailing in Tenafly, NJ | Cardetail1",
+    "h1": "Mobile Car Detailing in Tenafly, NJ",
+    "description": "Mobile car detailing in Tenafly, NJ (07670). Interior from {{interior.small}}, full detail from {{full.small}} at your driveway, a short drive from our Palisades Park base. Book online.",
+    "nearby": [
+      "englewood",
+      "teaneck",
+      "fort-lee",
+      "palisades-park",
+      "edgewater"
+    ],
+    "faqs": [
+      {
+        "q": "How far is Tenafly from your base?",
+        "a": "Tenafly is a short drive from our Palisades Park base and inside our standard service radius, so there is no separate travel fee. Enter ZIP 07670 at booking to see the total for your vehicle."
+      },
+      {
+        "q": "Can you work on a street with no driveway space?",
+        "a": "Only if we can legally park next to the car for the whole job. A driveway, a garage apron, or an assigned spot is the reliable option. Tell us the setup in the notes and we will confirm before the day."
+      },
+      {
+        "q": "Do you detail luxury and leather interiors?",
+        "a": "Yes. Interior Detail includes leather conditioning and UV protectant on the dash and door trim. Tell us about delicate surfaces or light-colored leather in the notes so we plan the right products."
+      },
+      {
+        "q": "Can I add ceramic coating?",
+        "a": "Ceramic coating is quoted on its own page at /ceramic-coating because the prep and cure time differ from a detail. For a gloss refresh without coating, {{name.refresh}} starts at {{refresh.small}}."
+      }
+    ],
+    "paragraphs": [
+      "Tenafly (07670) is in the Northern Valley, a short drive north of our Palisades Park base and inside our standard service radius with no separate travel fee. We bring water, power, and equipment to the house and detail the car in the driveway or at the garage apron. Starting prices are the homepage catalog: Interior Detail from {{interior.small}}, Premium Full Detail from {{full.small}} for a sedan (two-row SUVs from {{full.suv2}}), and {{name.refresh}} from {{refresh.small}}.",
+      "Tree-lined streets mean pollen, sap, and leaf stains on the paint for much of the year, and road salt in winter. Clay bar decontamination, which is part of Premium Full Detail and {{name.refresh}}, removes the bonded contamination that a wash leaves behind. Premium Full Detail then finishes with hand-applied premium paste wax; {{name.refresh}} adds polish and sealant for paint that has lost its gloss.",
+      "On the inside, Interior Detail covers vacuuming, fabric shampoo, steam on vents and panels, leather conditioning, and interior glass. If you have light-colored leather or delicate trim, say so in the notes. Pet hair ({{addon.pethair}}) and odor treatment ({{addon.odor}}) are optional and only added if you choose them. We do not offer a quick drive-through wash; every package is hand work at your location.",
+      "We confirm every request by text or call before the day, and exterior steps can move if it rains or the temperature is too low. Appointments run Monday–Saturday · By Appointment Only. Two or more cars at the same address should use the multi-vehicle checkout so they share one visit.",
+      "Book with ZIP 07670 or call (551) 389-3986. No charge at request; you pay after the service. Nearby pages: Englewood, Teaneck, Fort Lee, Palisades Park, Edgewater. Alpine, Cresskill, and Closter are listed on the Bergen County hub; enter the ZIP where the car will be parked."
     ]
   }
 ];

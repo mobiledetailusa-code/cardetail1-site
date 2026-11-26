@@ -273,6 +273,21 @@
   status = 301
   force = true
 [[redirects]]
+  from = "/franklin-lakes-mobile-detailing.html"
+  to = "/franklin-lakes-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/mahwah-mobile-detailing.html"
+  to = "/mahwah-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/tenafly-mobile-detailing.html"
+  to = "/tenafly-mobile-detailing"
+  status = 301
+  force = true
+[[redirects]]
   from = "/newark-mobile-detailing.html"
   to = "/newark-mobile-detailing"
   status = 301
