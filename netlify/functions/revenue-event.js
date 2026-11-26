@@ -9,6 +9,7 @@ const {
   blobCreateJson,
 } = require('../lib/revenue-store');
 const { refuseSharedWrite } = require('../lib/preview-write-guard');
+const { indexAiEvent } = require('../lib/ai-attribution-index');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -84,7 +85,8 @@ exports.handler = async (event) => {
 
   const validated = validateEventPayload(body);
   if (!validated.ok) {
-    return { statusCode: 400, headers: cors, body: JSON.stringify({ ok: false, error: validated.error }) };
+    const statusCode = validated.error === 'authoritative_event_forbidden' ? 403 : 400;
+    return { statusCode, headers: cors, body: JSON.stringify({ ok: false, error: validated.error }) };
   }
 
   // Query flags and payload fields such as enabled, price, or duration cannot
@@ -145,6 +147,14 @@ exports.handler = async (event) => {
     // reservation-only failure, or a concurrent call targets this exact key.
     const eventWrite = await blobCreateJson(eventStore, canonical.storeKey, canonical.record);
     duplicate = duplicate || !eventWrite.created;
+
+    // AI-attribution index for the stored (canonical) record. Create-only and
+    // best effort: it runs on retries too, so a missed write heals, and it can
+    // never change this response.
+    await indexAiEvent(canonical.record, validated.eventId, canonical.storeKey, {
+      getStore: getRevenueStore,
+      create: blobCreateJson,
+    });
 
     return {
       statusCode: 200,

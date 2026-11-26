@@ -585,7 +585,8 @@ function main() {
   const data = build();
   const body = serialize(data);
   if (CHECK) {
-    if (!fs.existsSync(OUT) || fs.readFileSync(OUT, 'utf8') !== body) {
+    // Compare content, not line endings (Windows checkouts hold CRLF).
+    if (!fs.existsSync(OUT) || fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') !== body.replace(/\r\n/g, '\n')) {
       console.error('DRIFT: assets/generated/brand-model-visuals.generated.js');
       process.exit(1);
     }

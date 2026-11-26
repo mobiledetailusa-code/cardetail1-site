@@ -17,8 +17,8 @@ const ADDON_DISPLAY = {
     description: 'Deep pet hair removal from seats, carpets, mats, and trunk.',
   },
   superint: {
-    name: 'Super Interior Upgrade',
-    description: 'Extra shampoo passes and hand-steam on panels, pockets, and cargo areas.',
+    name: 'Super Interior — Deep Cleaning Upgrade',
+    description: 'Double shampoo for heavy stains and enhanced extraction for heavily soiled interiors. Ideal for vehicles requiring extra attention, including those affected by stubborn stains, pet hair or lingering odors.',
   },
   odor: {
     name: 'Odor Treatment & Sanitize',
@@ -53,8 +53,8 @@ const ADDON_DISPLAY = {
     description: 'Hand-applied polymer sealant for paint protection and gloss.',
   },
   wax1yr: {
-    name: '1-Year Carnauba Wax',
-    description: 'Premium carnauba wax with enhanced gloss and protection.',
+    name: 'Carnauba Wax',
+    description: 'Hand-applied carnauba wax for added gloss and a protective layer on the paint. How long it lasts depends on weather, washing, and storage.',
   },
   claybar: {
     name: 'Clay Bar Treatment',

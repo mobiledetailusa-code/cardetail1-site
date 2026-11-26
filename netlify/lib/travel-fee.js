@@ -193,7 +193,12 @@ function applyServerTravelAndTotal(booking, opts = {}) {
   const serverTotal = Math.round((pricing.serviceSubtotal + resolved.fee) * 100) / 100;
   const clientTotal = Number(booking.totalPrice) || 0;
 
-  if (!opts.skipMismatchCheck && clientTotal > 0 && Math.abs(clientTotal - serverTotal) > 1) {
+  // Exact to the cent. The old $1 window dates from the retired ZIP price
+  // multiplier; every catalog price is now whole dollars and the browser uses
+  // the same formulas, so any difference means the customer saw a different
+  // price from the one that would be recorded. Drafts, previews and admin
+  // repricing pass skipMismatchCheck and are unaffected.
+  if (!opts.skipMismatchCheck && clientTotal > 0 && Math.round(clientTotal * 100) !== Math.round(serverTotal * 100)) {
     return { ok: false, error: 'price_mismatch', serverTotal, clientTotal };
   }
 

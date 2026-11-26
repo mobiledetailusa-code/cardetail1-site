@@ -182,6 +182,10 @@ async function handlePost(event) {
     const result = await recordOnSitePayment(booking, {
       method: action === 'record_cash' ? 'cash' : 'card_on_site',
       expectedBookingVersion: body.bookingVersion != null ? body.bookingVersion : booking.bookingVersion,
+      amount: body.amount,
+      reference: body.reference,
+      confirmServicePerformed: body.confirmServicePerformed === true,
+      event,
     });
     if (!result.ok) {
       const message = result.error === 'postgres_payment_disabled'
@@ -197,11 +201,15 @@ async function handlePost(event) {
         message,
       });
     }
+    const closed = result.autoClose && result.autoClose.closed;
     return json(200, {
       ok: true,
       reload: true,
       method: action === 'record_cash' ? 'cash' : 'card',
-      message: action === 'record_cash' ? 'Cash recorded' : 'Card recorded',
+      autoClose: result.autoClose || null,
+      message: closed
+        ? (action === 'record_cash' ? 'Cash recorded. Job finished.' : 'Card recorded. Job finished.')
+        : (action === 'record_cash' ? 'Cash recorded' : 'Card recorded'),
     });
   }
   if (action === 'copy_pay') {
@@ -223,6 +231,20 @@ async function handlePost(event) {
       delivery: result.delivery || (failed ? 'failed' : 'pending'),
       idempotent: !!result.idempotent,
       message: paymentLinkMessage(result),
+    });
+  }
+  if (action === 'finish_job') {
+    if (!actions.finish) {
+      return json(409, { ok: false, error: 'not_finishable', message: 'Only a confirmed job that is not finished yet can be marked finished' });
+    }
+    const { finishJobQuickOps } = require('../lib/quick-ops-finish');
+    const result = await finishJobQuickOps(booking, { event });
+    return json(result.ok ? 200 : (result.statusCode || 409), {
+      ok: !!result.ok,
+      idempotent: !!result.idempotent,
+      reload: true,
+      reviewRequest: result.reviewRequest || null,
+      message: result.ok ? result.message : (result.error || 'finish_failed'),
     });
   }
   if (action === 'complete_service_line') {

@@ -18,6 +18,12 @@ function setRequestStoreOverride(store) {
   requestStoreOverride = store || null;
 }
 
+/** Test hook: booking lookup for dismiss_orphan_requests. */
+let bookingLookupOverride = null;
+function setBookingLookupOverride(fn) {
+  bookingLookupOverride = typeof fn === 'function' ? fn : null;
+}
+
 const TYPE_LABELS = {
   reschedule_request: 'Reschedule',
   address_update: 'Address change',
@@ -351,6 +357,38 @@ exports.handler = async (event) => {
     });
   }
 
+  if (action === 'dismiss_orphan_requests') {
+    // Test leftovers only: booking missing or archived as a test. No booking
+    // write, no money, no customer message. Live bookings are refused.
+    const { dismissOrphanRequests, strictBookingLookup, MAX_BATCH } = require('../lib/orphan-request-dismissal');
+    const { isOpenStatus } = require('../lib/admin-change-request-projection');
+    const store = await getRequestStore();
+    let ids = body.requestIds || (body.requestId ? [body.requestId] : []);
+    if (body.scanAll === true) {
+      // Every open request in the store, not just the 50 the list shows.
+      const items = await hydrateRequestRecords(store, await listAllBlobs(store, REQUEST_STORE));
+      ids = items.filter((r) => r && isOpenStatus(r.status || 'pending')).map((r) => r.id || r.requestId);
+    }
+    const opts = { dryRun: body.dryRun === true, reason: String(body.reason || '') };
+    let lookup;
+    try {
+      lookup = bookingLookupOverride || await strictBookingLookup(await bookingStore(), { normalizeKey: normalizeBookingKey });
+    } catch (e) {
+      return jsonCors(503, { ok: false, error: 'booking_store_unavailable' });
+    }
+    const merged = { ok: true, dryRun: opts.dryRun, eligible: 0, dismissed: 0, refused: 0, results: [] };
+    if (!ids.length && body.scanAll === true) return jsonCors(200, merged);
+    for (let i = 0; i < Math.max(1, ids.length); i += MAX_BATCH) {
+      const result = await dismissOrphanRequests({ store, getBooking: lookup }, { ...opts, requestIds: ids.slice(i, i + MAX_BATCH) });
+      if (!result.ok) return jsonCors(result.statusCode || 400, result);
+      merged.eligible += result.eligible;
+      merged.dismissed += result.dismissed;
+      merged.refused += result.refused;
+      merged.results.push(...result.results);
+    }
+    return jsonCors(200, merged);
+  }
+
   if (action === 'generate_pay_link') {
     const bookingId = String(body.bookingId || '').trim();
     if (!bookingId) return jsonCors(400, { ok: false, error: 'validation_error' });
@@ -370,3 +408,4 @@ exports.handler = async (event) => {
 };
 
 exports.setRequestStoreOverride = setRequestStoreOverride;
+exports.setBookingLookupOverride = setBookingLookupOverride;

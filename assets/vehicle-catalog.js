@@ -400,7 +400,42 @@
     return yearValid;
   }
 
+  function getYearPolicy() {
+    const p = catalog().yearPolicy || {};
+    return {
+      selectableMin: Number(p.selectableMin) || 1990,
+      selectableMax: Number(p.selectableMax) || null,
+    };
+  }
+
+  /**
+   * Has this model year been confirmed by the manufacturer?
+   * Years up to modelYearVerification.verifiedThrough keep today's behavior.
+   * A later year counts only when its make|model is listed for that year, so a
+   * future model year is never priced on an assumed size.
+   * @returns {{verified:boolean, reason:string, verifiedThrough:number|null}}
+   */
+  function modelYearStatus(make, model, year) {
+    const mv = catalog().modelYearVerification;
+    const through = mv && Number(mv.verifiedThrough);
+    if (!mv || !Number.isFinite(through)) return { verified: true, reason: 'no_policy', verifiedThrough: null };
+    const y = Number(year);
+    if (!Number.isFinite(y) || y <= 0 || y <= through) {
+      return { verified: true, reason: 'within_verified_years', verifiedThrough: through };
+    }
+    const found = findVehicleRecord(make, model);
+    if (!found) return { verified: false, reason: 'not_found', verifiedThrough: through };
+    const entry = mv.years && mv.years[String(y)];
+    const list = (entry && Array.isArray(entry.vehicles)) ? entry.vehicles : [];
+    const key = found.vehicle.make + '|' + found.vehicle.model;
+    return list.indexOf(key) >= 0
+      ? { verified: true, reason: 'manufacturer_confirmed', verifiedThrough: through }
+      : { verified: false, reason: 'model_year_unverified', verifiedThrough: through };
+  }
+
   return {
+    getYearPolicy,
+    modelYearStatus,
     DISPLAY,
     catalog,
     setCatalogForTests,

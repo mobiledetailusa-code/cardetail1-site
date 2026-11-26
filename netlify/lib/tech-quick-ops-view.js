@@ -8,6 +8,7 @@ const {
   moneyFromBooking,
   jobCompleted,
 } = require('./admin-quick-ops-view');
+const { quickOpsPiiDecision } = require('./tech-dispatch-privacy');
 
 function digitsOf(value) {
   return String(value || '').replace(/\D/g, '');
@@ -29,8 +30,15 @@ function noteLeaksContact(note, booking) {
  * The job total stays off this projection. Payment is a customer link.
  * No confirm/cancel, no cash/card, no ceramic internals, no customer email.
  */
-function projectTechQuickOpsBooking(booking, shared = null) {
+function projectTechQuickOpsBooking(booking, shared = null, { nowMs = Date.now() } = {}) {
   const full = projectQuickOpsBooking(booking, shared);
+  // Same server-side policy as the technician portal: customer name, address,
+  // phone, notes and access details only inside the 12-hour Eastern window
+  // before arrival, never on a cancelled/completed job (any status field),
+  // and never when the schedule is missing or inconsistent. Assignment is
+  // checked by the caller (signed link session bound to booking + phone).
+  const pii = quickOpsPiiDecision(booking, nowMs);
+  const locked = !pii.allowed;
   const money = moneyFromBooking(booking, shared);
   const due = !!(full.actions && full.actions.payment);
   const cancelled = bookingStatus(booking) === 'cancelled';
@@ -43,20 +51,37 @@ function projectTechQuickOpsBooking(booking, shared = null) {
   const visibleNote = contactRestricted && noteLeaksContact(full.service.note, booking)
     ? ''
     : full.service.note;
+  // Same job sheet as the admin page. After a paid, completed job the
+  // technician loses access details (gate codes) and any note naming contact.
+  const sheet = full.jobSheet;
+  let jobSheet = contactRestricted
+    ? {
+      ...sheet,
+      customerNote: noteLeaksContact(sheet.customerNote, booking) ? '' : sheet.customerNote,
+      accessNotes: '',
+    }
+    : sheet;
+  if (locked) jobSheet = { ...jobSheet, customerNote: '', accessNotes: '', serviceLocation: '' };
   return {
     bookingId: full.bookingId,
     bookingVersion: full.bookingVersion,
     status: full.status,
     contactRestricted,
-    customer: { name: full.customer.name || 'Customer' },
+    piiLocked: locked,
+    piiLockReason: locked ? pii.reason : '',
+    piiUnlocksAt: pii.unlocksAt || '',
+    piiLockMessage: locked ? pii.message : '',
+    customer: { name: locked ? 'Customer' : (full.customer.name || 'Customer') },
     vehicle: full.vehicle,
     service: {
       package: full.service.package,
       date: full.service.date,
       window: full.service.window,
-      address: contactRestricted ? '' : full.service.address,
-      note: visibleNote,
+      durationMinutes: full.service.durationMinutes,
+      address: contactRestricted || locked ? '' : full.service.address,
+      note: locked ? '' : visibleNote,
     },
+    jobSheet,
     yourPay: {
       set: payoutCents != null,
       label: payoutCents == null ? '' : dollarsFromCents(payoutCents),
@@ -68,14 +93,18 @@ function projectTechQuickOpsBooking(booking, shared = null) {
     },
     paymentDue: due,
     actions: {
-      call: !contactRestricted && !!full.telUrl && !cancelled,
-      map: !contactRestricted && !!full.mapUrl,
+      call: !locked && !contactRestricted && !!full.telUrl && !cancelled,
+      map: !locked && !contactRestricted && !!full.mapUrl,
       payment: due,
       increase: !cancelled && !completed,
       arrive: !cancelled && !completed && !!booking.techQuickOpsTokenHash,
+      // Assigned technician, already on site, balance still due. The page does
+      // not print the customer total; the server settles the remaining balance.
+      collectCash: !cancelled && !completed && due && !!booking.arrivedAt && !!booking.techQuickOpsTokenHash,
+      collectCard: !cancelled && !completed && due && !!booking.arrivedAt && !!booking.techQuickOpsTokenHash,
     },
-    mapUrl: contactRestricted ? '' : full.mapUrl,
-    telUrl: contactRestricted ? '' : full.telUrl,
+    mapUrl: contactRestricted || locked ? '' : full.mapUrl,
+    telUrl: contactRestricted || locked ? '' : full.telUrl,
   };
 }
 

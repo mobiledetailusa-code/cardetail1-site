@@ -375,7 +375,12 @@
     listenersBound = true;
 
     window.addEventListener('message', function (ev) {
-      if (!ev || !ev.data) return;
+      // Only our own booking frame, same origin, and only the two messages the
+      // embedded homepage sends (index.html / booking-routing-gate.js).
+      if (!ev || ev.origin !== window.location.origin) return;
+      if (!frame || ev.source !== frame.contentWindow) return;
+      if (!ev.data || typeof ev.data !== 'object') return;
+      if (ev.data.type !== 'cd1-booking-closed' && ev.data.type !== 'cd1-booking-error') return;
       if (ev.data.type === 'cd1-booking-closed') closeSpecialtyBooking();
       if (ev.data.type === 'cd1-booking-error') {
         failBooking(

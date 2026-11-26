@@ -89,13 +89,49 @@ async function listAllBlobs(store, label = 'store') {
   }
 }
 
-/** Fetch JSON records for blob keys in bounded parallel batches (strong consistency when available). */
-async function fetchBlobRecords(store, blobs, concurrency = 20) {
+/**
+ * Strong read for authorization decisions. Never falls back to an eventually
+ * consistent read: a failed strong read throws StrongReadError so the caller
+ * can deny (fail closed) instead of deciding on possibly stale data.
+ * A missing key resolves to { data: null }.
+ */
+class StrongReadError extends Error {
+  constructor(key, cause) {
+    super('strong_read_failed');
+    this.code = 'strong_read_failed';
+    this.key = key;
+    this.cause = cause;
+  }
+}
+
+async function readJsonStrong(store, key) {
+  let result;
+  try {
+    if (typeof store.getWithMetadata === 'function') {
+      result = await store.getWithMetadata(key, { type: 'json', consistency: 'strong' });
+      return { data: (result && result.data) || null, etag: (result && result.etag) || null };
+    }
+    // Stores without getWithMetadata still get a strong (not eventual) read.
+    result = await store.get(key, { type: 'json', consistency: 'strong' });
+    return { data: result || null, etag: null };
+  } catch (e) {
+    throw new StrongReadError(key, e);
+  }
+}
+
+/**
+ * Fetch JSON records for blob keys in bounded parallel batches (strong consistency when available).
+ * With { strict: true } (authorization inputs such as the technician roster)
+ * every read is strong and any failed read throws instead of silently
+ * dropping the record or falling back to an eventual read.
+ */
+async function fetchBlobRecords(store, blobs, concurrency = 20, { strict = false } = {}) {
   const records = [];
   for (let i = 0; i < blobs.length; i += concurrency) {
     const chunk = blobs.slice(i, i + concurrency);
     const rows = await Promise.all(
       chunk.map(async (b) => {
+        if (strict) return (await readJsonStrong(store, b.key)).data;
         if (typeof store.getWithMetadata === 'function') {
           const result = await store.getWithMetadata(b.key, {
             type: 'json',
@@ -226,18 +262,17 @@ async function validateTechSession(headersOrToken) {
   return { ...s, tech };
 }
 
-function bookingAssignedToTech(booking, techId, techName) {
-  const at = String(booking.assignedTechId || booking.assignedTech || '').toLowerCase();
-  const name = String(booking.assignedTechName || '').toLowerCase();
-  const tid = String(techId || '').toLowerCase();
-  const tname = String(techName || '').toLowerCase();
-  return at === tid || at === tname || name === tname;
-}
+// Technician assignment is decided only by resolveTechAssignment in
+// lib/tech-dispatch-privacy.js (id-first; legacy names only when unique).
+// The old synchronous bookingAssignedToTech helper was removed so no caller
+// can fall back to a weaker, name-based rule.
 
 module.exports = {
   blobsStore,
   listAllBlobs,
   fetchBlobRecords,
+  readJsonStrong,
+  StrongReadError,
   bookingRef,
   jsonCors,
   verifyAdminKey,
@@ -251,7 +286,6 @@ module.exports = {
   findTechByInviteToken,
   createTechSession,
   validateTechSession,
-  bookingAssignedToTech,
   INVITE_TTL_MS,
   SESSION_TTL_MS,
 };

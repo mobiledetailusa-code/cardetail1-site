@@ -190,10 +190,13 @@ function main() {
   const generated = writeGenerated(catalog);
 
   let drift = false;
+  // Compare content, not line endings: a Windows checkout (core.autocrlf=true)
+  // holds CRLF while the generator writes LF.
+  const sameText = (a, b) => a.replace(/\r\n/g, '\n') === b.replace(/\r\n/g, '\n');
 
   // Generated JS
   if (CHECK) {
-    if (!fs.existsSync(GENERATED_JS) || fs.readFileSync(GENERATED_JS, 'utf8') !== generated) {
+    if (!fs.existsSync(GENERATED_JS) || !sameText(fs.readFileSync(GENERATED_JS, 'utf8'), generated)) {
       console.error('DRIFT: assets/generated/cars-vehicle-catalog.generated.js');
       drift = true;
     }
@@ -213,11 +216,11 @@ function main() {
     html = replaceAssignment(html, modelsExt, modelsLit);
     html = ensureCatalogScripts(html);
     if (CHECK) {
-      if (html !== before) {
+      if (!sameText(html, before)) {
         console.error('DRIFT:', page);
         drift = true;
       }
-    } else if (html !== before) {
+    } else if (!sameText(html, before)) {
       fs.writeFileSync(fp, html);
       console.log('synced', page);
     } else {

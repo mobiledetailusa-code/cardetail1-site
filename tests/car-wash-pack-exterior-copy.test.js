@@ -155,9 +155,9 @@ test('booking catalog still sells Exterior Hand Wash from $125', () => {
   }
   const modal = read('assets/car-pkg-detail-modal.js');
   assert.match(modal, /wash:\s*\{[\s\S]*title:\s*"Exterior Hand Wash"/);
-  assert.match(modal, /"1-Year Carnauba Wax"/);
+  assert.match(modal, /"Carnauba Wax"/);
   assert.match(modal, /"Clay bar"/);
-  assert.match(modal, /"Engine bay detailing"/);
+  assert.match(modal, /"Engine Bay Top Clean"/);
 });
 
 test('homepage shows 3 main packs that open all categories, without pack icons', () => {
@@ -254,7 +254,11 @@ test('how-it-works cards use photo backgrounds instead of emoji icons', () => {
   assert.equal(home.includes('how-grid--compact'), false);
   assert.doesNotMatch(home, /how-card--book/);
 
-  const fourStep = [
+  // Hub/city clones follow the homepage, which removed its "How it works" block
+  // (fa5abe71). scripts/align-public-pages-with-home.mjs drops both the old four-card
+  // and the three-step versions there, so no clone carries a process block or emoji icons.
+  // The photo assets above stay: assets/icon-3d.css still styles .how-card--photo.
+  const clones = [
     'bergen-county-hub.html',
     'hudson-county-hub.html',
     'essex-county-hub.html',
@@ -263,19 +267,15 @@ test('how-it-works cards use photo backgrounds instead of emoji icons', () => {
     'trenton-mobile-detailing.html',
     'westchester-mobile-detailing.html',
     'template-city.html',
+    'new-jersey-hub.html',
+    'ny-metro-hub.html',
+    'connecticut-hub.html',
+    'pennsylvania-hub.html',
   ];
-  for (const file of fourStep) {
+  for (const file of clones) {
     const html = read(file);
-    assert.match(html, /how-card--book/, file);
-    assert.match(html, /how-card--request/, file);
-    assert.match(html, /how-card--arrive/, file);
-    assert.match(html, /how-card--inspect/, file);
-    assert.doesNotMatch(html, /class="how-ico"/, file);
-  }
-
-  for (const file of ['new-jersey-hub.html', 'ny-metro-hub.html', 'connecticut-hub.html', 'pennsylvania-hub.html']) {
-    const html = read(file);
-    assert.match(html, /how-card--arrive/, file);
+    assert.equal(html.includes('id="how"'), false, file);
+    assert.doesNotMatch(html, /how-card--(book|request|arrive|inspect)/, file);
     assert.doesNotMatch(html, /class="how-ico"/, file);
   }
 });

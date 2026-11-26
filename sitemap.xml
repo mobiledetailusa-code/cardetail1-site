@@ -11,6 +11,7 @@
   <url><loc>https://cardetail1.com/fleet-services</loc></url>
   <url><loc>https://cardetail1.com/trucks-detailing</loc></url>
   <url><loc>https://cardetail1.com/multi-vehicle-detailing</loc></url>
+  <url><loc>https://cardetail1.com/ceramic-coating</loc></url>
   <!-- State hubs -->
   <url><loc>https://cardetail1.com/new-jersey-hub</loc></url>
   <url><loc>https://cardetail1.com/ny-metro-hub</loc></url>
@@ -21,6 +22,10 @@
   <url><loc>https://cardetail1.com/essex-county-hub</loc></url>
   <url><loc>https://cardetail1.com/hudson-county-hub</loc></url>
   <url><loc>https://cardetail1.com/passaic-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/union-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/morris-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/rockland-county-hub</loc></url>
+  <url><loc>https://cardetail1.com/fairfield-county-hub</loc></url>
   <!-- City pages -->
   <url><loc>https://cardetail1.com/palisades-park-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://cardetail1.com/fort-lee-mobile-detailing</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>

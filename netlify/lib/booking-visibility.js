@@ -35,6 +35,26 @@ function isDraftRecord(booking) {
   return false;
 }
 
+/**
+ * submit-booking writes a short-lived confirmation lock at
+ * `occupancy-claim/<bookingId>` in the same Blob store as bookings. Its body is
+ * only { at, nonce }. It is not an appointment and must never be listed as one
+ * (it used to show on the Jobs Board as a blank "pending review" job).
+ */
+const INTERNAL_KEY_PREFIXES = ['occupancy-claim/'];
+
+function isInternalBookingStoreKey(key) {
+  const k = String(key || '');
+  return INTERNAL_KEY_PREFIXES.some((prefix) => k.startsWith(prefix));
+}
+
+function isInternalStoreRecord(record) {
+  if (!record || typeof record !== 'object') return false;
+  if (isInternalBookingStoreKey(record.__blobKey) || isInternalBookingStoreKey(record.id)) return true;
+  const keys = Object.keys(record).filter((k) => k !== 'id' && k !== '__blobKey');
+  return keys.length > 0 && keys.every((k) => k === 'at' || k === 'nonce') && 'nonce' in record;
+}
+
 function isArchivedOrTest(booking) {
   if (!booking || typeof booking !== 'object') return false;
   if (booking.archived === true || booking.isTest === true) return true;
@@ -48,6 +68,7 @@ function isArchivedOrTest(booking) {
  */
 function isVisibleSubmittedBooking(booking, opts = {}) {
   if (!booking || typeof booking !== 'object') return false;
+  if (isInternalStoreRecord(booking)) return false;
   if (isDraftRecord(booking)) return false;
   if (!opts.includeArchivedTest && isArchivedOrTest(booking)) return false;
   return true;
@@ -69,5 +90,7 @@ module.exports = {
   isDraftRecord,
   isArchivedOrTest,
   isVisibleSubmittedBooking,
+  isInternalBookingStoreKey,
+  isInternalStoreRecord,
   portalReleasePatch,
 };

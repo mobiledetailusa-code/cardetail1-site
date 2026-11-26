@@ -235,7 +235,7 @@ const FLAT_GLOBAL_ADDONS = Object.freeze({
     price: 75,
     minutes: 0,
     global: true,
-    description: 'Packed mud removal starting at $75. May be combined with accessible undercarriage cleaning. Severe conditions may still need a photo review on non-ceramic services.',
+    description: 'Packed mud removal starting at $75. Severe conditions may still need a photo review on non-ceramic services.',
   }),
 });
 

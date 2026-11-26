@@ -27,7 +27,7 @@ const garageJs = read('assets/my-garage.js');
 /* â”€â”€ Structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 test('the five approved customer sections exist', () => {
-  assert.match(garageHtml, /id="upcoming-h">Current appointment</);
+  assert.match(garageHtml, /id="upcoming-h">My service</);
   assert.match(garageHtml, /id="pending-requests-section" hidden/);
   assert.match(garageHtml, /id="payments" aria-labelledby="pay-h"/);
   assert.match(garageHtml, /id="pay-h">Payments &amp; Receipts</);

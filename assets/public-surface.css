@@ -14,6 +14,14 @@
 #cd1-btt{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(96px,calc(80px + env(safe-area-inset-bottom)));width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(12,18,32,.92);color:#fff;font-size:20px;line-height:1;cursor:pointer;z-index:10050;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);transition:opacity .2s,visibility .2s,transform .2s;box-shadow:0 4px 20px rgba(0,0,0,.35)}
 #cd1-btt.cd1-btt-on{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}
 #cd1-btt:hover,#cd1-btt:focus-visible{background:#1a2840;border-color:rgba(77,163,255,.5);outline:2px solid #4da3ff;outline-offset:2px}
+/* Stack above the consent banner (consent-manager.js lifts the chat and the mobile
+   booking bar by --cd1-consent-offset; this keeps Back to top above them too) and,
+   on phones, above the chat launcher that sits over the booking bar. */
+html.cd1-consent-open #cd1-btt{bottom:calc(96px + var(--cd1-consent-offset,0px))}
+@media(max-width:640px){
+  body:has(#cd-chat) #cd1-btt{bottom:calc(146px + env(safe-area-inset-bottom,0px))}
+  html.cd1-consent-open body:has(#cd-chat) #cd1-btt{bottom:calc(146px + var(--cd1-consent-offset,0px))}
+}
 /* Never cover booking modal CTAs */
 body:has(#bk-ov.open) #cd1-btt,
 body:has(.booking-modal-ov.open) #cd1-btt{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
