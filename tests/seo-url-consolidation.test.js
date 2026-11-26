@@ -36,11 +36,8 @@ const PUBLIC_STEMS = [
   'teaneck-mobile-detailing',
   'ridgewood-mobile-detailing',
   'edgewater-mobile-detailing',
-
   'franklin-lakes-mobile-detailing',
-
   'mahwah-mobile-detailing',
-
   'tenafly-mobile-detailing',
   'newark-mobile-detailing',
   'trenton-mobile-detailing',
@@ -63,11 +60,8 @@ const CITY_PAGES = [
   'teaneck-mobile-detailing.html',
   'ridgewood-mobile-detailing.html',
   'edgewater-mobile-detailing.html',
-
   'franklin-lakes-mobile-detailing.html',
-
   'mahwah-mobile-detailing.html',
-
   'tenafly-mobile-detailing.html',
 ];
 

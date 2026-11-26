@@ -15,11 +15,8 @@ const CITY_PAGES = [
   'teaneck-mobile-detailing.html',
   'ridgewood-mobile-detailing.html',
   'edgewater-mobile-detailing.html',
-
   'franklin-lakes-mobile-detailing.html',
-
   'mahwah-mobile-detailing.html',
-
   'tenafly-mobile-detailing.html',
 ];
 
