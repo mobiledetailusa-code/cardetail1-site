@@ -24,5 +24,6 @@ Especialistas em detalhamento para veículos particulares, frotas e embarcaçõe
 - Shared negative list "negative word" (applied to Cardetail1-search, -winter, -zone2) had 21 terms:
   [ace mobile detailing], [ammo nyc], "car detail 1", "car detail1", "cardetail 1", "cardetail1", "diy", "dr detail",
   "hiring", "how to", "jh mobile detailers", "job", "jobs", "kit", [mobile detailing setup],
-  [montclair auto spa hand car wash], "products", "salary", "self service", "speeders car wash".
+  [montclair auto spa hand car wash], "products", "salary", "self service", "speeders car wash", "supplies".
+  (Reconciled 2026-11-25 from Change History: "supplies" was the 21st original term; it was not visible in the UI read, so adding it again had no effect.)
 - Campaign-level negatives: 139 rows across campaigns (includes phrase "car wash" on -search and -winter, added 2026-11-23 19:59 PT).

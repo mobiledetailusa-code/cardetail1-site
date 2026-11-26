@@ -197,7 +197,7 @@ Todas as páginas têm canonical limpo, estão no sitemap e não têm `robots` r
 
 | Onde | Antes | Depois | Rollback |
 |---|---|---|---|
-| Ads: lista "negative word" | 21 termos | +`"spray"`, `"supplies"`, `"website"`, `"websites"` (25). Origem: "car detailer spray", "detailing websites" e fornecedores; sem conflito com as 7 palavras-chave ativas | Remover os 4 termos da lista |
+| Ads: lista "negative word" | 21 termos | +`"spray"`, `"website"`, `"websites"` (24; `"supplies"` já existia na lista). Origem: "car detailer spray", "detailing websites" e fornecedores; sem conflito com as 7 palavras-chave ativas | Remover os 4 termos da lista |
 | GBP: serviço Auto detailing | Texto em pt-BR (salvo em `gbp-ads-baseline-2026-11-25.md`) | Descrição em inglês alinhada ao catálogo (295 caracteres) | Colar o texto original |
 | GBP: website | `https://cardetail1.com/` | `…/?utm_source=google&utm_medium=organic&utm_campaign=gbp_website` (pendente de revisão do Google) | Voltar à URL anterior |
 | GBP: link de agendamento | `http://cardetail1.com/` | `https://cardetail1.com/?utm_source=google&utm_medium=organic&utm_campaign=gbp_booking` | Voltar à URL anterior |
