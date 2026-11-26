@@ -161,7 +161,7 @@ const COVERAGE_AREA = {
   'pennsylvania-hub.html': 'selected eastern Pennsylvania service areas',
 };
 const coverageArea = (file) => COVERAGE_AREA[file] || `${LEGACY[file].region} and nearby areas`;
-const coverageLine = (area) => `Based in Palisades Park, NJ. Serving ${area}. Extended service areas available by quote.`;
+const coverageLine = (area) => `Based in Bergen County, NJ. Serving ${area}. Extended service areas available by quote.`;
 
 /** areaServed keeps the named counties/cities the pages describe; drops the 150-mi circle and whole states. */
 function alignJsonLdCoverage(ed) {
@@ -199,14 +199,14 @@ function alignCoverageCopy(ed, file) {
   if (LEGACY[file].hub) {
     ed.edit('coverage: service-area paragraph',
       /<p class="hub-radius-desc">[\s\S]*?<\/p>/,
-      `<p class="hub-radius-desc">${line.replace('Palisades Park, NJ', '<strong>Palisades Park, NJ</strong>')} Enter your ZIP above — we'll confirm coverage before you book.</p>`,
+      `<p class="hub-radius-desc">${line.replace('Bergen County, NJ', '<strong>Bergen County, NJ</strong>')} Enter your ZIP above — we'll confirm coverage before you book.</p>`,
       `we'll confirm coverage before you book.</p>`);
   }
   if (LEGACY[file].city) {
     const area = coverageArea(file);
     ed.edit('coverage: meta/og/twitter description without "up to 120 miles"',
       / — serving the Tri-State up to 120 miles\./g,
-      ` — based in Palisades Park, NJ, serving ${area}; extended service areas by quote.`,
+      ` — based in Bergen County, NJ, serving ${area}; extended service areas by quote.`,
       (s) => false);
   }
 }
@@ -224,7 +224,7 @@ function addLocalReviewLine(ed, file) {
   const line = LOCAL_REVIEW_LINE[file] || `Serving ${LEGACY[file].region} by appointment`;
   ed.edit('reviews: keep page-local coverage line',
     /(<div class="rv-actions">[\s\S]*?\n    <\/div>\n)/,
-    `$1    <p class="rv-local-note" style="text-align:center;margin:14px 0 0;font-size:12px;color:var(--mu)">📍 ${line} · based in Palisades Park, NJ</p>\n`,
+    `$1    <p class="rv-local-note" style="text-align:center;margin:14px 0 0;font-size:12px;color:var(--mu)">📍 ${line} · based in Bergen County, NJ</p>\n`,
     'class="rv-local-note"');
 }
 
@@ -305,9 +305,9 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
     repairFallbackMarkup(ed);
 
     if (hub) {
-      ed.edit('coverage copy: no 120-mile promise; Palisades Park base',
+      ed.edit('coverage copy: no 120-mile promise; Bergen County base',
         /    <p class="hub-radius-desc">We operate from our <strong>[^<]+<\/strong> hub and travel up to <strong>120 miles<\/strong>[^\n]*\n    <p class="hub-radius-note">We travel up to 120 miles from our anchor city\.[^\n]*/,
-        `    <p class="hub-radius-desc">Based in <strong>Palisades Park, NJ</strong>, we serve ${region} and nearby NJ/NY areas at your driveway, marina, or fleet yard. Enter your ZIP above — we'll confirm coverage and unlock booking for your area. Extended service areas are available by quote.</p>\n    <p class="hub-radius-note">Distance may affect your total — any travel pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>`,
+        `    <p class="hub-radius-desc">Based in <strong>Bergen County, NJ</strong>, we serve ${region} and nearby NJ/NY areas at your driveway, marina, or fleet yard. Enter your ZIP above — we'll confirm coverage and unlock booking for your area. Extended service areas are available by quote.</p>\n    <p class="hub-radius-note">Distance may affect your total — any travel pricing is included in the quote at booking, not shown as a separate fee when you enter your ZIP.</p>`,
         (s) => false);
       ed.edit('coverage heading', '<div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">RADIUS</span></div>',
         '<div class="sec-title">MOBILE SERVICE<br><span style="color:var(--blue)">AREA</span></div>', (s) => false);
@@ -339,7 +339,7 @@ for (const [file, { region, hub }] of Object.entries(LEGACY)) {
         `Monday–Saturday · By Appointment Only · ${region} and nearby areas`, (s) => false);
       ed.edit('local copy: ZIP helper region',
         /Based in Palisades Park (?:-|—) we serve Bergen County neighbors and the wider Tri-State\./,
-        `Based in Palisades Park, NJ — we serve ${region} and nearby NJ/NY areas.`,
+        `Based in Bergen County, NJ — we serve ${region} and nearby NJ/NY areas.`,
         (s) => false);
     } else {
       ed.edit('bergen city links: styles', /(<\/style>)/, `${CITY_GRID_CSS}$1`, CITY_GRID_CSS_MARK);
