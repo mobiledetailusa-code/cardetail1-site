@@ -194,70 +194,58 @@ function normalizeProviderStatus(value) {
 }
 
 /**
- * Review solicitations are re-checked right before dispatch (consent, STOP,
- * received/stopped, caps, cooldown, send window, expiry). Returns a result to
- * short-circuit, or null to continue with the normal send.
+ * Review solicitations are re-checked under the booking's review lock right
+ * before dispatch (consent and campaign, STOP, received/stopped, caps,
+ * cooldown, send window, expiry, another ask in flight). Returns
+ * { done: result } to short-circuit, or { row } to continue with the send,
+ * possibly with the completion text's review link removed.
  */
 async function applyReviewDispatchGate(prisma, row, opts = {}) {
-  const { REVIEW_GATED_TEMPLATE_KEYS, reviewDispatchDecision } = require('./review-request-lifecycle');
-  if (!REVIEW_GATED_TEMPLATE_KEYS.has(String(row.templateKey || ''))) return null;
+  const lifecycle = require('./review-request-lifecycle');
+  if (!lifecycle.REVIEW_GATED_TEMPLATE_KEYS.has(String(row.templateKey || ''))) return { row };
   const now = opts.now ? new Date(opts.now) : new Date();
-  const decision = await reviewDispatchDecision(row, {
-    prisma,
-    env: opts.env || process.env,
-    now,
-    loadBooking: opts.reviewBookingLoader,
-  });
-  if (decision.action === 'cancel') {
-    const outbox = await prisma.smsOutbox.update({
-      where: { id: row.id },
-      data: {
-        status: 'failed',
-        lastErrorCode: decision.code,
-        failedAt: now,
-        leaseToken: null,
-        leaseExpiresAt: null,
-      },
+  let outcome;
+  try {
+    outcome = await lifecycle.applyDispatchDecision(row, {
+      prisma,
+      env: opts.env || process.env,
+      now,
+      loadBooking: opts.reviewBookingLoader,
     });
-    safeOutboxLog('failed', outbox, { errorCode: decision.code });
-    return { ok: true, skipped: true, reason: decision.code, outbox };
-  }
-  if (decision.action === 'defer') {
-    const attempts = Math.max(0, Number(row.attemptCount) || 0);
-    if (decision.countsAttempt && attempts >= (Number(row.maxAttempts) || 5)) {
-      const outbox = await prisma.smsOutbox.update({
-        where: { id: row.id },
-        data: {
-          status: 'failed',
-          lastErrorCode: 'review_cancelled_gate_unavailable',
-          failedAt: now,
-          leaseToken: null,
-          leaseExpiresAt: null,
-        },
-      });
-      safeOutboxLog('failed', outbox, { errorCode: 'review_cancelled_gate_unavailable' });
-      return { ok: false, failed: true, reason: 'review_cancelled_gate_unavailable', outbox };
+  } catch {
+    // Lock or ledger failure: never send a review ask on an unverified view.
+    // The receipt still goes, without its review link.
+    if (row.templateKey === 'booking.service_completed') {
+      return { row: { ...row, templateData: { ...(row.templateData || {}), reviewUrl: '' } } };
     }
     const outbox = await prisma.smsOutbox.update({
       where: { id: row.id },
       data: {
         status: 'accepted',
-        availableAt: decision.availableAt,
+        availableAt: new Date(now.getTime() + 10 * 60 * 1000),
         leaseToken: null,
         leaseExpiresAt: null,
-        // Waiting for the send window or cooldown is not a failed attempt.
-        attemptCount: decision.countsAttempt ? attempts : Math.max(0, attempts - 1),
-        lastErrorCode: decision.countsAttempt ? decision.code : null,
+        lastErrorCode: 'review_gate_unavailable',
       },
     });
-    safeOutboxLog('deferred', outbox, { errorCode: decision.code });
-    return { ok: true, skipped: true, deferred: true, reason: decision.code, outbox };
+    safeOutboxLog('retry_scheduled', outbox, { errorCode: 'review_gate_unavailable' });
+    return { done: { ok: false, retryable: true, reason: 'review_gate_unavailable', outbox } };
   }
-  return null;
+  const { decision } = outcome;
+  if (decision.action === 'send' || decision.action === 'strip_review_link') return { row: outcome.row };
+  if (decision.action === 'cancel') {
+    safeOutboxLog('failed', outcome.outbox, { errorCode: decision.code });
+    return { done: { ok: true, skipped: true, reason: decision.code, outbox: outcome.outbox } };
+  }
+  safeOutboxLog('deferred', outcome.outbox, { errorCode: decision.code });
+  return { done: { ok: true, skipped: true, deferred: true, reason: decision.code, outbox: outcome.outbox } };
 }
 
-async function processClaimedSms(row, opts = {}) {
+async function processClaimedSms(claimedRow, opts = {}) {
   const prisma = prismaClient(opts.prisma);
+  const gate = await applyReviewDispatchGate(prisma, claimedRow, opts);
+  if (gate.done) return gate.done;
+  const row = gate.row;
   const rendered = renderSmsTemplate(row.templateKey, row.templateData || {});
   if (!rendered.ok) {
     const failed = await prisma.smsOutbox.update({
@@ -273,8 +261,6 @@ async function processClaimedSms(row, opts = {}) {
     safeOutboxLog('failed', failed, { errorCode: rendered.error });
     return { ok: false, failed: true, outbox: failed };
   }
-  const reviewGate = await applyReviewDispatchGate(prisma, row, opts);
-  if (reviewGate) return reviewGate;
   try {
     const { shouldSuppressStaleLifecycleSms } = require('./appointment-lifecycle-state');
     if (await shouldSuppressStaleLifecycleSms(row)) {

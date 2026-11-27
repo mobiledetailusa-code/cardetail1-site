@@ -9,7 +9,7 @@
  */
 
 const { TEMPLATE_KEYS } = require('./sms-templates');
-const { enqueueSms, kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
+const { kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
 const { bookingSmsConsentGranted } = require('./sms-program');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
 const { enabled, smsOutboxPolicy } = require('./twilio-runtime-policy');
@@ -117,16 +117,14 @@ async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
       return { ok: true, skipped: true, queued: false, reason: 'unsafe_receipt_url' };
     }
     const lifecycle = require('./review-request-lifecycle');
-    // The receipt always goes. The review link is left out when another path
-    // already asked, the review was received, or the owner stopped requests.
-    const reviewUrl = await lifecycle.completionNoticeReviewUrl(booking, officialGoogleReviewUrl(), {
-      prisma: opts.prisma,
-      now: opts.now,
-    });
     const idempotencyKey = completionIdempotencyKey(booking);
     if (!idempotencyKey) return { ok: true, skipped: true, queued: false, reason: 'invalid_idempotency_key' };
 
-    const queued = await enqueueSms({
+    // The receipt always goes. The review link is included only when a review
+    // ask is eligible (verified campaign, consent version that covers reviews,
+    // no other initial ask, not stopped/received), decided under the booking's
+    // review lock. Otherwise the receipt is sent without it.
+    const { queued, reviewLinkIncluded } = await lifecycle.enqueueCompletionNotice(booking, {
       idempotencyKey,
       audience: 'customer',
       customerAccountId: booking.customerAccountId || null,
@@ -136,9 +134,10 @@ async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
       templateKey: TEMPLATE_KEYS.SERVICE_COMPLETED,
       templateData: {
         receiptUrl,
-        reviewUrl: reviewUrl || '',
+        reviewUrl: officialGoogleReviewUrl() || '',
       },
-    }, { prisma: opts.prisma, env });
+    }, { prisma: opts.prisma, env, now: opts.now });
+    const reviewUrl = reviewLinkIncluded;
 
     if (!queued || !queued.ok) {
       return { ok: true, skipped: true, queued: false, reason: (queued && queued.error) || 'sms_outbox_failed' };

@@ -185,57 +185,153 @@ test.afterEach(() => {
   setSuppressionReadOverride(null);
 });
 
-// ---------------------------------------------------------------------------
+
+// Compliance only (no follow-up switches): simulates an owner who verified the
+// campaign and approved a consent version. Tests only.
+const COMPLIANT_ENV = Object.freeze({
+  ...BASE_ENV,
+  REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED: 'true',
+  REVIEW_SOLICITATION_CONSENT_VERSIONS: 'cd1-txn-sms-v3-2026-08-28',
+});
 
 test('send window is 10:00-18:00 America/New_York, Monday to Saturday', () => {
   assert.equal(lifecycle.isWithinSendWindow(Date.parse('2026-11-24T15:00:00Z')), true); // Tue 10:00
   assert.equal(lifecycle.isWithinSendWindow(Date.parse('2026-11-24T14:59:00Z')), false); // Tue 09:59
   assert.equal(lifecycle.isWithinSendWindow(Date.parse('2026-11-24T23:00:00Z')), false); // Tue 18:00
   assert.equal(lifecycle.isWithinSendWindow(Date.parse('2026-11-29T16:00:00Z')), false); // Sunday 11:00
-  // Saturday 18:30 ET -> Monday 10:00 ET.
-  assert.equal(
-    lifecycle.nextSendWindowStart(Date.parse('2026-11-28T23:30:00Z')).toISOString(),
-    '2026-11-30T15:00:00.000Z',
-  );
-  // Summer (EDT, UTC-4): Monday 09:00 EDT -> 10:00 EDT.
-  assert.equal(
-    lifecycle.nextSendWindowStart(Date.parse('2026-07-06T13:00:00Z')).toISOString(),
-    '2026-07-06T14:00:00.000Z',
-  );
+  assert.equal(lifecycle.nextSendWindowStart(Date.parse('2026-11-28T23:30:00Z')).toISOString(), '2026-11-30T15:00:00.000Z');
+  assert.equal(lifecycle.nextSendWindowStart(Date.parse('2026-07-06T13:00:00Z')).toISOString(), '2026-07-06T14:00:00.000Z');
 });
 
-test('defaults: every follow-up gate is closed and the blockers are reported', async () => {
+test('defaults: no review solicitation on any path; the receipt is still sent', async () => {
   assert.deepEqual(lifecycle.programBlockers(BASE_ENV), ['a2p_campaign_not_verified', 'review_consent_not_established']);
+  assert.equal(lifecycle.solicitationCompliance(booking(), BASE_ENV).ok, false);
+
   const prisma = fakePrisma();
-  const res = await notifyIfServiceClosedAndPaid(booking(), { prisma, env: BASE_ENV, now: NOW });
-  assert.equal(res.queued, true);
-  assert.equal(res.reviewLinkIncluded, true, 'existing completion text unchanged');
-  assert.equal(res.reminder.reason, 'automation_disabled');
-  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER).length, 0);
+  const paid = await notifyIfServiceClosedAndPaid(booking(), { prisma, env: BASE_ENV, now: NOW });
+  assert.equal(paid.queued, true);
+  assert.equal(paid.reviewLinkIncluded, false);
+  const receipt = rowsOf(prisma, TEMPLATE_KEYS.SERVICE_COMPLETED)[0];
+  assert.match(receipt.templateData.receiptUrl, /receipt\.html\?bookingId=CD1-REVIEW-1&type=final$/);
+  assert.equal(receipt.templateData.reviewUrl, '');
+  const body = renderSmsTemplate(TEMPLATE_KEYS.SERVICE_COMPLETED, receipt.templateData).body;
+  assert.match(body, /View your receipt/);
+  assert.doesNotMatch(body, /Google review|g\.page/);
+
+  const tech = await notifyReviewRequested(
+    booking({ id: 'CD1-REVIEW-T', bookingId: 'CD1-REVIEW-T', jobStatus: 'completed_pending_admin_review' }),
+    { prisma, env: BASE_ENV, now: NOW, verifiedPhoneE164: null },
+  );
+  assert.equal(tech.skipped, true);
+  assert.equal(tech.reason, 'a2p_campaign_not_verified');
+  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REQUESTED).length, 0);
+
+  assert.equal(paid.reminder.reason, 'no_review_link');
   const manual = await lifecycle.manualResend(booking(), { prisma, env: BASE_ENV, now: NOW });
-  assert.equal(manual.queued, false);
   assert.equal(manual.reason, 'manual_resend_disabled');
+  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER).length, 0);
 });
 
-test('switches on but no verified consent version: still no reminder', async () => {
+test('existing transactional consent versions are never treated as review consent', async () => {
   const prisma = fakePrisma();
-  const env = { ...ON_ENV, REVIEW_SOLICITATION_CONSENT_VERSIONS: '' };
-  const res = await notifyIfServiceClosedAndPaid(booking(), { prisma, env, now: NOW });
-  assert.equal(res.reminder.queued, false);
-  assert.equal(res.reminder.reason, 'review_consent_not_established');
-  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER).length, 0);
+  const switchesOnly = {
+    ...BASE_ENV,
+    REVIEW_REMINDER_AUTOMATION_ENABLED: 'true',
+    REVIEW_MANUAL_RESEND_ENABLED: 'true',
+    REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED: 'true',
+  };
+  const res = await notifyIfServiceClosedAndPaid(booking(), { prisma, env: switchesOnly, now: NOW });
+  assert.equal(res.reviewLinkIncluded, false);
+  assert.equal(lifecycle.solicitationCompliance(booking(), switchesOnly).reason, 'review_consent_not_established');
 
   const legacy = booking({
+    id: 'CD1-REVIEW-2',
+    bookingId: 'CD1-REVIEW-2',
     transactionalSmsConsent: { ...booking().transactionalSmsConsent, textVersion: 'dz-txn-sms-v2-2026-08-22' },
   });
-  const res2 = await notifyIfServiceClosedAndPaid({ ...legacy, id: 'CD1-REVIEW-2', bookingId: 'CD1-REVIEW-2' }, { prisma, env: ON_ENV, now: NOW });
-  assert.equal(res2.reminder.reason, 'consent_version_not_covered');
+  assert.equal(lifecycle.solicitationCompliance(legacy, ON_ENV).reason, 'consent_version_not_covered');
+  const res2 = await notifyIfServiceClosedAndPaid(legacy, { prisma, env: ON_ENV, now: NOW });
+  assert.equal(res2.reviewLinkIncluded, false);
+  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER).length, 0);
 });
 
-test('enabled: one reminder ~48 h later inside the window, idempotent across calls and paths', async () => {
+async function dispatch(prisma, row, { now, bookingState, env = ON_ENV, provider = fakeProvider() } = {}) {
+  const claimed = await prisma.smsOutbox.update({ where: { id: row.id }, data: { attemptCount: { increment: 1 } } });
+  const result = await processClaimedSms(claimed, {
+    prisma,
+    env,
+    now,
+    provider,
+    reviewBookingLoader: async () => (typeof bookingState === 'function' ? bookingState() : bookingState),
+  });
+  return { result, provider, row: await prisma.smsOutbox.findUnique({ where: { id: row.id } }) };
+}
+
+test('a previously queued completion text loses its review link at dispatch; the receipt still sends', async () => {
+  const prisma = fakePrisma();
+  const legacyRow = await prisma.smsOutbox.create({
+    data: {
+      idempotencyKey: 'booking.service_completed:CD1-REVIEW-1',
+      audience: 'customer',
+      bookingId: 'CD1-REVIEW-1',
+      toE164: '+12015550142',
+      templateKey: TEMPLATE_KEYS.SERVICE_COMPLETED,
+      templateVersion: 'sms-v6-2026-09-16',
+      templateData: { receiptUrl: 'https://cardetail1.com/receipt.html?bookingId=CD1-REVIEW-1&type=final', reviewUrl: GOOGLE },
+    },
+  });
+  const { provider, row } = await dispatch(prisma, legacyRow, { now: NOW, bookingState: booking(), env: BASE_ENV });
+  assert.equal(provider.sent.length, 1);
+  assert.match(provider.sent[0].body, /View your receipt/);
+  assert.doesNotMatch(provider.sent[0].body, /Google review|g\.page/);
+  assert.equal(row.templateData.reviewUrl, '');
+  assert.ok(row.providerMessageSid);
+  const again = await notifyIfServiceClosedAndPaid(booking(), { prisma, env: BASE_ENV, now: NOW + 1000 });
+  assert.equal(again.queued, true);
+  assert.equal(again.idempotent, true, 'payload hash updated with the strip');
+});
+
+test('a previously queued review_requested row is cancelled at dispatch without consent', async () => {
+  const prisma = fakePrisma();
+  const queued = await prisma.smsOutbox.create({
+    data: {
+      idempotencyKey: 'booking.review_requested:CD1-REVIEW-1',
+      audience: 'customer',
+      bookingId: 'CD1-REVIEW-1',
+      toE164: '+12015550142',
+      templateKey: TEMPLATE_KEYS.REVIEW_REQUESTED,
+      templateData: { url: 'https://cardetail1.com/reviews' },
+    },
+  });
+  const { provider, row } = await dispatch(prisma, queued, { now: NOW, bookingState: booking(), env: BASE_ENV });
+  assert.equal(provider.sent.length, 0);
+  assert.equal(row.status, 'failed');
+  assert.equal(row.lastErrorCode, 'review_cancelled_a2p_campaign_not_verified');
+});
+
+test('neutral eligibility: service issues, disputes and ratings do not change who is asked', async () => {
+  for (const overrides of [
+    { jobStatus: 'issue_reported' },
+    { serviceStatus: 'disputed' },
+    { serviceIssues: [{ issueId: 'i1', category: 'quality', description: 'x', status: 'open', createdAt: new Date(NOW).toISOString() }] },
+    { customerSatisfaction: 1, predictedRating: 1 },
+  ]) {
+    const b = booking({ completedAt: new Date(NOW - HOUR).toISOString(), ...overrides });
+    assert.equal(lifecycle.initialEligibility(b, [], { now: NOW, env: COMPLIANT_ENV }).ok, true, JSON.stringify(overrides));
+  }
+  const { shouldAskForReview } = require('../netlify/lib/review-request-notifications');
+  assert.equal(shouldAskForReview(booking({ jobStatus: 'issue_reported' })), true);
+  for (const stars of [1, 5]) {
+    const reviewed = booking({ review: { reviewId: 'r', stars, submittedAt: new Date(NOW).toISOString() } });
+    assert.equal(lifecycle.initialEligibility(reviewed, [], { now: NOW, env: COMPLIANT_ENV }).reason, 'review_received');
+  }
+});
+
+test('compliant: one initial ask across paths, then one reminder about 48 h later inside the window', async () => {
   const prisma = fakePrisma();
   const b = booking();
   const first = await notifyIfServiceClosedAndPaid(b, { prisma, env: ON_ENV, now: NOW });
+  assert.equal(first.reviewLinkIncluded, true);
   assert.equal(first.reminder.queued, true);
   const reminder = rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER);
   assert.equal(reminder.length, 1);
@@ -243,30 +339,42 @@ test('enabled: one reminder ~48 h later inside the window, idempotent across cal
   const at = toMs(reminder[0].availableAt);
   assert.ok(at >= toMs(b.completedAt) + 48 * HOUR);
   assert.ok(lifecycle.isWithinSendWindow(at));
-  assert.equal(reminder[0].templateData.reviewUrl, GOOGLE);
 
-  // Repeated completion events (second webhook, QuickOps close, admin approve).
   await notifyIfServiceClosedAndPaid(b, { prisma, env: ON_ENV, now: NOW + 60_000 });
-  await notifyReviewRequested(b, { prisma, env: ON_ENV, now: NOW + 120_000, verifiedPhoneE164: null });
+  const tech = await notifyReviewRequested(b, { prisma, env: ON_ENV, now: NOW + 120_000, verifiedPhoneE164: null });
+  assert.equal(tech.reason, 'duplicate_initial');
   assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER).length, 1);
   assert.equal(rowsOf(prisma, TEMPLATE_KEYS.SERVICE_COMPLETED).length, 1);
-  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REQUESTED).length, 0, 'no second initial ask');
+  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REQUESTED).length, 0);
 });
 
-test('tech path asked first: the paid completion text keeps the receipt and drops the review link', async () => {
+test('compliant, tech path first: the paid completion text keeps the receipt and drops the link', async () => {
   const prisma = fakePrisma();
   const pending = booking({ jobStatus: 'completed_pending_admin_review', paymentStatus: 'unpaid', ledger: { settledCents: 0 } });
-  const asked = await notifyReviewRequested(pending, { prisma, env: BASE_ENV, now: NOW, verifiedPhoneE164: null });
+  const asked = await notifyReviewRequested(pending, { prisma, env: COMPLIANT_ENV, now: NOW, verifiedPhoneE164: null });
   assert.equal(asked.queued, true);
-  const res = await notifyIfServiceClosedAndPaid(booking(), { prisma, env: BASE_ENV, now: NOW + 1000 });
+  const res = await notifyIfServiceClosedAndPaid(booking(), { prisma, env: COMPLIANT_ENV, now: NOW + 1000 });
   assert.equal(res.queued, true);
   assert.equal(res.reviewLinkIncluded, false);
-  const receipt = rowsOf(prisma, TEMPLATE_KEYS.SERVICE_COMPLETED)[0];
-  assert.match(receipt.templateData.receiptUrl, /receipt\.html\?bookingId=CD1-REVIEW-1/);
-  assert.equal(receipt.templateData.reviewUrl, '');
-  const body = renderSmsTemplate(TEMPLATE_KEYS.SERVICE_COMPLETED, receipt.templateData).body;
-  assert.match(body, /View your receipt/);
-  assert.doesNotMatch(body, /Google review/i);
+  assert.equal(rowsOf(prisma, TEMPLATE_KEYS.SERVICE_COMPLETED)[0].templateData.reviewUrl, '');
+});
+
+test('automation and manual resend are independent switches', async () => {
+  const autoOnly = { ...COMPLIANT_ENV, REVIEW_REMINDER_AUTOMATION_ENABLED: 'true' };
+  const manualOnly = { ...COMPLIANT_ENV, REVIEW_MANUAL_RESEND_ENABLED: 'true' };
+
+  const p1 = fakePrisma();
+  const a = await notifyIfServiceClosedAndPaid(booking(), { prisma: p1, env: autoOnly, now: NOW });
+  assert.equal(a.reminder.queued, true);
+  const m1 = await lifecycle.manualResend(booking(), { prisma: p1, env: autoOnly, now: NOW });
+  assert.equal(m1.reason, 'manual_resend_disabled');
+
+  const p2 = fakePrisma();
+  const b = await notifyIfServiceClosedAndPaid(booking(), { prisma: p2, env: manualOnly, now: NOW });
+  assert.equal(b.reminder.reason, 'automation_disabled');
+  const m2 = await lifecycle.manualResend(booking(), { prisma: p2, env: manualOnly, now: NOW });
+  assert.equal(m2.queued, true);
+  assert.equal(rowsOf(p2, TEMPLATE_KEYS.REVIEW_REMINDER)[0].idempotencyKey, 'booking.review_reminder:CD1-REVIEW-1:manual');
 });
 
 test('a historical completion never schedules a reminder (no retroactive sends)', async () => {
@@ -281,25 +389,12 @@ async function scheduledReminder(env = ON_ENV, b = booking()) {
   const prisma = fakePrisma();
   await notifyIfServiceClosedAndPaid(b, { prisma, env, now: NOW });
   const initial = rowsOf(prisma, TEMPLATE_KEYS.SERVICE_COMPLETED)[0];
-  // The initial text reached Twilio.
   await prisma.smsOutbox.update({
     where: { id: initial.id },
     data: { providerMessageSid: 'SM' + 'a'.repeat(32), status: 'sent', sentAt: new Date(NOW) },
   });
   const reminder = rowsOf(prisma, TEMPLATE_KEYS.REVIEW_REMINDER)[0];
   return { prisma, reminder, dueAt: toMs(reminder.availableAt) };
-}
-
-async function dispatch(prisma, row, { now, bookingState, env = ON_ENV, provider = fakeProvider() } = {}) {
-  const claimed = await prisma.smsOutbox.update({ where: { id: row.id }, data: { attemptCount: { increment: 1 } } });
-  const result = await processClaimedSms(claimed, {
-    prisma,
-    env,
-    now,
-    provider,
-    reviewBookingLoader: async () => (typeof bookingState === 'function' ? bookingState() : bookingState),
-  });
-  return { result, provider, row: await prisma.smsOutbox.findUnique({ where: { id: row.id } }) };
 }
 
 test('dispatch: an eligible reminder goes out once, with neutral wording', async () => {
@@ -311,20 +406,18 @@ test('dispatch: an eligible reminder goes out once, with neutral wording', async
   assert.match(provider.sent[0].body, /Reply STOP or HELP$/);
   assert.doesNotMatch(provider.sent[0].body, /discount|free|gift|coupon|reward|5[- ]star|five[- ]star/i);
   assert.ok(row.providerMessageSid);
-  // A worker retry of the same slot finds nothing left to send.
-  const again = await lifecycle.followUpEligibility(booking(), rowsOf(prisma), { kind: 'auto', now: dueAt + HOUR, env: ON_ENV });
-  assert.equal(again.ok, false);
+  const again = lifecycle.followUpEligibility(booking(), rowsOf(prisma), { kind: 'auto', now: dueAt + HOUR, env: ON_ENV });
   assert.equal(again.reason, 'automatic_cap_reached');
 });
 
-test('dispatch cancels when stopped, received, first-party review, STOP, expired or switched off', async () => {
+test('dispatch cancels when stopped, received, any review left, STOP, expired, or a gate is off', async () => {
   const cases = [
     ['stopped', () => booking({ reviewRequest: { stoppedAt: new Date(NOW).toISOString() } }), ON_ENV],
     ['review_received', () => booking({ reviewRequest: { receivedAt: new Date(NOW).toISOString() } }), ON_ENV],
-    ['review_received', () => booking({ review: { reviewId: 'r1', stars: 5, submittedAt: new Date(NOW).toISOString() } }), ON_ENV],
+    ['review_received', () => booking({ review: { reviewId: 'r1', stars: 2, submittedAt: new Date(NOW).toISOString() } }), ON_ENV],
     ['automation_disabled', () => booking(), { ...ON_ENV, REVIEW_REMINDER_AUTOMATION_ENABLED: '' }],
     ['a2p_campaign_not_verified', () => booking(), { ...ON_ENV, REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED: '' }],
-    ['service_issue_open', () => booking({ jobStatus: 'issue_reported' }), ON_ENV],
+    ['review_consent_not_established', () => booking(), { ...ON_ENV, REVIEW_SOLICITATION_CONSENT_VERSIONS: '' }],
   ];
   for (const [reason, state, env] of cases) {
     const { prisma, reminder, dueAt } = await scheduledReminder();
@@ -335,8 +428,7 @@ test('dispatch cancels when stopped, received, first-party review, STOP, expired
   }
 
   const { prisma, reminder } = await scheduledReminder();
-  const late = NOW + 15 * 24 * HOUR;
-  const expired = await dispatch(prisma, reminder, { now: late, bookingState: booking() });
+  const expired = await dispatch(prisma, reminder, { now: NOW + 15 * 24 * HOUR, bookingState: booking() });
   assert.equal(expired.provider.sent.length, 0);
   assert.equal(expired.row.lastErrorCode, 'review_cancelled_expired');
 
@@ -350,7 +442,6 @@ test('dispatch cancels when stopped, received, first-party review, STOP, expired
 test('dispatch defers outside the window without burning an attempt, and fails closed on lookup errors', async () => {
   const { prisma, reminder, dueAt } = await scheduledReminder();
   const sunday = Date.parse('2026-11-29T16:00:00Z');
-  assert.ok(sunday > dueAt);
   const deferred = await dispatch(prisma, reminder, { now: sunday, bookingState: booking() });
   assert.equal(deferred.provider.sent.length, 0);
   assert.equal(deferred.row.status, 'accepted');
@@ -359,10 +450,7 @@ test('dispatch defers outside the window without burning an attempt, and fails c
 
   let row = deferred.row;
   for (let i = 0; i < 5; i += 1) {
-    const out = await dispatch(prisma, row, {
-      now: dueAt,
-      bookingState: () => { throw new Error('blobs down'); },
-    });
+    const out = await dispatch(prisma, row, { now: dueAt, bookingState: () => { throw new Error('blobs down'); } });
     assert.equal(out.provider.sent.length, 0);
     row = out.row;
   }
@@ -370,19 +458,29 @@ test('dispatch defers outside the window without burning an attempt, and fails c
   assert.equal(row.lastErrorCode, 'review_cancelled_gate_unavailable');
 });
 
-test('owner marks cancel pending reminders; a leased row is left to the dispatch check', async () => {
+test('an ambiguous provider failure keeps its slot, so it cannot cause a second ask', async () => {
+  const { prisma, reminder, dueAt } = await scheduledReminder();
+  const timeoutProvider = { ok: true, async send() { const e = new Error('socket hang up'); e.code = 'ECONNRESET'; throw e; } };
+  const out = await dispatch(prisma, reminder, { now: dueAt, bookingState: booking(), provider: timeoutProvider });
+  assert.equal(out.row.status, 'failed');
+  assert.equal(out.row.providerMessageSid, null);
+  assert.equal(lifecycle.rowStage(out.row), 'ambiguous');
+  assert.equal(lifecycle.consumesSlot(out.row), true);
+  assert.equal(lifecycle.slotCounts(rowsOf(prisma)).automatic, 2);
+  const view = lifecycle.reviewLifecycleView(booking(), rowsOf(prisma), { now: dueAt, env: ON_ENV });
+  assert.equal(view.state, 'failed');
+  assert.equal(view.messages.find((m) => m.kind === 'automatic_reminder').deliveredAt, null);
+});
+
+test('owner marks cancel pending follow-ups; a leased row is left to the dispatch check', async () => {
   const { prisma, reminder } = await scheduledReminder();
   const res = await lifecycle.cancelPendingFollowUps('CD1-REVIEW-1', 'review_received', { prisma, now: NOW });
   assert.equal(res.cancelled, 1);
   const row = await prisma.smsOutbox.findUnique({ where: { id: reminder.id } });
-  assert.equal(row.status, 'failed');
   assert.equal(row.lastErrorCode, 'review_cancelled_review_received');
 
   const second = await scheduledReminder();
-  await second.prisma.smsOutbox.update({
-    where: { id: second.reminder.id },
-    data: { leaseExpiresAt: new Date(NOW + 60_000) },
-  });
+  await second.prisma.smsOutbox.update({ where: { id: second.reminder.id }, data: { leaseExpiresAt: new Date(NOW + 60_000) } });
   const leased = await lifecycle.cancelPendingFollowUps('CD1-REVIEW-1', 'stopped', { prisma: second.prisma, now: NOW });
   assert.equal(leased.cancelled, 0);
 });
@@ -390,41 +488,21 @@ test('owner marks cancel pending reminders; a leased row is left to the dispatch
 test('manual resend: one per booking, 24 h cooldown, total cap of three', async () => {
   const { prisma, reminder, dueAt } = await scheduledReminder();
   await dispatch(prisma, reminder, { now: dueAt, bookingState: booking() });
-  // Mark the reminder as sent at dueAt so the cooldown runs from there.
   await prisma.smsOutbox.update({ where: { id: reminder.id }, data: { status: 'sent', sentAt: new Date(dueAt) } });
 
   const soon = await lifecycle.manualResend(booking(), { prisma, env: ON_ENV, now: dueAt + HOUR });
   assert.equal(soon.queued, true);
-  assert.ok(toMs(soon.scheduledFor) >= dueAt + 24 * HOUR, 'held until the cooldown ends');
+  assert.ok(toMs(soon.scheduledFor) >= dueAt + 24 * HOUR);
   assert.ok(lifecycle.isWithinSendWindow(toMs(soon.scheduledFor)));
-
   const twice = await lifecycle.manualResend(booking(), { prisma, env: ON_ENV, now: dueAt + 2 * HOUR });
-  assert.equal(twice.queued, false);
   assert.equal(twice.reason, 'manual_resend_already_used');
-  assert.equal(lifecycle.slotCounts(rowsOf(prisma), dueAt).total, 3);
-});
-
-test('an initial review_requested row is cancelled at dispatch when the completion text already asked', async () => {
-  const prisma = fakePrisma();
-  await notifyIfServiceClosedAndPaid(booking(), { prisma, env: BASE_ENV, now: NOW });
-  const dup = await prisma.smsOutbox.create({
-    data: {
-      idempotencyKey: 'booking.review_requested:CD1-REVIEW-1',
-      audience: 'customer',
-      bookingId: 'CD1-REVIEW-1',
-      toE164: '+12015550142',
-      templateKey: TEMPLATE_KEYS.REVIEW_REQUESTED,
-      templateData: { url: 'https://cardetail1.com/reviews' },
-    },
-  });
-  const { provider, row } = await dispatch(prisma, dup, { now: NOW, bookingState: booking(), env: BASE_ENV });
-  assert.equal(provider.sent.length, 0);
-  assert.equal(row.lastErrorCode, 'review_cancelled_duplicate_initial');
+  assert.equal(lifecycle.slotCounts(rowsOf(prisma)).total, 3);
 });
 
 test('admin view distinguishes queued, submitted, delivered and the terminal states', () => {
   const b = booking();
   const base = {
+    id: 'r1',
     bookingId: 'CD1-REVIEW-1',
     audience: 'customer',
     templateKey: TEMPLATE_KEYS.SERVICE_COMPLETED,
@@ -438,13 +516,15 @@ test('admin view distinguishes queued, submitted, delivered and the terminal sta
   };
   const view = (rows, extra = {}, bk = b) => lifecycle.reviewLifecycleView(bk, rows, { now: NOW, env: ON_ENV, ...extra }).state;
   assert.equal(view([]), 'not_requested');
+  assert.equal(view([{ ...base, templateData: { reviewUrl: '', receiptUrl: 'x' } }]), 'not_requested', 'receipt-only is not an ask');
   assert.equal(view([base]), 'queued');
   assert.equal(view([{ ...base, providerMessageSid: 'SM1', providerStatus: 'queued' }]), 'sent');
   assert.equal(view([{ ...base, providerMessageSid: 'SM1', status: 'sent' }]), 'sent');
   assert.equal(view([{ ...base, providerMessageSid: 'SM1', status: 'delivered', deliveredAt: new Date(NOW) }]), 'delivered');
-  assert.equal(view([{ ...base, status: 'failed', lastErrorCode: '30005' }]), 'failed');
+  assert.equal(view([{ ...base, providerMessageSid: 'SM1', status: 'failed', lastErrorCode: '30005' }]), 'failed');
   const scheduled = {
     ...base,
+    id: 'r2',
     templateKey: TEMPLATE_KEYS.REVIEW_REMINDER,
     idempotencyKey: 'booking.review_reminder:CD1-REVIEW-1:auto',
     availableAt: new Date(NOW + 48 * HOUR),
@@ -462,7 +542,37 @@ test('admin view distinguishes queued, submitted, delivered and the terminal sta
   assert.equal(JSON.stringify(full).includes('555'), false, 'no phone in the admin view');
 });
 
-test('the reminder template renders for every template enumeration and stays neutral', () => {
+test('admin status batch: one outbox query for all bookings, bounded parallel reads', async () => {
+  const { reviewRequestStatusBatch } = require('../netlify/functions/admin-ops-jobs');
+  const prisma = fakePrisma();
+  let findManyCalls = 0;
+  const inner = prisma.smsOutbox.findMany;
+  prisma.smsOutbox.findMany = async (args) => { findManyCalls += 1; return inner(args); };
+  let inFlight = 0;
+  let peak = 0;
+  const ids = Array.from({ length: 40 }, (_, i) => `CD1-BATCH-${i}`);
+  const res = await reviewRequestStatusBatch({ bookingIds: [...ids, 'not-a-booking'] }, {
+    prisma,
+    env: BASE_ENV,
+    now: NOW,
+    loadBooking: async (id) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight -= 1;
+      return booking({ id, bookingId: id });
+    },
+  });
+  const body = JSON.parse(res.body);
+  assert.equal(res.statusCode, 200);
+  assert.equal(body.statuses.length, 40);
+  assert.equal(findManyCalls, 1);
+  assert.ok(peak <= 8 && peak > 1, `peak ${peak}`);
+  assert.deepEqual(body.program.blockers, ['a2p_campaign_not_verified', 'review_consent_not_established']);
+  assert.equal(JSON.stringify(body).includes('555'), false);
+});
+
+test('the reminder template stays neutral', () => {
   const r = renderSmsTemplate(TEMPLATE_KEYS.REVIEW_REMINDER, { reviewUrl: GOOGLE });
   assert.equal(r.ok, true);
   assert.equal(r.body, `Cardetail1: Thanks again for choosing us. If you have a moment, we would appreciate an honest Google review: ${GOOGLE} Reply STOP or HELP`);

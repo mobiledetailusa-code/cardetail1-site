@@ -1492,25 +1492,35 @@ async function reviewRequestStatusBatch(body, testOpts = {}) {
     const rec = await getBookingRecord(id, { requireStrong: true });
     return rec && rec.booking;
   });
-  const statuses = [];
-  for (const id of ids) {
-    let booking = null;
-    try { booking = await loadBooking(id); } catch { booking = null; }
-    if (!booking) { statuses.push({ bookingId: id, state: 'unknown', error: 'booking_unavailable' }); continue; }
-    let optedOut = null;
-    try {
-      const suppression = await readPhoneSuppression(booking.phone || booking.customerPhone || '');
-      optedOut = suppression.ok ? !!suppression.suppressed : null;
-    } catch {
-      optedOut = null;
+  // One outbox query for every booking (above); booking and suppression reads
+  // run in a bounded pool so 40 rows cost about 5 round trips, not 80.
+  const statuses = new Array(ids.length);
+  const POOL = 8;
+  let next = 0;
+  const worker = async () => {
+    while (next < ids.length) {
+      const index = next;
+      next += 1;
+      const id = ids[index];
+      let booking = null;
+      try { booking = await loadBooking(id); } catch { booking = null; }
+      if (!booking) { statuses[index] = { bookingId: id, state: 'unknown', error: 'booking_unavailable' }; continue; }
+      let optedOut = null;
+      try {
+        const suppression = await readPhoneSuppression(booking.phone || booking.customerPhone || '');
+        optedOut = suppression.ok ? !!suppression.suppressed : null;
+      } catch {
+        optedOut = null;
+      }
+      statuses[index] = lifecycle.reviewLifecycleView(booking, rowsByBooking ? rowsByBooking.get(id) : [], {
+        env,
+        now: testOpts.now,
+        optedOut,
+        ledgerAvailable: !!rowsByBooking,
+      });
     }
-    statuses.push(lifecycle.reviewLifecycleView(booking, rowsByBooking ? rowsByBooking.get(id) : [], {
-      env,
-      now: testOpts.now,
-      optedOut,
-      ledgerAvailable: !!rowsByBooking,
-    }));
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(POOL, ids.length) }, worker));
   return jsonCors(200, {
     ok: true,
     ledgerAvailable: !!rowsByBooking,
@@ -3880,3 +3890,4 @@ exports.handler = async (event) => {
     return finalizeJobsResponse(jsonCors(500, { ok: false, error: 'failed_to_load_jobs' }), timing);
   }
 };
+exports.reviewRequestStatusBatch = reviewRequestStatusBatch;
