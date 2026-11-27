@@ -42,6 +42,10 @@ Thumbs.db
 *.txt
 !robots.txt
 !llms.txt
+# IndexNow ownership key (public by design; see docs/seo/indexnow.md)
+!/4928f243e82d24fa6968f4e19e34171c.txt
+# Local record of IndexNow submissions from this machine
+/.indexnow-log.json
 
 /generated/prisma
 

@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { buildPublicDist, PUBLIC_FILES } = require('../scripts/build-public-dist');
+const { buildPublicDist, PUBLIC_FILES, ROOT_FILES } = require('../scripts/build-public-dist');
 
 const ROOT = path.join(__dirname, '..');
 const OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'cd1-public-dist-'));
@@ -66,7 +66,7 @@ test('every root page, public asset and prototype file is published unchanged', 
   const tracked = walk(ROOT).filter((rel) => !rel.startsWith('node_modules/') && !rel.startsWith('.git/') && !rel.startsWith('dist/'));
   const rootHtml = tracked.filter((rel) => !rel.includes('/') && rel.endsWith('.html'));
   assert.ok(rootHtml.includes('index.html'));
-  for (const rel of [...rootHtml, 'favicon.ico', 'robots.txt', 'sitemap.xml', 'llms.txt', ...PUBLIC_FILES]) {
+  for (const rel of [...rootHtml, ...ROOT_FILES, ...PUBLIC_FILES]) {
     assert.ok(publishedSet.has(rel), `${rel} must be published`);
     assert.ok(fs.readFileSync(path.join(OUT, rel)).equals(fs.readFileSync(path.join(ROOT, rel))), `${rel} changed`);
   }
