@@ -1,97 +1,82 @@
 # Review request lifecycle
 
-Status: built, **all follow-up sends disabled by default**. Owner authorization is required before any activation.
+Status: built in draft PR #432. **No review solicitation is sent on any path by default.** Every completion still sends its transactional receipt. Activation needs the owner's authorization (see [the activation checklist](review-request-activation-checklist.md)).
 
-## What it does
+## Behaviour
 
-- **Initial request (unchanged).** When a job completes, the existing initial request still goes out:
-  - `booking.service_completed`: receipt plus the Google review link, on the paid path;
-  - or `booking.review_requested`: the first-party `/reviews` link, on the unpaid path.
-- **Cross-path de-duplication (new, active by default).** At most one initial ask per booking:
-  - If `review_requested` was already accepted, the later paid completion text keeps the receipt and drops the review link.
-  - If the paid completion text already carried the link, a later `review_requested` is skipped. If it is already queued, the worker cancels it at dispatch.
-  - A ledger outage keeps today's behaviour (fail-open), so receipt delivery never depends on this check.
-- **Automatic reminder (new, off).** One `booking.review_reminder` text:
-  - scheduled at about 48 h after completion, at the next 10:00–18:00 America/New_York slot, Monday–Saturday;
-  - only from a live completion (within 6 h), so historical bookings never receive one.
-- **Manual resend (new, off).** One owner resend per booking, from Admin → More → Completed / Review.
-- **Caps:**
-  - 2 automatic solicitations: the initial ask plus the reminder;
-  - 3 in total, including the manual resend;
-  - 24 h minimum between solicitations;
-  - expiry 14 days after completion.
-- **Owner marks.** "Review received" and "Stop" are stored on the booking as `booking.reviewRequest.receivedAt` / `stoppedAt`. Both cancel pending follow-ups.
-
-## Gates (all must be true for a follow-up)
-
-| Variable | Default | Meaning |
+| Path | Default (gates closed) | When review consent and campaign are established |
 |---|---|---|
-| `REVIEW_REMINDER_AUTOMATION_ENABLED` | unset (off) | allows the automatic reminder |
-| `REVIEW_MANUAL_RESEND_ENABLED` | unset (off) | shows the Resend button and allows the owner resend |
-| `REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED` | unset (off) | set only after the owner confirms in the Twilio console that the registered A2P campaign covers review requests |
-| `REVIEW_SOLICITATION_CONSENT_VERSIONS` | empty | comma list of booking consent text versions confirmed to cover review requests and follow-ups |
+| Technician completion (`booking.review_requested`) | not queued | one initial ask, unless another initial ask exists |
+| Admin approval / QuickOps close / Stripe webhook (`booking.service_completed`) | receipt **without** the Google link | receipt with the link, unless another initial ask exists |
+| Rows queued before this change | a review ask is cancelled at dispatch; a completion text loses its link but the receipt still sends | re-checked at dispatch |
+| Automatic reminder (`booking.review_reminder …:auto`) | never scheduled | one reminder about 48 h after completion, 10:00–18:00 America/New_York, Mon–Sat; live completions only (≤ 6 h old) |
+| Manual resend (`booking.review_reminder …:manual`) | button hidden, action refused | one per booking, from Admin → More → Completed / Review |
 
-The existing Twilio switches (`TWILIO_OUTBOX_ENABLED`, `TWILIO_ENABLED`, `TWILIO_PRODUCTION_SENDS_ENABLED`, `CUSTOMER_TRANSACTIONAL_SMS_ENABLED`, production identity) still apply on top of these four.
+Caps and timing:
+- at most 2 automatic solicitations (initial ask plus reminder) and 3 in total;
+- at least 24 h between solicitations;
+- nothing more than 14 days after completion.
 
-## Consent and campaign findings (2026-11-26)
+The owner can stop asking with **Review received** or **Stop**. Either one also cancels pending follow-ups.
 
-- **Booking checkbox** (`cd1-txn-sms-v3-2026-08-28`): "booking request, appointment updates, reminders, and service-related notifications". Below it: "Transactional messages only; no marketing consent". **Review requests are not named.**
-- **Terms, SMS program:** the listed message types do not include review requests. The page also says "The program does not include promotional or marketing messages." ("booking review" there means the internal booking approval.)
-- **A2P campaign:** the repository records the brand (Detailing Zone L.L.C., DBA Cardetail1), but not the campaign use case or sample messages. It cannot be verified from code.
-- **Result:** consent and campaign eligibility are **not established**. `REVIEW_SOLICITATION_CONSENT_VERSIONS` stays empty and `REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED` stays off.
-- **Pre-existing question for the owner:** the existing initial completion text already contains a Google review ask. This change does not alter it.
-- **Enforcement already in the stack:**
-  - **STOP / suppression:** a carrier opt-out code or an inbound STOP writes `cd1-sms-suppression`. The worker checks suppression before every send, and the review gate also re-runs `assertCustomerSmsConsent`, which catches portal revocation.
-  - **Quiet hours:** none existed before. The follow-ups add the 10–18 ET, Monday–Saturday window, which sits inside the TCPA 8 am–9 pm rule and stricter state rules.
-  - **Neutral wording:** the template offers no incentive and does not ask for a positive rating. There is no sentiment-based targeting.
-  - **Open service issues:** jobs with an open service issue or dispute are excluded. This matches the existing initial-request rule; the owner should confirm that this is not selective targeting under Google's policy.
+## Gates
 
-## Ledger and observability
+A **solicitation** is any message that asks for a review. The receipt itself is never gated by these variables.
 
-There is no new table or column, and no migration. Everything reuses the PostgreSQL `SmsOutbox` and the existing columns:
+| Variable | Default | Applies to |
+|---|---|---|
+| `REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED` | off | every solicitation, the initial ask included |
+| `REVIEW_SOLICITATION_CONSENT_VERSIONS` | empty | every solicitation; the booking's consent text version must be listed |
+| `REVIEW_REMINDER_AUTOMATION_ENABLED` | off | automatic reminder only |
+| `REVIEW_MANUAL_RESEND_ENABLED` | off | manual resend only (independent of automation) |
 
-| Admin label | Outbox evidence |
+No existing transactional consent version (`cd1-txn-sms-v3-2026-08-28`, `dz-txn-sms-v2-2026-08-22`) is treated as review consent by the code, and nothing in the code adds one to the list.
+
+## Neutral eligibility
+
+Eligibility never depends on satisfaction, complaints, service issues, disputes, ratings or predicted ratings.
+- The earlier rule that excluded `issue_reported` / `disputed` jobs from the initial ask was removed. Excluding unhappy customers would be selective (positive-only) solicitation.
+- What ends asking:
+  - a review already left, first-party or marked received by the owner, at any rating;
+  - the owner's Stop;
+  - STOP / opt-out or revoked consent;
+  - expiry or the caps.
+
+## Ledger, lock and statuses
+
+- **Ledger.** The PostgreSQL `SmsOutbox` is the only ledger. There is no new table or column, and no migration.
+- **Cancellation** uses the existing `status=failed` + `lastErrorCode`, prefixed `review_cancelled_`. This is the same pattern as `superseded`.
+- **Removing a review link at dispatch** rewrites the row's `templateData.reviewUrl` and its `payloadHash`. A later enqueue of the same completion therefore stays idempotent.
+- **Lock.** Every review enqueue, and every review dispatch decision together with its row update, runs inside a transaction holding `pg_advisory_xact_lock(hashtextextended('cd1-review:<bookingId>', 0))`.
+  - Concurrent completion paths, double clicks and parallel workers serialize per booking.
+  - A row being sent keeps its lease, so another ask for the same booking sees it in flight and is deferred.
+  - If the lock or ledger is unavailable: a receipt is sent without its link, an ask is deferred, and after `maxAttempts` the ask is cancelled.
+- **Ambiguous provider failures.** A failed row with no Message SID whose code is not a known pre-send rejection keeps its solicitation slot. It is shown as Failed and is never retried as a new ask.
+
+| Admin label | Ledger evidence |
 |---|---|
-| Not requested | no solicitation row |
-| Queued | `status=accepted`, no `providerMessageSid`, due |
-| Reminder scheduled | reminder row, `status=accepted`, `availableAt` in the future |
-| Sent to Twilio (delivery not confirmed) | `providerMessageSid` set (Twilio accepted), or `status=sent` |
-| Delivered (Twilio confirmed) | `status=delivered`, only from Twilio's own status (send response or signed status callback) |
-| Failed | `status=failed` with a provider or gate code |
+| Not requested | no solicitation row (a receipt without the link is not one) |
+| Queued | `accepted`, no SID, due |
+| Reminder scheduled | reminder row `accepted` with a future `availableAt` |
+| Sent to Twilio (delivery not confirmed) | SID held (`submitted`) or `status=sent` |
+| Delivered (Twilio confirmed) | `status=delivered` from Twilio's own status (send response or signed callback; monotonic) |
+| Failed | `failed` with a provider code, or ambiguous |
 | Opted out | suppression read true, or a row ended `suppressed` |
-| Review received / Stopped | owner mark, or a first-party review on the booking |
-| Expired | more than 14 days after completion |
+| Review received / Stopped / Expired | owner mark or first-party review / owner Stop / more than 14 days |
 
-Cancelled rows use the existing pattern: `status=failed` with `lastErrorCode` prefixed `review_cancelled_`. This is the same approach the code already uses for `superseded`, so the enum is unchanged.
-
-## Reliability
-
-- **Single-use slots.** Each slot has a unique idempotency key:
-  - `booking.review_requested:<id>`
-  - `booking.service_completed:<id>`
-  - `booking.review_reminder:<id>:auto`
-  - `booking.review_reminder:<id>:manual`
-- **Retries.** Worker retries reuse the same row, and the existing lease and claim logic are unchanged.
-- **Dispatch gate** (`applyReviewDispatchGate` in `sms-outbox.js`). It runs for `review_requested` and `review_reminder` after the claim and before Twilio:
-  - It re-reads the booking with a strong read and re-reads the ledger.
-  - It re-checks switches, consent, received/stopped, caps, cooldown, window and expiry.
-  - Follow-ups fail closed: a failed lookup defers the row and counts an attempt; after `maxAttempts` the row is cancelled.
-  - Waiting for the send window does not consume an attempt.
-- **Marking order.** "Received" and "Stop" commit the booking first, then cancel unleased pending rows. A row leased at that moment is cancelled by its own dispatch check.
-
-## Activation (owner only, after the consent and campaign decision)
-
-1. Confirm in the Twilio console that the A2P campaign use case and samples cover review requests. Update the campaign if needed.
-2. Decide, with counsel if needed, whether consent v3 covers review requests, or ship a new consent text version first.
-3. Set in Netlify (production scope):
-   - `REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED=true`
-   - `REVIEW_SOLICITATION_CONSENT_VERSIONS=<approved versions>`
-   - then `REVIEW_MANUAL_RESEND_ENABLED=true`, `REVIEW_REMINDER_AUTOMATION_ENABLED=true`, or both.
-4. Release through the documented CLI-bundled procedure (no prebuilt function zips).
-
-Only completions after activation can get an automatic reminder (6 h live-completion rule).
+**Status fetch:** the Admin table shows up to 40 completed jobs. It costs one `SmsOutbox` query for all of them, plus booking and suppression reads in a pool of 8.
 
 ## Rollback
 
-- **Fastest:** unset `REVIEW_REMINDER_AUTOMATION_ENABLED` and `REVIEW_MANUAL_RESEND_ENABLED`. Already-scheduled reminders are then cancelled at dispatch with `review_cancelled_automation_disabled` or `review_cancelled_manual_resend_disabled`. Note that a function env change needs a redeploy to take effect.
-- **Full:** redeploy the previous production deploy. The old build does not know the `booking.review_reminder` template, so when such a row comes due, the old worker marks it `failed` with `unknown_sms_template` and never sends it. The cross-path de-duplication disappears with the rollback, and the double initial ask returns.
+- **Switches:** unset `REVIEW_REMINDER_AUTOMATION_ENABLED` / `REVIEW_MANUAL_RESEND_ENABLED` and redeploy. Scheduled follow-ups are cancelled at dispatch. Unsetting either compliance variable also cancels every pending ask and strips links from pending receipts.
+- **Code:** redeploy the previous production build.
+  - That build has no `booking.review_reminder` template, so a due reminder row fails with `unknown_sms_template` and is never sent.
+  - The earlier behaviour returns with it: a Google link in every completion receipt, and the possible double ask.
+
+## Tests
+
+- `tests/review-request-lifecycle.test.js`: in-memory ledger; gates, neutrality, window, caps, dispatch, admin view, batch query count.
+- `tests/review-request-lifecycle-postgres.test.js`: real PostgreSQL and the advisory lock.
+  - Covers concurrent cross-path completion, concurrent manual resend, two workers on one booking, mark-received race, STOP, monotonic delivery status, ambiguous failure.
+  - Skipped locally without `DATABASE_URL`; mandatory in CI.
+  - A mutation run with the lock bypassed produced a double ask in 10/10 runs.
