@@ -109,8 +109,10 @@ describe('Add-on management is searchable, filterable and collapsed by default',
     assert.match(html, /search\/filter\/rebuild never silently discards/);
   });
 
-  it('auto-commits the open package editor before saving', () => {
-    assert.match(html, /Auto-commit any pending edits in the open package editor/);
-    assert.match(html, /if \(state\.selectedId && !el\('editor'\)\.hidden\) applyPackageEdits\(\);/);
+  it('auto-commits the open package editor before saving, or refuses to save', () => {
+    // The commit is checked, not fired and forgotten: an apply that bails on an
+    // invalid price used to be saved over, losing the edit while reporting "Saved".
+    assert.match(html, /!applyPackageEdits\(\)/);
+    assert.match(html, /Package edits could not be applied/);
   });
 });
