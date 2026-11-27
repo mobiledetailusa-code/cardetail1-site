@@ -23,7 +23,16 @@ const ROOT = path.join(__dirname, '..');
 const DEFAULT_OUT = path.join(ROOT, 'dist');
 
 /** Root-level files served as-is (besides every root *.html). */
-const ROOT_FILES = ['favicon.ico', 'robots.txt', 'sitemap.xml', 'llms.txt'];
+const ROOT_FILES = [
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml',
+  'llms.txt',
+  // iOS requests /apple-touch-icon.png on pages that do not declare one.
+  'apple-touch-icon.png',
+  // IndexNow ownership key (public by design). See docs/seo/indexnow.md.
+  '4928f243e82d24fa6968f4e19e34171c.txt',
+];
 
 /** Whole directories that are public by design. */
 const PUBLIC_DIRS = [
