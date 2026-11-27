@@ -5,7 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const {
-  KEY, KEY_LOCATION, parseSitemap, parseDisallow, isDisallowed, urlForFile, buildPlan, payload, parseArgs,
+  KEY, KEY_LOCATION, ENDPOINT, parseSitemap, parseDisallow, isDisallowed, urlForFile, buildPlan, payload, parseArgs,
+  filterRecent, describeStatus,
 } = require('../scripts/indexnow-submit');
 const { ROOT_FILES } = require('../scripts/build-public-dist');
 
@@ -83,7 +84,37 @@ test('--all covers every sitemap URL and the payload follows the protocol', () =
 test('dry run is the default; --submit must be explicit', () => {
   assert.equal(parseArgs(['--all']).submit, false);
   assert.equal(parseArgs(['--all', '--submit']).submit, true);
+  assert.equal(parseArgs(['--all', '--submit']).force, false);
   assert.throws(() => parseArgs(['--yes']), /unknown argument/);
+});
+
+test('uses the official shared IndexNow endpoint over https', () => {
+  assert.equal(ENDPOINT, 'https://api.indexnow.org/indexnow');
+});
+
+test('URLs sent from this machine in the last 24 h are not resent unless forced', () => {
+  const now = Date.parse('2026-11-27T12:00:00Z');
+  const log = {
+    'https://cardetail1.com/': '2026-11-27T02:00:00Z', // 10 h ago
+    'https://cardetail1.com/mahwah-mobile-detailing': '2026-11-25T12:00:00Z', // 2 days ago
+  };
+  const urls = ['https://cardetail1.com/', 'https://cardetail1.com/mahwah-mobile-detailing', 'https://cardetail1.com/tenafly-mobile-detailing'];
+  assert.deepEqual(filterRecent(urls, log, now), {
+    send: ['https://cardetail1.com/mahwah-mobile-detailing', 'https://cardetail1.com/tenafly-mobile-detailing'],
+    recent: ['https://cardetail1.com/'],
+  });
+  assert.deepEqual(filterRecent(urls, log, now, true).send, urls);
+  assert.deepEqual(filterRecent(urls, {}, now).send, urls);
+});
+
+test('every documented IndexNow status has an operator message', () => {
+  for (const s of [200, 202, 400, 403, 422, 429]) assert.notEqual(describeStatus(s), 'unexpected response');
+  assert.equal(describeStatus(500), 'unexpected response');
+});
+
+test('the local submission log is never committed', () => {
+  const gi = fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf8');
+  assert.match(gi, /^\/\.indexnow-log\.json$/m);
 });
 
 test('IndexNow stays manual: no build hook, Function or schedule', () => {

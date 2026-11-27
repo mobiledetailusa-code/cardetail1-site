@@ -19,6 +19,8 @@
  *  - --submit first checks that the live key file matches the committed key,
  *    and that every changed URL answers 200. Without --submit nothing leaves
  *    this machine.
+ *  - URLs this machine already sent in the last 24 hours are skipped (local,
+ *    untracked .indexnow-log.json); --force overrides that.
  * See docs/seo/indexnow.md.
  */
 'use strict';
@@ -34,6 +36,50 @@ const KEY = '4928f243e82d24fa6968f4e19e34171c';
 const KEY_LOCATION = `${ORIGIN}/${KEY}.txt`;
 const ENDPOINT = 'https://api.indexnow.org/indexnow';
 const MAX_URLS = 10000;
+const TIMEOUT_MS = 15000;
+// Local, untracked record of what this machine already sent (see .gitignore).
+const LOG_FILE = path.join(ROOT, '.indexnow-log.json');
+const RESUBMIT_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/** What each IndexNow status means for the operator (protocol documentation). */
+const STATUS_HELP = {
+  200: 'accepted',
+  202: 'accepted; key validation pending',
+  400: 'bad request: invalid format',
+  403: 'key not valid: key file missing or does not match',
+  422: 'URLs do not belong to the host, or the key does not match the protocol',
+  429: 'too many requests: stop and try again later',
+};
+
+function describeStatus(status) {
+  return STATUS_HELP[status] || 'unexpected response';
+}
+
+/** Drop URLs this machine already sent in the last 24 hours, unless forced. Pure. */
+function filterRecent(urls, log, now, force = false) {
+  if (force) return { send: urls, recent: [] };
+  const send = [];
+  const recent = [];
+  for (const u of urls) {
+    const last = log && log[u] ? Date.parse(log[u]) : NaN;
+    if (Number.isFinite(last) && now - last < RESUBMIT_AFTER_MS) recent.push(u);
+    else send.push(u);
+  }
+  return { send, recent };
+}
+
+function readLog() {
+  try {
+    return JSON.parse(fs.readFileSync(LOG_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function writeLog(log, urls, when) {
+  for (const u of urls) log[u] = when;
+  fs.writeFileSync(LOG_FILE, JSON.stringify(log, null, 2));
+}
 
 function parseSitemap(xml) {
   return [...String(xml).matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1].trim());
@@ -127,10 +173,11 @@ function gitNames(ref, filter) {
 }
 
 function parseArgs(argv) {
-  const a = { urls: [], removedUrls: [], submit: false, all: false, since: null };
+  const a = { urls: [], removedUrls: [], submit: false, all: false, since: null, force: false };
   for (let i = 0; i < argv.length; i += 1) {
     const v = argv[i];
     if (v === '--submit') a.submit = true;
+    else if (v === '--force') a.force = true;
     else if (v === '--all') a.all = true;
     else if (v === '--changed-since') a.since = argv[++i];
     else if (v === '--url') a.urls.push(argv[++i]);
@@ -141,7 +188,7 @@ function parseArgs(argv) {
 }
 
 async function liveStatus(url) {
-  const res = await fetch(url, { method: 'GET', redirect: 'manual' });
+  const res = await fetch(url, { method: 'GET', redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT_MS) });
   return res.status;
 }
 
@@ -166,7 +213,7 @@ async function main(argv) {
     return 0;
   }
 
-  const keyRes = await fetch(KEY_LOCATION);
+  const keyRes = await fetch(KEY_LOCATION, { signal: AbortSignal.timeout(TIMEOUT_MS) });
   const liveKey = keyRes.ok ? (await keyRes.text()).trim() : '';
   if (liveKey !== KEY) {
     console.error(`Key file ${KEY_LOCATION} is not live (HTTP ${keyRes.status}). Deploy it first.`);
@@ -183,22 +230,30 @@ async function main(argv) {
     if (s === 404 || s === 410) urlList.push(u);
     else console.log(`skip    ${u} (live HTTP ${s}, expected 404/410)`);
   }
-  if (!urlList.length) {
+  const log = readLog();
+  const { send, recent } = filterRecent(urlList, log, Date.now(), args.force);
+  for (const u of recent) console.log(`skip    ${u} (already sent from this machine in the last 24 h; --force to resend)`);
+  if (!send.length) {
     console.log('Nothing left to submit after live checks.');
     return 0;
   }
-  if (urlList.length > MAX_URLS) throw new Error(`IndexNow accepts at most ${MAX_URLS} URLs per request`);
+  if (send.length > MAX_URLS) throw new Error(`IndexNow accepts at most ${MAX_URLS} URLs per request`);
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify(payload(urlList)),
+    body: JSON.stringify(payload(send)),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  console.log(`IndexNow answered HTTP ${res.status} for ${urlList.length} URL(s).`);
-  // 200 = accepted, 202 = accepted, key validation pending.
-  return res.status === 200 || res.status === 202 ? 0 : 1;
+  const ok = res.status === 200 || res.status === 202;
+  console.log(`IndexNow answered HTTP ${res.status} (${describeStatus(res.status)}) for ${send.length} URL(s).`);
+  if (ok) writeLog(log, send, new Date().toISOString());
+  return ok ? 0 : 1;
 }
 
-module.exports = { KEY, KEY_LOCATION, HOST, parseSitemap, parseDisallow, isDisallowed, urlForFile, buildPlan, payload, parseArgs };
+module.exports = {
+  KEY, KEY_LOCATION, HOST, ENDPOINT, parseSitemap, parseDisallow, isDisallowed, urlForFile, buildPlan, payload,
+  parseArgs, filterRecent, describeStatus,
+};
 
 if (require.main === module) {
   main(process.argv.slice(2)).then(

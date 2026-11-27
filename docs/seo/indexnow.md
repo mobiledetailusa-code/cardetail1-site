@@ -39,6 +39,8 @@ Other forms:
 
 ## Rules
 
+- The script skips any URL this machine already sent in the last 24 hours (local, untracked `.indexnow-log.json`). Use `--force` only after a real content change on the same day.
+- HTTP answers: 200/202 accepted; 400 bad format; 403 key file missing or wrong; 422 URL not on this host or key mismatch; 429 too many requests (stop, retry later). Anything else exits 1.
 - Submit only when content actually changed. Re-submitting unchanged URLs does not
   speed anything up and can lower trust in the key.
 - Never add admin, portal, receipt, template or booking deep-link URLs. The script
