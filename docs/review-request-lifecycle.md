@@ -68,10 +68,35 @@ Eligibility never depends on satisfaction, complaints, service issues, disputes,
 
 ## Rollback
 
-- **Switches:** unset `REVIEW_REMINDER_AUTOMATION_ENABLED` / `REVIEW_MANUAL_RESEND_ENABLED` and redeploy. Scheduled follow-ups are cancelled at dispatch. Unsetting either compliance variable also cancels every pending ask and strips links from pending receipts.
-- **Code:** redeploy the previous production build.
-  - That build has no `booking.review_reminder` template, so a due reminder row fails with `unknown_sms_template` and is never sent.
-  - The earlier behaviour returns with it: a Google link in every completion receipt, and the possible double ask.
+There are three different operations. Prefer them in this order.
+
+### 1. Feature deactivation (preferred; this build stays live)
+- **To stop follow-ups:** unset `REVIEW_REMINDER_AUTOMATION_ENABLED` and/or `REVIEW_MANUAL_RESEND_ENABLED`, then redeploy the **same** build so functions read the new values. Pending reminders and resends are cancelled at dispatch (`review_cancelled_automation_disabled` / `review_cancelled_manual_resend_disabled`).
+- **To stop every review ask:**
+  - Unset `REVIEW_SOLICITATION_CONSENT_VERSIONS` or `REVIEW_SOLICITATION_A2P_CAMPAIGN_VERIFIED`, then redeploy the same build.
+  - The initial asks stop, pending asks are cancelled, and links are stripped from pending receipts.
+  - Receipts and every other transactional text continue.
+- **What stays in place:** the consent gate, the de-duplication and Admin observability.
+- **When:** first response to any review-request problem.
+
+### 2. Corrective roll-forward (preferred for a defect in this code)
+- Fix the defect on a branch, run the full CI gates, and release the fix through the documented CLI-bundled procedure.
+- Keep the review switches unset until the fix is live.
+- **When:** when deactivation is not enough. For example, a defect in the receipt path itself, or in the worker gate.
+
+### 3. Full deployment rollback (last resort)
+Restoring the production build from before #432 removes **all** of this protection. With the previous build live again:
+- **Review asks return without the new consent gate.**
+  - The tech path queues `booking.review_requested` again.
+  - The paid completion receipt again carries the Google link, under transactional consent only.
+  - The four `REVIEW_*` variables are ignored by that build.
+- **Duplicate review asks can return.** A tech completion followed by a paid approval can again send two asks.
+- **Google review links return in every completion receipt**, including receipts for bookings whose owner pressed Stop or marked the review received. The old build does not read `booking.reviewRequest`.
+- **Review observability is lost.** The Completed / Review status table, Resend, Review received and Stop are gone. Marks already saved stay on the bookings but are not enforced.
+- **What stays safe:** any `booking.review_reminder` row still pending fails at dispatch in the old build with `unknown_sms_template` and is never sent. Rows the new build cancelled (`review_cancelled_*`) stay cancelled.
+- **Rows queued by the new build** (`booking.service_completed` without a link) send normally as receipts.
+
+Before a full rollback, the owner should accept these four regressions explicitly. If the rollback is for an unrelated defect, prefer rolling forward with a build that keeps #432.
 
 ## Tests
 

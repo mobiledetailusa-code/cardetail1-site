@@ -63,6 +63,14 @@ Prerequisites:
 
 ## Rollback
 
-- Unset the switch(es) and redeploy. Pending follow-ups are cancelled at dispatch.
-- To stop every review ask at once, unset `REVIEW_SOLICITATION_CONSENT_VERSIONS`. Receipts continue, without the link.
-- Code rollback: see `docs/review-request-lifecycle.md`. The previous build cannot render reminder rows and fails them without sending.
+There are three levels; details are in `docs/review-request-lifecycle.md` § Rollback.
+
+1. **Feature deactivation (preferred):** unset the switch(es) and redeploy the same build. To stop every review ask at once, unset `REVIEW_SOLICITATION_CONSENT_VERSIONS`. Receipts continue, without the link.
+2. **Corrective roll-forward:** fix, pass CI, and release with the switches unset.
+3. **Full deployment rollback (last resort):** a build from before #432 brings back:
+   - review asks without the consent gate;
+   - possible duplicate asks;
+   - Google links in every receipt, Stop and received bookings included;
+   - no review observability in Admin.
+
+   Pending reminder rows still fail without sending. The owner must accept these regressions explicitly.
