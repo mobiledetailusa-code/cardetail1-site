@@ -366,14 +366,25 @@ describe('no commercial vehicle receives passenger-car or pickup pricing', () =>
     const src = fs.readFileSync(path.join(ROOT, 'netlify/lib/commercial-pricing.js'), 'utf8');
     // Only read-only libraries: the catalogs, travel-fee and the Cars price table. No payment or booking functions.
     assert.doesNotMatch(src, /require\([^)]*(stripe|square|payment|checkout|submit-booking|create-payment)/i);
-    for (const lib of ['commercial-pricing', 'vehicle-pricing-channel']) {
+    // Allowed consumers. The classifier is also read by the B1 observe-only shadow module,
+    // and only submit-booking calls that module. Nothing else may use any of the three.
+    const allowed = {
+      'commercial-pricing': [],
+      'vehicle-pricing-channel': ['netlify/lib/commercial-pricing.js', 'netlify/lib/vehicle-classification-shadow.js'],
+      'vehicle-classification-shadow': ['netlify/functions/submit-booking.js'],
+    };
+    for (const [lib, consumers] of Object.entries(allowed)) {
       for (const dir of ['netlify/functions', 'netlify/lib']) {
         for (const f of fs.readdirSync(path.join(ROOT, dir)).filter((x) => x.endsWith('.js'))) {
-          if (f === 'commercial-pricing.js' || f === `${lib}.js`) continue;
-          assert.doesNotMatch(fs.readFileSync(path.join(ROOT, dir, f), 'utf8'), new RegExp(`require\\([^)]*${lib}`), `${dir}/${f} must not use ${lib} yet`);
+          const rel = `${dir}/${f}`;
+          if (f === `${lib}.js` || consumers.includes(rel)) continue;
+          assert.doesNotMatch(fs.readFileSync(path.join(ROOT, dir, f), 'utf8'), new RegExp(`require\\([^)]*${lib}['"]`), `${rel} must not use ${lib} yet`);
         }
       }
     }
+    // The shadow module never loads the pricing engine, a price table, travel, payment or checkout code.
+    const shadow = fs.readFileSync(path.join(ROOT, 'netlify/lib/vehicle-classification-shadow.js'), 'utf8');
+    assert.doesNotMatch(shadow, /require\([^)]*(commercial-pricing|booking-price-catalog|travel-fee|stripe|square|payment|checkout|ops-config)/i);
     const fnDir = path.join(ROOT, 'netlify/functions');
     for (const f of fs.readdirSync(fnDir).filter((x) => x.endsWith('.js'))) {
       assert.doesNotMatch(fs.readFileSync(path.join(fnDir, f), 'utf8'), /commercial-pricing/, f);

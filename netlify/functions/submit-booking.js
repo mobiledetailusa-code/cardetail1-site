@@ -1320,6 +1320,12 @@ exports.handler = async (event) => {
     });
   }
 
+  // Commercial program B1: observe-only vehicle classification after server pricing.
+  // Never changes price, tier, routing, payment or checkout; errors are swallowed.
+  try {
+    require('../lib/vehicle-classification-shadow').observeBookingVehicles(b, { isDraft: isDraftRequest });
+  } catch (_shadowErr) { /* observe-only */ }
+
   const store = await blobsStore('cd1-bookings');
 
   // ── Draft pre-registration (supports C-2: create-payment-intent fetches amount from Blobs) ──
