@@ -116,7 +116,13 @@ async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
     if (!receiptUrl || /\/ops\/|token=|tqt_|qo_/i.test(receiptUrl)) {
       return { ok: true, skipped: true, queued: false, reason: 'unsafe_receipt_url' };
     }
-    const reviewUrl = officialGoogleReviewUrl();
+    const lifecycle = require('./review-request-lifecycle');
+    // The receipt always goes. The review link is left out when another path
+    // already asked, the review was received, or the owner stopped requests.
+    const reviewUrl = await lifecycle.completionNoticeReviewUrl(booking, officialGoogleReviewUrl(), {
+      prisma: opts.prisma,
+      now: opts.now,
+    });
     const idempotencyKey = completionIdempotencyKey(booking);
     if (!idempotencyKey) return { ok: true, skipped: true, queued: false, reason: 'invalid_idempotency_key' };
 
@@ -148,6 +154,10 @@ async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
         console.warn('[completion-sms] kick_failed', String(err && err.message || err).slice(0, 80));
       }
     }
+    // Off by default. Only a text that actually asked for a review earns a reminder.
+    const reminder = reviewUrl
+      ? await lifecycle.scheduleAutomaticReminder(booking, { prisma: opts.prisma, env, now: opts.now })
+      : { queued: false, reason: 'no_review_link' };
     return {
       ok: true,
       queued: true,
@@ -155,6 +165,8 @@ async function notifyIfServiceClosedAndPaid(booking, opts = {}) {
       idempotent: !!queued.idempotent,
       reason: null,
       outboxId: outboxId || null,
+      reviewLinkIncluded: !!reviewUrl,
+      reminder: { queued: reminder.queued === true, reason: reminder.reason || null, scheduledFor: reminder.scheduledFor || null },
     };
   } catch (err) {
     console.warn('[completion-sms] notify_failed', String(err && err.message || err).slice(0, 80));

@@ -111,6 +111,7 @@ async function enqueueSms(input = {}, opts = {}) {
         templateData: canonical(input.templateData || {}),
         status: 'accepted',
         maxAttempts: Math.min(10, Math.max(1, Number(input.maxAttempts) || 5)),
+        ...scheduledAvailableAt(input.availableAt),
       },
     });
     safeOutboxLog('accepted', outbox);
@@ -125,6 +126,17 @@ async function enqueueSms(input = {}, opts = {}) {
     }
     return { ok: false, error: 'sms_outbox_write_failed' };
   }
+}
+
+// A deferred first send (review reminder). Only a future instant within 15 days
+// is honoured; anything else keeps the column default (send now).
+const MAX_SCHEDULE_AHEAD_MS = 15 * 24 * 60 * 60 * 1000;
+function scheduledAvailableAt(value) {
+  if (value == null) return {};
+  const at = value instanceof Date ? value.getTime() : Date.parse(value);
+  const now = Date.now();
+  if (!Number.isFinite(at) || at <= now || at - now > MAX_SCHEDULE_AHEAD_MS) return {};
+  return { availableAt: new Date(at) };
 }
 
 function retryDelayMs(attemptCount) {
@@ -181,6 +193,69 @@ function normalizeProviderStatus(value) {
   return 'accepted';
 }
 
+/**
+ * Review solicitations are re-checked right before dispatch (consent, STOP,
+ * received/stopped, caps, cooldown, send window, expiry). Returns a result to
+ * short-circuit, or null to continue with the normal send.
+ */
+async function applyReviewDispatchGate(prisma, row, opts = {}) {
+  const { REVIEW_GATED_TEMPLATE_KEYS, reviewDispatchDecision } = require('./review-request-lifecycle');
+  if (!REVIEW_GATED_TEMPLATE_KEYS.has(String(row.templateKey || ''))) return null;
+  const now = opts.now ? new Date(opts.now) : new Date();
+  const decision = await reviewDispatchDecision(row, {
+    prisma,
+    env: opts.env || process.env,
+    now,
+    loadBooking: opts.reviewBookingLoader,
+  });
+  if (decision.action === 'cancel') {
+    const outbox = await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: {
+        status: 'failed',
+        lastErrorCode: decision.code,
+        failedAt: now,
+        leaseToken: null,
+        leaseExpiresAt: null,
+      },
+    });
+    safeOutboxLog('failed', outbox, { errorCode: decision.code });
+    return { ok: true, skipped: true, reason: decision.code, outbox };
+  }
+  if (decision.action === 'defer') {
+    const attempts = Math.max(0, Number(row.attemptCount) || 0);
+    if (decision.countsAttempt && attempts >= (Number(row.maxAttempts) || 5)) {
+      const outbox = await prisma.smsOutbox.update({
+        where: { id: row.id },
+        data: {
+          status: 'failed',
+          lastErrorCode: 'review_cancelled_gate_unavailable',
+          failedAt: now,
+          leaseToken: null,
+          leaseExpiresAt: null,
+        },
+      });
+      safeOutboxLog('failed', outbox, { errorCode: 'review_cancelled_gate_unavailable' });
+      return { ok: false, failed: true, reason: 'review_cancelled_gate_unavailable', outbox };
+    }
+    const outbox = await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: {
+        status: 'accepted',
+        availableAt: decision.availableAt,
+        leaseToken: null,
+        leaseExpiresAt: null,
+        // Waiting for the send window or cooldown is not a failed attempt.
+        attemptCount: decision.countsAttempt ? attempts : Math.max(0, attempts - 1),
+        lastErrorCode: decision.countsAttempt ? decision.code : null,
+      },
+    });
+    safeOutboxLog('deferred', outbox, { errorCode: decision.code });
+    return { ok: true, skipped: true, deferred: true, reason: decision.code, outbox };
+  }
+  return null;
+}
+
 async function processClaimedSms(row, opts = {}) {
   const prisma = prismaClient(opts.prisma);
   const rendered = renderSmsTemplate(row.templateKey, row.templateData || {});
@@ -198,6 +273,8 @@ async function processClaimedSms(row, opts = {}) {
     safeOutboxLog('failed', failed, { errorCode: rendered.error });
     return { ok: false, failed: true, outbox: failed };
   }
+  const reviewGate = await applyReviewDispatchGate(prisma, row, opts);
+  if (reviewGate) return reviewGate;
   try {
     const { shouldSuppressStaleLifecycleSms } = require('./appointment-lifecycle-state');
     if (await shouldSuppressStaleLifecycleSms(row)) {

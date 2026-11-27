@@ -442,6 +442,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/welcome-offer-redemption.js',
     'netlify/functions/review-invite.js',
     'netlify/lib/review-request-notifications.js',
+    // Review request lifecycle: reminder, owner resend, received/stop (flags off).
+    'netlify/lib/review-request-lifecycle.js',
     // PR B — booking-scoped Quick Ops + payment resume
     'netlify/functions/admin-quick-ops.js',
     'netlify/functions/tech-quick-ops.js',

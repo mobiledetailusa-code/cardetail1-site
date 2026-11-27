@@ -379,6 +379,14 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
     <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="completedTable"><thead><tr>
       <th>Customer</th><th>Completed</th><th>Tech</th><th>Actions</th>
     </tr></thead><tbody></tbody></table></div>
+    <div class="toolbar" style="margin-top:18px">
+      <span style="font-size:13px;color:var(--mu)">Review requests (completed in the last 14 days)</span>
+      <button type="button" class="btn ghost sm" id="reviewRequestsRefresh">Reload</button>
+    </div>
+    <p id="reviewProgramNote" style="color:var(--mu);font-size:12px;margin:0 0 8px"></p>
+    <div class="card" style="padding:0;overflow:auto"><table class="tbl" id="reviewRequestsTable"><thead><tr>
+      <th>Customer</th><th>Completed</th><th>Review status</th><th>Messages</th><th>Actions</th>
+    </tr></thead><tbody></tbody></table></div>
   </section>
 
   <section class="panel" id="p-issues">
@@ -867,7 +875,7 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 
   async function api(url, method, body, extraOpts) {
     let mutationKeySignature = '';
-    const readActions = new Set(['get_job', 'list_audit', 'list']);
+    const readActions = new Set(['get_job', 'list_audit', 'list', 'review_request_status']);
     if (method === 'POST' && body && body.action && !readActions.has(String(body.action))) {
       if (body.bookingId && (body.expectedBookingVersion == null || body.expectedBookingVersion === '')) {
         const current = activeJob && activeJob.id === body.bookingId
@@ -2648,7 +2656,117 @@ async function loadTechs(fetchOpts, loadOpts) {
     });
   }
 
+  // Review request lifecycle. States come from the SMS outbox ledger and the
+  // owner's marks; "Delivered" appears only when Twilio reported delivery.
+  const REVIEW_STATE_LABELS = {
+    not_requested: 'Not requested',
+    queued: 'Queued (not yet sent to Twilio)',
+    sent: 'Sent to Twilio (delivery not confirmed)',
+    delivered: 'Delivered (Twilio confirmed)',
+    failed: 'Failed',
+    reminder_scheduled: 'Reminder scheduled',
+    review_received: 'Review received',
+    stopped: 'Stopped',
+    expired: 'Expired (14 days)',
+    opted_out: 'Opted out (STOP)',
+    unknown: 'Unknown (outbox unavailable)',
+  };
+  const REVIEW_KIND_LABELS = {
+    initial_request: 'Review request',
+    completion_with_review_link: 'Completion text with review link',
+    completion_receipt_only: 'Completion receipt (no review link)',
+    automatic_reminder: 'Automatic reminder',
+    manual_resend: 'Manual resend',
+  };
+  const REVIEW_STAGE_LABELS = {
+    scheduled: 'scheduled',
+    queued: 'queued',
+    retry_scheduled: 'retry scheduled',
+    submitted: 'accepted by Twilio',
+    sent: 'sent by Twilio',
+    delivered: 'delivered',
+    failed: 'failed',
+    cancelled: 'cancelled',
+    opted_out: 'blocked (STOP)',
+  };
+  function reviewMessageLine(m) {
+    const when = m.deliveredAt || m.sentAt || m.failedAt || (m.stage === 'scheduled' ? m.scheduledFor : m.acceptedAt);
+    return esc(REVIEW_KIND_LABELS[m.kind] || m.kind) + ': ' + esc(REVIEW_STAGE_LABELS[m.stage] || m.stage)
+      + ' · ' + dt(when) + (m.errorCode ? ' · ' + esc(m.errorCode) : '');
+  }
+  function reviewCandidates() {
+    const cutoff = Date.now() - 14 * 24 * 3600 * 1000;
+    return jobs.filter(j => j && j.completedAt
+      && ['completed_paid', 'completed_pending_payment', 'closed', 'completed'].includes(String(j.jobStatus || ''))
+      && Date.parse(j.completedAt) >= cutoff)
+      .sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))
+      .slice(0, 40);
+  }
+  async function renderReviewRequests() {
+    const tb = $('#reviewRequestsTable tbody');
+    const note = $('#reviewProgramNote');
+    if (!tb) return;
+    const list = reviewCandidates();
+    if (!list.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No completed jobs in the last 14 days</td></tr>'; return; }
+    tb.innerHTML = '<tr><td colspan="5" class="empty">Loading review status…</td></tr>';
+    let data;
+    try {
+      data = await api('/.netlify/functions/admin-ops-jobs', 'POST', { action: 'review_request_status', bookingIds: list.map(j => j.id) });
+    } catch (e) {
+      tb.innerHTML = '<tr><td colspan="5" class="empty">Review status unavailable</td></tr>';
+      return;
+    }
+    const program = data.program || {};
+    if (note) {
+      const blockers = (program.blockers || []).join(', ');
+      note.textContent = 'Automatic reminder: ' + (program.automationEnabled ? 'on' : 'off')
+        + ' · Manual resend: ' + (program.manualResendEnabled ? 'on' : 'off')
+        + (blockers ? ' · Blocked until resolved: ' + blockers : '');
+    }
+    const byId = new Map((data.statuses || []).map(s => [s.bookingId, s]));
+    tb.innerHTML = list.map(j => {
+      const s = byId.get(j.id) || { state: 'unknown', messages: [], resend: {} };
+      const messages = (s.messages || []).map(reviewMessageLine).join('<br>') || '—';
+      const resend = s.resend || {};
+      const terminal = ['review_received', 'stopped'].includes(s.state);
+      const resendTitle = resend.allowed ? (resend.earliestAt ? 'Sends at ' + dt(resend.earliestAt) : '') : (resend.reason || '');
+      return '<tr data-id="' + esc(j.id) + '">'
+        + '<td>' + esc(cust(j)) + '</td><td>' + dt(j.completedAt) + '</td>'
+        + '<td><strong>' + esc(REVIEW_STATE_LABELS[s.state] || s.state) + '</strong>'
+        + '<br><span style="font-size:12px;color:var(--mu)">' + esc(String(s.solicitationsUsed || 0)) + '/' + esc(String(s.solicitationsMax || 3)) + ' asks used</span></td>'
+        + '<td style="font-size:12px">' + messages + '</td>'
+        + '<td onclick="event.stopPropagation()"><div class="actions">'
+        + (resend.enabled ? '<button type="button" class="btn sm rr-resend" data-id="' + esc(j.id) + '"' + (resend.allowed ? '' : ' disabled') + ' title="' + esc(resendTitle) + '">Resend</button>' : '')
+        + (terminal ? '' : '<button type="button" class="btn ghost sm rr-received" data-id="' + esc(j.id) + '">Review received</button>')
+        + (terminal ? '' : '<button type="button" class="btn ghost sm rr-stop" data-id="' + esc(j.id) + '">Stop</button>')
+        + '</div></td></tr>';
+    }).join('');
+    const act = async (id, action, extra, okText) => {
+      try {
+        const res = await api('/.netlify/functions/admin-ops-jobs', 'POST', { action, bookingId: id, ...(extra || {}) });
+        toast(res && res.queued === false && res.reason ? 'Not sent: ' + res.reason : okText);
+      } catch (e) {
+        toast('Failed: ' + (e && e.message ? e.message : 'error'));
+      }
+      renderReviewRequests();
+    };
+    tb.querySelectorAll('.rr-resend').forEach(b => b.onclick = () => {
+      if (!window.confirm('Send one review request text now (or at the next 10 AM–6 PM Mon–Sat slot)? Text: "Thanks again for choosing us. If you have a moment, we would appreciate an honest Google review." This uses the last of the 3 allowed asks.')) return;
+      act(b.dataset.id, 'review_request_resend', {}, 'Review request queued');
+    });
+    tb.querySelectorAll('.rr-received').forEach(b => b.onclick = () => {
+      if (!window.confirm('Mark the review as received? Pending reminders are cancelled.')) return;
+      act(b.dataset.id, 'review_request_mark_received', {}, 'Marked as received');
+    });
+    tb.querySelectorAll('.rr-stop').forEach(b => b.onclick = () => {
+      if (!window.confirm('Stop review requests for this job? Pending reminders are cancelled.')) return;
+      act(b.dataset.id, 'review_request_stop', { reason: 'owner_stopped' }, 'Review requests stopped');
+    });
+  }
+
   function renderCompleted() {
+    const panel = $('#p-completed');
+    if (panel && panel.classList.contains('on')) renderReviewRequests();
     const list = jobs.filter(j => j.jobStatus === 'completed_pending_admin_review');
     const tb = $('#completedTable tbody');
     if (!list.length) { tb.innerHTML='<tr><td colspan="4" class="empty">No jobs pending review</td></tr>'; return; }
@@ -4882,6 +5000,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     b.setAttribute('aria-selected', 'true');
     $('#p-'+b.dataset.tab).classList.add('on');
     if (b.dataset.tab === 'payments') renderPayments();
+    if (b.dataset.tab === 'completed') renderReviewRequests();
     if (b.dataset.tab === 'dayview' && window.CD1AdminDayView) CD1AdminDayView.render();
     if (b.dataset.tab === 'dayview') loadWithdrawals();
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
@@ -4970,6 +5089,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     } catch (e) { toast(e.message || 'Could not clear test requests'); }
   };
   $('#completedRefresh').onclick = async () => { await loadJobs({jobStatus:'completed_pending_admin_review'}); await loadJobs(); renderCompleted(); };
+  $('#reviewRequestsRefresh').onclick = () => renderReviewRequests();
   $('#btnRefresh').onclick = () => opsRefresh
     ? opsRefresh.refresh('manual', { supersede: true })
     : refreshAll('manual');

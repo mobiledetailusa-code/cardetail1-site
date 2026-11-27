@@ -162,6 +162,13 @@ async function notifyReviewRequested(booking, opts = {}) {
   const idempotencyKey = smsSafeIdempotencyKey(`booking.review_requested:${bookingId}`);
   if (!idempotencyKey) return { ok: false, error: 'invalid_idempotency_key' };
 
+  // One initial ask per booking across all completion paths: the paid
+  // completion text may already carry the review link.
+  const lifecycle = require('./review-request-lifecycle');
+  if (await lifecycle.initialRequestAlreadyMade(booking, { prisma: opts.prisma, now: opts.now })) {
+    return { ok: true, skipped: true, reason: 'review_already_requested' };
+  }
+
   const verifiedPhoneE164 = opts.verifiedPhoneE164 !== undefined
     ? opts.verifiedPhoneE164
     : await loadAccountVerifiedPhoneE164(booking.customerAccountId, { prisma: opts.prisma });
@@ -199,10 +206,18 @@ async function notifyReviewRequested(booking, opts = {}) {
     }
   }
 
+  // Off by default; see review-request-lifecycle.js for the gates.
+  const reminder = await lifecycle.scheduleAutomaticReminder(booking, {
+    prisma: opts.prisma,
+    env,
+    now: opts.now,
+  });
+
   return {
     ok: true,
     queued: true,
     outboxId,
+    reminder: { queued: reminder.queued === true, reason: reminder.reason || null, scheduledFor: reminder.scheduledFor || null },
     accessLinkIncluded: accessAuthorized && /\/reviews\?t=/.test(url),
     templateKey: TEMPLATE_KEYS.REVIEW_REQUESTED,
   };
