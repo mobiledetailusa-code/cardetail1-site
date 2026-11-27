@@ -122,6 +122,28 @@ test('PaymentIntent purpose routing is explicit and mutually exclusive', () => {
   ).route, 'unsupported_customer_balance_event');
 });
 
+test('unknown amount_capturable_updated does not authorize a booking or open an auction', async () => {
+  const bookingId = 'BK-UNASSOCIATED-HOLD';
+  stores['cd1-bookings'].values.set(bookingId, {
+    id: bookingId,
+    status: 'Confirmed',
+    jobStatus: 'confirmed',
+    totalPrice: 50,
+    paymentStatus: 'authorization_pending',
+  });
+  const before = stores['cd1-auctions'].values.size;
+  const response = await webhook.handler(signedRequest(
+    paymentEvent('payment_intent.amount_capturable_updated', bookingId)
+  ));
+  assert.equal(response.statusCode, 200, response.body);
+  const body = JSON.parse(response.body);
+  assert.equal(body.quarantined, true);
+  assert.equal(body.error, 'unassociated_payment_intent');
+  assert.equal(stores['cd1-bookings'].values.get(bookingId).paymentStatus, 'authorization_pending');
+  assert.equal(stores['cd1-auctions'].values.size, before);
+  assert.equal(stores['cd1-auctions'].values.get(bookingId), undefined);
+});
+
 test('legacy amount_capturable_updated still authorizes and dispatches exactly one auction on replay', async () => {
   const bookingId = 'BK-AUCTION';
   stores['cd1-bookings'].values.set(bookingId, {
@@ -129,6 +151,7 @@ test('legacy amount_capturable_updated still authorizes and dispatches exactly o
     status: 'Confirmed',
     jobStatus: 'confirmed',
     totalPrice: 50,
+    paymentIntentId: `pi_${bookingId}`,
   });
   const event = paymentEvent('payment_intent.amount_capturable_updated', bookingId);
   const first = await webhook.handler(signedRequest(event));
@@ -155,6 +178,7 @@ test('legacy succeeded, failed, canceled, and requires_action events remain oper
       paymentStatus: 'authorization_pending',
       totalPrice: 50,
       quoteVersion: 1,
+      paymentIntentId: `pi_${bookingId}`,
     });
     const response = await webhook.handler(signedRequest(paymentEvent(type, bookingId)));
     assert.equal(response.statusCode, 200, `${type}: ${response.body}`);
