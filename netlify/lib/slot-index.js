@@ -258,6 +258,45 @@ async function indexedOccupancyForDates(dates, { nowMs = Date.now() } = {}) {
   }
 }
 
+/**
+ * Booked reservations per date for Admin availability previews: booked-only
+ * slot counts plus distinct bookings per date. Drafts are excluded (they
+ * expire on their own). Reads dates with bounded parallelism.
+ *
+ * @returns {Promise<{ ok: true, occupancy, bookingsByDate } | { ok: false, reason }>}
+ */
+async function indexedReservationsForDates(dates, { nowMs = Date.now(), concurrency = 8 } = {}) {
+  if (!slotIndexReadsEnabled()) return { ok: false, reason: 'reads_disabled' };
+  const list = [...new Set((dates || []).map((d) => isoDateParts(d)).filter(Boolean).map((p) => p.iso))];
+  try {
+    const store = await slotIndexStore();
+    const occupancy = {};
+    const bookingsByDate = {};
+    let cursor = 0;
+    async function worker() {
+      while (cursor < list.length) {
+        const iso = list[cursor];
+        cursor += 1;
+        const entries = await listSlotEntries(store, `${iso}/`);
+        const ids = new Set();
+        for (const entry of entries) {
+          if (entry.state !== STATE_BOOKED || !entryIsActive(entry, nowMs)) continue;
+          const key = `${entry.slotDate}|${entry.slotTime}`;
+          occupancy[key] = (occupancy[key] || 0) + 1;
+          ids.add(String(entry.bookingId));
+        }
+        if (ids.size) bookingsByDate[iso] = ids.size;
+      }
+    }
+    const workers = Array.from({ length: Math.max(1, Math.min(concurrency, list.length || 1)) }, worker);
+    await Promise.all(workers);
+    return { ok: true, occupancy, bookingsByDate };
+  } catch (err) {
+    console.warn('[slot-index] reservations_failed', err && err.message ? err.message : err);
+    return { ok: false, reason: 'read_failed' };
+  }
+}
+
 async function deleteHoldEntries(store, bookingId, hold) {
   if (!hold || !hold.slotDate) return;
   // Scan the whole date so a duration that occupies later slots is cleared
@@ -380,13 +419,18 @@ async function bookedSpanReady(booking, nowMs = Date.now()) {
   }
 }
 
-async function foreignHoldBlocks(slot, bookingId, nowMs) {
+/**
+ * True when other bookings already fill this slot. Capacity comes from the
+ * caller's resolved availability config; without one it stays at the
+ * conservative historical value of 1 (never over-admits).
+ */
+async function foreignHoldBlocks(slot, bookingId, nowMs, config = null) {
   const holds = await readSlotHolds(slot.slotDate, slot.slotTime, {
     excludeId: bookingId,
     nowMs,
     bookedOnly: true,
   });
-  const capacity = capacityForSlot(slot.slotDate, slot.slotTime, null, new Date(nowMs));
+  const capacity = capacityForSlot(slot.slotDate, slot.slotTime, config, new Date(nowMs));
   return holds.length >= capacity;
 }
 
@@ -469,7 +513,8 @@ async function deleteDraftHoldsOnly(store, bookingId, writes) {
  * and every other booking's keys stay. Callers must not confirm the customer
  * unless ok is true.
  */
-async function reserveBookedSpan(booking, nowMs = Date.now()) {
+async function reserveBookedSpan(booking, nowMs = Date.now(), opts = {}) {
+  const config = opts && opts.config ? opts.config : null;
   const bookingId = String(booking?.id || booking?.bookingId || '').trim();
   if (!bookingId) return { ok: false, error: 'missing_booking_id' };
   const { next, writes } = spanWritesFor(booking);
@@ -480,7 +525,7 @@ async function reserveBookedSpan(booking, nowMs = Date.now()) {
     try {
       const store = await slotIndexStore();
       for (const slot of writes) {
-        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs, config)) {
           return { ok: false, error: 'booking_slot_unavailable' };
         }
       }
@@ -511,7 +556,7 @@ async function reserveBookedSpan(booking, nowMs = Date.now()) {
       }
 
       for (const slot of writes) {
-        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs, config)) {
           try { await deleteKeys(store, written); } catch { /* keep other bookings */ }
           return { ok: false, error: 'booking_slot_unavailable' };
         }
@@ -548,7 +593,7 @@ function slotIdentity(slot) {
  * write deletes only the keys this attempt added. An unconfigured index is
  * not success: reschedule must fail closed when the index cannot answer.
  */
-async function relocateBookedSpan({ previous, next, nowMs = Date.now() } = {}) {
+async function relocateBookedSpan({ previous, next, nowMs = Date.now(), config = null } = {}) {
   if (!slotIndexReadsEnabled()) {
     return { ok: false, error: 'booking_verification_unavailable' };
   }
@@ -581,7 +626,7 @@ async function relocateBookedSpan({ previous, next, nowMs = Date.now() } = {}) {
       }
 
       for (const slot of nextWrites) {
-        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs, config)) {
           return { ok: false, error: 'booking_slot_unavailable', added: [] };
         }
       }
@@ -608,7 +653,7 @@ async function relocateBookedSpan({ previous, next, nowMs = Date.now() } = {}) {
       }
 
       for (const slot of nextWrites) {
-        if (await foreignHoldBlocks(slot, bookingId, nowMs)) {
+        if (await foreignHoldBlocks(slot, bookingId, nowMs, config)) {
           try { await deleteKeys(store, added); } catch { /* keep overlap and other bookings */ }
           return { ok: false, error: 'booking_slot_unavailable', added: [] };
         }
@@ -738,6 +783,7 @@ module.exports = {
   indexedOccupancyForDates,
   syncSlotIndex,
   reserveBookedSpan,
+  indexedReservationsForDates,
   bookedSpanReady,
   relocateBookedSpan,
   releaseBookedSlots,

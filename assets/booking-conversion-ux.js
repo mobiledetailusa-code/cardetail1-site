@@ -69,6 +69,102 @@
     return ARRIVAL_WINDOWS.includes(v);
   }
 
+  /**
+   * Page-level holiday list, except where the live schedule explicitly opened
+   * that holiday (an authorized holiday opening wins over the static list).
+   */
+  function pageHolidayClosed(iso) {
+    if (typeof window.bkHolidays !== 'function') return false;
+    const p = String(iso || '');
+    const year = +p.slice(0, 4);
+    if (!year || !window.bkHolidays(year).has(p)) return false;
+    const av = window.BkAvailability;
+    if (av && typeof av.isHolidayOpening === 'function' && av.isHolidayOpening(p)) return false;
+    return true;
+  }
+
+  function availabilityUnavailable() {
+    const av = window.BkAvailability;
+    return !!(av && av.status === 'unavailable');
+  }
+
+  function availabilityUnavailableMessage() {
+    const av = window.BkAvailability;
+    return (av && (av.unavailableMessage || av.UNAVAILABLE_MSG))
+      || 'Live scheduling is temporarily unavailable. Please try again in a minute, or call or text (551) 389-3986.';
+  }
+
+  /**
+   * Recovery panel when the live schedule cannot be loaded: no date is offered
+   * (fail closed); the customer can retry or contact us directly.
+   */
+  function renderAvailabilityStatus() {
+    const msgEl = document.getElementById('f-schedule-msg');
+    if (!msgEl || !msgEl.parentNode) return;
+    let box = document.getElementById('bk-availability-status');
+    if (!availabilityUnavailable()) {
+      if (box) box.remove();
+      return;
+    }
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'bk-availability-status';
+      box.setAttribute('role', 'alert');
+      box.style.cssText = 'margin:10px 0;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,180,0,.45);background:rgba(255,180,0,.08);font-size:15px;line-height:1.45';
+      msgEl.parentNode.insertBefore(box, msgEl);
+    }
+    box.textContent = '';
+    const text = document.createElement('p');
+    text.style.margin = '0 0 8px';
+    text.textContent = availabilityUnavailableMessage();
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.id = 'bk-availability-retry';
+    retry.textContent = 'Try again';
+    retry.style.cssText = 'min-height:44px;padding:8px 16px;border-radius:999px;font:inherit;font-weight:700;cursor:pointer';
+    retry.addEventListener('click', async () => {
+      retry.disabled = true;
+      retry.textContent = 'Checking…';
+      await reloadAvailability();
+    });
+    const call = document.createElement('a');
+    call.href = 'tel:+15513893986';
+    call.textContent = 'Call or text (551) 389-3986';
+    call.style.cssText = 'min-height:44px;display:inline-flex;align-items:center;padding:8px 4px;font-weight:700';
+    actions.appendChild(retry);
+    actions.appendChild(call);
+    box.appendChild(text);
+    box.appendChild(actions);
+  }
+
+  async function reloadAvailability() {
+    if (!window.BkAvailability || typeof window.BkAvailability.load !== 'function') return;
+    await window.BkAvailability.load();
+    afterAvailabilityLoad();
+  }
+
+  function afterAvailabilityLoad() {
+    renderAvailabilityStatus();
+    try {
+      const dateEl = document.getElementById('f-date');
+      const altDate = document.getElementById('f-alt-date');
+      if (dateEl && typeof window.bkEarliestBookable === 'function') {
+        dateEl.min = window.bkEarliestBookable();
+      }
+      if (altDate && typeof window.bkEarliestBookable === 'function') {
+        altDate.min = window.bkEarliestBookable();
+      }
+    } catch (_) { /* */ }
+    try {
+      if (typeof window.bkRefreshTimeSlots === 'function' && document.getElementById('f-date')?.value) {
+        window.bkRefreshTimeSlots();
+      }
+    } catch (_) { /* */ }
+    refreshArrivalWindowsForDates();
+  }
+
   function eligibleSlotsForWindow(windowVal, allowed) {
     const slots = Array.isArray(allowed) ? allowed : [];
     if (windowVal === 'anytime') return slots.slice();
@@ -222,6 +318,7 @@
 
   function messageForScheduleError(error, userMessage) {
     if (userMessage) return userMessage;
+    if (error === 'availability_unavailable') return availabilityUnavailableMessage();
     if (error === 'ceramic_duration_exceeds_day') return DURATION_MSG;
     if (error === 'booking_slot_unavailable') return SLOT_TAKEN_MSG;
     if (error === 'booking_date_unavailable') return ADVANCE_UNAVAILABLE_MSG;
@@ -547,6 +644,17 @@
     }
     const data = await window.BkAvailability.selection(iso, win, scheduleDemand());
     if (token !== reconcileToken) return { ok: true, stale: true };
+    if (data && data.error === 'availability_unavailable') {
+      // Fail closed: the server could not read the schedule, so the customer
+      // cannot continue on a date nobody confirmed.
+      const message = messageForScheduleError(data.error, data.userMessage);
+      lastSelection = { date: iso, window: win, available: false, message };
+      const timeEl = document.getElementById('f-time');
+      if (timeEl) timeEl.value = '';
+      if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg(message);
+      renderAvailabilityStatus();
+      return { ok: false, message, error: data.error };
+    }
     if (!data || data.ok !== true) {
       lastSelection = null;
       return { ok: true, skipped: true };
@@ -886,11 +994,7 @@
         if (window.BkAvailability) {
           const fromAvail = window.BkAvailability.slotsForDate(iso);
           try {
-            if (typeof window.bkHolidays === 'function') {
-              const p = String(iso || '');
-              const year = +p.slice(0, 4);
-              if (year && window.bkHolidays(year).has(p)) return [];
-            }
+            if (pageHolidayClosed(iso)) return [];
           } catch (_) { /* */ }
           return fromAvail;
         }
@@ -919,7 +1023,13 @@
       if (!iso) { timeEl.value = ''; return; }
       const p = typeof window.bkIsoParts === 'function' ? window.bkIsoParts(iso) : null;
       if (!p) return;
-      if (typeof window.bkHolidays === 'function' && window.bkHolidays(+p.iso.slice(0, 4)).has(p.iso)) {
+      if (availabilityUnavailable()) {
+        if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg(availabilityUnavailableMessage());
+        timeEl.value = '';
+        renderAvailabilityStatus();
+        return;
+      }
+      if (pageHolidayClosed(p.iso)) {
         if (typeof window.bkShowScheduleMsg === 'function') window.bkShowScheduleMsg('Closed for the holiday. Please choose another date.');
         timeEl.value = '';
         return;
@@ -960,7 +1070,10 @@
         if (!iso) return { ok: false, message: 'Please select a preferred date.' };
         const p = typeof window.bkIsoParts === 'function' ? window.bkIsoParts(iso) : null;
         if (!p) return { ok: false, message: 'Please select a valid date.' };
-        if (typeof window.bkHolidays === 'function' && window.bkHolidays(+p.iso.slice(0, 4)).has(p.iso)) {
+        if (availabilityUnavailable()) {
+          return { ok: false, message: availabilityUnavailableMessage() };
+        }
+        if (pageHolidayClosed(p.iso)) {
           return { ok: false, message: 'Closed for the holiday. Please choose another date.' };
         }
         const minIso = typeof window.bkEarliestBookable === 'function' ? window.bkEarliestBookable() : '';
@@ -1004,7 +1117,7 @@
           if (altDate === iso) return { ok: false, message: 'Alternate date must be different from your preferred date.' };
           const ap = typeof window.bkIsoParts === 'function' ? window.bkIsoParts(altDate) : null;
           if (!ap) return { ok: false, message: 'Please select a valid alternate date.' };
-          if (typeof window.bkHolidays === 'function' && window.bkHolidays(+ap.iso.slice(0, 4)).has(ap.iso)) {
+          if (pageHolidayClosed(ap.iso)) {
             return { ok: false, message: 'Alternate date is closed for the holiday.' };
           }
           if (minIso && ap.iso < minIso) {
@@ -1304,17 +1417,7 @@
     if (window.BkAvailability) {
       await window.BkAvailability.load();
       patchScheduleFns();
-      try {
-        const dateEl = document.getElementById('f-date');
-        const altDate = document.getElementById('f-alt-date');
-        if (dateEl && typeof window.bkEarliestBookable === 'function') {
-          dateEl.min = window.bkEarliestBookable();
-        }
-        if (altDate && typeof window.bkEarliestBookable === 'function') {
-          altDate.min = window.bkEarliestBookable();
-        }
-      } catch (_) { /* */ }
-      refreshArrivalWindowsForDates();
+      afterAvailabilityLoad();
     }
   }
 

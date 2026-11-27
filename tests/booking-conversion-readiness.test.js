@@ -2,6 +2,8 @@
  * Booking conversion — compact details UX, arrival windows, alternate date,
  * utilities, recovery contract, and instrumentation.
  */
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -937,7 +939,8 @@ test('submit-booking persists arrival window + alternate + flexibility', () => {
   assert.match(js, /preferredArrivalWindow/);
   assert.match(js, /alternatePreferredDate/);
   assert.match(js, /alternateArrivalWindow/);
-  assert.match(js, /getOperationalAvailability/);
+  // Phase 1: schedule validation reads availability fail-closed (no legacy fallback).
+  assert.match(js, /loadOperationalAvailability/);
   assert.match(js, /normalizeScheduleFlexibility/);
   assert.match(js, /resolveOperationalSlot/);
 });

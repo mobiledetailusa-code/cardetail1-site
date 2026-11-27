@@ -1,4 +1,6 @@
 // Draft registration schedule guard — reproduces empty preferredTime failure.
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 const { test, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -366,3 +368,28 @@ for (const page of BOOKING_PAGES) {
     assert.match(html, /card_on_file_consent_required:'Please re-accept the card-on-file authorization/);
   });
 }
+
+test('submit-booking draft fails closed when the availability configuration cannot be read', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const ops = require('../netlify/lib/ops-config');
+  ops.setAvailabilityStoreOverride({
+    async getWithMetadata() { throw new Error('Netlify Blobs has generated an internal error (503 status code)'); },
+  });
+  t.after(() => require('./helpers/availability-store').useDefaultAvailabilityStore());
+  delete require.cache[SUBMIT_PATH];
+  const { handler, __test } = require('../netlify/functions/submit-booking');
+  const store = createMemoryStore();
+  __test.setBlobsStoreOverride(() => store);
+  const res = await handler({
+    httpMethod: 'POST',
+    headers: { 'x-forwarded-for': '203.0.113.88' },
+    body: JSON.stringify(validDraftBody()),
+  });
+  assert.equal(res.statusCode, 503);
+  const body = JSON.parse(res.body);
+  assert.equal(body.ok, false);
+  assert.equal(body.error, 'availability_unavailable');
+  assert.match(body.userMessage, /nothing was booked/i);
+  assert.match(body.userMessage, /\(551\) 389-3986/);
+  assert.equal(store.data.size, 0, 'no draft or booking is written');
+});

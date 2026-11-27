@@ -240,7 +240,7 @@ async function loadSlotLockBookings() {
 }
 
 async function enforceScheduleFields(b, { checkSlot = false, excludeId = null, bookedOnly = false } = {}) {
-  const { getOperationalAvailability } = require('../lib/ops-config');
+  const { loadOperationalAvailability } = require('../lib/ops-config');
   const { slotsForDate, nextOpenDay } = require('../lib/booking-schedule');
   const {
     normalizeArrivalWindow,
@@ -250,7 +250,13 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null, b
   } = require('../lib/arrival-windows');
   const { normalizeScheduleFlexibility } = require('../lib/schedule-flexibility');
 
-  const config = await getOperationalAvailability().catch(() => null);
+  // Fail closed: never validate a booking against legacy defaults because the
+  // saved schedule could not be read (that would accept closed dates).
+  const loadedAvailability = await loadOperationalAvailability();
+  if (!loadedAvailability.ok) {
+    return { ok: false, error: AVAILABILITY_UNAVAILABLE };
+  }
+  const config = loadedAvailability.config;
   let bookingsForLock = null;
 
   // Prefer the slot index; the full-store scan stays as the fallback authority
@@ -429,6 +435,7 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null, b
     weekendMode: v.weekendMode || null,
     isWeekend: !!v.isWeekend,
     slotBookings: bookingsForLock,
+    availabilityConfig: config,
   };
   } catch (err) {
     if (isVerificationUnavailable(err)) {
@@ -438,9 +445,12 @@ async function enforceScheduleFields(b, { checkSlot = false, excludeId = null, b
   }
 }
 
+const AVAILABILITY_UNAVAILABLE = 'availability_unavailable';
+
 function scheduleStatus(error) {
   if (error === 'booking_slot_unavailable') return 409;
   if (error === BOOKING_VERIFICATION_UNAVAILABLE) return 503;
+  if (error === AVAILABILITY_UNAVAILABLE) return 503;
   return 400;
 }
 
@@ -449,6 +459,8 @@ function scheduleRejectResponse(status, error, meta = {}) {
     ? 'That time slot is no longer available. Your card was not charged. Choose another date or time, then submit again — you do not need to re-save your card if it already shows as saved.'
     : error === BOOKING_VERIFICATION_UNAVAILABLE
       ? 'We could not verify whether this time is still available. Nothing was booked. Please wait a moment and try again.'
+    : error === AVAILABILITY_UNAVAILABLE
+      ? 'We could not load the current schedule, so nothing was booked. Please try again in a minute, or call or text (551) 389-3986 and we will book you directly.'
     : error === 'booking_date_unavailable'
       ? 'That date is unavailable. Choose another day, then continue.'
       : error === 'booking_time_unavailable'
@@ -1725,7 +1737,7 @@ exports.handler = async (event) => {
       return json(500, { ok: false, bookingCreated: false, error: 'booking_store_failed' });
     }
 
-    const indexed = await reserveBookedSpan(b);
+    const indexed = await reserveBookedSpan(b, Date.now(), { config: scheduleFinal.availabilityConfig });
     if (!indexed || indexed.ok === false) {
       const error = (indexed && indexed.error) || 'occupancy_incomplete';
       const status = error === 'booking_slot_unavailable' ? 409 : 503;

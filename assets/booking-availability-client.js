@@ -1,7 +1,11 @@
 /**
  * Browser client for the operational availability contract.
  * Resolves slots using the same rules as netlify/lib/operational-availability.js
- * when a public snapshot is loaded. Falls back to complete legacy behavior.
+ * once the public snapshot is loaded.
+ *
+ * Fail closed: until the snapshot loads, and whenever it cannot be loaded or
+ * the server reports the schedule as unavailable, no date is offered
+ * (slotsForDate returns []). The server stays the final authority.
  */
 (function (root) {
   const WEEKDAY = ['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM'];
@@ -87,41 +91,93 @@
     });
   }
 
+  const UNAVAILABLE_MSG = 'Live scheduling is temporarily unavailable, so no dates can be offered right now. Please try again in a minute, or call or text (551) 389-3986 and we will book you directly.';
+  const RETRY_DELAY_MS = 800;
+
   const state = {
     loaded: false,
     snapshot: null,
     loadError: null,
+    // 'loading' until the first answer, then 'available' or 'unavailable'.
+    status: 'loading',
+    unavailableMessage: null,
+    closed: null,
   };
+
+  function markUnavailable(reason, message) {
+    state.loaded = false;
+    state.snapshot = null;
+    state.closed = null;
+    state.status = 'unavailable';
+    state.loadError = reason || 'availability_unavailable';
+    state.unavailableMessage = message || UNAVAILABLE_MSG;
+  }
 
   function applySnapshot(snap) {
     if (!snap || snap.ok === false) {
-      state.loaded = false;
-      state.snapshot = null;
+      markUnavailable((snap && snap.error) || 'availability_unavailable', snap && snap.userMessage);
       return;
     }
     state.snapshot = snap;
+    state.closed = new Set(Array.isArray(snap.closedDates) ? snap.closedDates : []);
     state.loaded = true;
+    state.status = 'available';
     state.loadError = null;
+    state.unavailableMessage = null;
   }
 
-  async function load() {
-    try {
-      const res = await fetch('/.netlify/functions/booking-availability', {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        credentials: 'omit',
-        cache: 'no-store',
-      });
-      if (!res.ok) throw new Error('availability_http_' + res.status);
-      const data = await res.json();
-      applySnapshot(data);
-      return data;
-    } catch (err) {
-      state.loadError = String(err && err.message || err);
-      state.loaded = false;
-      state.snapshot = null;
-      return null;
+  async function fetchSnapshot() {
+    const res = await fetch('/.netlify/functions/booking-availability', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    let data = null;
+    try { data = await res.json(); } catch (_) { data = null; }
+    if (!res.ok || !data || data.ok === false) {
+      const err = new Error((data && data.error) || ('availability_http_' + res.status));
+      err.userMessage = data && data.userMessage;
+      throw err;
     }
+    return data;
+  }
+
+  async function load(opts) {
+    const attempts = Math.max(1, Number(opts && opts.attempts) || 2);
+    state.status = 'loading';
+    let lastErr = null;
+    for (let i = 0; i < attempts; i += 1) {
+      try {
+        const data = await fetchSnapshot();
+        applySnapshot(data);
+        return data;
+      } catch (err) {
+        lastErr = err;
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      }
+    }
+    markUnavailable(String(lastErr && lastErr.message || lastErr), lastErr && lastErr.userMessage);
+    return null;
+  }
+
+  function withinHorizon(iso) {
+    const snap = state.snapshot;
+    if (!snap || !snap.horizonEnd) return false;
+    return iso >= (snap.horizonStart || snap.today || '') && iso <= snap.horizonEnd;
+  }
+
+  /** Known closed date (explicit closure or protected holiday) inside the published horizon. */
+  function isClosedDate(iso) {
+    const p = isoParts(iso);
+    return !!(p && state.closed && state.closed.has(p.iso));
+  }
+
+  /** The live schedule explicitly opened this holiday. */
+  function isHolidayOpening(iso) {
+    const p = isoParts(iso);
+    const ov = p && state.snapshot && state.snapshot.dateOverrides && state.snapshot.dateOverrides[p.iso];
+    return !!(ov && ov.enabled && ov.holidayOpening === true);
   }
 
   function mode() {
@@ -155,32 +211,27 @@
     const p = isoParts(iso);
     if (!p) return [];
     const snap = state.snapshot;
+    // Fail closed: never guess a calendar the server did not confirm.
+    if (!snap || !state.loaded) return [];
+    // Explicit closures and protected holidays published by the server.
+    if (state.closed && state.closed.has(p.iso)) return [];
     let slots = [];
-    if (!snap || !state.loaded) {
-      // Complete legacy fallback
-      if (p.day === 0) slots = [];
-      else if (p.day === 6) slots = SAT.slice();
-      else slots = WEEKDAY.slice();
-    } else {
-      const ov = snap.dateOverrides && snap.dateOverrides[p.iso];
-      if (ov) {
-        if (!ov.enabled) return [];
-        if (Array.isArray(ov.arrivalWindows) && ov.arrivalWindows.length) {
-          slots = ov.arrivalWindows.slice();
-        } else if (p.day === 0 || p.day === 6) {
-          slots = (snap.saturdaySlots || SAT).slice();
-        } else {
-          slots = (snap.weekdaySlots || WEEKDAY).slice();
-        }
-      } else if (p.day >= 1 && p.day <= 5) {
-        slots = (snap.weekdaySlots || WEEKDAY).slice();
-      } else if (snap.weekendMode === 'supervised') {
-        slots = [];
-      } else if (p.day === 0) {
-        slots = [];
-      } else if (p.day === 6) {
+    const ov = snap.dateOverrides && snap.dateOverrides[p.iso];
+    if (ov) {
+      if (!ov.enabled) return [];
+      if (Array.isArray(ov.arrivalWindows) && ov.arrivalWindows.length) {
+        slots = ov.arrivalWindows.slice();
+      } else if (p.day === 0 || p.day === 6) {
         slots = (snap.saturdaySlots || SAT).slice();
+      } else {
+        slots = (snap.weekdaySlots || WEEKDAY).slice();
       }
+    } else if (p.day >= 1 && p.day <= 5) {
+      slots = (snap.weekdaySlots || WEEKDAY).slice();
+    } else if (snap.weekendMode === 'supervised') {
+      slots = [];
+    } else if (p.day === 6) {
+      slots = (snap.saturdaySlots || SAT).slice();
     }
     return filterSameDaySlots(p.iso, slots);
   }
@@ -205,8 +256,13 @@
         credentials: 'omit',
         cache: 'no-store',
       });
-      if (!res.ok) throw new Error('nearby_http_' + res.status);
-      return await res.json();
+      let data = null;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (!res.ok) {
+        if (data && data.error === 'availability_unavailable') markUnavailable(data.error, data.userMessage);
+        return { ok: false, openings: [], error: (data && data.error) || ('nearby_http_' + res.status), userMessage: data && data.userMessage };
+      }
+      return data || { ok: false, openings: [] };
     } catch (_) {
       return { ok: false, openings: [] };
     }
@@ -226,8 +282,13 @@
         credentials: 'omit',
         cache: 'no-store',
       });
-      if (!res.ok) return { ok: false };
-      return await res.json();
+      let data = null;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (!res.ok) {
+        if (data && data.error === 'availability_unavailable') markUnavailable(data.error, data.userMessage);
+        return { ok: false, error: data && data.error, userMessage: data && data.userMessage };
+      }
+      return data || { ok: false };
     } catch (_) {
       return { ok: false };
     }
@@ -243,11 +304,17 @@
     filterSameDaySlots,
     nearby,
     selection,
+    isClosedDate,
+    isHolidayOpening,
+    withinHorizon,
+    UNAVAILABLE_MSG,
     WEEKDAY,
     SAT,
     LABEL,
     SAME_DAY_LEAD_MINUTES: DEFAULT_SAME_DAY_LEAD_MINUTES,
     get loaded() { return state.loaded; },
     get snapshot() { return state.snapshot; },
+    get status() { return state.status; },
+    get unavailableMessage() { return state.unavailableMessage; },
   };
 })(typeof window !== 'undefined' ? window : globalThis);

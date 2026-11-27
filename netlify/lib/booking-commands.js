@@ -656,12 +656,16 @@ async function prepareRescheduleMove(aggregate, cr) {
 
   const requestedDate = cr.delta?.requestedDate || cr.delta?.preferredDate || aggregate.preferredDate;
   const requestedTime = cr.delta?.requestedTime || cr.delta?.preferredTime || aggregate.preferredTime;
-  const { getOperationalAvailability } = require('./ops-config');
+  const { loadOperationalAvailability } = require('./ops-config');
   const { validateBookingSchedule, normalizePreferredTime } = require('./operational-availability');
   const { planCheckoutOccupancy } = require('./booking-schedule');
   const { relocateBookedSpan, slotIndexReadsEnabled } = require('./slot-index');
 
-  const config = await getOperationalAvailability();
+  const loadedAvailability = await loadOperationalAvailability();
+  if (!loadedAvailability.ok) {
+    return { ok: false, error: 'availability_unavailable', statusCode: 503 };
+  }
+  const config = loadedAvailability.config;
   const schedule = validateBookingSchedule(requestedDate, requestedTime, { config });
   if (!schedule.ok) {
     return { ok: false, error: schedule.error || 'booking_date_unavailable', statusCode: 409 };
@@ -693,7 +697,7 @@ async function prepareRescheduleMove(aggregate, cr) {
     isDraft: false,
     kind: 'booking',
   };
-  const moved = await relocateBookedSpan({ previous: aggregate, next: nextBooking });
+  const moved = await relocateBookedSpan({ previous: aggregate, next: nextBooking, config });
   if (!moved.ok) return rescheduleIndexFailure(moved);
 
   const fieldPatches = {
