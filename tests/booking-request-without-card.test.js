@@ -1,3 +1,5 @@
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 

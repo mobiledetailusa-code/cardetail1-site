@@ -109,6 +109,47 @@ input:focus,select:focus,textarea:focus{border-color:var(--ac)}
 .b-err{background:rgba(239,68,68,.15);color:var(--err)}
 .b-pay{background:rgba(167,139,250,.15);color:#c4b5fd}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.av-card .av-sec{border-top:1px solid var(--line);padding:12px 0 4px}
+.av-card .av-sec>summary{cursor:pointer;font-weight:800;font-size:14px;min-height:44px;display:flex;align-items:center;list-style-position:inside}
+.av-status{display:grid;gap:8px;margin:4px 0 12px}
+.av-status .av-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(77,163,255,.12);color:var(--ac)}
+.av-status .av-alert{font-size:13px;line-height:1.45;border-radius:10px;padding:10px 12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--warn)}
+.av-status .av-alert.err{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:var(--err)}
+.av-presets{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.av-label{display:block;font-size:12px;color:var(--mu);margin-bottom:6px}
+.av-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.av-chip{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-size:13px;cursor:pointer;user-select:none}
+.av-chip input{margin:0}
+.av-preview{margin-top:12px}
+.av-preview .av-sum{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.av-table{width:100%;border-collapse:collapse;font-size:12px}
+.av-table th,.av-table td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.av-table tr.is-protected td{background:rgba(245,158,11,.06)}
+.av-table tr.is-skip td{opacity:.6}
+.av-confirm{display:grid;gap:10px;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px}
+.av-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mu)}
+.av-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.av-dot.open{background:var(--ok)}.av-dot.closed{background:#4b5563}.av-dot.flip{background:var(--warn)}.av-dot.booked{background:var(--ac)}
+.av-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.av-cal .av-dow{font-size:11px;color:var(--mu);text-align:center;font-weight:700}
+.av-day{min-height:72px;border:1px solid var(--line);border-radius:8px;padding:6px;font-size:11px;line-height:1.35;background:var(--card2)}
+.av-day.open{border-color:rgba(34,197,94,.45)}
+.av-day.closed{opacity:.75}
+.av-day.flip{box-shadow:inset 0 0 0 2px rgba(245,158,11,.6)}
+.av-day .d{font-weight:800;font-size:12px}
+.av-day .src{color:var(--mu)}
+.av-day .bk{color:var(--ac);font-weight:700}
+.av-day.pad{visibility:hidden}
+@media(max-width:640px){
+  .av-cal{grid-template-columns:1fr}
+  .av-cal .av-dow,.av-day.pad{display:none}
+  .av-day{min-height:0;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+  .av-table thead{display:none}
+  .av-table,.av-table tbody,.av-table tr,.av-table td{display:block;width:100%}
+  .av-table tr{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;padding:4px 0}
+  .av-table td{border:0;padding:3px 10px}
+  .av-table td[data-l]::before{content:attr(data-l) ": ";color:var(--mu)}
+}
 .form-grid .full{grid-column:1/-1}
 label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
 .sms-consent-control{display:flex;align-items:flex-start;gap:10px;min-height:44px;line-height:1.45;cursor:pointer}
@@ -449,52 +490,120 @@ label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
       </div>
     </div>
 
-    <div class="card" style="margin-top:14px">
+    <div class="card av-card" id="availabilityCard" style="margin-top:14px">
       <h3 style="margin-bottom:8px">Operational availability</h3>
-      <p class="hint">Central schedule authority for weekends. <strong>Legacy mode</strong> keeps today’s behavior (Saturday open, Sunday closed). <strong>Supervised mode</strong> closes weekends by default and only opens dates you enable — it will not activate until the effective date you set.</p>
-      <div class="form-grid" id="availabilityForm">
-        <div><label>Business timezone</label>
-          <input type="text" id="avTimezone" placeholder="America/New_York">
+      <div id="avStatus" class="av-status" role="status" aria-live="polite"></div>
+
+      <details class="av-sec" open>
+        <summary>Open or close dates in bulk</summary>
+        <p class="hint">Pick a shortcut or set your own range. Nothing is saved until you preview and confirm. Holidays and dates you already closed (or opened) by hand are protected: they are skipped unless you tick them in the preview. Existing bookings are never cancelled.</p>
+        <div class="av-presets" role="group" aria-label="Bulk shortcuts">
+          <button type="button" class="btn ghost sm" data-av-preset="all_days">Open all days</button>
+          <button type="button" class="btn ghost sm" data-av-preset="weekends">Open all weekends</button>
+          <button type="button" class="btn ghost sm" data-av-preset="sundays">Open all Sundays</button>
+          <button type="button" class="btn ghost sm" data-av-preset="open_range">Open a date range</button>
+          <button type="button" class="btn ghost sm" data-av-preset="close_range">Close a date range</button>
         </div>
-        <div><label>Weekend mode</label>
-          <select id="avWeekendMode">
-            <option value="legacy">Legacy (Sat open / Sun closed)</option>
-            <option value="supervised">Supervised weekends</option>
-          </select>
+        <div class="form-grid" id="avBulkForm">
+          <div><label for="avBulkAction">Change</label>
+            <select id="avBulkAction"><option value="open">Open (bookable)</option><option value="close">Close (not bookable)</option></select>
+          </div>
+          <div><label for="avBulkCapacity">Jobs per arrival window</label>
+            <input type="number" id="avBulkCapacity" min="1" max="20" value="1" inputmode="numeric">
+          </div>
+          <div><label for="avBulkFrom">From</label><input type="date" id="avBulkFrom"></div>
+          <div><label for="avBulkTo">To (max 120 days)</label><input type="date" id="avBulkTo"></div>
+          <div class="full"><span class="av-label">Days of the week</span>
+            <div class="av-chips" id="avBulkDays" role="group" aria-label="Days of the week">
+              <label class="av-chip"><input type="checkbox" value="1">Mon</label>
+              <label class="av-chip"><input type="checkbox" value="2">Tue</label>
+              <label class="av-chip"><input type="checkbox" value="3">Wed</label>
+              <label class="av-chip"><input type="checkbox" value="4">Thu</label>
+              <label class="av-chip"><input type="checkbox" value="5">Fri</label>
+              <label class="av-chip"><input type="checkbox" value="6">Sat</label>
+              <label class="av-chip"><input type="checkbox" value="0">Sun</label>
+            </div>
+          </div>
+          <div class="full" id="avBulkWindowsWrap"><span class="av-label">Arrival windows</span>
+            <label class="chk"><input type="checkbox" id="avBulkDefaultWindows" checked> Use each day's default windows (weekdays 8–2, weekends 8 &amp; 10)</label>
+            <div class="av-chips" id="avBulkWindows" role="group" aria-label="Arrival windows">
+              <label class="av-chip"><input type="checkbox" value="8:00 AM">8:00 AM</label>
+              <label class="av-chip"><input type="checkbox" value="10:00 AM">10:00 AM</label>
+              <label class="av-chip"><input type="checkbox" value="12:00 PM">12:00 PM</label>
+              <label class="av-chip"><input type="checkbox" value="2:00 PM">2:00 PM</label>
+              <label class="av-chip"><input type="checkbox" value="4:00 PM">4:00 PM</label>
+            </div>
+          </div>
+          <div class="full"><label for="avBulkNote">Internal note (optional)</label><input type="text" id="avBulkNote" maxlength="500" placeholder="Owner-only note, e.g. Winter weekends"></div>
+          <div class="full"><button type="button" class="btn" id="btnAvBulkPreview">Preview changes</button></div>
         </div>
-        <div><label>Supervised effective date</label>
-          <input type="date" id="avEffectiveDate">
+        <div id="avBulkPreview" class="av-preview" aria-live="polite"></div>
+      </details>
+
+      <details class="av-sec">
+        <summary>One date (exception)</summary>
+        <p class="hint">Open or close a single date. An exception always wins over the weekend rule. To open a holiday (Christmas Eve, New Year's Eve…) tick <strong>Open this holiday</strong>. Capacity is jobs per arrival window.</p>
+        <div class="form-grid">
+          <div><label for="avOverrideDate">Date</label><input type="date" id="avOverrideDate"></div>
+          <div><label for="avOverrideEnabled">Status</label>
+            <select id="avOverrideEnabled"><option value="true">Open / bookable</option><option value="false">Closed</option></select>
+          </div>
+          <div><label for="avOverrideCapacity">Jobs per arrival window</label><input type="number" id="avOverrideCapacity" min="1" max="20" value="1" inputmode="numeric"></div>
+          <div><label for="avOverrideWindows">Arrival windows</label>
+            <select id="avOverrideWindows">
+              <option value="sat">8:00 AM, 10:00 AM (weekend default)</option>
+              <option value="weekday">8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM (weekday default)</option>
+              <option value="weekday_late">Weekday + 4:00 PM</option>
+              <option value="sat_late">Weekend + 4:00 PM</option>
+              <option value="custom">Custom (comma-separated)</option>
+            </select>
+          </div>
+          <div class="full"><label for="avOverrideCustom">Custom windows</label><input type="text" id="avOverrideCustom" placeholder="e.g. 8:00 AM, 10:00 AM, 4:00 PM"></div>
+          <p class="hint full" style="margin:0">4:00 PM is optional and only applies on dates where you include it here. It is not enabled on every date by default.</p>
+          <div class="full"><label class="chk"><input type="checkbox" id="avOverrideHoliday"> Open this holiday (needed only for holidays)</label></div>
+          <div class="full"><label for="avOverrideNote">Internal note (optional)</label><input type="text" id="avOverrideNote" placeholder="Owner-only note"></div>
+          <div class="full" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn" id="btnUpsertOverride">Save date exception</button>
+            <button type="button" class="btn ghost" id="btnRemoveOverride">Remove exception</button>
+          </div>
         </div>
-        <div class="full"><p class="hint" id="avModeHint" style="margin:0"></p></div>
-        <div class="full"><button type="button" class="btn" id="btnSaveAvailability">Save availability mode</button></div>
-      </div>
-      <hr style="border:none;border-top:1px solid var(--bd,#333);margin:16px 0">
-      <h4 style="margin:0 0 8px;font-size:14px">Weekend / date override</h4>
-      <p class="hint">Open an individual Saturday or Sunday (or close a specific date). Capacity is per arrival window. Customer label when supervised: <em>Limited weekend availability</em>.</p>
-      <div class="form-grid">
-        <div><label>Date</label><input type="date" id="avOverrideDate"></div>
-        <div><label>Enabled</label>
-          <select id="avOverrideEnabled"><option value="true">Open / bookable</option><option value="false">Closed</option></select>
+        <div id="avOverridesList" style="margin-top:12px;font-size:12px;color:var(--mu)"></div>
+      </details>
+
+      <details class="av-sec">
+        <summary>Weekend mode &amp; activation date</summary>
+        <p class="hint"><strong>Legacy</strong>: Saturdays open, Sundays closed. <strong>Supervised</strong>: from the activation date, weekends are closed unless a date is opened. Changing the mode never cancels bookings.</p>
+        <div class="form-grid" id="availabilityForm">
+          <div><label for="avTimezone">Business timezone</label>
+            <input type="text" id="avTimezone" placeholder="America/New_York">
+          </div>
+          <div><label for="avWeekendMode">Weekend mode</label>
+            <select id="avWeekendMode">
+              <option value="legacy">Legacy (Sat open / Sun closed)</option>
+              <option value="supervised">Supervised weekends</option>
+            </select>
+          </div>
+          <div><label for="avEffectiveDate">Supervised activation date</label>
+            <input type="date" id="avEffectiveDate">
+          </div>
+          <div class="full"><p class="hint" id="avModeHint" style="margin:0"></p></div>
+          <div class="full"><button type="button" class="btn" id="btnSaveAvailability">Save weekend mode</button></div>
         </div>
-        <div><label>Capacity (per window)</label><input type="number" id="avOverrideCapacity" min="1" max="20" value="1"></div>
-        <div><label>Operational windows</label>
-          <select id="avOverrideWindows">
-            <option value="sat">8:00 AM, 10:00 AM (weekend default)</option>
-            <option value="weekday">8:00 AM, 10:00 AM, 12:00 PM, 2:00 PM (weekday default)</option>
-            <option value="weekday_late">Weekday + 4:00 PM</option>
-            <option value="sat_late">Weekend + 4:00 PM</option>
-            <option value="custom">Custom (comma-separated)</option>
-          </select>
+      </details>
+
+      <details class="av-sec" open id="avCalendarSec">
+        <summary>What customers can book (next 8 weeks)</summary>
+        <div class="av-legend">
+          <span><i class="av-dot open"></i>Open</span>
+          <span><i class="av-dot closed"></i>Closed</span>
+          <span><i class="av-dot flip"></i>Changes on activation</span>
+          <span><i class="av-dot booked"></i>Has bookings</span>
         </div>
-        <div class="full"><label>Custom windows</label><input type="text" id="avOverrideCustom" placeholder="e.g. 8:00 AM, 10:00 AM, 4:00 PM"></div>
-        <p class="hint full" style="margin:0">4:00 PM is optional and only applies on dates where you include it here. It is not enabled on every date by default.</p>
-        <div class="full"><label>Internal note (optional)</label><input type="text" id="avOverrideNote" placeholder="Owner-only note"></div>
-        <div class="full" style="display:flex;gap:8px;flex-wrap:wrap">
-          <button type="button" class="btn" id="btnUpsertOverride">Save date override</button>
-          <button type="button" class="btn ghost" id="btnRemoveOverride">Remove override</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+          <button type="button" class="btn ghost sm" id="btnAvCalendarReload">Reload calendar</button>
         </div>
-      </div>
-      <div id="avOverridesList" style="margin-top:12px;font-size:12px;color:var(--mu)"></div>
+        <div id="avCalendar" class="av-cal" aria-live="polite"><div class="empty">Open Settings to load the calendar.</div></div>
+      </details>
     </div>
   </section>
 
@@ -1627,6 +1736,7 @@ async function loadTechs(fetchOpts, loadOpts) {
       const data = await api('/.netlify/functions/ops-settings');
       platformSettings = data.settings || {};
       platformAvailability = data.availability || null;
+      avStatusInfo = data.availabilityStatus || { ok: true };
       settingsError = null;
       return platformSettings;
     } catch (error) {
@@ -1947,8 +2057,90 @@ async function loadTechs(fetchOpts, loadOpts) {
     renderAvailabilityForm();
   }
 
+  const AV_DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const AV_SOURCE_LABELS = {
+    override_closed: 'Closed (exception)',
+    holiday_opening: 'Holiday opened',
+    holiday: 'Holiday — closed',
+    override_open: 'Opened (exception)',
+    weekday: 'Weekday',
+    legacy_saturday: 'Saturday (legacy)',
+    legacy_sunday_closed: 'Sunday — closed',
+    supervised_weekend_closed: 'Weekend — closed',
+  };
+  let avStatusInfo = null;
+  let avCalendar = null;
+  let avBulkPreview = null;
+  let avBulkRequest = null;
+
+  function avTodayIso() {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch (_) { return new Date().toISOString().slice(0, 10); }
+  }
+
+  function avAddDays(iso, days) {
+    const p = String(iso || '').split('-').map(Number);
+    const d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + days));
+    return d.toISOString().slice(0, 10);
+  }
+
+  function avDay(iso) {
+    const p = String(iso || '').split('-').map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+  }
+
+  function avFmtDate(iso) {
+    return AV_DOW[avDay(iso)] + ' ' + String(iso || '').slice(5).replace('-', '/');
+  }
+
+  function avVersionFields() {
+    const a = platformAvailability || {};
+    return {
+      expectedRevision: a.revision != null ? a.revision : null,
+      expectedUpdatedAt: a.updatedAt || null,
+    };
+  }
+
+  function avLastFutureOverride(a) {
+    const today = avTodayIso();
+    const open = Object.keys((a && a.dateOverrides) || {}).filter((d) => d >= today && a.dateOverrides[d].enabled).sort();
+    return open.length ? open[open.length - 1] : null;
+  }
+
+  function renderAvailabilityStatus() {
+    const el = $('#avStatus');
+    if (!el) return;
+    const a = platformAvailability;
+    const card = $('#availabilityCard');
+    if (avStatusInfo && avStatusInfo.ok === false) {
+      el.innerHTML = '<div class="av-alert err">' + esc(avStatusInfo.userMessage || 'Availability settings could not be read.') + '</div>';
+      if (card) card.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      return;
+    }
+    if (card) card.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+    if (!a) { el.innerHTML = ''; return; }
+    const parts = [];
+    const active = a.activeMode || 'legacy';
+    parts.push('<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+      '<span class="av-pill">Now: ' + (active === 'supervised' ? 'Supervised weekends' : 'Legacy weekends (Sat open, Sun closed)') + '</span>' +
+      (a.weekendMode === 'supervised' && a.supervisedEffectiveDate && !a.supervisedActivated
+        ? '<span class="av-pill">Supervised from ' + esc(a.supervisedEffectiveDate) + '</span>' : '') +
+      '<span class="av-pill">Revision ' + esc(a.revision || 0) + (a.updatedAt ? ' · saved ' + esc(String(a.updatedAt).slice(0, 16).replace('T', ' ')) : '') + '</span>' +
+      '</div>');
+    if (a.weekendMode === 'supervised' && a.supervisedEffectiveDate && !a.supervisedActivated) {
+      const last = avLastFutureOverride(a);
+      if (!last || last <= a.supervisedEffectiveDate) {
+        parts.push('<div class="av-alert">From ' + esc(a.supervisedEffectiveDate) +
+          ' every Saturday and Sunday becomes closed unless it is opened. No weekend after that date is opened yet. Use "Open all weekends" below to keep winter weekends bookable.</div>');
+      }
+    }
+    el.innerHTML = parts.join('');
+  }
+
   function renderAvailabilityForm() {
     const a = platformAvailability || {};
+    renderAvailabilityStatus();
     const tz = $('#avTimezone');
     const mode = $('#avWeekendMode');
     const eff = $('#avEffectiveDate');
@@ -1959,31 +2151,226 @@ async function loadTechs(fetchOpts, loadOpts) {
     eff.value = a.supervisedEffectiveDate || '';
     if (hint) {
       if ((a.weekendMode || 'legacy') === 'legacy') {
-        hint.textContent = 'Legacy mode active: Saturdays remain bookable with default weekend slots; Sundays stay closed unless you add an override.';
+        hint.textContent = 'Legacy mode active: Saturdays remain bookable with default weekend slots; Sundays stay closed unless you open them.';
       } else if (!a.supervisedEffectiveDate) {
-        hint.textContent = 'Supervised mode needs an effective date before it can activate.';
+        hint.textContent = 'Supervised mode needs an activation date before it can activate.';
       } else {
-        hint.textContent = 'Supervised mode configured. Activation on/after ' + a.supervisedEffectiveDate +
-          ' closes weekends by default; only enabled overrides are bookable. Not auto-activated by deploy.';
+        hint.textContent = 'Supervised mode configured. From ' + a.supervisedEffectiveDate +
+          ' weekends are closed by default; only opened dates are bookable. Not activated by a deploy.';
       }
     }
     const list = $('#avOverridesList');
     if (list) {
       const ov = a.dateOverrides || {};
-      const keys = Object.keys(ov).sort();
+      const today = avTodayIso();
+      const keys = Object.keys(ov).filter((d) => d >= today).sort();
       if (!keys.length) {
-        list.innerHTML = '<div class="empty" style="padding:8px 0">No date overrides yet.</div>';
+        list.innerHTML = '<div class="empty" style="padding:8px 0">No upcoming date exceptions.</div>';
       } else {
-        list.innerHTML = '<div class="sec-title">Saved overrides</div>' + keys.map((d) => {
+        list.innerHTML = '<div class="sec-title">Upcoming exceptions (' + keys.length + ')</div>' + keys.map((d) => {
           const o = ov[d];
           return '<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,.06)">' +
-            '<strong>' + esc(d) + '</strong> · ' + (o.enabled ? 'open' : 'closed') +
-            ' · cap ' + esc(o.capacity || 1) +
+            '<strong>' + esc(avFmtDate(d)) + '</strong> · ' + (o.enabled ? (o.holidayOpening ? 'holiday opened' : 'open') : 'closed') +
+            (o.enabled ? ' · ' + esc(o.capacity || 1) + ' per window' : '') +
             (o.arrivalWindows ? ' · ' + esc((o.arrivalWindows || []).join(', ')) : '') +
-            (o.note ? ' · note: ' + esc(o.note) : '') +
+            (o.note ? ' · ' + esc(o.note) : '') +
             '</div>';
         }).join('');
       }
+    }
+  }
+
+  function renderAvailabilityCalendar() {
+    const el = $('#avCalendar');
+    if (!el) return;
+    if (!avCalendar) { el.innerHTML = '<div class="empty">Calendar not loaded.</div>'; return; }
+    const days = avCalendar.days || [];
+    if (!days.length) { el.innerHTML = '<div class="empty">No dates.</div>'; return; }
+    let html = AV_DOW.map((d) => '<div class="av-dow">' + d + '</div>').join('');
+    for (let i = 0; i < days[0].day; i += 1) html += '<div class="av-day pad" aria-hidden="true"></div>';
+    for (const d of days) {
+      const flip = d.afterActivation && d.afterActivation.open !== d.open;
+      const cls = ['av-day', d.open ? 'open' : 'closed', flip ? 'flip' : ''].join(' ');
+      const res = d.reservations == null ? '' : (d.reservations > 0 ? '<span class="bk">' + d.reservations + ' booked</span>' : '');
+      html += '<div class="' + cls + '">' +
+        '<span class="d">' + esc(avFmtDate(d.date)) + '</span> ' +
+        '<span>' + (d.open ? esc((d.windows || []).join(', ')) + (d.capacity > 1 ? ' ×' + esc(d.capacity) : '') : 'Closed') + '</span> ' +
+        '<span class="src">' + esc(AV_SOURCE_LABELS[d.source] || d.source) + '</span> ' + res +
+        (flip ? ' <span style="color:var(--warn)">' + (d.afterActivation.open ? 'opens' : 'closes') + ' from ' + esc(d.afterActivation.activatesOn) + '</span>' : '') +
+        '</div>';
+    }
+    el.innerHTML = html;
+  }
+
+  async function loadAvailabilityCalendar() {
+    const el = $('#avCalendar');
+    if (el) el.innerHTML = '<div class="empty">Loading calendar…</div>';
+    try {
+      const data = await api('/.netlify/functions/ops-settings', 'POST', { action: 'effective_calendar', days: 56 });
+      avCalendar = data.calendar || null;
+      if (data.availability) platformAvailability = data.availability;
+      avStatusInfo = { ok: true };
+      renderAvailabilityForm();
+      renderAvailabilityCalendar();
+      if (el && data.reservationsVerified === false) {
+        el.insertAdjacentHTML('afterbegin', '<div class="av-alert" style="grid-column:1/-1">Booking counts could not be checked right now; the schedule itself is current.</div>');
+      }
+    } catch (e) {
+      avCalendar = null;
+      if (e && e.data && e.data.error === 'availability_unavailable') {
+        avStatusInfo = { ok: false, userMessage: e.data.userMessage };
+        renderAvailabilityStatus();
+      }
+      if (el) el.innerHTML = '<div class="empty">' + esc((e && e.data && e.data.userMessage) || ('Calendar failed: ' + (e && e.message))) + '</div>';
+    }
+  }
+
+  function avSetChecks(containerSel, values) {
+    const set = new Set(values.map(String));
+    document.querySelectorAll(containerSel + ' input[type=checkbox]').forEach((c) => { c.checked = set.has(c.value); });
+  }
+
+  function avApplyPreset(name) {
+    const today = avTodayIso();
+    $('#avBulkFrom').value = today;
+    $('#avBulkTo').value = avAddDays(today, 83);
+    $('#avBulkAction').value = name === 'close_range' ? 'close' : 'open';
+    $('#avBulkCapacity').value = '1';
+    $('#avBulkDefaultWindows').checked = true;
+    avSetChecks('#avBulkWindows', []);
+    if (name === 'all_days') avSetChecks('#avBulkDays', [0, 1, 2, 3, 4, 5, 6]);
+    else if (name === 'weekends') avSetChecks('#avBulkDays', [0, 6]);
+    else if (name === 'sundays') avSetChecks('#avBulkDays', [0]);
+    else avSetChecks('#avBulkDays', [0, 1, 2, 3, 4, 5, 6]);
+    avSyncBulkForm();
+    avBulkPreview = null;
+    $('#avBulkPreview').innerHTML = '';
+    $('#avBulkFrom').focus();
+  }
+
+  function avSyncBulkForm() {
+    const open = $('#avBulkAction').value === 'open';
+    $('#avBulkWindowsWrap').style.display = open ? '' : 'none';
+    $('#avBulkCapacity').disabled = !open;
+    $('#avBulkWindows').style.display = $('#avBulkDefaultWindows').checked ? 'none' : '';
+  }
+
+  function avReadBulkRequest(includeProtected) {
+    const weekdays = [...document.querySelectorAll('#avBulkDays input:checked')].map((c) => Number(c.value));
+    const custom = !$('#avBulkDefaultWindows').checked
+      ? [...document.querySelectorAll('#avBulkWindows input:checked')].map((c) => c.value)
+      : null;
+    return {
+      action: $('#avBulkAction').value,
+      from: $('#avBulkFrom').value,
+      to: $('#avBulkTo').value,
+      weekdays,
+      arrivalWindows: custom,
+      capacity: Number($('#avBulkCapacity').value) || 1,
+      note: $('#avBulkNote').value.trim(),
+      includeProtected: includeProtected || [],
+    };
+  }
+
+  const AV_PROTECTED_LABELS = {
+    holiday: 'Holiday',
+    closure_exception: 'You closed this date',
+    opening_exception: 'You opened this date',
+  };
+  const AV_CHANGE_LABELS = {
+    create: 'New exception', update: 'Updates exception', unchanged: 'No change', protected_skipped: 'Skipped (protected)',
+  };
+
+  function renderBulkPreview() {
+    const box = $('#avBulkPreview');
+    if (!box) return;
+    const p = avBulkPreview;
+    if (!p) { box.innerHTML = ''; return; }
+    const sm = p.summary || {};
+    const changes = (sm.create || 0) + (sm.update || 0);
+    const rows = (p.dates || []).map((d) => {
+      const cls = d.protected ? (d.included ? 'is-protected' : 'is-protected is-skip') : (d.change === 'unchanged' ? 'is-skip' : '');
+      const pick = d.protected
+        ? '<label class="chk"><input type="checkbox" data-av-include="' + esc(d.date) + '"' + (d.included ? ' checked' : '') + '> Include</label>'
+        : '';
+      const fmt = (x) => x.open ? esc((x.windows || []).join(', ')) + (x.capacity > 1 ? ' ×' + esc(x.capacity) : '') : 'Closed';
+      return '<tr class="' + cls + '">' +
+        '<td data-l="Date"><strong>' + esc(avFmtDate(d.date)) + '</strong>' + (d.holiday ? ' 🎄' : '') + '</td>' +
+        '<td data-l="Now">' + fmt(d.before) + '</td>' +
+        '<td data-l="After">' + fmt(d.after) + '</td>' +
+        '<td data-l="Change">' + esc(AV_CHANGE_LABELS[d.change] || d.change) + (d.protected ? '<br><span style="color:var(--warn)">' + esc(AV_PROTECTED_LABELS[d.protected] || d.protected) + '</span> ' + pick : '') + '</td>' +
+        '<td data-l="Bookings">' + (d.reservations > 0 ? '<strong style="color:var(--ac)">' + esc(d.reservations) + '</strong>' + (d.closesWithReservations ? ' <span style="color:var(--warn)">stay booked</span>' : '') : '—') + '</td>' +
+        '</tr>';
+    }).join('');
+    const needsAck = !!p.requiresReservationAck;
+    box.innerHTML =
+      '<div class="av-sum">' +
+        '<span class="av-pill">' + esc(sm.matchedDates || 0) + ' dates matched</span>' +
+        '<span class="av-pill">' + esc(changes) + ' will change</span>' +
+        '<span class="av-pill">' + esc(sm.unchanged || 0) + ' already set</span>' +
+        (sm.protectedSkipped ? '<span class="av-pill" style="color:var(--warn)">' + esc(sm.protectedSkipped) + ' protected, skipped</span>' : '') +
+        (sm.protectedIncluded ? '<span class="av-pill" style="color:var(--warn)">' + esc(sm.protectedIncluded) + ' protected, included</span>' : '') +
+        (sm.withReservations ? '<span class="av-pill">' + esc(sm.withReservations) + ' with bookings</span>' : '') +
+      '</div>' +
+      (rows ? '<div style="overflow-x:auto"><table class="av-table"><thead><tr><th>Date</th><th>Now</th><th>After</th><th>Change</th><th>Bookings</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<div class="empty">No dates match.</div>') +
+      '<div class="av-confirm">' +
+        (needsAck ? '<label class="chk" style="color:var(--warn)"><input type="checkbox" id="avBulkAck"> ' + esc(sm.closingWithReservations) + ' closing date(s) already have bookings. They stay booked — I will contact those customers myself.</label>' : '') +
+        (p.overrideLimitExceeded ? '<div class="av-alert">Too many future exceptions. Use a shorter range.</div>' : '') +
+        '<button type="button" class="btn" id="btnAvBulkApply"' + (changes && !p.overrideLimitExceeded ? '' : ' disabled') + '>' +
+          (changes ? 'Confirm ' + esc(changes) + ' change(s)' : 'Nothing to change') + '</button>' +
+      '</div>';
+  }
+
+  async function previewBulkAvailability(includeProtected) {
+    const box = $('#avBulkPreview');
+    const req = avReadBulkRequest(includeProtected);
+    if (!req.from || !req.to) return toast('Choose From and To dates');
+    if (!req.weekdays.length) return toast('Choose at least one day of the week');
+    if (req.action === 'open' && req.arrivalWindows && !req.arrivalWindows.length) return toast('Choose at least one arrival window');
+    if (box) box.innerHTML = '<div class="empty">Building preview…</div>';
+    try {
+      const data = await api('/.netlify/functions/ops-settings', 'POST', { action: 'preview_bulk_availability', request: req });
+      avBulkRequest = req;
+      avBulkPreview = data.preview;
+      renderBulkPreview();
+    } catch (e) {
+      avBulkPreview = null;
+      if (box) box.innerHTML = '<div class="av-alert err">' + esc((e && e.data && e.data.userMessage) || ('Preview failed: ' + (e && e.message))) + '</div>';
+    }
+  }
+
+  async function applyBulkAvailability() {
+    const p = avBulkPreview;
+    if (!p || !avBulkRequest) return;
+    const sm = p.summary || {};
+    const changes = (sm.create || 0) + (sm.update || 0);
+    const ack = $('#avBulkAck');
+    if (p.requiresReservationAck && !(ack && ack.checked)) return toast('Tick the bookings confirmation first');
+    const verb = avBulkRequest.action === 'close' ? 'close' : 'open';
+    const ok = window.confirm('Apply ' + changes + ' change(s) to ' + verb + ' dates from ' + avBulkRequest.from + ' to ' + avBulkRequest.to + '?' +
+      (sm.protectedIncluded ? '\n' + sm.protectedIncluded + ' protected date(s) included.' : '') +
+      (p.requiresReservationAck ? '\nBookings on closed dates stay booked.' : ''));
+    if (!ok) return;
+    try {
+      const data = await api('/.netlify/functions/ops-settings', 'POST', {
+        action: 'apply_bulk_availability',
+        request: avBulkRequest,
+        planHash: p.planHash,
+        acknowledgeReservations: !!(ack && ack.checked),
+      });
+      platformAvailability = data.availability || platformAvailability;
+      avBulkPreview = null;
+      renderBulkPreview();
+      renderAvailabilityForm();
+      toast('Saved ' + (data.applied || 0) + ' change(s)');
+      loadAvailabilityCalendar();
+    } catch (e) {
+      const d = e && e.data;
+      if (d && d.preview) {
+        avBulkPreview = d.preview;
+        renderBulkPreview();
+      }
+      toast((d && d.userMessage) || ('Apply failed: ' + (e && e.message)));
     }
   }
 
@@ -5006,7 +5393,7 @@ async function loadTechs(fetchOpts, loadOpts) {
     if (b.dataset.tab === 'dayview') loadWithdrawals();
     if (b.dataset.tab === 'auctions') refreshAuctionsTab();
     if (b.dataset.tab === 'subscriptions') refreshSubsTab();
-    if (b.dataset.tab === 'settings') loadSettings().then(renderSettingsForm).catch(()=>{});
+    if (b.dataset.tab === 'settings') loadSettings().then(() => { renderSettingsForm(); loadAvailabilityCalendar(); }).catch(()=>{});
     if (b.dataset.tab === 'requests') refreshRequestsTab();
     if (b.dataset.tab === 'revops') refreshRevopsTab();
     if (b.dataset.tab === 'reviews') refreshHomepageReviews();
@@ -5137,12 +5524,13 @@ async function loadTechs(fetchOpts, loadOpts) {
         businessTimezone: $('#avTimezone').value.trim() || 'America/New_York',
         weekendMode: $('#avWeekendMode').value,
         supervisedEffectiveDate: $('#avEffectiveDate').value || null,
-        expectedUpdatedAt: (platformAvailability && platformAvailability.updatedAt) || null,
+        ...avVersionFields(),
       });
       platformAvailability = data.availability || platformAvailability;
-      toast('Availability mode saved');
+      toast('Weekend mode saved');
       renderAvailabilityForm();
-    } catch (e) { toast('Availability save failed: ' + e.message); }
+      loadAvailabilityCalendar();
+    } catch (e) { toast((e && e.data && e.data.userMessage) || ('Availability save failed: ' + e.message)); }
   };
 
   $('#btnUpsertOverride').onclick = async () => {
@@ -5152,18 +5540,20 @@ async function loadTechs(fetchOpts, loadOpts) {
       const data = await api('/.netlify/functions/ops-settings', 'POST', {
         action: 'upsert_date_override',
         date,
-        expectedUpdatedAt: (platformAvailability && platformAvailability.updatedAt) || null,
+        ...avVersionFields(),
         override: {
           enabled: $('#avOverrideEnabled').value === 'true',
           capacity: Number($('#avOverrideCapacity').value) || 1,
           arrivalWindows: resolveOverrideWindows(),
+          holidayOpening: $('#avOverrideHoliday').checked,
           note: $('#avOverrideNote').value.trim(),
         },
       });
       platformAvailability = data.availability || platformAvailability;
-      toast('Date override saved');
+      toast('Date exception saved');
       renderAvailabilityForm();
-    } catch (e) { toast('Override save failed: ' + e.message); }
+      loadAvailabilityCalendar();
+    } catch (e) { toast((e && e.data && e.data.userMessage) || ('Exception save failed: ' + e.message)); }
   };
 
   $('#btnRemoveOverride').onclick = async () => {
@@ -5173,12 +5563,32 @@ async function loadTechs(fetchOpts, loadOpts) {
       const data = await api('/.netlify/functions/ops-settings', 'POST', {
         action: 'remove_date_override',
         date,
+        ...avVersionFields(),
       });
       platformAvailability = data.availability || platformAvailability;
-      toast('Override removed');
+      toast('Exception removed');
       renderAvailabilityForm();
-    } catch (e) { toast('Remove failed: ' + e.message); }
+      loadAvailabilityCalendar();
+    } catch (e) { toast((e && e.data && e.data.userMessage) || ('Remove failed: ' + e.message)); }
   };
+
+  document.querySelectorAll('[data-av-preset]').forEach((btn) => {
+    btn.onclick = () => avApplyPreset(btn.getAttribute('data-av-preset'));
+  });
+  $('#avBulkAction').onchange = avSyncBulkForm;
+  $('#avBulkDefaultWindows').onchange = avSyncBulkForm;
+  $('#btnAvBulkPreview').onclick = () => previewBulkAvailability([]);
+  $('#btnAvCalendarReload').onclick = () => loadAvailabilityCalendar();
+  $('#avBulkPreview').addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (!t || !t.getAttribute || !t.getAttribute('data-av-include')) return;
+    const picked = [...document.querySelectorAll('#avBulkPreview [data-av-include]:checked')].map((c) => c.getAttribute('data-av-include'));
+    previewBulkAvailability(picked);
+  });
+  $('#avBulkPreview').addEventListener('click', (ev) => {
+    if (ev.target && ev.target.id === 'btnAvBulkApply') applyBulkAvailability();
+  });
+  avSyncBulkForm();
 
   $('#btnSyncRoster').onclick = async () => {
     try { const d = await api('/.netlify/functions/ops-settings','POST',{action:'sync_tech_roster'}); toast('Synced '+d.count+' tech(s)'); } catch(e){ toast(e.message); }

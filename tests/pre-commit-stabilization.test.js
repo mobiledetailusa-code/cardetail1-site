@@ -373,6 +373,8 @@ test('Netlify Function changes vs production master are limited to approved RevO
     'netlify/lib/schedule-flexibility.js',
     'netlify/lib/arrival-windows.js',
     'netlify/lib/ops-config.js',
+    // Availability V2 Phase 1 — bounded bulk scheduling planner.
+    'netlify/lib/availability-bulk.js',
     'netlify/lib/site-access.js',
     'netlify/lib/site-access-client.js',
     'netlify/lib/sync-response.js',

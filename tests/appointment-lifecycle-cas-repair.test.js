@@ -1,4 +1,6 @@
 'use strict';
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 
 /**
  * Repair A — canonical CAS persistence for reschedule / cancel / apply / request-cancellation.

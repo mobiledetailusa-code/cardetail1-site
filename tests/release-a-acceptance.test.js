@@ -2,6 +2,8 @@
  * Release A — characterization + acceptance tests.
  * Synthetic fixtures only; intercepted Stripe; no production data.
  */
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');

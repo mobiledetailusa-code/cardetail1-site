@@ -2,6 +2,8 @@
  * Card-on-file finalize flow — handler/store fixtures, intercepted Stripe.
  * Covers delayed webhook, token/draft identity failures, and idempotent resubmit.
  */
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');

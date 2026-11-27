@@ -1,4 +1,6 @@
 'use strict';
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 
 // End-to-end money check for car bookings, from each booking page to the
 // stored booking, with synthetic data and in-memory stores (no network, no

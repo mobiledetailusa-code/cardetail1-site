@@ -7,7 +7,7 @@
  * responses are never served stale from an intermediary cache after a booking.
  */
 const { jsonCors } = require('../lib/tech-security');
-const { getOperationalAvailability } = require('../lib/ops-config');
+const { loadOperationalAvailability } = require('../lib/ops-config');
 const {
   projectPublicAvailability,
   findNearbyOpenings,
@@ -37,6 +37,19 @@ function clampInt(raw, { min, max, fallback }) {
 function publicJson(status, body) {
   // jsonCors already sets Cache-Control: no-store
   return jsonCors(status, body);
+}
+
+/** Customer-safe recovery message when the schedule configuration cannot be read. */
+const AVAILABILITY_UNAVAILABLE_MESSAGE = 'Live scheduling is temporarily unavailable, so no dates can be offered right now. Please try again in a minute, or call or text (551) 389-3986 and we will book you directly.';
+
+function availabilityUnavailable(loaded) {
+  return publicJson(503, {
+    ok: false,
+    status: 'unavailable',
+    error: 'availability_unavailable',
+    retryable: loaded && loaded.retryable !== false,
+    userMessage: AVAILABILITY_UNAVAILABLE_MESSAGE,
+  });
 }
 
 function safeError(status, error) {
@@ -93,7 +106,11 @@ exports.handler = async (event) => {
       return rate.response || safeError(429, 'rate_limited');
     }
 
-    const config = await getOperationalAvailability().catch(() => null);
+    // Fail closed: a configuration we could not read must never become the
+    // legacy calendar (that would silently reopen closed dates).
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailable(loaded);
+    const config = loaded.config;
     const q = queryOf(event);
     const action = String(q.action || 'snapshot').trim() || 'snapshot';
 

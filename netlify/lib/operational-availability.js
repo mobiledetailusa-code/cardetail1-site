@@ -6,8 +6,22 @@
  *
  * NOT stored in OsCatalogDraft. Persisted via ops-config availability blob.
  *
- * Fail-safe: missing or invalid config resolves to complete LEGACY behavior
- * (Saturday open with 2 slots, Sunday closed). Never partially merges bad rules.
+ * Pure layer: a null / never-saved config resolves to complete LEGACY behavior
+ * (Saturday open with 2 slots, Sunday closed) and never partially merges bad
+ * rules. A config that EXISTS but cannot be read or is structurally invalid is
+ * NOT legacy: ops-config.loadOperationalAvailability() reports it as
+ * unavailable and callers fail closed (see docs/availability/README.md).
+ *
+ * Rule precedence for one calendar date (highest first):
+ *   1. [Phase 2] emergency booking suspension (blocks NEW bookings only)
+ *   2. date override — closed override always closes the date
+ *   3. explicit holiday opening — an open override with holidayOpening:true
+ *   4. holiday closure — an open override WITHOUT holidayOpening stays closed
+ *   5. [Phase 2] seasonal schedule
+ *   6. [Phase 2] recurring weekly schedule
+ *   7. open date override on an ordinary date
+ *   8. base rule: weekdays open; weekends per legacy / supervised mode
+ *   then same-day lead filtering, then capacity and existing reservations.
  */
 
 const ALLOWED_WEEKDAY_SLOTS = Object.freeze(['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM']);
@@ -229,12 +243,55 @@ function normalizeDateOverride(raw) {
   const capacity = Number.isFinite(capacityNum) && capacityNum >= 1 ? Math.min(capacityNum, 20) : 1;
   const arrivalWindows = normalizeArrivalWindows(raw.arrivalWindows);
   const note = String(raw.note || '').trim().slice(0, 500) || '';
+  // Opening a protected holiday needs its own explicit flag; a plain open
+  // override on a holiday keeps the holiday closed (pre-Phase-1 behavior).
+  const holidayOpening = enabled && raw.holidayOpening === true;
   return {
     enabled,
     capacity,
     ...(arrivalWindows ? { arrivalWindows } : {}),
+    ...(holidayOpening ? { holidayOpening: true } : {}),
     ...(note ? { note } : {}),
   };
+}
+
+function normalizeRevision(raw) {
+  const n = Math.floor(Number(raw));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+/**
+ * Structural check used by the loader to tell a real, saved configuration
+ * from one that cannot be trusted. Mirrors every branch where
+ * normalizeAvailabilityConfig would discard the saved rules.
+ */
+function inspectAvailabilityConfig(raw) {
+  if (raw == null) return { valid: true, reason: 'not_configured' };
+  if (typeof raw !== 'object' || Array.isArray(raw)) return { valid: false, reason: 'not_an_object' };
+  const version = Math.floor(Number(raw.version));
+  if (!Number.isFinite(version) || version < 1 || version > CONTRACT_VERSION) {
+    return { valid: false, reason: 'unsupported_version' };
+  }
+  const weekendMode = String(raw.weekendMode || 'legacy').trim();
+  if (!WEEKEND_MODES.includes(weekendMode)) return { valid: false, reason: 'invalid_weekend_mode' };
+  if (raw.supervisedEffectiveDate != null && String(raw.supervisedEffectiveDate).trim() !== ''
+    && !isoDateParts(raw.supervisedEffectiveDate)) {
+    return { valid: false, reason: 'invalid_effective_date' };
+  }
+  if (weekendMode === 'supervised' && !isoDateParts(raw.supervisedEffectiveDate)) {
+    // Would silently demote to legacy and reopen Saturdays.
+    return { valid: false, reason: 'supervised_missing_effective_date' };
+  }
+  const tz = String(raw.businessTimezone || DEFAULT_BUSINESS_TIMEZONE).trim() || DEFAULT_BUSINESS_TIMEZONE;
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date());
+  } catch (_) {
+    return { valid: false, reason: 'invalid_timezone' };
+  }
+  if (raw.dateOverrides != null && (typeof raw.dateOverrides !== 'object' || Array.isArray(raw.dateOverrides))) {
+    return { valid: false, reason: 'invalid_date_overrides' };
+  }
+  return { valid: true, reason: null };
 }
 
 /**
@@ -303,6 +360,7 @@ function normalizeAvailabilityConfig(raw) {
       weekendMode,
       supervisedEffectiveDate,
       dateOverrides,
+      revision: normalizeRevision(raw.revision),
       updatedAt: raw.updatedAt || null,
       updatedBy: raw.updatedBy || null,
     };
@@ -361,52 +419,89 @@ function getDateOverride(config, iso) {
   return cfg.dateOverrides[iso] || null;
 }
 
+/** Rule sources reported by resolveDateAvailability (admin preview, tests, logs). */
+const RULE_SOURCES = Object.freeze({
+  OVERRIDE_CLOSED: 'override_closed',
+  HOLIDAY_OPENING: 'holiday_opening',
+  HOLIDAY: 'holiday',
+  OVERRIDE_OPEN: 'override_open',
+  WEEKDAY: 'weekday',
+  LEGACY_SATURDAY: 'legacy_saturday',
+  LEGACY_SUNDAY: 'legacy_sunday_closed',
+  SUPERVISED_WEEKEND: 'supervised_weekend_closed',
+});
+
+function defaultWindowsForDay(day) {
+  return (day === 0 || day === 6) ? [...ALLOWED_SATURDAY_SLOTS] : [...ALLOWED_WEEKDAY_SLOTS];
+}
+
+/**
+ * Single precedence authority for one calendar date (see the file header).
+ * Returns the date's windows BEFORE same-day lead filtering, its capacity per
+ * window and the rule that decided it. `opts.mode` forces 'legacy' or
+ * 'supervised' (used to preview a future activation); by default the mode
+ * active at `now` applies.
+ */
+function resolveDateAvailability(iso, config, now = new Date(), opts = {}) {
+  const parts = isoDateParts(iso);
+  if (!parts) return null;
+  const resolved = resolveActiveWeekendMode(config, now);
+  const cfg = resolved.config;
+  const mode = opts.mode === 'legacy' || opts.mode === 'supervised' ? opts.mode : resolved.mode;
+  const holiday = isClosedHoliday(parts.iso);
+  const override = cfg.dateOverrides[parts.iso] || null;
+  const out = (open, windows, source, capacity = 1) => ({
+    date: parts.iso,
+    day: parts.day,
+    open: open && windows.length > 0,
+    windows: open ? windows : [],
+    capacity: open ? capacity : 0,
+    source,
+    holiday,
+    mode,
+    override: override ? { ...override } : null,
+  });
+  const overrideWindows = () => (override.arrivalWindows && override.arrivalWindows.length
+    ? [...override.arrivalWindows]
+    : defaultWindowsForDay(parts.day));
+  const overrideCapacity = () => Math.max(1, Number(override.capacity) || 1);
+
+  // 2. A closed override always closes the date.
+  if (override && !override.enabled) return out(false, [], RULE_SOURCES.OVERRIDE_CLOSED);
+  if (holiday) {
+    // 3. Only an explicitly authorized holiday opening reopens a holiday.
+    if (override && override.enabled && override.holidayOpening === true) {
+      return out(true, overrideWindows(), RULE_SOURCES.HOLIDAY_OPENING, overrideCapacity());
+    }
+    // 4. Holiday closure beats a plain open override.
+    return out(false, [], RULE_SOURCES.HOLIDAY);
+  }
+  // 7. Open override on an ordinary date.
+  if (override && override.enabled) {
+    return out(true, overrideWindows(), RULE_SOURCES.OVERRIDE_OPEN, overrideCapacity());
+  }
+  // 8. Base rule.
+  if (parts.day >= 1 && parts.day <= 5) return out(true, [...ALLOWED_WEEKDAY_SLOTS], RULE_SOURCES.WEEKDAY);
+  if (mode === 'supervised') return out(false, [], RULE_SOURCES.SUPERVISED_WEEKEND);
+  if (parts.day === 6) return out(true, [...ALLOWED_SATURDAY_SLOTS], RULE_SOURCES.LEGACY_SATURDAY);
+  return out(false, [], RULE_SOURCES.LEGACY_SUNDAY);
+}
+
 /**
  * Canonical slot list for a calendar date under the resolved availability mode.
  */
 function slotsForDate(iso, config, now = new Date()) {
-  const parts = isoDateParts(iso);
-  if (!parts) return [];
-  if (isClosedHoliday(parts.iso)) return [];
-
-  const resolved = resolveActiveWeekendMode(config, now);
-  const cfg = resolved.config;
-  const override = cfg.dateOverrides[parts.iso];
-  let slots = [];
-
-  // Explicit override always wins for that date (weekday or weekend).
-  if (override) {
-    if (!override.enabled) return [];
-    if (override.arrivalWindows && override.arrivalWindows.length) {
-      slots = [...override.arrivalWindows];
-    } else if (parts.day === 0 || parts.day === 6) {
-      slots = [...ALLOWED_SATURDAY_SLOTS];
-    } else {
-      slots = [...ALLOWED_WEEKDAY_SLOTS];
-    }
-  } else if (parts.day >= 1 && parts.day <= 5) {
-    slots = [...ALLOWED_WEEKDAY_SLOTS];
-  } else if (resolved.mode === 'supervised') {
-    // Closed unless explicitly enabled above
-    slots = [];
-  } else if (parts.day === 0) {
-    slots = [];
-  } else if (parts.day === 6) {
-    slots = [...ALLOWED_SATURDAY_SLOTS];
-  }
-
-  return filterSameDaySlots(parts.iso, slots, now, cfg.businessTimezone);
+  const r = resolveDateAvailability(iso, config, now);
+  if (!r || !r.open) return [];
+  const cfg = normalizeAvailabilityConfig(config);
+  return filterSameDaySlots(r.date, r.windows, now, cfg.businessTimezone);
 }
 
+/** Capacity per arrival window (1 unless an applicable open override sets it). */
 function capacityForSlot(iso, preferredTime, config, now = new Date()) {
-  const parts = isoDateParts(iso);
-  if (!parts) return 1;
-  const cfg = normalizeAvailabilityConfig(config);
-  const override = cfg.dateOverrides[parts.iso];
-  if (override && override.enabled) {
-    return Math.max(1, Number(override.capacity) || 1);
-  }
-  return 1;
+  const r = resolveDateAvailability(iso, config, now);
+  if (!r || !r.open) return 1;
+  return Math.max(1, Number(r.capacity) || 1);
 }
 
 function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
@@ -415,10 +510,8 @@ function validateBookingSchedule(preferredDate, preferredTime, opts = {}) {
   const parts = isoDateParts(preferredDate);
   if (!parts) return { ok: false, error: 'booking_date_unavailable' };
 
-  if (isClosedHoliday(parts.iso)) {
-    return { ok: false, error: 'booking_date_unavailable' };
-  }
-
+  // Holidays are decided by resolveDateAvailability (through slotsForDate), so
+  // an explicitly authorized holiday opening is honored here as well.
   const cfg = normalizeAvailabilityConfig(config);
   const minIso = earliestBookableIso(now, cfg.businessTimezone);
   if (parts.iso < minIso) {
@@ -501,8 +594,25 @@ function findNearbyOpenings(fromDate, config, opts = {}) {
   return results;
 }
 
+/** Public reasons a date is closed (weekend base rules are derivable client-side). */
+const PUBLIC_CLOSED_SOURCES = new Set([RULE_SOURCES.OVERRIDE_CLOSED, RULE_SOURCES.HOLIDAY]);
+
+function horizonIsoDates(fromIso, days) {
+  const start = isoDateParts(fromIso);
+  if (!start) return [];
+  const out = [];
+  let d = new Date(start.y, start.mo - 1, start.d);
+  for (let i = 0; i < days; i += 1) {
+    out.push(toIsoLocal(d));
+    d = addLocalDays(d, 1);
+  }
+  return out;
+}
+
 /**
  * Public/safe projection for booking clients (no internal notes).
+ * `closedDates` lists every date in the horizon that is closed by an explicit
+ * closure or a holiday, so the calendar never offers a known closed date.
  */
 function projectPublicAvailability(config, opts = {}) {
   const now = opts.now instanceof Date ? opts.now : new Date();
@@ -513,25 +623,27 @@ function projectPublicAvailability(config, opts = {}) {
   const today = businessTodayIso(cfg.businessTimezone, now);
 
   const publicOverrides = {};
-  const start = isoDateParts(today) || isoDateParts(toIsoLocal(now));
-  if (start) {
-    let d = new Date(start.y, start.mo - 1, start.d);
-    for (let i = 0; i < horizonDays; i += 1) {
-      const iso = toIsoLocal(d);
-      d = addLocalDays(d, 1);
-      const ov = cfg.dateOverrides[iso];
-      // Public surface: only enabled overrides (no closed-date leakage, no notes).
-      if (!ov || !ov.enabled) continue;
-      publicOverrides[iso] = {
-        enabled: true,
-        capacity: ov.capacity || 1,
-        arrivalWindows: ov.arrivalWindows ? [...ov.arrivalWindows] : undefined,
-      };
-    }
+  const closedDates = [];
+  const dates = horizonIsoDates(today, horizonDays);
+  for (const iso of dates) {
+    const r = resolveDateAvailability(iso, cfg, now);
+    if (!r) continue;
+    if (!r.open && PUBLIC_CLOSED_SOURCES.has(r.source)) closedDates.push(iso);
+    const ov = cfg.dateOverrides[iso];
+    // Public surface: only enabled overrides that actually apply (no notes).
+    if (!ov || !ov.enabled) continue;
+    if (r.source !== RULE_SOURCES.OVERRIDE_OPEN && r.source !== RULE_SOURCES.HOLIDAY_OPENING) continue;
+    publicOverrides[iso] = {
+      enabled: true,
+      capacity: ov.capacity || 1,
+      arrivalWindows: ov.arrivalWindows ? [...ov.arrivalWindows] : undefined,
+      ...(r.source === RULE_SOURCES.HOLIDAY_OPENING ? { holidayOpening: true } : {}),
+    };
   }
 
   return {
     ok: true,
+    status: 'available',
     contractVersion: CONTRACT_VERSION,
     businessTimezone: cfg.businessTimezone,
     weekendMode: resolved.mode,
@@ -543,6 +655,9 @@ function projectPublicAvailability(config, opts = {}) {
     weekdaySlots: [...ALLOWED_WEEKDAY_SLOTS],
     saturdaySlots: [...ALLOWED_SATURDAY_SLOTS],
     dateOverrides: publicOverrides,
+    closedDates,
+    horizonStart: dates[0] || today,
+    horizonEnd: dates[dates.length - 1] || today,
     today,
   };
 }
@@ -550,20 +665,92 @@ function projectPublicAvailability(config, opts = {}) {
 /**
  * Admin projection includes internal notes + full overrides.
  */
-function projectAdminAvailability(config) {
+function projectAdminAvailability(config, opts = {}) {
   const cfg = normalizeAvailabilityConfig(config);
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  const active = resolveActiveWeekendMode(cfg, now);
   return {
     ...cfg,
     contractVersion: CONTRACT_VERSION,
+    activeMode: active.mode,
+    supervisedActivated: active.activated,
     defaults: {
       weekdaySlots: [...ALLOWED_WEEKDAY_SLOTS],
       saturdaySlots: [...ALLOWED_SATURDAY_SLOTS],
+      knownSlots: [...KNOWN_OPERATIONAL_SLOTS],
       minAdvanceDays: MIN_ADVANCE_DAYS,
       sameDayLeadMinutes: SAME_DAY_LEAD_MINUTES,
       businessTimezone: DEFAULT_BUSINESS_TIMEZONE,
       weekendModes: [...WEEKEND_MODES],
     },
     customerWeekendLabel: CUSTOMER_WEEKEND_LABEL,
+  };
+}
+
+/**
+ * Admin effective calendar: what a customer can book on each date right now,
+ * why, how much is already reserved, and what changes once a scheduled
+ * supervised-weekend activation takes effect.
+ */
+function projectEffectiveCalendar(config, opts = {}) {
+  const now = opts.now instanceof Date ? opts.now : new Date();
+  const days = Math.min(120, Math.max(1, Math.floor(Number(opts.days)) || 56));
+  const resolved = resolveActiveWeekendMode(config, now);
+  const cfg = resolved.config;
+  const today = businessTodayIso(cfg.businessTimezone, now);
+  const from = isoDateParts(opts.from) && opts.from >= today ? opts.from : today;
+  const occupancy = opts.occupancy || {};
+  const pendingActivation = cfg.weekendMode === 'supervised'
+    && cfg.supervisedEffectiveDate
+    && !resolved.activated
+    ? cfg.supervisedEffectiveDate
+    : null;
+
+  const out = horizonIsoDates(from, days).map((iso) => {
+    const r = resolveDateAvailability(iso, cfg, now);
+    const windows = r.open ? filterSameDaySlots(iso, r.windows, now, cfg.businessTimezone) : [];
+    const perWindow = {};
+    let booked = 0;
+    for (const slot of KNOWN_OPERATIONAL_SLOTS) {
+      const n = Number(occupancy[`${iso}|${slot}`]) || 0;
+      if (n > 0) {
+        perWindow[slot] = n;
+        booked += n;
+      }
+    }
+    const row = {
+      date: iso,
+      day: r.day,
+      open: windows.length > 0,
+      windows,
+      capacity: r.open ? r.capacity : 0,
+      source: r.source,
+      holiday: r.holiday,
+      note: r.override && r.override.note ? r.override.note : null,
+      booked,
+      bookedByWindow: perWindow,
+    };
+    if (pendingActivation && iso >= pendingActivation) {
+      const after = resolveDateAvailability(iso, cfg, now, { mode: 'supervised' });
+      if (after.open !== r.open) {
+        row.afterActivation = {
+          activatesOn: pendingActivation,
+          open: after.open,
+          windows: after.windows,
+          source: after.source,
+        };
+      }
+    }
+    return row;
+  });
+
+  return {
+    today,
+    activeMode: resolved.mode,
+    configuredMode: cfg.weekendMode,
+    supervisedEffectiveDate: cfg.supervisedEffectiveDate,
+    pendingActivation,
+    days: out,
   };
 }
 
@@ -579,6 +766,7 @@ module.exports = {
   LEGACY_AVAILABILITY,
   CUSTOMER_WEEKEND_LABEL,
   WEEKEND_MODES,
+  RULE_SOURCES,
   isoDateParts,
   toIsoLocal,
   addLocalDays,
@@ -591,14 +779,19 @@ module.exports = {
   getHolidaySet,
   isClosedHoliday,
   normalizePreferredTime,
+  normalizeArrivalWindows,
   normalizeAvailabilityConfig,
   normalizeDateOverride,
+  inspectAvailabilityConfig,
   resolveActiveWeekendMode,
+  resolveDateAvailability,
   getDateOverride,
   slotsForDate,
   capacityForSlot,
   validateBookingSchedule,
   findNearbyOpenings,
+  horizonIsoDates,
   projectPublicAvailability,
+  projectEffectiveCalendar,
   projectAdminAvailability,
 };

@@ -1,4 +1,6 @@
 'use strict';
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 
 /**
  * CARDDETAIL1 P0 — booking-time notification trigger.

@@ -262,7 +262,7 @@ function extractBs4(html) {
 }
 
 async function mountStack(cfg, opts = {}) {
-  const page = read('index.html');
+  const page = read(opts.page || 'index.html');
   const form = extractBs4(page);
   const inline = inlineScheduleBlock(page);
   const clientSrc = read('assets/booking-availability-client.js');
@@ -286,6 +286,7 @@ async function mountStack(cfg, opts = {}) {
           calls.push(action);
           const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
           if (action === 'snapshot') {
+            if (opts.outage && opts.outage.on) return json({ ok: false, error: 'availability_unavailable' }, 503);
             if (opts.snapshotStatus) return json({ ok: false }, opts.snapshotStatus);
             return json(projectPublicAvailability(cfg, { now: NOW }));
           }
@@ -444,11 +445,86 @@ if (JSDOM) {
     eq(s.window.bkValidateScheduleSelection(), { ok: true });
   });
 
-  test('stack: snapshot failure keeps the existing fail-closed legacy fallback', async () => {
+  test('stack: snapshot failure fails closed — no date is offered, recovery is shown', async () => {
+    // Availability V2 Phase 1: an unreadable schedule never becomes the legacy
+    // calendar (that used to reopen Saturdays the owner had closed).
     const s = await mountStack(config(), { snapshotStatus: 502 });
     assert.equal(s.window.BkAvailability.loaded, false);
-    eq(s.choose(D.openSun, 'anytime'), { ok: false, message: 'Unavailable — please choose another date.' });
-    eq(s.choose(D.plainSat, 'anytime'), { ok: true });
+    assert.equal(s.window.BkAvailability.status, 'unavailable');
+    for (const d of [D.openSun, D.plainSat, D.weekday]) {
+      const r = s.choose(d, 'anytime');
+      assert.equal(r.ok, false, d);
+      assert.match(r.message, /Live scheduling is temporarily unavailable/);
+    }
+    assert.ok(s.doc.getElementById('bk-availability-status'), 'recovery panel rendered');
+    assert.ok(s.doc.getElementById('bk-availability-retry'), 'retry button rendered');
+  });
+}
+
+// ─── Availability V2 Phase 1: client consistency on all 13 booking pages ──
+
+if (JSDOM) {
+  const v2Config = () => config({
+    weekendMode: 'legacy',
+    supervisedEffectiveDate: null,
+    dateOverrides: {
+      [D.closedSat]: { enabled: false, capacity: 1 },
+      '2026-12-24': { enabled: true, holidayOpening: true, capacity: 1, arrivalWindows: ['8:00 AM', '10:00 AM'] },
+      [D.holiday]: { enabled: true, capacity: 1, arrivalWindows: WEEKEND },
+    },
+  });
+
+  for (const page of BOOKING_PAGES) {
+    test(`v2 ${page}: known closed dates are never offered; an authorized holiday opening is`, async () => {
+      const s = await mountStack(v2Config(), { page });
+      assert.equal(s.window.BkAvailability.status, 'available');
+      // Explicit closure: rejected by the browser before any server round-trip.
+      eq(s.window.bkSlotsFor(D.closedSat), []);
+      assert.equal(s.choose(D.closedSat, 'anytime').ok, false);
+      // Plain Saturday in legacy mode stays open.
+      eq(s.choose(D.plainSat, 'anytime'), { ok: true });
+      // Authorized holiday opening beats the page's static holiday list.
+      eq(s.window.bkSlotsFor('2026-12-24'), ['8:00 AM', '10:00 AM']);
+      eq(s.choose('2026-12-24', 'anytime'), { ok: true });
+      // A plain override on Christmas does not open it.
+      const xmas = s.choose(D.holiday, 'anytime');
+      assert.equal(xmas.ok, false);
+      // Alternate date follows the same rules.
+      s.choose(D.weekday, 'anytime');
+      s.setAlternate(D.closedSat, 'anytime');
+      assert.equal(s.window.bkValidateScheduleSelection().ok, false);
+      s.setAlternate('2026-12-24', 'anytime');
+      eq(s.window.bkValidateScheduleSelection(), { ok: true });
+    });
+  }
+
+  test('v2 stack: an unreadable schedule blocks every date until "Try again" succeeds', async () => {
+    const outage = { on: true };
+    const s = await mountStack(v2Config(), { outage });
+    assert.equal(s.window.BkAvailability.status, 'unavailable');
+    const blocked = s.choose(D.weekday, 'anytime');
+    assert.equal(blocked.ok, false);
+    assert.match(blocked.message, /Live scheduling is temporarily unavailable/);
+    const panel = s.doc.getElementById('bk-availability-status');
+    assert.ok(panel);
+    assert.match(panel.textContent, /Live scheduling is temporarily unavailable/);
+    assert.match(panel.textContent, /\(551\) 389-3986/);
+    outage.on = false;
+    s.doc.getElementById('bk-availability-retry').dispatchEvent(new s.window.Event('click', { bubbles: true }));
+    for (let i = 0; i < 50 && s.window.BkAvailability.status !== 'available'; i += 1) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    assert.equal(s.window.BkAvailability.status, 'available');
+    assert.equal(s.doc.getElementById('bk-availability-status'), null, 'panel removed after recovery');
     eq(s.choose(D.weekday, 'anytime'), { ok: true });
+  });
+
+  test('v2 stack: a server selection reporting unavailable schedule blocks progression', async () => {
+    const s = await mountStack(v2Config(), {
+      selection: () => ({ ok: false, error: 'availability_unavailable', userMessage: 'Live scheduling is temporarily unavailable.' }),
+    });
+    s.choose(D.weekday, 'anytime');
+    await new Promise((r) => setTimeout(r, 20));
+    assert.match(s.scheduleMsg(), /Live scheduling is temporarily unavailable/);
   });
 }

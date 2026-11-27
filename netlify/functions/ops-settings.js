@@ -2,18 +2,25 @@
 const { jsonCors, verifyAdminKey } = require('../lib/tech-security');
 const {
   getOpsSettings, saveOpsSettings, DEFAULT_SETTINGS, MAINTENANCE_PLAN_TEMPLATES,
-  getOperationalAvailability, saveOperationalAvailability,
+  loadOperationalAvailability, saveOperationalAvailability,
 } = require('../lib/ops-config');
 const {
   normalizeAvailabilityConfig,
   normalizeDateOverride,
   projectAdminAvailability,
+  projectEffectiveCalendar,
+  horizonIsoDates,
+  isClosedHoliday,
+  businessTodayIso,
   isoDateParts,
   WEEKEND_MODES,
   CONTRACT_VERSION,
   DEFAULT_BUSINESS_TIMEZONE,
 } = require('../lib/operational-availability');
+const { planBulkAvailability, previewPayload, MAX_BULK_DAYS } = require('../lib/availability-bulk');
 const { syncTechRosterFromAccounts } = require('../lib/auction-ops');
+
+const ADMIN_AVAILABILITY_UNAVAILABLE = 'Availability settings could not be read, so nothing was shown or changed. Reload in a minute. Customers cannot book online until it reads again.';
 
 function header(event, name) {
   const headers = (event && event.headers) || {};
@@ -55,6 +62,60 @@ function allowedAdminOrigin(event) {
   }
 }
 
+function availabilityUnavailableResponse(loaded) {
+  return jsonCors(503, {
+    ok: false,
+    error: 'availability_unavailable',
+    reason: (loaded && loaded.reason) || 'read_failed',
+    userMessage: ADMIN_AVAILABILITY_UNAVAILABLE,
+  });
+}
+
+/** Stale-tab guard: expectedRevision (Phase 1) or the legacy expectedUpdatedAt. */
+function staleAvailabilityEdit(body, current) {
+  if (body.expectedRevision != null && body.expectedRevision !== '') {
+    return Math.floor(Number(body.expectedRevision)) !== Math.floor(Number(current.revision || 0));
+  }
+  return body.expectedUpdatedAt != null && body.expectedUpdatedAt !== ''
+    && !!current.updatedAt && String(body.expectedUpdatedAt) !== String(current.updatedAt);
+}
+
+function versionConflictResponse(current) {
+  return jsonCors(409, {
+    ok: false,
+    error: 'version_conflict',
+    userMessage: 'Availability was updated elsewhere. Reload Settings and try again.',
+    availability: current ? projectAdminAvailability(current) : null,
+  });
+}
+
+/** Conditional write against the exact blob version that was read. */
+async function persistAvailability(next, loaded, actor) {
+  const saved = await saveOperationalAvailability(next, {
+    updatedBy: actor,
+    etag: loaded.etag,
+    expectNew: loaded.source === 'default',
+    baseRevision: loaded.config.revision || 0,
+  });
+  if (!saved.ok) {
+    const fresh = await loadOperationalAvailability();
+    return { response: versionConflictResponse(fresh.ok ? fresh.config : null) };
+  }
+  return { saved };
+}
+
+async function reservationsFor(dates) {
+  const { indexedReservationsForDates } = require('../lib/slot-index');
+  return indexedReservationsForDates(dates);
+}
+
+function bulkRangeDates(req) {
+  const from = isoDateParts(req && req.from);
+  const to = isoDateParts(req && req.to);
+  if (!from || !to || to.iso < from.iso) return [];
+  return horizonIsoDates(from.iso, MAX_BULK_DAYS + 1).filter((iso) => iso <= to.iso);
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return jsonCors(204, {});
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
@@ -70,16 +131,25 @@ exports.handler = async (event) => {
   }
 
   if (event.httpMethod === 'GET') {
-    const [settings, availability] = await Promise.all([
+    const [settings, loaded] = await Promise.all([
       getOpsSettings(),
-      getOperationalAvailability(),
+      loadOperationalAvailability(),
     ]);
     return jsonCors(200, {
       ok: true,
       settings,
       defaults: DEFAULT_SETTINGS,
       maintenancePlanTemplates: MAINTENANCE_PLAN_TEMPLATES,
-      availability: projectAdminAvailability(availability),
+      // Never show legacy defaults in place of a configuration we could not read.
+      availability: loaded.ok ? projectAdminAvailability(loaded.config) : null,
+      availabilityStatus: loaded.ok
+        ? { ok: true, source: loaded.source }
+        : {
+          ok: false,
+          error: 'availability_unavailable',
+          reason: loaded.reason,
+          userMessage: ADMIN_AVAILABILITY_UNAVAILABLE,
+        },
     });
   }
 
@@ -101,20 +171,121 @@ exports.handler = async (event) => {
   }
 
   if (action === 'get_availability') {
-    const availability = await getOperationalAvailability();
-    return jsonCors(200, { ok: true, availability: projectAdminAvailability(availability) });
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailableResponse(loaded);
+    return jsonCors(200, {
+      ok: true,
+      availability: projectAdminAvailability(loaded.config),
+      source: loaded.source,
+    });
+  }
+
+  if (action === 'effective_calendar') {
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailableResponse(loaded);
+    const days = Math.min(120, Math.max(7, Math.floor(Number(body.days)) || 56));
+    const today = businessTodayIso(loaded.config.businessTimezone);
+    const fromParts = isoDateParts(body.from);
+    const from = fromParts && fromParts.iso >= today ? fromParts.iso : today;
+    const reservations = await reservationsFor(horizonIsoDates(from, days));
+    const calendar = projectEffectiveCalendar(loaded.config, {
+      from,
+      days,
+      occupancy: reservations.ok ? reservations.occupancy : {},
+    });
+    for (const day of calendar.days) {
+      day.reservations = reservations.ok ? (reservations.bookingsByDate[day.date] || 0) : null;
+    }
+    return jsonCors(200, {
+      ok: true,
+      calendar,
+      reservationsVerified: !!reservations.ok,
+      availability: projectAdminAvailability(loaded.config),
+    });
+  }
+
+  if (action === 'preview_bulk_availability' || action === 'apply_bulk_availability') {
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailableResponse(loaded);
+    const req = body.request && typeof body.request === 'object' ? body.request : body;
+    const reservations = await reservationsFor(bulkRangeDates(req));
+    if (!reservations.ok) {
+      // Fail closed: a bulk change must know which dates already hold bookings.
+      return jsonCors(503, {
+        ok: false,
+        error: 'reservations_unverified',
+        userMessage: 'Existing reservations could not be checked, so no preview was produced. Nothing was changed. Try again in a minute.',
+      });
+    }
+    const plan = planBulkAvailability(loaded.config, req, {
+      reservationsByDate: reservations.bookingsByDate,
+    });
+    if (!plan.ok) return jsonCors(400, plan);
+    if (action === 'preview_bulk_availability') {
+      return jsonCors(200, { ok: true, preview: previewPayload(plan) });
+    }
+    if (!body.planHash || String(body.planHash) !== plan.planHash) {
+      return jsonCors(409, {
+        ok: false,
+        error: 'preview_stale',
+        userMessage: 'Availability or reservations changed since this preview. Review the updated preview, then confirm again.',
+        preview: previewPayload(plan),
+      });
+    }
+    if (plan.requiresReservationAck && body.acknowledgeReservations !== true) {
+      return jsonCors(400, {
+        ok: false,
+        error: 'reservation_ack_required',
+        userMessage: 'Some dates you are closing already have reservations. Those bookings stay booked; confirm that you understand before applying.',
+        preview: previewPayload(plan),
+      });
+    }
+    if (plan.overrideLimitExceeded) {
+      return jsonCors(400, {
+        ok: false,
+        error: 'too_many_overrides',
+        userMessage: 'This would exceed the limit of future date exceptions. Use a shorter range; recurring schedules arrive in Phase 2.',
+      });
+    }
+    if (!plan.changes.length) {
+      return jsonCors(200, {
+        ok: true,
+        applied: 0,
+        availability: projectAdminAvailability(loaded.config),
+        summary: plan.summary,
+      });
+    }
+    const persisted = await persistAvailability(
+      { ...loaded.config, dateOverrides: plan.nextOverrides },
+      loaded,
+      actor
+    );
+    if (persisted.response) return persisted.response;
+    console.log('[availability] bulk_applied', {
+      actor,
+      action: plan.request.action,
+      from: plan.request.from,
+      to: plan.request.to,
+      changes: plan.changes.length,
+      protectedIncluded: plan.summary.protectedIncluded,
+      closingWithReservations: plan.summary.closingWithReservations,
+      revision: persisted.saved.config.revision,
+    });
+    return jsonCors(200, {
+      ok: true,
+      applied: plan.changes.length,
+      availability: persisted.saved.availability,
+      summary: plan.summary,
+    });
   }
 
   if (action === 'update_availability') {
-    const current = await getOperationalAvailability();
-    if (body.expectedUpdatedAt != null && body.expectedUpdatedAt !== ''
-      && current.updatedAt && String(body.expectedUpdatedAt) !== String(current.updatedAt)) {
-      return jsonCors(409, {
-        ok: false,
-        error: 'version_conflict',
-        userMessage: 'Availability was updated elsewhere. Reload Settings and try again.',
-        availability: projectAdminAvailability(current),
-      });
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailableResponse(loaded);
+    const current = loaded.config;
+    // Stale tabs are refused (expectedRevision, or legacy expectedUpdatedAt).
+    if (staleAvailabilityEdit(body, current)) {
+      return versionConflictResponse(current);
     }
     const next = {
       version: CONTRACT_VERSION,
@@ -171,8 +342,9 @@ exports.handler = async (event) => {
       return jsonCors(400, { ok: false, error: 'invalid_availability_config' });
     }
 
-    const availability = await saveOperationalAvailability(next, { updatedBy: actor });
-    return jsonCors(200, { ok: true, availability });
+    const persisted = await persistAvailability(next, loaded, actor);
+    if (persisted.response) return persisted.response;
+    return jsonCors(200, { ok: true, availability: persisted.saved.availability });
   }
 
   if (action === 'upsert_date_override') {
@@ -181,37 +353,42 @@ exports.handler = async (event) => {
     if (!parts) return jsonCors(400, { ok: false, error: 'invalid_date' });
     const normalized = normalizeDateOverride(body.override || body);
     if (!normalized) return jsonCors(400, { ok: false, error: 'invalid_override' });
-
-    const current = await getOperationalAvailability();
-    if (body.expectedUpdatedAt != null && body.expectedUpdatedAt !== ''
-      && current.updatedAt && String(body.expectedUpdatedAt) !== String(current.updatedAt)) {
-      return jsonCors(409, {
+    if (normalized.enabled && isClosedHoliday(parts.iso) && normalized.holidayOpening !== true) {
+      return jsonCors(400, {
         ok: false,
-        error: 'version_conflict',
-        availability: projectAdminAvailability(current),
+        error: 'holiday_opening_confirmation_required',
+        userMessage: 'This date is a protected holiday. Tick "Open this holiday" to open it explicitly.',
       });
+    }
+
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailableResponse(loaded);
+    const current = loaded.config;
+    if (staleAvailabilityEdit(body, current)) {
+      return versionConflictResponse(current);
     }
     const dateOverrides = { ...(current.dateOverrides || {}) };
     dateOverrides[parts.iso] = normalized;
-    const availability = await saveOperationalAvailability({
-      ...current,
-      dateOverrides,
-    }, { updatedBy: actor });
-    return jsonCors(200, { ok: true, availability, date: parts.iso });
+    const persisted = await persistAvailability({ ...current, dateOverrides }, loaded, actor);
+    if (persisted.response) return persisted.response;
+    return jsonCors(200, { ok: true, availability: persisted.saved.availability, date: parts.iso });
   }
 
   if (action === 'remove_date_override') {
     const date = String(body.date || '').trim();
     const parts = isoDateParts(date);
     if (!parts) return jsonCors(400, { ok: false, error: 'invalid_date' });
-    const current = await getOperationalAvailability();
+    const loaded = await loadOperationalAvailability();
+    if (!loaded.ok) return availabilityUnavailableResponse(loaded);
+    const current = loaded.config;
+    if (staleAvailabilityEdit(body, current)) {
+      return versionConflictResponse(current);
+    }
     const dateOverrides = { ...(current.dateOverrides || {}) };
     delete dateOverrides[parts.iso];
-    const availability = await saveOperationalAvailability({
-      ...current,
-      dateOverrides,
-    }, { updatedBy: actor });
-    return jsonCors(200, { ok: true, availability });
+    const persisted = await persistAvailability({ ...current, dateOverrides }, loaded, actor);
+    if (persisted.response) return persisted.response;
+    return jsonCors(200, { ok: true, availability: persisted.saved.availability });
   }
 
   const ALLOWED = [

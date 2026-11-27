@@ -1,4 +1,6 @@
 'use strict';
+// Booking handlers need an explicit availability store (fail-closed reads).
+require('./helpers/availability-store').useDefaultAvailabilityStore();
 
 require('dotenv/config');
 const fs = require('node:fs');
