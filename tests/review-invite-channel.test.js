@@ -121,11 +121,14 @@ test('review SMS is only asked after a completed job without an existing review'
     reviewLeft: true,
     phone: '2015550177',
   }), false);
+  // Neutral eligibility (PR #432): a reported issue does not remove a completed
+  // job from review requests; excluding unhappy customers would be selective
+  // solicitation. Consent and campaign gates still apply before any send.
   assert.equal(shouldAskForReview({
     jobStatus: 'issue_reported',
     completedAt: '2026-09-09T12:00:00.000Z',
     phone: '2015550177',
-  }), false);
+  }), true);
   assert.equal(shouldAskForReview({
     jobStatus: 'completed_paid',
     completedAt: '2026-09-09T12:00:00.000Z',

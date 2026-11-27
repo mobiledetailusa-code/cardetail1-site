@@ -1463,7 +1463,81 @@ function reviewRequestSummary(result) {
     queued: result.queued === true,
     skipped: result.skipped === true,
     reason: result.reason || result.error || null,
+    reviewLinkIncluded: result.reviewLinkIncluded === true || result.templateKey === 'booking.review_requested',
+    reminder: result.reminder || null,
   };
+}
+
+const REVIEW_STATUS_MAX_IDS = 40;
+
+/**
+ * Review lifecycle for up to 40 bookings: one outbox query, one strong booking
+ * read and one suppression read per booking. No phone, email or address leaves.
+ */
+async function reviewRequestStatusBatch(body, testOpts = {}) {
+  const ids = [...new Set((Array.isArray(body.bookingIds) ? body.bookingIds : [])
+    .map((id) => sanitizeText(id, 48))
+    .filter((id) => /^CD1-[A-Za-z0-9-]+$/.test(id)))].slice(0, REVIEW_STATUS_MAX_IDS);
+  if (!ids.length) return jsonCors(400, { ok: false, error: 'bookingIds_required' });
+  const lifecycle = require('../lib/review-request-lifecycle');
+  const env = testOpts.env || process.env;
+  let rowsByBooking = null;
+  try {
+    rowsByBooking = await lifecycle.loadReviewRows(ids, { prisma: testOpts.prisma });
+  } catch {
+    rowsByBooking = null;
+  }
+  const { readPhoneSuppression } = require('../lib/sms-suppression');
+  const loadBooking = testOpts.loadBooking || (async (id) => {
+    const rec = await getBookingRecord(id, { requireStrong: true });
+    return rec && rec.booking;
+  });
+  // One outbox query for every booking (above); booking and suppression reads
+  // run in a bounded pool so 40 rows cost about 5 round trips, not 80.
+  const statuses = new Array(ids.length);
+  const POOL = 8;
+  let next = 0;
+  const worker = async () => {
+    while (next < ids.length) {
+      const index = next;
+      next += 1;
+      const id = ids[index];
+      let booking = null;
+      try { booking = await loadBooking(id); } catch { booking = null; }
+      if (!booking) { statuses[index] = { bookingId: id, state: 'unknown', error: 'booking_unavailable' }; continue; }
+      let optedOut = null;
+      try {
+        const suppression = await readPhoneSuppression(booking.phone || booking.customerPhone || '');
+        optedOut = suppression.ok ? !!suppression.suppressed : null;
+      } catch {
+        optedOut = null;
+      }
+      statuses[index] = lifecycle.reviewLifecycleView(booking, rowsByBooking ? rowsByBooking.get(id) : [], {
+        env,
+        now: testOpts.now,
+        optedOut,
+        ledgerAvailable: !!rowsByBooking,
+      });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(POOL, ids.length) }, worker));
+  return jsonCors(200, {
+    ok: true,
+    ledgerAvailable: !!rowsByBooking,
+    program: {
+      ...(() => {
+        const f = lifecycle.reviewFlags(env);
+        return {
+          automationEnabled: f.automationEnabled,
+          manualResendEnabled: f.manualResendEnabled,
+          campaignVerified: f.campaignVerified,
+          consentEstablished: f.consentVersions.length > 0,
+        };
+      })(),
+      blockers: lifecycle.programBlockers(env),
+    },
+    statuses,
+  });
 }
 
 async function handleAdminAction(body, testOpts = {}) {
@@ -1894,6 +1968,82 @@ async function handleAdminAction(body, testOpts = {}) {
       return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
     }
     return jsonCors(200, { ok: true, bookingId, bookingVersion: persisted.bookingVersion });
+  }
+
+  if (action === 'review_request_mark_received' || action === 'review_request_stop') {
+    const lifecycle = require('../lib/review-request-lifecycle');
+    const received = action === 'review_request_mark_received';
+    const markers = lifecycle.ownerMarkers(booking);
+    const already = received ? markers.receivedAt : markers.stoppedAt;
+    let current = booking;
+    if (!already) {
+      const reason = received ? '' : (sanitizeText(body.reason, 120) || 'owner_stopped');
+      const patched = {
+        ...booking,
+        reviewRequest: {
+          ...(booking.reviewRequest && typeof booking.reviewRequest === 'object' ? booking.reviewRequest : {}),
+          ...(received ? { receivedAt: now, receivedBy: 'admin' } : { stoppedAt: now, stoppedBy: 'admin', stopReason: reason }),
+        },
+        updatedAt: now,
+        eventLog: appendEventLog(booking, {
+          action: received ? 'review_marked_received' : 'review_requests_stopped',
+          by: 'admin',
+          ...(received ? {} : { reason }),
+        }),
+      };
+      const persisted = await persistMutation(store, bookingId, patched, booking, action, action);
+      if (!persisted.ok) {
+        return jsonCors(persisted.statusCode || 409, { ok: false, error: persisted.error || 'version_conflict' });
+      }
+      current = persisted.booking;
+    }
+    // The marker is committed first, so a row the worker holds right now is
+    // cancelled by its dispatch check even if this update misses it.
+    let cancelled = null;
+    try {
+      cancelled = await lifecycle.cancelPendingFollowUps(bookingId, received ? 'review_received' : 'stopped', {
+        prisma: testOpts.prisma,
+      });
+    } catch {
+      cancelled = { ok: false, error: 'sms_outbox_unavailable' };
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      alreadyMarked: !!already,
+      bookingVersion: current.bookingVersion,
+      pendingCancelled: cancelled && cancelled.ok ? cancelled.cancelled : null,
+      cancelError: cancelled && !cancelled.ok ? cancelled.error : null,
+    });
+  }
+
+  if (action === 'review_request_resend') {
+    const lifecycle = require('../lib/review-request-lifecycle');
+    const result = await lifecycle.manualResend(booking, {
+      prisma: testOpts.prisma,
+      env: testOpts.env,
+      now: testOpts.now,
+    });
+    if (!result.ok) {
+      return jsonCors(result.statusCode || 502, { ok: false, error: result.error || 'resend_failed' });
+    }
+    if (result.queued) {
+      await appendAudit(auditEntry({
+        bookingId,
+        actorType: 'admin',
+        actorId: 'admin',
+        action: 'review_request_resend',
+        reason: result.scheduledFor || '',
+      })).catch(() => null);
+    }
+    return jsonCors(200, {
+      ok: true,
+      bookingId,
+      queued: result.queued === true,
+      idempotent: result.idempotent === true,
+      reason: result.reason || null,
+      scheduledFor: result.scheduledFor || null,
+    });
   }
 
   // Outcome of approve_completion's one-per-booking review SMS (Admin / QuickOps).
@@ -3682,6 +3832,9 @@ exports.handler = async (event) => {
     let body = {};
     try { body = JSON.parse(event.body || '{}'); }
     catch { return jsonCors(400, { ok: false, error: 'invalid_json' }); }
+    if (body.action === 'review_request_status') {
+      return reviewRequestStatusBatch(body, { event });
+    }
     if (body.action && body.action !== 'list') {
       if (body.action !== 'preview_test_cleanup') {
         const previewRefusal = refuseSharedWrite('admin-ops');
@@ -3737,3 +3890,4 @@ exports.handler = async (event) => {
     return finalizeJobsResponse(jsonCors(500, { ok: false, error: 'failed_to_load_jobs' }), timing);
   }
 };
+exports.reviewRequestStatusBatch = reviewRequestStatusBatch;

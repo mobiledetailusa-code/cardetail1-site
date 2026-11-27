@@ -111,6 +111,7 @@ async function enqueueSms(input = {}, opts = {}) {
         templateData: canonical(input.templateData || {}),
         status: 'accepted',
         maxAttempts: Math.min(10, Math.max(1, Number(input.maxAttempts) || 5)),
+        ...scheduledAvailableAt(input.availableAt),
       },
     });
     safeOutboxLog('accepted', outbox);
@@ -125,6 +126,17 @@ async function enqueueSms(input = {}, opts = {}) {
     }
     return { ok: false, error: 'sms_outbox_write_failed' };
   }
+}
+
+// A deferred first send (review reminder). Only a future instant within 15 days
+// is honoured; anything else keeps the column default (send now).
+const MAX_SCHEDULE_AHEAD_MS = 15 * 24 * 60 * 60 * 1000;
+function scheduledAvailableAt(value) {
+  if (value == null) return {};
+  const at = value instanceof Date ? value.getTime() : Date.parse(value);
+  const now = Date.now();
+  if (!Number.isFinite(at) || at <= now || at - now > MAX_SCHEDULE_AHEAD_MS) return {};
+  return { availableAt: new Date(at) };
 }
 
 function retryDelayMs(attemptCount) {
@@ -181,8 +193,59 @@ function normalizeProviderStatus(value) {
   return 'accepted';
 }
 
-async function processClaimedSms(row, opts = {}) {
+/**
+ * Review solicitations are re-checked under the booking's review lock right
+ * before dispatch (consent and campaign, STOP, received/stopped, caps,
+ * cooldown, send window, expiry, another ask in flight). Returns
+ * { done: result } to short-circuit, or { row } to continue with the send,
+ * possibly with the completion text's review link removed.
+ */
+async function applyReviewDispatchGate(prisma, row, opts = {}) {
+  const lifecycle = require('./review-request-lifecycle');
+  if (!lifecycle.REVIEW_GATED_TEMPLATE_KEYS.has(String(row.templateKey || ''))) return { row };
+  const now = opts.now ? new Date(opts.now) : new Date();
+  let outcome;
+  try {
+    outcome = await lifecycle.applyDispatchDecision(row, {
+      prisma,
+      env: opts.env || process.env,
+      now,
+      loadBooking: opts.reviewBookingLoader,
+    });
+  } catch {
+    // Lock or ledger failure: never send a review ask on an unverified view.
+    // The receipt still goes, without its review link.
+    if (row.templateKey === 'booking.service_completed') {
+      return { row: { ...row, templateData: { ...(row.templateData || {}), reviewUrl: '' } } };
+    }
+    const outbox = await prisma.smsOutbox.update({
+      where: { id: row.id },
+      data: {
+        status: 'accepted',
+        availableAt: new Date(now.getTime() + 10 * 60 * 1000),
+        leaseToken: null,
+        leaseExpiresAt: null,
+        lastErrorCode: 'review_gate_unavailable',
+      },
+    });
+    safeOutboxLog('retry_scheduled', outbox, { errorCode: 'review_gate_unavailable' });
+    return { done: { ok: false, retryable: true, reason: 'review_gate_unavailable', outbox } };
+  }
+  const { decision } = outcome;
+  if (decision.action === 'send' || decision.action === 'strip_review_link') return { row: outcome.row };
+  if (decision.action === 'cancel') {
+    safeOutboxLog('failed', outcome.outbox, { errorCode: decision.code });
+    return { done: { ok: true, skipped: true, reason: decision.code, outbox: outcome.outbox } };
+  }
+  safeOutboxLog('deferred', outcome.outbox, { errorCode: decision.code });
+  return { done: { ok: true, skipped: true, deferred: true, reason: decision.code, outbox: outcome.outbox } };
+}
+
+async function processClaimedSms(claimedRow, opts = {}) {
   const prisma = prismaClient(opts.prisma);
+  const gate = await applyReviewDispatchGate(prisma, claimedRow, opts);
+  if (gate.done) return gate.done;
+  const row = gate.row;
   const rendered = renderSmsTemplate(row.templateKey, row.templateData || {});
   if (!rendered.ok) {
     const failed = await prisma.smsOutbox.update({

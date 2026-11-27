@@ -12,7 +12,7 @@
  */
 
 const { enabled, smsOutboxPolicy } = require('./twilio-runtime-policy');
-const { enqueueSms, kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
+const { kickSmsOutboxByIds, smsSafeIdempotencyKey } = require('./sms-outbox');
 const { TEMPLATE_KEYS } = require('./sms-templates');
 const { bookingSmsConsentGranted } = require('./sms-program');
 const { normalizeUsPhoneE164 } = require('./phone-auth');
@@ -42,11 +42,11 @@ function publicGarageUrl() {
   return `${trustedSiteOrigin()}/my-garage`;
 }
 
+// Neutral eligibility: a completed job without a review is eligible whatever
+// its service-issue, dispute or satisfaction state. Excluding unhappy
+// customers would be selective (positive-only) solicitation.
 function shouldAskForReview(booking) {
   if (!booking) return false;
-  const js = String(booking.jobStatus || '').toLowerCase();
-  const svc = String(booking.serviceStatus || '').toLowerCase();
-  if (js === 'issue_reported' || svc === 'disputed') return false;
   const state = postServiceState(booking);
   return !!(state.completed && state.review && state.review.available);
 }
@@ -162,6 +162,12 @@ async function notifyReviewRequested(booking, opts = {}) {
   const idempotencyKey = smsSafeIdempotencyKey(`booking.review_requested:${bookingId}`);
   if (!idempotencyKey) return { ok: false, error: 'invalid_idempotency_key' };
 
+  // Review consent and campaign gate first (fail closed), before any token is
+  // minted. Existing transactional consent is not review consent.
+  const lifecycle = require('./review-request-lifecycle');
+  const compliance = lifecycle.solicitationCompliance(booking, env);
+  if (!compliance.ok) return { ok: true, skipped: true, reason: compliance.reason };
+
   const verifiedPhoneE164 = opts.verifiedPhoneE164 !== undefined
     ? opts.verifiedPhoneE164
     : await loadAccountVerifiedPhoneE164(booking.customerAccountId, { prisma: opts.prisma });
@@ -176,7 +182,9 @@ async function notifyReviewRequested(booking, opts = {}) {
     url = publicReviewsUrl();
   }
 
-  const queued = await enqueueSms({
+  // One initial ask per booking across all completion paths, decided under the
+  // booking's review lock (the paid completion text may carry the link).
+  const queued = await lifecycle.enqueueInitialRequest(booking, {
     idempotencyKey,
     audience: 'customer',
     customerAccountId: booking.customerAccountId || null,
@@ -185,7 +193,7 @@ async function notifyReviewRequested(booking, opts = {}) {
     toE164: dest,
     templateKey: TEMPLATE_KEYS.REVIEW_REQUESTED,
     templateData: { url },
-  }, { prisma: opts.prisma, env });
+  }, { prisma: opts.prisma, env, now: opts.now });
 
   if (!queued.ok) return { ok: false, error: queued.error || 'sms_outbox_failed' };
   if (!queued.queued) return { ok: true, skipped: true, reason: queued.reason || 'sms_not_queued' };
@@ -199,10 +207,18 @@ async function notifyReviewRequested(booking, opts = {}) {
     }
   }
 
+  // Off by default; see review-request-lifecycle.js for the gates.
+  const reminder = await lifecycle.scheduleAutomaticReminder(booking, {
+    prisma: opts.prisma,
+    env,
+    now: opts.now,
+  });
+
   return {
     ok: true,
     queued: true,
     outboxId,
+    reminder: { queued: reminder.queued === true, reason: reminder.reason || null, scheduledFor: reminder.scheduledFor || null },
     accessLinkIncluded: accessAuthorized && /\/reviews\?t=/.test(url),
     templateKey: TEMPLATE_KEYS.REVIEW_REQUESTED,
   };

@@ -28,6 +28,9 @@ const TEMPLATE_KEYS = Object.freeze({
   CHANGE_REJECTED: 'booking.change_rejected',
   REVIEW_REQUESTED: 'booking.review_requested',
   SERVICE_COMPLETED: 'booking.service_completed',
+  // One automatic reminder or one owner resend. Off unless review consent and
+  // the A2P campaign are verified (netlify/lib/review-request-lifecycle.js).
+  REVIEW_REMINDER: 'booking.review_reminder',
   PAYMENT_RESUME: 'booking.payment_resume',
   TECH_ARRIVED: 'booking.technician_arrived',
   EXTRA_APPROVAL: 'booking.extra_approval',
@@ -398,6 +401,13 @@ function renderSmsTemplate(templateKey, data = {}) {
       body = `${smsPrefix(templateKey)} How was your detail? Leave a review.`
         + viewLink(url);
       break;
+    case TEMPLATE_KEYS.REVIEW_REMINDER: {
+      // Neutral wording: no incentive, no request for a positive rating.
+      const link = asciiSms(data.reviewUrl || url).slice(0, 120);
+      body = `${smsPrefix(templateKey)} Thanks again for choosing us.`
+        + (link ? ` If you have a moment, we would appreciate an honest Google review: ${link}` : '');
+      break;
+    }
     case TEMPLATE_KEYS.SERVICE_COMPLETED: {
       // Receipt and the configured Google review link only. No prices, no tokens.
       const receipt = asciiSms(data.receiptUrl).slice(0, 180);
