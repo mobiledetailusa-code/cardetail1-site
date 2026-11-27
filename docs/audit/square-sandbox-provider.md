@@ -68,6 +68,28 @@ Square's rule is: the same key and the same request return the original payment;
 
 Use the sandbox nonce `cnon:card-nonce-declined` only in a mock or in a future explicit sandbox experiment. Square answers `CreatePayment` with HTTP 400 and `GENERIC_DECLINE`. This client maps that, and Square's other payment-method errors, to `square_sandbox_declined`. The payment is not completed. Automated tests cover that response without a network call.
 
+## Reconciliation contract
+
+Phase 7E.9E requires a successful HTTP 2xx response, following the existing sandbox client's HTTP contract, before interpreting payment data. Every non-success status is rejected regardless of embedded `COMPLETED` fields. A nonempty or malformed error envelope and contradictory provider failure indicators also prevent reconciliation eligibility. Valid successful Payments API V2 responses still do not require a receipt URL. Retrieval failures never create a synthetic success response; the contract remains financially unsettled and does not persist a settlement.
+
+`netlify/lib/square-sandbox-adapter-contract.js` is the boundary a future settlement component can read. It is not selected by `getActivePaymentProvider()`. It does not insert `PaymentAttempt` or `LedgerEntry`, mark a booking paid, send a notification, or open the webhook event database.
+
+The contract follows the Payments API V2 Payment object for version `2026-09-16`: `id`, `status`, `amount_money.amount`, `amount_money.currency`, `location_id`, and `receipt_url` when Square includes it. That object does not document `merchant_id`. The contract does not require one and does not add one to a response. Square's Location object is where `merchant_id` is documented. This phase does not call RetrieveLocation.
+
+Merchant and location trust come from one injected server object, `trustedSandbox`, with `configuredBy: 'server'`, a synthetic merchant id, a synthetic location id, and `locationMerchantId` equal to that merchant. That pair is configuration, not a live merchant check. `liveMerchantVerification` stays false. A caller field for merchant, location, host, or environment is rejected and is not promoted into the trusted object. A later integration that needs Square to confirm the pair must call the Locations API with the server's own credentials and compare `Location.merchant_id` with the server merchant id. Signed webhook merchant identity stays in the receiver.
+
+A call also needs the test context `noncommercial-test`, the sandbox confirmation, purpose `sandbox_adapter_test`, and a server booking reference matching `TEST-`. A commercial `bookingId` is refused before any request. The reference is echoed on the result and is not sent to Square. `reference_id` on a Payment is not adopted. `bookingAssociationPersisted` stays false. A future settlement step has to write its own payment-to-booking association before it can settle. This phase does not write one.
+
+The amount must be a positive integer number of cents and the currency must be `USD`. The contract does not apply the sandbox client's 100000-cent ceiling. That ceiling is a synthetic exercise limit inside `SquareSandboxProvider`, not a Cardetail1 price. Commercial amounts have to come from server-side pricing and an authorized obligation. This phase does not change commercial prices and does not remove the sandbox client's own cap.
+
+`providerCompleted` is true only when Square status is `COMPLETED` and payment id, amount, currency, and trusted location all match. `eligibleForReconciliation` is true in that same case. `financiallySettled`, `settled`, and `paid` stay false. `APPROVED` is authorized only. `PENDING`, `CANCELED`, and `FAILED` are not eligible. An unknown status is not successful. An HTTP 2xx response is not itself a settlement. No financial writer is attached.
+
+`receipt_url` is optional metadata. A missing receipt on a completed V2 payment does not block eligibility. When the field is present it must be an `https` URL on `squareupsandbox.com` (or a subdomain), with a `/receipt/` path and no user info, query, or fragment. The contract does not fetch that URL, does not copy it into the result, and does not treat the domain as a substitute for the API response. Any other URL is `square_sandbox_receipt_rejected`.
+
+Idempotency uses the caller key that the sandbox client already validates. The same key and same body can return the same mock payment. The same key with a different amount returns Square's idempotency conflict and does not settle. A different currency is refused locally, before a request, because this sandbox contract is USD-only. A timeout stays `outcomeUnknown`. `idempotencyDurable` is false: the mock is not a database of operation ids. Future payment operations have to persist that identity before financial settlement. No migration is added here.
+
+The contract and the Square Sandbox webhook receiver stay separate. They can later be compared, without either calling the other, on payment id, trusted location id, trusted merchant id, amount in cents, currency, and Square status. The receiver's merchant id comes from the signed event. This contract's merchant id comes from server configuration. Neither side writes the commercial ledger.
+
 ## Current limits
 
 - Production payments are not implemented.
