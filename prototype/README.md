@@ -6,10 +6,11 @@
 
 | Portal | URL |
 |--------|-----|
-| **📱 Mobile hub** | https://deploy-preview-222--cardetail1.netlify.app/portal-prototype |
-| Customer | https://deploy-preview-222--cardetail1.netlify.app/prototype/customer.html |
-| Technician | https://deploy-preview-222--cardetail1.netlify.app/prototype/technician.html |
-| Admin | https://deploy-preview-222--cardetail1.netlify.app/prototype/admin.html |
+| **📱 Mobile hub** | `/portal-prototype` |
+| **Ops Command (mobile)** | `/prototype/ops-command.html` |
+| Customer | `/prototype/customer.html` |
+| Technician | `/prototype/technician.html` |
+| Admin | `/prototype/admin.html` |
 
 Short URL: `/portal-prototype` → mobile hub (after merge/deploy).
 
