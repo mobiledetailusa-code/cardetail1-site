@@ -648,6 +648,11 @@ describe('booking persist regression: version, stripe, incomplete repair', () =>
         data.set(key, structuredClone(value));
         return { modified: true };
       },
+      // The occupancy fallback is strict: a store that cannot list is a failed
+      // verification (503), not an empty store.
+      async list() {
+        return { blobs: [...data.keys()].map((key) => ({ key })) };
+      },
     };
     const prior = {
       DRAFT_TOKEN_SECRET: process.env.DRAFT_TOKEN_SECRET,

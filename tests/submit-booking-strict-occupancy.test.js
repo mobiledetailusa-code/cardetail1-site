@@ -44,6 +44,12 @@ const SUNDAY = nextWeekday('2099-06-01', 0);
 const PLAIN_SUNDAY = nextWeekday('2099-06-15', 0);
 const CLOSED_TUESDAY = nextWeekday('2099-06-22', 2);
 
+// CI shares one Postgres across test files and the indexed finalize path
+// matches duplicates through the identity mirror, so identities are unique per run.
+const RUN = Math.floor(Math.random() * 100000);
+const phoneFor = (n) => `201${2000000 + RUN * 20 + n}`;
+const emailFor = (n) => `strict-occupancy-${RUN}-${n}@example.com`;
+
 function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
@@ -139,8 +145,8 @@ function requestPayload(overrides = {}) {
   return {
     firstName: 'Strict',
     lastName: 'Occupancy',
-    phone: '2015550160',
-    email: 'strict@example.com',
+    phone: phoneFor(0),
+    email: emailFor(0),
     address: '1 Main St, Newark, NJ',
     zipCode: '07102',
     preferredDate: DATE,
@@ -311,7 +317,7 @@ describe('submit-booking strict occupancy fallback', () => {
       const second = await createDraft();
       assert.equal(second.status, 200, second.body.error);
       store.data.set('CD1-TWO', bookedOn('CD1-TWO', DATE, TIME));
-      const third = await createDraft({ phone: '2015550161', email: 'third@example.com' });
+      const third = await createDraft({ phone: phoneFor(1), email: emailFor(1) });
       assert.equal(third.status, 409);
       assert.equal(third.body.error, 'booking_slot_unavailable');
     });
@@ -434,8 +440,8 @@ describe('submit-booking strict occupancy fallback', () => {
       store.failing.add('CD1-SEED0000');
       const results = await Promise.all([
         createDraft(),
-        createDraft({ phone: '2015550162', email: 'b@example.com' }),
-        createDraft({ phone: '2015550163', email: 'c@example.com' }),
+        createDraft({ phone: phoneFor(2), email: emailFor(2) }),
+        createDraft({ phone: phoneFor(3), email: emailFor(3) }),
       ]);
       for (const r of results) assertUnverified(r, 'concurrent');
       assert.equal(store.drafts().length, 0);
@@ -466,7 +472,7 @@ describe('submit-booking strict occupancy fallback', () => {
       const ok = await createDraft({ preferredDate: SUNDAY });
       assert.equal(ok.status, 200, ok.body.error);
       store.failing.add('CD1-SEED0001');
-      assertUnverified(await createDraft({ preferredDate: SUNDAY, phone: '2015550164', email: 'd@example.com' }), 'opened Sunday');
+      assertUnverified(await createDraft({ preferredDate: SUNDAY, phone: phoneFor(4), email: emailFor(4) }), 'opened Sunday');
     });
 
     it('a plain Sunday, an explicitly closed date and a holiday are refused regardless of occupancy', async () => {
