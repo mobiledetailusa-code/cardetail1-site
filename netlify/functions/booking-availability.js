@@ -17,7 +17,7 @@ const {
 } = require('../lib/operational-availability');
 const { buildOccupancyMap, hasSlotConflict, startFitsDemand, pickEligibleStart } = require('../lib/booking-schedule');
 const { resolveOperationalSlot, arrivalWindowForSlot } = require('../lib/arrival-windows');
-const { listBookingsForSlotLock } = require('../lib/ops-db');
+const { listBookingsForSlotLockStrict } = require('../lib/ops-db');
 const { enforcePublicRateLimit } = require('../lib/public-rate-limit');
 
 const MAX_NEARBY_LIMIT = 8;
@@ -63,19 +63,66 @@ function demandFromQuery(q) {
   };
 }
 
+/** Bound on the legacy full-store scan (same default as submit-booking). */
+const DEFAULT_OCCUPANCY_SCAN_TIMEOUT_MS = 8000;
+
+function occupancyScanTimeoutMs(env = process.env) {
+  const raw = env.SLOT_SCAN_TIMEOUT_MS;
+  if (raw != null && String(raw).trim() !== '') {
+    const n = Math.round(Number(raw));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return DEFAULT_OCCUPANCY_SCAN_TIMEOUT_MS;
+}
+
+function withTimeout(promise, ms) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('occupancy_scan_timeout')), ms);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+  });
+  return Promise.race([promise, timeout]).finally(() => { if (timer) clearTimeout(timer); });
+}
+
+/**
+ * Occupancy for recovery suggestions. Fails closed: when neither the slot
+ * index nor a complete, bounded store scan can answer, the result is
+ * { ok: false } — never an empty map that would make occupied windows look
+ * free. The index answers all requested dates or nothing (one failed date
+ * fails the whole read), so partial occupancy is never returned.
+ */
 async function occupancyForDates(dates) {
-  let occupancy = {};
+  let indexReason = null;
   try {
     const { indexedOccupancyForDates } = require('../lib/slot-index');
     const indexed = await indexedOccupancyForDates(dates);
-    if (indexed.ok) {
-      occupancy = indexed.occupancy;
-    } else {
-      const bookings = await listBookingsForSlotLock().catch(() => []);
-      occupancy = buildOccupancyMap(bookings);
-    }
-  } catch (_) { /* recovery still works without occupancy */ }
-  return occupancy;
+    if (indexed.ok) return { ok: true, occupancy: indexed.occupancy, source: 'index' };
+    indexReason = indexed.reason || 'index_unavailable';
+  } catch (err) {
+    indexReason = 'index_threw';
+  }
+  try {
+    const bookings = await withTimeout(listBookingsForSlotLockStrict(), occupancyScanTimeoutMs());
+    return { ok: true, occupancy: buildOccupancyMap(bookings), source: 'scan' };
+  } catch (err) {
+    console.warn('[booking-availability] occupancy_unverified', {
+      index: indexReason,
+      scan: err && err.message ? String(err.message).slice(0, 120) : 'scan_failed',
+    });
+    return { ok: false, reason: 'occupancy_unverified' };
+  }
+}
+
+/** Customer-safe message when live openings cannot be verified. */
+const OCCUPANCY_UNVERIFIED_MESSAGE = 'We could not check which times are still open right now, so no time was suggested. Please try again in a minute, or call or text (551) 389-3986 and we will book you directly.';
+
+function occupancyUnverified() {
+  return publicJson(503, {
+    ok: false,
+    error: 'booking_verification_unavailable',
+    retryable: true,
+    userMessage: OCCUPANCY_UNVERIFIED_MESSAGE,
+  });
 }
 
 /** The ISO days findNearbyOpenings can reach, so the slot index is read once per day. */
@@ -147,7 +194,9 @@ exports.handler = async (event) => {
         fallback: DEFAULT_NEARBY_HORIZON_DAYS,
       });
       const demand = demandFromQuery(q);
-      const occupancy = await occupancyForDates(horizonDates(fromDate, horizonDays));
+      const occ = await occupancyForDates(horizonDates(fromDate, horizonDays));
+      if (!occ.ok) return occupancyUnverified();
+      const occupancy = occ.occupancy;
       const openings = findNearbyOpenings(fromDate, config, {
         limit,
         horizonDays,
@@ -177,7 +226,9 @@ exports.handler = async (event) => {
       if (!resolved.ok) {
         return publicJson(200, { ok: true, available: false, error: resolved.error });
       }
-      const occupancy = await occupancyForDates(horizonDates(date, 7));
+      const occ = await occupancyForDates(horizonDates(date, 7));
+      if (!occ.ok) return occupancyUnverified();
+      const occupancy = occ.occupancy;
       const picked = pickEligibleStart(date, resolved.eligible, {
         durationMinutes: demand.durationMinutes,
         companionInterior: demand.companionInterior,
@@ -223,7 +274,7 @@ exports.handler = async (event) => {
         if (indexed.ok) {
           conflict = indexed.conflict;
         } else {
-          const bookings = await listBookingsForSlotLock().catch(() => []);
+          const bookings = await withTimeout(listBookingsForSlotLockStrict(), occupancyScanTimeoutMs());
           conflict = hasSlotConflict(
             bookings,
             v.preferredDate,
@@ -233,7 +284,11 @@ exports.handler = async (event) => {
             config
           );
         }
-      } catch (_) { /* soft */ }
+      } catch (err) {
+        // Fail closed: an unverifiable slot is never reported as available.
+        console.warn('[booking-availability] check_slot_unverified', err && err.message ? String(err.message).slice(0, 120) : 'failed');
+        return occupancyUnverified();
+      }
       return publicJson(200, {
         ok: true,
         available: !conflict,
