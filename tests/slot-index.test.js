@@ -356,7 +356,7 @@ describe('checkout wiring', () => {
   it('submit-booking prefers the index and keeps the scan as fallback', () => {
     const src = read('netlify/functions/submit-booking.js');
     assert.match(src, /indexedSlotConflict/);
-    assert.match(src, /listBookingsForSlotLock\(\)\.catch/, 'fallback scan must remain');
+    assert.match(src, /listBookingsForSlotLockStrict\(\{ store: scoped \}\)\.catch/, 'strict fallback scan must remain');
   });
 
   it('submit-booking indexes the draft hold before writing the draft record', () => {

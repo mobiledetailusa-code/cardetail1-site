@@ -220,8 +220,8 @@ describe('finalize wiring', () => {
 
   it('does not convert a slot-lock scan failure into an empty list', () => {
     const src = readSubmit();
-    assert.match(src, /listBookingsForSlotLock\(\)\.catch/);
-    assert.doesNotMatch(src, /listBookingsForSlotLock\(\)\.catch\(\(\)\s*=>\s*\[\]\)/);
+    assert.match(src, /listBookingsForSlotLockStrict\(\{ store: scoped \}\)\.catch/);
+    assert.doesNotMatch(src, /listBookingsForSlotLock(Strict)?\([^)]*\)\.catch\(\(\)\s*=>\s*\[\]\)/);
     assert.match(src, /booking_verification_unavailable/);
   });
 
