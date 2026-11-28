@@ -319,6 +319,9 @@
   function messageForScheduleError(error, userMessage) {
     if (userMessage) return userMessage;
     if (error === 'availability_unavailable') return availabilityUnavailableMessage();
+    if (error === 'booking_verification_unavailable') {
+      return 'We could not check which times are still open right now. Please try again in a minute, or call or text (551) 389-3986 and we will book you directly.';
+    }
     if (error === 'ceramic_duration_exceeds_day') return DURATION_MSG;
     if (error === 'booking_slot_unavailable') return SLOT_TAKEN_MSG;
     if (error === 'booking_date_unavailable') return ADVANCE_UNAVAILABLE_MSG;
@@ -644,7 +647,7 @@
     }
     const data = await window.BkAvailability.selection(iso, win, scheduleDemand());
     if (token !== reconcileToken) return { ok: true, stale: true };
-    if (data && data.error === 'availability_unavailable') {
+    if (data && (data.error === 'availability_unavailable' || data.error === 'booking_verification_unavailable')) {
       // Fail closed: the server could not read the schedule, so the customer
       // cannot continue on a date nobody confirmed.
       const message = messageForScheduleError(data.error, data.userMessage);
@@ -935,6 +938,19 @@
         ? await window.BkAvailability.nearby(from, act === 'earliest' ? 3 : 6, demand)
         : { openings: [] };
       const list = document.getElementById('bk-nearby-list');
+      if (data && data.ok === false && (data.error === 'booking_verification_unavailable' || data.error === 'availability_unavailable')) {
+        // Fail closed: never present unverified openings, and do not claim
+        // that nothing is open — the check itself could not run.
+        if (!list) return;
+        list.hidden = false;
+        const p = document.createElement('p');
+        p.className = 'bk-field-help';
+        p.setAttribute('role', 'alert');
+        p.textContent = messageForScheduleError(data.error, data.userMessage);
+        list.textContent = '';
+        list.appendChild(p);
+        return;
+      }
       const openings = ((data && data.openings) || []).filter((o) => (
         slotFitsDuration(o.preferredDate, o.preferredTime, slotsForIso(o.preferredDate), demand)
       ));

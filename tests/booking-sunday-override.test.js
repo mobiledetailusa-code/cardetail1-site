@@ -290,6 +290,14 @@ async function mountStack(cfg, opts = {}) {
             if (opts.snapshotStatus) return json({ ok: false }, opts.snapshotStatus);
             return json(projectPublicAvailability(cfg, { now: NOW }));
           }
+          if (opts.occupancyDown && (action === 'selection' || action === 'nearby')) {
+            return json({
+              ok: false,
+              error: 'booking_verification_unavailable',
+              retryable: true,
+              userMessage: 'We could not check which times are still open right now, so no time was suggested. Please try again in a minute, or call or text (551) 389-3986 and we will book you directly.',
+            }, 503);
+          }
           if (action === 'selection') return json(opts.selection ? opts.selection(u.searchParams) : { ok: false });
           if (action === 'nearby') {
             const openings = findNearbyOpenings(u.searchParams.get('fromDate'), cfg, {
@@ -527,4 +535,34 @@ if (JSDOM) {
     await new Promise((r) => setTimeout(r, 20));
     assert.match(s.scheduleMsg(), /Live scheduling is temporarily unavailable/);
   });
+}
+
+// ─── Unverified occupancy: recovery never suggests a time (all 13 pages) ──
+
+if (JSDOM) {
+  for (const page of BOOKING_PAGES) {
+    test(`occupancy ${page}: unverified occupancy blocks the window and recovery suggests nothing`, async () => {
+      const s = await mountStack(config(), { page, occupancyDown: true });
+      // The operational calendar itself is still known: the date is offered.
+      eq(s.window.bkSlotsFor(D.openSun), WEEKEND);
+      // Primary date: the server could not verify the window → blocked.
+      s.choose(D.openSun, '08:00-11:00');
+      await new Promise((r) => setTimeout(r, 30));
+      assert.match(s.scheduleMsg(), /could not check which times are still open/);
+      // Recovery "nearby": message, no suggestion buttons, no "nothing open" claim.
+      const panel = s.doc.getElementById('bk-slot-recovery');
+      assert.ok(panel, 'recovery panel exists');
+      panel.classList.add('open');
+      s.doc.querySelector('#bk-slot-recovery button[data-act="nearby"]').dispatchEvent(new s.window.Event('click', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 40));
+      const list = s.doc.getElementById('bk-nearby-list');
+      assert.equal(list.querySelectorAll('button[data-date]').length, 0);
+      assert.match(list.textContent, /could not check which times are still open/);
+      assert.doesNotMatch(list.textContent, /No nearby openings found/);
+      // Alternate date keeps calendar validation (structural, no hold).
+      s.choose(D.weekday, 'anytime');
+      s.setAlternate(D.closedSun, 'anytime');
+      assert.equal(s.window.bkValidateScheduleSelection().ok, false);
+    });
+  }
 }

@@ -374,6 +374,29 @@ async function listRawBookingsStrict(options = {}) {
  * Unlike listRawBookings, this includes soft-held drafts so draft creation
  * and finalize share the same conflict authority.
  */
+/**
+ * Strict variant of listBookingsForSlotLock for read paths that must not treat
+ * a failed or partial read as "no bookings": listing errors, a truncated
+ * listing and any unreadable record throw instead of being skipped.
+ */
+async function listBookingsForSlotLockStrict() {
+  const { isActiveBookingForSlotLock } = require('./booking-schedule');
+  const store = await bookingStore();
+  const listed = await listBlobKeysStrict(store);
+  if (listed.truncated) throw new Error('booking_store_listing_truncated');
+  const records = await fetchBlobRecordsStrict(store, listed.blobs);
+  const out = [];
+  for (const raw of records) {
+    if (!raw) continue;
+    const adapted = adaptHistoricalBooking(raw);
+    if (!adapted.ok || !adapted.booking) continue;
+    const booking = healStickyDraftFlags(adapted.booking);
+    if (!isActiveBookingForSlotLock(booking)) continue;
+    out.push(booking);
+  }
+  return out;
+}
+
 async function listBookingsForSlotLock() {
   const { isActiveBookingForSlotLock } = require('./booking-schedule');
   const store = await bookingStore();
@@ -408,6 +431,7 @@ module.exports = {
   BLOB_UNION_MAX_PAGES,
   BLOB_UNION_MAX_KEYS,
   listBookingsForSlotLock,
+  listBookingsForSlotLockStrict,
   normalizeBookingKey,
   normalizePhone,
   phonesMatch,
