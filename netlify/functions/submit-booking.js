@@ -99,14 +99,14 @@ const {
 const {
   formatSiteAccessLines,
 } = require('../lib/site-access');
-const { validateBookingSchedule, hasSlotConflict, isActiveBookingForSlotLock, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
+const { validateBookingSchedule, hasSlotConflict, spannedSlotTimes, planCombinedAppointment, bookingHasInteriorCompanion } = require('../lib/booking-schedule');
 const {
   applyCeramicBooking,
   retainStoredCeramicEligibility,
   retainStoredCeramicPayment,
   ceramicPayAtServiceViolation,
 } = require('../lib/ceramic-coating');
-const { listBookingsForSlotLock, normalizePhone } = require('../lib/ops-db');
+const { listBookingsForSlotLockStrict, normalizePhone } = require('../lib/ops-db');
 const { indexedSlotConflict, syncSlotIndex, reserveBookedSpan, bookedSpanReady } = require('../lib/slot-index');
 const { TERMS_POLICY_VERSION, stampAfterServiceChargeConsent } = require('../lib/customer-policy');
 const { findDuplicateBooking } = require('../lib/booking-history');
@@ -185,56 +185,16 @@ function withSlotScanTimeout(promise) {
   });
 }
 
-async function listRequestStoreBlobs(store) {
-  if (!store || typeof store.list !== 'function') {
-    throw verificationUnavailable();
-  }
-  try {
-    const paged = await store.list({ paginate: true });
-    if (paged && typeof paged[Symbol.asyncIterator] === 'function') {
-      const blobs = [];
-      for await (const page of paged) {
-        blobs.push(...((page && page.blobs) || []));
-      }
-      return blobs;
-    }
-    if (paged && Array.isArray(paged.blobs)) return paged.blobs;
-  } catch (err) {
-    // Non-paginated list is the fallback only when paginate is unsupported.
-    // A rejected list() is still a failed verification, not an empty store.
-  }
-  try {
-    const listing = await store.list();
-    return (listing && listing.blobs) || [];
-  } catch (err) {
-    throw verificationUnavailable(err);
-  }
-}
-
-function toSlotLockBookings(records) {
-  const { adaptHistoricalBooking } = require('../lib/historical-adapter');
-  const out = [];
-  for (const raw of records || []) {
-    if (!raw) continue;
-    const adapted = adaptHistoricalBooking(raw);
-    if (!adapted.ok || !adapted.booking) continue;
-    if (!isActiveBookingForSlotLock(adapted.booking)) continue;
-    out.push(adapted.booking);
-  }
-  return out;
-}
-
+/**
+ * Fallback occupancy when the slot index cannot answer. Uses the single strict
+ * authority from ops-db (PR #434): a failed or partial listing, a listing that
+ * reaches the bounded key limit, an unreadable record or the scan budget all
+ * throw booking_verification_unavailable. Never "no bookings".
+ */
 async function loadSlotLockBookings() {
   const store = await blobsStore('cd1-bookings');
-  if (store && typeof store.list === 'function') {
-    const { fetchBlobRecords } = require('../lib/tech-security');
-    const blobs = await withSlotScanTimeout(listRequestStoreBlobs(store));
-    const records = await withSlotScanTimeout(fetchBlobRecords(store, blobs));
-    return toSlotLockBookings(records);
-  }
-  // Keep `.catch` on the named scan so checkout wiring still sees the fallback,
-  // but never convert failure into "no bookings".
-  return withSlotScanTimeout(listBookingsForSlotLock().catch((err) => {
+  const scoped = store && typeof store.list === 'function' ? store : null;
+  return withSlotScanTimeout(listBookingsForSlotLockStrict({ store: scoped }).catch((err) => {
     throw verificationUnavailable(err);
   }));
 }

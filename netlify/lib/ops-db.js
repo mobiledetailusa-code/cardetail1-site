@@ -378,10 +378,15 @@ async function listRawBookingsStrict(options = {}) {
  * Strict variant of listBookingsForSlotLock for read paths that must not treat
  * a failed or partial read as "no bookings": listing errors, a truncated
  * listing and any unreadable record throw instead of being skipped.
+ *
+ * `store` lets a caller with its own handle on cd1-bookings (submit-booking)
+ * share this one strict authority instead of keeping a second scan.
+ * The scan is bounded by BLOB_UNION_MAX_KEYS: a listing that reaches the bound
+ * is treated as truncated and throws, never as a complete answer.
  */
-async function listBookingsForSlotLockStrict() {
+async function listBookingsForSlotLockStrict({ store: storeOverride = null } = {}) {
   const { isActiveBookingForSlotLock } = require('./booking-schedule');
-  const store = await bookingStore();
+  const store = storeOverride || await bookingStore();
   const listed = await listBlobKeysStrict(store);
   if (listed.truncated) throw new Error('booking_store_listing_truncated');
   const records = await fetchBlobRecordsStrict(store, listed.blobs);
