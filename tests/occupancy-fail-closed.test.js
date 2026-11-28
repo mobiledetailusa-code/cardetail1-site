@@ -187,6 +187,11 @@ for (const [name, stores] of UNVERIFIABLE) {
 }
 
 test('a hung store scan times out into 503 instead of hanging the function', async (t) => {
+  // The production timeout timer is unref()'d (it must never keep a function
+  // alive). In this test nothing else holds the event loop while the fake
+  // store hangs, so keep one referenced handle until the request settles.
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
   const handler = setup(t, {
     index: indexStore([], { failAll: true }),
     store: { list() { return new Promise(() => {}); } },
